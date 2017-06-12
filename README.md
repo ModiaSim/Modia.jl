@@ -11,16 +11,17 @@ Component models are defined by @model macros. Such models contain definition of
 
 "Hello world" Modia model:
 
-    # T*dx/dt + x = u(t)
-    #
-    using Modia
-    @model FirstOrder begin
-       x = Variable(start=1)
-       T = Parameter(0.5, "Time constant")
-       u = 2.0 # Same as Parameter(2.0)
-    @equations begin
-       T*der(x) + x = u
-       end
-    end
-    result = simulateModel(FirstOrder, linspace(0,2,500))
-
+```julia
+# T*dx/dt + x = u(t)
+#
+using Modia
+@model FirstOrder begin
+   x = Variable(start=1)
+   T = Parameter(0.5, "Time constant")
+   u = 2.0 # Same as Parameter(2.0)
+@equations begin
+   T*der(x) + x = u
+   end
+end
+result = simulateModel(FirstOrder, linspace(0,2,500))
+```
