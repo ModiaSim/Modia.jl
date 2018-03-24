@@ -1,5 +1,5 @@
 # Modia
-Modia is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**. The first version of Modia is planned to be uploaded in Summer 2017. Papers about Modia:
+Modia is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**. The first version of Modia is planned to be uploaded in Summer 2018. Papers about Modia:
 
 - [Overview about Modia](http://link.springer.com/chapter/10.1007%2F978-3-319-47169-3_15) ([ISoLA conference Oct. 2016](http://www.isola-conference.org/isola2016/)).
 - [Overview and new features in Modia](https://www.modelica.org/events/modelica2017/proceedings/html/submissions/ecp17132693_ElmqvistHenningssonOtter.pdf) ([12th International Modelica Conference, May 2017](https://www.modelica.org/events/modelica2017/proceedings/html/index.html)).
