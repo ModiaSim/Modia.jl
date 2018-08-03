@@ -50,7 +50,7 @@ julia> Pkg.clone("https://github.com/ModiaSim/Modia.jl")
 ### Examples
 ![Current Controller](https://github.com/ModiaSim/Modia.jl/blob/master/docs/CurrentController.png "Multi-domain model: Current Controller")
 
-![Cauer Low Pass Filter](https://bitbucket.org/Elmqvist/modia/src/master/docs/images/CauerLowPassOPV.png "Electrical model: Cauer Low Pass Filter")
+![Cauer Low Pass Filter](https://github.com/ModiaSim/Modia.jl/blob/master/docs/CauerLowPassOPV.png "Electrical model: Cauer Low Pass Filter")
 
 
 To run examples:
