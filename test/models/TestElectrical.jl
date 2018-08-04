@@ -3,7 +3,6 @@ module TestElectrical
 using ModiaMath.plot
 using Modia
 using Modia.Electric
-using SIUnits
 using Base.Test
 
 result = simulate(Resistor, 1)

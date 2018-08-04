@@ -2,7 +2,6 @@ module TestModelsWithError
 
 using Modia
 using Modia.Electric
-using SIUnits
 
 println("MODELS WITH ERRORS")
 println()

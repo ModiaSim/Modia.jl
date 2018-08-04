@@ -5,7 +5,6 @@ println("\nTestArrayOfComponents: Demonstrating the handling of arrays of compon
 using Modia
 using Modia.Electric
 using ModiaMath.plot
-using SIUnits
 using Base.Test
 
 @model LPfilter begin

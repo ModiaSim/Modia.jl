@@ -4,7 +4,6 @@ println("\nRunLargeTest: Demonstrates arrays of components and timing.")
 using Modia
 using Base.Test
 using Modia.Electric
-using SIUnits
 
 @testset "RunLargeTests" begin
 
