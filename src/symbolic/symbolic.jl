@@ -8,7 +8,7 @@ include("ExactlyRemoveSingularities.jl")
 include("StateSelection.jl")
 
 include("DAEquations/SymbolicTransform.jl")
-include("DAEquations/Basicstructuraltransform.jl")
+include("DAEquations/BasicStructuralTransform.jl")
 
 include("StructuralTransform.jl")
 
