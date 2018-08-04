@@ -6,7 +6,6 @@ using ModiaMath.plot
 
 using Modia
 using Modia.Electric
-using SIUnits
 
 @model LPfilter begin
   R=Resistor(R=100.0)
