@@ -18,9 +18,7 @@ import ..Instantiation: Symbolic, Der, Instance, AbstractDict, VariableDict, Var
 import ..Instantiation: Variability, constant, parameter, discrete, continuous
 
 import ModiaMath #0.7
-using SIUnits
-using SIUnits.ShortUnits
-import Unitful
+using Unitful
 using ..ModiaLogging
 
 const PrintJSONsolved = false 
@@ -134,7 +132,7 @@ function code_eliminated_func(fname, unpack, eliminated_computations, vars, x::S
         T, dims = var.typ, get_dims(var)
 #        if T == A; T = Float64; end
 #        if T != Any || T != Float64; T = Any; end  # Hack to handle units
-        if typeof(T) <: SIUnits.SIUnit; T = Float64; end # To handle units
+        if typeof(T) <: Unitful.Unitlike; T = Float64; end # To handle units
 #        @show T, string(var)
         
         if !isempty(dims);  T = Array{T,length(dims)};  end

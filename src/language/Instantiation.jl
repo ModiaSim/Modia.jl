@@ -29,9 +29,7 @@ using DataStructures.OrderedDict
 end
 
 import ModiaMath #0.7
-using SIUnits
-using SIUnits.ShortUnits
-import Unitful
+using Unitful
 using ..ModiaLogging 
 #using ..Synchronous
 
@@ -52,7 +50,7 @@ mutable struct Variable  # {T,n}
     typ
     size
     value #  ::T
-    unit::SIUnits.SIUnit
+    unit::Unitful.Unitlike
     displayUnit
     min
     max
@@ -67,7 +65,7 @@ end
 # The variability, type and info are added as attributes in the type for uniform treatment. 
 # Input/output, etc should also be added.
 
-Variable(;value=nothing, info="", unit=if typeof(value) <: SIUnits.SIQuantity; SIUnits.unit(value) else SIPrefix end, 
+Variable(;value=nothing, info="", unit=if typeof(value) <: Unitful.Quantity; Unitful.unit(value) else Unitful.NoUnits end, 
     displayUnit=unit, 
     min=nothing, max=nothing, start=nothing, fixed::Bool=false, nominal=nothing,
     variability=continuous, T=if value==nothing; Any else typeof(value) end, size=if value==nothing; nothing else Base.size(value) end, flow::Bool=false, state::Bool=true, property=general) = 
@@ -99,7 +97,7 @@ function Base.show(io::IO, v::Variable)
     print(io, "start = ", v.start)
     first = false
   end
-  if v.unit != SIPrefix
+  if v.unit != NoUnits
     if ! first; print(io, ", ") end
     print(io, "unit = ", v.unit)
     first = false

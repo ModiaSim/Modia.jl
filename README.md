@@ -92,7 +92,6 @@ The version released now is partial since certain prototype functionalities need
 ### Enhance and refactor prototype codes for:
 
 - Alias handling
-- Unit handling (change to use Unitful.jl instead of SIUnits.jl)
 - Handle overdetermined equations
 - Introduction of partial and block attribute to models 
 - Automatic state selection
