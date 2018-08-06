@@ -1,9 +1,23 @@
 """
-Modia module with electric component models (inspired from Modelica Standard Library.
+Modia module with electric component models (inspired from the Modelica Standard Library).
 
 * Developer: Hilding Elmqvist, Mogram AB  
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
+
+The building blocks for electric components are:
+
+- `Pin` - The main connector representing an electrical node with variables 
+    `v` and `i`.
+- `OnePort` - Base model for an electric device with two `Pin`s with variables 
+    `v`, `i`, `p`, and `n`.
+
+The following functions define variables with appropriate units:
+
+- `Voltage()` - Electric potential
+- `Current()` - The main flow quantity
+- `Resistance()`
+- `Capacitance()`
 
 """
 module Electric
@@ -19,21 +33,40 @@ export Pin, Ground, OnePort, Resistor, Capacitor, Inductor,
   ConstantVoltage, StepVoltage, SignalVoltage, SineVoltage, IdealOpAmp3Pin, IdealDiode,
   Voltage, Current, Resistance, Capacitance
 
+"Electric potential, volts"
 Voltage(; args...) = Variable(;T=Volt, size=(), start=0.0, args...)
+"Electric current, amperes"
 Current(; args...) = Variable(;T=Ampere, size=(), start=0.0, args...)
+"Electric resistance, ohms"
 Resistance(; args...) = Variable(;T=Ohm, size=(), args...)
+"Electric capacitance, farads"
 Capacitance(; args...) = Variable(;T=Farad, size=(), args...)
-  
+
 @model Pin1 begin
   v=Float()
   i=Float(flow=true)
 end 
 
+"""
+An electric node for connections.
+
+## Variables 
+
+- `v` : node voltage
+- `i` : current into the node (flow variable)
+"""
 @model Pin begin
   v=Voltage()
   i=Current(flow=true)
 end 
 
+"""
+Grounded `Pin` with zero voltage.
+
+## Variables 
+
+- `p` : `Pin`
+"""
 @model Ground begin
   p=Pin()
 @equations begin
@@ -53,6 +86,16 @@ end
   end
 end 
 
+"""
+Base model for an electric device with two `Pin`s.
+
+## Variables 
+
+- `v` : voltage across the device
+- `i` : current through the device
+- `p` : positive `Pin`
+- `n` : negative `Pin`
+"""
 @model OnePort begin
 #  v=Voltage()
 #  i=Current()
@@ -67,7 +110,18 @@ end
   end
 end 
 
-@model Resistor begin # Ideal linear electrical resistor
+"""
+Ideal linear electric resistor.
+
+## Variables 
+
+- `R` : resistance of the device
+- `v` : voltage across the device
+- `i` : current through the device
+- `p` : positive `Pin`
+- `n` : negative `Pin`
+"""
+@model Resistor begin
   @extends OnePort()
   @inherits i, v
   R=1 # Parameter(start=1.0) # undefined # Resistance
@@ -90,9 +144,20 @@ end
   end
 end 
 
-# Setting state=false for v does not work with extends.
+
+"""
+Ideal linear electric capacitor.
+
+## Variables 
+
+- `C` : capacitance of the device
+- `v` : voltage across the device
+- `i` : current through the device
+- `p` : positive `Pin`
+- `n` : negative `Pin`
+"""
 @model Capacitor begin
-  @extends OnePort(v=Float(start=0.0))
+  @extends OnePort(v=Float(start=0.0))  # Setting state=false for v does not work with extends.
   @inherits i, v
 #  C=Capacitance() # undefined
   C=undefined
@@ -116,11 +181,21 @@ end
   end
 end 
 
+"""
+Ideal linear electric inductor.
+
+## Variables 
+
+- `L` : inductance of the device
+- `v` : voltage across the device
+- `i` : current through the device
+- `p` : positive `Pin`
+- `n` : negative `Pin`
+"""
 @model Inductor begin
-    # Ideal linear electrical inductor
   @extends OnePort()
   @inherits i, v
-  L=Parameter()   # Inductance
+  L=Parameter()
   @equations begin 
   L*der(i) = v
   end
