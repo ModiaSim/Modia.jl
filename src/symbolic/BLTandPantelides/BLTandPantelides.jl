@@ -47,28 +47,28 @@ function augmentPath!(G, i, assign, vColour, eColour, vActive)
   end
   pathFound = false
   eColour[i] = true
-	# If a V-node j exists such that edge (i-j) exists and assign[j] == 0
+  # If a V-node j exists such that edge (i-j) exists and assign[j] == 0
   for j in G[i]
-	  if vActive[j] && assign[j] == 0
+    if vActive[j] && assign[j] == 0
       pathFound = true
-		  assign[j] = i
-	    return pathFound
-	  end
-	end
-	
-	# For every j such that edge (i-j) exists and j is uncoloured
-	for j in G[i]
-	  if vActive[j] && ! vColour[j]
-		  vColour[j] = true
-			k = assign[j]
-			pathFound = augmentPath!(G, k, assign, vColour, eColour, vActive)
-			if pathFound 
-			  assign[j] = i
-				return pathFound
-			end
-		end
+      assign[j] = i
+      return pathFound
+    end
   end
-	return pathFound
+  
+  # For every j such that edge (i-j) exists and j is uncoloured
+  for j in G[i]
+    if vActive[j] && ! vColour[j]
+      vColour[j] = true
+      k = assign[j]
+      pathFound = augmentPath!(G, k, assign, vColour, eColour, vActive)
+      if pathFound 
+        assign[j] = i
+        return pathFound
+      end
+    end
+  end
+  return pathFound
 end
 
 
@@ -84,7 +84,7 @@ function augmentPathArray!(G::Array{Array{Int,1},1}, i::Tuple{Int,Int}, assign::
   end
   pathFound = false
   eColour[i[1]][i[2]] = true
-	# If a V-node j exists such that edge (i-j) exists and assign[j] == 0
+  # If a V-node j exists such that edge (i-j) exists and assign[j] == 0
   for j in G[i[1]]
 #  for j in reverse(G[i[1]])
     if vActive[j]
@@ -99,13 +99,13 @@ function augmentPathArray!(G::Array{Array{Int,1},1}, i::Tuple{Int,Int}, assign::
           return pathFound
         end
       end
-	  end
-	end
-	
-	# For every j such that edge (i-j) exists and j is uncoloured
-	for j in G[i[1]]
-#	for j in reverse(G[i[1]])
-	  if vActive[j] 
+    end
+  end
+  
+  # For every j such that edge (i-j) exists and j is uncoloured
+  for j in G[i[1]]
+#  for j in reverse(G[i[1]])
+    if vActive[j] 
       # Check for all elements of variable j
       for jj in 1:vLengths[j]
         if ! vColour[j][jj]
@@ -120,10 +120,10 @@ function augmentPathArray!(G::Array{Array{Int,1},1}, i::Tuple{Int,Int}, assign::
             return pathFound
           end
         end
-			end
-		end
+      end
+    end
   end
-	return pathFound
+  return pathFound
 end
 
 
@@ -164,11 +164,11 @@ of Scientific and Statistical Computing, 9(2), pp. 213–231 (1988).
 """
 function matching(G, M, vActive=fill(true,M))
   assign::Array{Int,1} = fill(0, M)
-	for i in 1:length(G)
+  for i in 1:length(G)
     eColour::Array{Bool,1} = fill(false, length(G))
     vColour::Array{Bool,1} = fill(false, M)
-	  pathFound = augmentPath!(G, i, assign, vColour, eColour, vActive)
-	end
+    pathFound = augmentPath!(G, i, assign, vColour, eColour, vActive)
+  end
   return assign
 end
 
@@ -176,13 +176,13 @@ function matchingArray(G::Array{Array{Int,1},1}, vActive::Array{Bool,1}, vLength
   local assign::Array{Array{Tuple{Int,Int},1},1} 
  
   assign = fillArrayOfArray((0,0), vLengths)
-	for i in 1:length(G)
+  for i in 1:length(G)
     eColour::Array{Array{Bool,1},1} = fillArrayOfArray(false, eLengths)
     vColour::Array{Array{Bool,1},1} = fillArrayOfArray(false, vLengths)
     for ii in 1:eLengths[i]
-	    pathFound = augmentPathArray!(G, (i,ii), assign, vColour, eColour, vActive, vLengths, eLengths)
+      pathFound = augmentPathArray!(G, (i,ii), assign, vColour, eColour, vActive, vLengths, eLengths)
     end
-	end
+  end
   return assign
 end
 
@@ -207,69 +207,69 @@ of Scientific and Statistical Computing, 9(2), pp. 213–231 (1988).
 function pantelides!(G, M, A)
   assign::Array{Int,1} = fill(0, M)
   B::Array{Int,1} = fill(0, length(G))
-	N = length(G)
-	N2 = N
-	for k in 1:N2
-	  pathFound = false
-	  i = k
-		while ! pathFound
-		  # Delete all V-nodes with A[.] != 0 and all their incidence edges from the graph
-			vActive::Array{Bool,1} = [a == 0 for a in A]
-			# Designate all nodes as "uncoloured"
+  N = length(G)
+  N2 = N
+  for k in 1:N2
+    pathFound = false
+    i = k
+    while ! pathFound
+      # Delete all V-nodes with A[.] != 0 and all their incidence edges from the graph
+      vActive::Array{Bool,1} = [a == 0 for a in A]
+      # Designate all nodes as "uncoloured"
       eColour::Array{Bool,1} = fill(false, length(G))
       vColour::Array{Bool,1} = fill(false, M)
-  	  pathFound = augmentPath!(G, i, assign, vColour, eColour, vActive)
-			if ! pathFound
+      pathFound = augmentPath!(G, i, assign, vColour, eColour, vActive)
+      if ! pathFound
         if log
           println("\nDifferentiate:")
         end
-			  # For every coloured V-node j do
-			  for j in 1:length(vColour)
-				  if vColour[j]
-					  M += 1
+        # For every coloured V-node j do
+        for j in 1:length(vColour)
+          if vColour[j]
+            M += 1
             if log
               println("New variable derivative: var($M) = der($j)")
             end
-						push!(A, 0)
-						A[j] = M
-						push!(assign, 0)
-					end
-				end
-				# For every coloured E-node l do
-				for l in 1:N
-				  if eColour[l]
-					  N += 1
+            push!(A, 0)
+            A[j] = M
+            push!(assign, 0)
+          end
+        end
+        # For every coloured E-node l do
+        for l in 1:N
+          if eColour[l]
+            N += 1
             if log
               println("New equation derivative:  equ($N) = DER($l)")
             end
-						# Create new E-node N
-						push!(G, copy(G[l]))
-						# Create edges from E-node N to all V-nodes j and A[j] such that edge (l-j) exists
-						for m in 1:length(G[l])
-						  j = G[l][m]
-						  if ! (A[j] in G[N])
-	  					  push!(G[N], A[j])
-							end
-						end
-						push!(B, 0)
-						# Set B[l] = N
-						B[l] = N
-					end
-				end
-				# For every coloured V-node j
-				for j in 1:length(vColour)
-				  if vColour[j]
+            # Create new E-node N
+            push!(G, copy(G[l]))
+            # Create edges from E-node N to all V-nodes j and A[j] such that edge (l-j) exists
+            for m in 1:length(G[l])
+              j = G[l][m]
+              if ! (A[j] in G[N])
+                push!(G[N], A[j])
+              end
+            end
+            push!(B, 0)
+            # Set B[l] = N
+            B[l] = N
+          end
+        end
+        # For every coloured V-node j
+        for j in 1:length(vColour)
+          if vColour[j]
             if log
               println("Assigning derivative of variable $(A[j]) to derivative of equation: $(B[assign[j]])")
             end
-					  assign[A[j]] = B[assign[j]]
-					end
-				end
+            assign[A[j]] = B[assign[j]]
+          end
+        end
         i = B[i]
-			end
-		end
-	end
-	return assign, A, B
+      end
+    end
+  end
+  return assign, A, B
 end
 
 function fillArrayOfArray(val, Sizes)
@@ -443,10 +443,10 @@ function pantelidesArray!(G::Array{Array{Int,1},1}, M::Int, A::Array{Int,1}, vLe
   
   assign = fillArrayOfArray((0,0), vLengths)
   B = fill(0, length(G))
-	N = length(G)
-	N2 = N
-	for k in 1:N2  ### Gives two split variables
-#	for k in N2:-1:1
+  N = length(G)
+  N2 = N
+  for k in 1:N2  ### Gives two split variables
+#  for k in N2:-1:1
     for ii in 1:eLengths[k]
 #    for ii in eLengths[k]:-1:1
       pathFound = false
@@ -511,7 +511,7 @@ function pantelidesArray!(G::Array{Array{Int,1},1}, M::Int, A::Array{Int,1}, vLe
             for jj in 1:vLengths[j]
               if vColour[j][jj]
 #              if any(vColour[j])
-#		    			  assign[A[j]] = B[assign[j]]   # Scalar version
+#                assign[A[j]] = B[assign[j]]   # Scalar version
                 assign[A[j]][jj] = (B[assign[j][jj][1]], assign[j][jj][2]) # Same element of the derivative array as in the original variable is assigned.
                 if log
                   println("Assigning derivative of variable ($(A[j]), $jj) to derivative of equation: $((B[assign[j][jj][1]], assign[j][jj][2]))")
@@ -521,10 +521,10 @@ function pantelidesArray!(G::Array{Array{Int,1},1}, M::Int, A::Array{Int,1}, vLe
           end
           i = B[i]
         end
-			end
-		end
-	end
-	return assign, A, B
+      end
+    end
+  end
+  return assign, A, B
 end
 
 const notOnStack = 1000000000
@@ -536,48 +536,48 @@ Tarjan, R. E. (1972), "Depth-first search and linear graph algorithms", SIAM Jou
 """
 function strongConnect(G, assign, v, nextnode, stack, components, lowlink, number)
 #  println("strongConnect: ", v)
-	
+  
   if v == 0 
-	  return nextnode
-	end
-		
+    return nextnode
+  end
+    
   nextnode += 1
   lowlink[v] = number[v] = nextnode
   push!(stack, v)
 
   for w in [assign[j] for j in G[v]] # for w in the adjacency list of v
-		if w > 0   # Is assigned
-  		if number[w] == 0 # if not yet numbered
-	  		nextnode = strongConnect(G, assign, w, nextnode, stack, components, lowlink, number)
-		  	lowlink[v] = min(lowlink[v], lowlink[w])
-  		else
-	  		if number[w] < number[v]
-				# (v, w) is a frond or cross-link
-				# if w is on the stack of points. Always valid since otherwise number[w]=notOnStack (a big number)
-		  		lowlink[v] = min(lowlink[v], number[w])
-			  end
-			end
-		end
+    if w > 0   # Is assigned
+      if number[w] == 0 # if not yet numbered
+        nextnode = strongConnect(G, assign, w, nextnode, stack, components, lowlink, number)
+        lowlink[v] = min(lowlink[v], lowlink[w])
+      else
+        if number[w] < number[v]
+        # (v, w) is a frond or cross-link
+        # if w is on the stack of points. Always valid since otherwise number[w]=notOnStack (a big number)
+          lowlink[v] = min(lowlink[v], number[w])
+        end
+      end
+    end
   end
-	
+  
   if lowlink[v] == number[v]
-	  # v is the root of a component
-		# start a new strongly connected component
+    # v is the root of a component
+    # start a new strongly connected component
 #    println("start a new strongly connected component")
 #    @show v lowlink[v] number[v]
 #    @show stack 
 #    @show number[v]
     comp = []
     repeat = true
-		while repeat
-		  # delete w from point stack and put w in the current component
+    while repeat
+      # delete w from point stack and put w in the current component
 #      println("delete w from point stack and put w in the current component")
       w = pop!(stack)     
 #      @show w number[w]
       number[w] = notOnStack
       push!(comp, w)
 #      @show comp
-		  repeat = w != v
+      repeat = w != v
     end 
     push!(components, comp)
   end
@@ -596,41 +596,41 @@ Tarjan, R. E. (1972), "Depth-first search and linear graph algorithms", SIAM Jou
 function strongConnectArray(G::Array{Array{Int,1},1}, assign::Array{Array{Tuple{Int,Int},1},1}, v::Tuple{Int,Int}, nextnode::Int, stack::Array{Tuple{Int,Int},1} , components::Array{Array{Tuple{Int,Int},1},1}, lowlink::Array{Array{Int,1},1}, number::Array{Array{Int,1},1}, vLengths::Array{Int,1}, eLengths::Array{Int,1})
 
 #  println("\nstrongConnect: ", v)
-	
+  
   (i, ii) = v
 #  @show v, nextnode
   if v == (0,0) # 0   ### When can this happen?
-	  return nextnode
-	end
-		
+    return nextnode
+  end
+    
   nextnode += 1
   lowlink[i][ii] = number[i][ii] = nextnode
   push!(stack, v)
 
   for w in [assign[j][jj] for j in G[i] for jj in 1:vLengths[j]] # for w in the adjacency list of v
-		if w != (0,0)   # Is assigned
+    if w != (0,0)   # Is assigned
       k = w[1]
       kk = w[2]
-  		if number[k][kk] == 0 # if not yet numbered
-	  		nextnode = strongConnectArray(G, assign, w, nextnode, stack, components, lowlink, number, vLengths, eLengths)
-		  	lowlink[i][ii] = min(lowlink[i][ii], lowlink[k][kk])
-  		else
-	  		if number[k][kk] < number[i][ii]
-				# (v, w) is a frond or cross-link
-				# if w is on the stack of points. Always valid since otherwise number[w]=notOnStack (a big number)
+      if number[k][kk] == 0 # if not yet numbered
+        nextnode = strongConnectArray(G, assign, w, nextnode, stack, components, lowlink, number, vLengths, eLengths)
+        lowlink[i][ii] = min(lowlink[i][ii], lowlink[k][kk])
+      else
+        if number[k][kk] < number[i][ii]
+        # (v, w) is a frond or cross-link
+        # if w is on the stack of points. Always valid since otherwise number[w]=notOnStack (a big number)
           lowlink[i][ii] = min(lowlink[i][ii], number[k][kk])
-			  end
-			end
-		end
+        end
+      end
+    end
   end
-	
+  
   if lowlink[i][ii] == number[i][ii]
-	  # v is the root of a component
-		# start a new strongly connected component
+    # v is the root of a component
+    # start a new strongly connected component
     comp = Tuple{Int,Int}[]
     repeat = true
-		while repeat
-		  # delete w from point stack and put w in the current component
+    while repeat
+      # delete w from point stack and put w in the current component
       w = pop!(stack) 
       (k, kk) = w
       number[k][kk] = notOnStack
@@ -638,7 +638,7 @@ function strongConnectArray(G::Array{Array{Int,1},1}, assign::Array{Array{Tuple{
       if log
         println("Added equation $w to $comp")
       end
-		  repeat = w != v
+      repeat = w != v
     end 
     push!(components, comp)
     if log
@@ -652,50 +652,50 @@ end
     function BLT(G, assign)
 
 Find Block Lower Triangular structure for a bipartite graph `G` with assignment `assign`
-		
+    
 * `G`: bipartite graph
 * `assign`: assign[j] contains the E-node to which V-node j is assigned or 0 if V-node j not assigned
 * `return components`: cell array of components. Each component is a list of indices to E-nodes
 """
 function BLT(G, assign)
   nextnode::Int = 0
-	stack = []
-	components = []
-	lowlink = fill(0, length(G))
-	number = fill(0, length(G))
-	
+  stack = []
+  components = []
+  lowlink = fill(0, length(G))
+  number = fill(0, length(G))
+  
   for v in 1:length(G)
     if number[v] == 0
       nextnode = strongConnect(G, assign, v, nextnode, stack, components, lowlink, number)
-    end		
-	end
-	return components
+    end    
+  end
+  return components
 end
 
 """
     function BLT(G, assign)
 
 Find Block Lower Triangular structure for a bipartite graph `G` with assignment `assign`
-		
+    
 * `G`: bipartite graph
 * `assign`: assign[j] contains the E-node to which V-node j is assigned or 0 if V-node j not assigned
 * `return components`: cell array of components. Each component is a list of indices to E-nodes
 """
 function BLTArray(G::Array{Array{Int,1},1}, assign::Array{Array{Tuple{Int,Int},1},1}, vLengths::Array{Int,1}, eLengths::Array{Int,1})
   nextnode = 0
-	stack = Tuple{Int,Int}[]
-	components = Array{Tuple{Int,Int},1}[]
+  stack = Tuple{Int,Int}[]
+  components = Array{Tuple{Int,Int},1}[]
   lowlink::Array{Array{Int,1},1} = fillArrayOfArray(0, eLengths)
   number::Array{Array{Int,1},1} = fillArrayOfArray(0, eLengths)
-	
+  
   for i in 1:length(G)
     for ii in 1:eLengths[i]
       if number[i][ii] == 0
         nextnode = strongConnectArray(G, assign, (i,ii), nextnode, stack, components, lowlink, number, vLengths, eLengths)
       end
-    end		
-	end
-	return components
+    end    
+  end
+  return components
 end
 
 function compactify(components, assign, vLengths, eLengths, vNames, equationsInfix)
@@ -799,15 +799,15 @@ end
 
 function invertDer(A)
   orgIndex = [i for i in 1:length(A)]  # Index of original variable or equation
-	derOrder = fill(0, length(A)) # Derivative order
+  derOrder = fill(0, length(A)) # Derivative order
   for i in 1:length(A)
-	  a = A[i]
-		if a > 0
-			derOrder[a] = derOrder[i] + 1
-			orgIndex[a] = orgIndex[i]
-		end
-	end
-	return orgIndex, derOrder
+    a = A[i]
+    if a > 0
+      derOrder[a] = derOrder[i] + 1
+      orgIndex[a] = orgIndex[i]
+    end
+  end
+  return orgIndex, derOrder
 end
 
 function invertInvertDer(orgIndex, derOrder)
@@ -826,77 +826,77 @@ end
 
 function invertAssign(assign, n=length(assign))
   invAssign = fill(0, n)
-	unAssigned::Vector{Int} = []
-	for j in 1:length(assign)
- 	  i = assign[j]
-		if i > 0
-	  	invAssign[i] = j
-		else
-		  push!(unAssigned, j)
-		end
-	end
-	return invAssign, unAssigned
+  unAssigned::Vector{Int} = []
+  for j in 1:length(assign)
+     i = assign[j]
+    if i > 0
+      invAssign[i] = j
+    else
+      push!(unAssigned, j)
+    end
+  end
+  return invAssign, unAssigned
 end
 
 function printAssignedEquations(equations, variables, indices, assign, A, B)
-	(orgIndexVar, derOrderVar) = invertDer(A)
-	(orgIndexEqu, derOrderEqu) = invertDer(B)
-	(assignedVar,) = invertAssign(assign)
-	for i in indices
-		j = assignedVar[i]
-		if j > 0		
-			if derOrderVar[j] == 1
-				print("der(")
-			elseif derOrderVar[j] > 1
-				print("der", derOrderVar[j], "(")
-			end
-			print(variables[orgIndexVar[j]])
-			if derOrderVar[j] > 0
-				print(")")
-			end
-  		print("   (($j))   :=   ")
-		end
-			
-		if derOrderEqu[i] == 1
-			print("DER()   ")
-		elseif derOrderEqu[i] > 1
-			print("DER", derOrderEqu[i], "()   ")
-		end
-		println(equations[orgIndexEqu[i]], "   (($i))")
-	end
+  (orgIndexVar, derOrderVar) = invertDer(A)
+  (orgIndexEqu, derOrderEqu) = invertDer(B)
+  (assignedVar,) = invertAssign(assign)
+  for i in indices
+    j = assignedVar[i]
+    if j > 0    
+      if derOrderVar[j] == 1
+        print("der(")
+      elseif derOrderVar[j] > 1
+        print("der", derOrderVar[j], "(")
+      end
+      print(variables[orgIndexVar[j]])
+      if derOrderVar[j] > 0
+        print(")")
+      end
+      print("   (($j))   :=   ")
+    end
+      
+    if derOrderEqu[i] == 1
+      print("DER()   ")
+    elseif derOrderEqu[i] > 1
+      print("DER", derOrderEqu[i], "()   ")
+    end
+    println(equations[orgIndexEqu[i]], "   (($i))")
+  end
 end
 
 function printList(infixes, indices, A, vertical=false; newLine=true)
-	(orgIndex, derOrder) = invertDer(A)
-	for ind in 1:length(indices)
-	  j = indices[ind]
-		if j > 0		
-			if ind > 1
-			  if vertical
-				  println()
-				else
-  				print(", ")
-				end
-			end
+  (orgIndex, derOrder) = invertDer(A)
+  for ind in 1:length(indices)
+    j = indices[ind]
+    if j > 0    
+      if ind > 1
+        if vertical
+          println()
+        else
+          print(", ")
+        end
+      end
       if derOrder[j] > 0
-				if vertical
-					print("DER")
-				else
-					print("der")
-				end
-				if derOrder[j] > 1
-					print(derOrder[j])
-				end
-				print("(")
-			end
-			print(infixes[orgIndex[j]])
-			if derOrder[j] > 0
-				print(")")
-			end
-		end
-	end
+        if vertical
+          print("DER")
+        else
+          print("der")
+        end
+        if derOrder[j] > 1
+          print(derOrder[j])
+        end
+        print("(")
+      end
+      print(infixes[orgIndex[j]])
+      if derOrder[j] > 0
+        print(")")
+      end
+    end
+  end
   if newLine
-  	println()
+    println()
   end
 end
 

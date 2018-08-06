@@ -23,7 +23,7 @@ prettyfy(ex) = ex
 ##prettyfy(get::GetField) = Symbol(replace(string(get.name), ".", "_")) # get.name # Handle dummy derivatives
 #prettyfy(s::Symbol) = s
 function prettyfy(ex::Expr)
-	if isexpr(ex, :quote) || isexpr(ex, :line)
+  if isexpr(ex, :quote) || isexpr(ex, :line)
     nothing
   elseif isexpr(ex, :block)
     prettyfy(ex.args[2])
@@ -44,33 +44,33 @@ function prettyPrint(e::Expr)
     ex = prettyfy(e)
     if ex.head === :quote
       return ex
-		elseif ex.head === :(:=)
+    elseif ex.head === :(:=)
       return string(prettyPrint(ex.args[1]), " := ", prettyPrint(ex.args[2]))
-		end
+    end
     Expr(ex.head, [prettyPrint(arg) for arg in ex.args]...)
 end
 
 function showSolve(e, x)
   println("\nSolve: ", x, " from: ", prettyPrint(e))
-	sol, solved = solve(e, x)
-	if ! solved 
-	  println("NOT SOLVED")
-	end
-	println(prettyPrint(sol))
-	return string(prettyPrint(sol))
+  sol, solved = solve(e, x)
+  if ! solved 
+    println("NOT SOLVED")
+  end
+  println(prettyPrint(sol))
+  return string(prettyPrint(sol))
 end
 
 function showDifferentiate(e)
   println("\nEquation: ", prettyPrint(e))
-	der = differentiate(e)
-	println("Differentiated: ", prettyPrint(der))
-	return string(prettyPrint(der))
+  der = differentiate(e)
+  println("Differentiated: ", prettyPrint(der))
+  return string(prettyPrint(der))
 end
 
 function testSolve()
-	println("\nTest solve")
+  println("\nTest solve")
 
-  sol = showSolve(:(y = x), :x)	
+  sol = showSolve(:(y = x), :x)  
   @test sol == "x = y"
 
   sol = showSolve(:(y = x + z), :x)
@@ -128,7 +128,7 @@ function testSolve()
 end
 
 function testDifferentiate()
-	println("\nTest differentiate")
+  println("\nTest differentiate")
     
   der = showDifferentiate(:(x + 5 + z = w))
   @test der == "der(x) + der(z) = der(w)"
@@ -157,13 +157,13 @@ function testDifferentiate()
   der = showDifferentiate(:(4 * 5 * 6 = w))
   @test der == "0.0 = der(w)"
   
-  der = showDifferentiate(:(y = x/y))	
+  der = showDifferentiate(:(y = x/y))  
   @test der == "der(y) = der(x) / y + (x / y ^ 2) * der(y)"
   
-  der = showDifferentiate(:(y = x/5))	
+  der = showDifferentiate(:(y = x/5))  
   @test der == "der(y) = der(x) / 5"
   
-  der = showDifferentiate(:(y = 5/y))	
+  der = showDifferentiate(:(y = 5/y))  
   @test der == "der(y) = (5 / y ^ 2) * der(y)"
 
   der = showDifferentiate(:(y = [1, x]))
@@ -178,16 +178,16 @@ function testDifferentiate()
   der = showDifferentiate(:(y = transpose(B) + B´))
   @test der == "der(y) = transpose(der(B)) + der(B´)"
    
-  der = showDifferentiate(:(y = x[5, 6]))	
+  der = showDifferentiate(:(y = x[5, 6]))  
   @test der == "der(y) = (der(x))[5, 6]"
   
-  der = showDifferentiate(:(y = x[5:7]))	
+  der = showDifferentiate(:(y = x[5:7]))  
   @test der == "der(y) = (der(x))[5:7]"
   
-#=    der = showDifferentiate(:(y = [x for x in z]))	
+#=    der = showDifferentiate(:(y = [x for x in z]))  
   @test der == "der(y) = [x for x = der(z)]"
 
-  der = showDifferentiate(:(y = [x[i] for i in 1:5]))	
+  der = showDifferentiate(:(y = [x[i] for i in 1:5]))  
   @test der == "der(y) = [x[i] for i = nothing]"
 =#      
   der = showDifferentiate(:(y = sin(x)))
@@ -208,13 +208,13 @@ function testDifferentiate()
   der = showDifferentiate(:(y = log(x)))
   @test der == "der(y) = (1 / x) * der(x)"
 
-  der = showDifferentiate(:(y = asin(x)))	
+  der = showDifferentiate(:(y = asin(x)))  
   @test der == "der(y) = (1 / sqrt(1 - x ^ 2)) * der(x)"
 
-  der = showDifferentiate(:(y = acos(x)))	
+  der = showDifferentiate(:(y = acos(x)))  
   @test der == "der(y) = (-1 / sqrt(1 - x ^ 2)) * der(x)"
 
-  der = showDifferentiate(:(y = atan(x)))	
+  der = showDifferentiate(:(y = atan(x)))  
   @test der == "der(y) = (1 / (1 + x ^ 2)) * der(x)"
   
   der = showDifferentiate(:(y = f(x, 5, z)))
@@ -223,17 +223,17 @@ function testDifferentiate()
   der = showDifferentiate(:(y = f(x, 5, g(z))))
   @test der == "der(y) = f_der_1(x, 5, g(z)) * der(x) + f_der_3(x, 5, g(z)) * (g_der(z) * der(z))"
   
-  der = showDifferentiate(:(y = true ? x : y))	
+  der = showDifferentiate(:(y = true ? x : y))  
   @test der == "der(y) = if true\n        der(x)\n    else \n        der(y)\n    end"
 
-  der = showDifferentiate(:(y = if b; x elseif false y else z end))	
+  der = showDifferentiate(:(y = if b; x elseif false y else z end))  
   @test der == "der(y) = if b\n        der(x)\n    else \n        if false\n            der(y)\n        else \n            der(z)\n        end\n    end"
   
-  der = showDifferentiate(:(y = time))	
+  der = showDifferentiate(:(y = time))  
   @test der == "der(y) = 1.0"
   
   setTimeInvariants([:a])
-  der = showDifferentiate(:(y = a*x))	
+  der = showDifferentiate(:(y = a*x))  
   @test der == "der(y) = a * der(x)"
   
   println("\n\n----------------------\n")

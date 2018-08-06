@@ -49,7 +49,7 @@ end
 
    #=
       unknowns: x1dd, x2dd, x3dd, x4d, x5
-     	1: 0 = x1dd - x2dd
+       1: 0 = x1dd - x2dd
       2: 0 = x1dd + x2dd - x3dd + x6ddd
       3: 0 = x1d  + x3dd - x4d
       4: 0 = 2*x1dd + x2dd + x3dd + x4d + x6ddd
@@ -115,7 +115,7 @@ end
 
       unknowns: z1, z2, z4, z6, z7
       1: 0 = f1(z2,z6,z7)
-     	2: 0 = f2(z1,z7)
+       2: 0 = f2(z1,z7)
       3: 0 = f3(z1,z2,z3,z7)
       4: 0 = f4(z6,z3,z4)
       5: 0 = f5(z1,z2,z3,z4,z7)
@@ -159,7 +159,7 @@ end
 
       unknowns: z1, z2, z3, z4, z5, z6
       1: 0 = f1(z1,z6)
-     	2: 0 = f2(z2,z1)
+       2: 0 = f2(z2,z1)
       3: 0 = f3(z3,z2)
       4: 0 = f4(z4,z3)
       5: 0 = f5(z5,z4)
@@ -197,7 +197,7 @@ end
 
       unknowns: 1:w1, 2:w2, 3:der(phi1), 4:der(phi2)
       1: 0 = f1(w1,der(phi1))
-     	2: 0 = f2(w2,der(phi2))
+      2: 0 = f2(w2,der(phi2))
       3: 0 = f3(der(phi1), der(phi2))
    =#
 

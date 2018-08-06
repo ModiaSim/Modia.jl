@@ -35,40 +35,40 @@ end
 const maxSymbols = 1000
 
 function printSymbolList(label, symbols, numbering=false, vertical=false, A=[])
-	logModia(label, ": ")
+  logModia(label, ": ")
   if vertical
     loglnModia()
   end
-	for i in 1:min(maxSymbols, length(symbols))
-	  if i > 1
+  for i in 1:min(maxSymbols, length(symbols))
+    if i > 1
       if vertical
         loglnModia()
       else
         logModia(", ") 
       end
-		end
+    end
     if numbering
       if vertical
-    	  logModia(lpad(i, 5, " "), ": ")
+        logModia(lpad(i, 5, " "), ": ")
       else
-    	  logModia(i, ": ")      
+        logModia(i, ": ")      
       end
     end
     if vertical
-  	  logModia(rpad(prettyfy(symbols[i]), 30, " "))
+      logModia(rpad(prettyfy(symbols[i]), 30, " "))
     else
-  	  logModia(prettyfy(symbols[i]))
+      logModia(prettyfy(symbols[i]))
     end
     if A !=[] 
       if A[i] != 0
         logModia("A[$i] = $(A[i])")
       end        
     end
-	end
+  end
   if length(symbols) > maxSymbols
     logModia(", ...")
   end
-	loglnModia()
+  loglnModia()
 end
 
 function showModel(mod, indent="")

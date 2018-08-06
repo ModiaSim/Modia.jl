@@ -185,7 +185,7 @@ mutable struct SortedEquationGraph
       Arev    = revertAssociation(A,length(A))
       Brev    = revertAssociation(B,length(B))
       Eassign = revertAssociation(assign,length(B))
-	  
+    
       # Generate vectors with default elements
       ESorted = fill(0,0)
       ESolved = fill(0,0)
@@ -212,17 +212,17 @@ mutable struct SortedEquationGraph
       c_ignore = false 
       for c in BLT 
          # Ignore block c if lower derivative equations
-	      c_ignore = false
+        c_ignore = false
          for ceq in c 
-	         if B[ceq] != 0 
-      	      lowerDerivativeEquationsInBLT = true 
-		         c_ignore = true
-	         end 
-	      end
-	      if c_ignore
-	         continue
-	      end
-	  
+           if B[ceq] != 0 
+              lowerDerivativeEquationsInBLT = true 
+             c_ignore = true
+           end 
+        end
+        if c_ignore
+           continue
+        end
+    
          # Get all equation sets eConstraints and their corresponding unknowns vConstraints
          # from lowest to highest differentiation order (eConstraints[end] is c)
          (eConstraints, vConstraints) = getConstraintSets(c, Eassign, Arev, Brev)
@@ -240,7 +240,7 @@ mutable struct SortedEquationGraph
       end
       if lowerDerivativeEquationsInBLT
          println("\n... Warning from SortedEquationGraph(..) (in StateSelection.jl):",
-	              "\n... BLT blocks with lower derivative equations have been ignored.\n")  
+                "\n... BLT blocks with lower derivative equations have been ignored.\n")  
       end 
       
       # Tearing information

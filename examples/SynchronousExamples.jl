@@ -13,12 +13,12 @@ using Base.Test
   a = Var(size=())
   b = Var(size=())
   c = Var(start=0.0)
-	obs=Float(start=0.0)  
+  obs=Float(start=0.0)  
 @equations begin
   a = Clock(0.1)
   b = sample(time, a)
   c = previous(c, a) + 0.5
-	der(obs) = 1000000*(c-obs)
+  der(obs) = 1000000*(c-obs)
   end
 end
 
@@ -48,7 +48,7 @@ end
   vref = 100 # Speed ref.
   vd=Float(start=0.0)
   u=Float(start=0.0)
-	fobs=Float(start=0.0)
+  fobs=Float(start=0.0)
 @equations begin
   # speed sensor
   vd = sample(v, Clock(0.1))
@@ -58,7 +58,7 @@ end
 
   # force actuator
   f = hold(u)
-	der(fobs) = 1000000*(f-fobs)
+  der(fobs) = 1000000*(f-fobs)
   end
 end 
 
@@ -70,27 +70,27 @@ plot(result, ("v", "fobs"), figure=1, heading="SpeedControl", figure=15)
   @extends MassWithSpringDamper(k=0)
   @inherits v, f
   K = 2 # Gain of speed P controller
-	Ti = 2 # Integral time 
+  Ti = 2 # Integral time 
   vref = 100 # Speed reference
   dt=0.1 # sampling interval
   vd=Float()
   u=Float(start=0)
-	e=Float()
-	intE=Float(start=0)
-		
-	fobs=Float(start=0.0)
+  e=Float()
+  intE=Float(start=0)
+    
+  fobs=Float(start=0.0)
 @equations begin
   # speed sensor
   vd = sample(v, Clock(dt))
 
   # PI controller for speed
-	e = vref-vd
-	intE = previous(intE, Clock(dt)) + e
+  e = vref-vd
+  intE = previous(intE, Clock(dt)) + e
   u = K*(e + intE/Ti)
 
   # force actuator
   f = hold(u)
-	der(fobs) = 1000000*(f-fobs)
+  der(fobs) = 1000000*(f-fobs)
   end
 end 
 
@@ -113,7 +113,7 @@ plot(result, ("v", "fobs"), figure=1, heading="SpeedControlPI", figure=16)
   vd=Float(size=())
   vref=Float(size=())
   uInner=Float(start=0.0)
-	fobs=Float(start=1990)
+  fobs=Float(start=1990)
 @equations begin
   # position sensor
   xd = sample(x, Clock(0.02))
@@ -128,7 +128,7 @@ plot(result, ("v", "fobs"), figure=1, heading="SpeedControlPI", figure=16)
   uInner = KInner*(vref-vd)
   # force actuator
   f = hold(uInner)
-	der(fobs) = 100000*(f-fobs)
+  der(fobs) = 100000*(f-fobs)
   end
 end
 
@@ -139,36 +139,36 @@ end
 @model DiscretePIController begin
   K=0.1 # Gain 
   Ti=1E10 # Integral time 
-	dt=1.0 # sampling interval
+  dt=1.0 # sampling interval
   ref=1 # set point
-	u=Float(); ud=Float(size=())
-	y=Float(); yd=Float(size=())
+  u=Float(); ud=Float(size=())
+  y=Float(); yd=Float(size=())
   e=Float(size=())
   intE=Float(start=0)
 
-	fobs=Float(start=0)
+  fobs=Float(start=0)
 @equations begin
   # sensor
   ud = sample(u, Clock(dt))
-	# PI controller
+  # PI controller
   e = ref-ud
   intE = previous(intE, Clock(dt)) + e
   yd = K*(e + intE/Ti)
   # actuator
   y = hold(yd)
-	
-	der(fobs) = 100000*(y-fobs)
+  
+  der(fobs) = 100000*(y-fobs)
   end
 end
 
 
 @model SpeedControl2 begin
   m=MassWithSpringDamper(d=0.5, k=0)
-	c=DiscretePIController(K=2, dt=0.1)
+  c=DiscretePIController(K=2, dt=0.1)
 @equations begin
   connect(m.v, c.u)
-	connect(c.y, m.f)
-	end
+  connect(c.y, m.f)
+  end
 end
 
 #result = simulate(SpeedControl2, 5.0, storeEliminated=false, logSimulation=true)
@@ -177,12 +177,12 @@ end
 
 @model SpeedControl3 begin
   m=MassWithSpringDamper(d=0.5, k=0)
-	@extends DiscretePIController(K=2, dt=0.1)
-	@inherits u, y, dt, e, intE
+  @extends DiscretePIController(K=2, dt=0.1)
+  @inherits u, y, dt, e, intE
 @equations begin
   u = m.v
-	m.f = y
-	end
+  m.f = y
+  end
 end
 
 #result = simulate(SpeedControl3, 5.0, storeEliminated=false, logSimulation=true)
