@@ -14,6 +14,7 @@ include("models/TestEquations.jl")
 include("models/TestElectrical.jl")
 include("models/TestFilter.jl")
 include("models/TestArrayOfComponents.jl")
+include("models/TestSpatialDiscretization.jl")
 
 #include("models/TestCoupledInertias.jl")
 #include("models/TestPendulum.jl")
