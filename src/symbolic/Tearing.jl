@@ -104,13 +104,13 @@ function initAlgebraicSystem(td::TraverseDAG,es::Vector{Int},vs::Vector{Int},
    # check arguments
    for i in eachindex(es)
       if es[i] <= 0
-	     error("\n\n... Internal error in Tearing.jl: es[",i,"] = ", es[i],".\n")
+       error("\n\n... Internal error in Tearing.jl: es[",i,"] = ", es[i],".\n")
       end
    end
    for i in eachindex(vs)
       if vs[i] <= 0
-	     error("\n\n... Internal error in Tearing.jl: vs[",i,"] = ", vs[i],".\n")	     
-	  end
+       error("\n\n... Internal error in Tearing.jl: vs[",i,"] = ", vs[i],".\n")       
+    end
    end 
 
    # check that all elements of eSolvedFixed are in es, vSolvedFixed in vs,

@@ -150,7 +150,7 @@ function initPrevious(v, m::ModiaSimulationModel, nr::Int)
      return v
   else
     return m.store.previous[nr]   
-	end
+  end
 end
 
 function previous(v, clock::Bool, m::ModiaSimulationModel, nr::Int) 

@@ -68,7 +68,7 @@ end
   @extends PartialCompliant(phi_rel=Float(size=(), state=false))
   @inherits tau, phi_rel
   c=Parameter(min=0, start=1.0e5)       # Spring constant
-	d=Parameter()
+  d=Parameter()
   phi_rel0=0   # Unstretched spring angle
 @equations begin 
   tau = c*(phi_rel - phi_rel0) + d*der(phi_rel)
@@ -82,7 +82,7 @@ end
   p=Pin()
   n=Pin()
   flange=Flange()
-	
+  
   v=Float(size=())
   i=Float(size=())
   phi=Float(state=false, size=())

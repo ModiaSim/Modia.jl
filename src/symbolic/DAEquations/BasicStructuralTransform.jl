@@ -151,11 +151,11 @@ function findVariables!(variables, states, deriv::Vector, ex::Expr)
     elseif isexpr(ex, :call, 3) && ex.args[1] == :* && isa(ex.args[2], Number) && isexpr(ex.args[3], :vect)
     # Skip symbols in units on negative numeric literals, eg -2[m/s]
     elseif isexpr(ex, :call)
-	  if ex.args[1] == :der
-		  push!(variables, ex.args[2]); 
-		  push!(states, ex.args[2]); 
-			push!(deriv, ex)
-		else
+    if ex.args[1] == :der
+      push!(variables, ex.args[2]); 
+      push!(states, ex.args[2]); 
+      push!(deriv, ex)
+    else
       for arg in ex.args[2:end]  # skip operator name
         findVariables!(variables, states, deriv, arg)
       end
@@ -173,7 +173,7 @@ function findVariables!(variables, states, deriv::Vector, ex::Expr)
         push!(variables, l)
       end
     end      
-	else !isexpr(ex, :quote)
+  else !isexpr(ex, :quote)
     for arg in ex.args
         findVariables!(variables, states, deriv, arg)
     end
@@ -187,29 +187,29 @@ findIncidence!(incidence::Array{Any,1}, s::Symbol) = (push!(incidence, s); nothi
 # findIncidence!(incidence::Array{Any,1}, der::Der) = (push!(incidence, der); nothing)
 # findIncidence!(incidence::Array{Any,1}, get::GetField) = (push!(incidence, get.name); nothing)
 function findIncidence!(incidence::Array{Any,1}, ex::Expr)
-	if !isexpr(ex, :quote)
-		if ex.head == :call 
+  if !isexpr(ex, :quote)
+    if ex.head == :call 
       if ex.args[1] == hide
-		  elseif ex.args[1] == Synchronous.previous
-			  for arg in ex.args[2:end]
-				  findIncidence!(incidence, arg)
-			  end        
+      elseif ex.args[1] == Synchronous.previous
+        for arg in ex.args[2:end]
+          findIncidence!(incidence, arg)
+        end        
       elseif ex.args[1] == :der
-		    push!(incidence, ex)
-			else
-				for arg in ex.args[2:end]  # skip operator/function name ???
-					findIncidence!(incidence, arg)
-				end
-			end
-		else
-			for arg in ex.args
-				findIncidence!(incidence, arg)
-			end
-		end
+        push!(incidence, ex)
+      else
+        for arg in ex.args[2:end]  # skip operator/function name ???
+          findIncidence!(incidence, arg)
+        end
+      end
+    else
+      for arg in ex.args
+        findIncidence!(incidence, arg)
+      end
+    end
   end
   nothing
 end
-	
+  
   function collectIncidence!(equnr, orgEqu, incidenceMatrix, G, DAEvariables, assigned, assignedv)
 #    @show assignedv
     for v in G[equnr] 
@@ -231,7 +231,7 @@ findCoefficients!(coefficients, nonLinear, get::GetField) = (coefficients[get.na
 findCoefficients!(coefficients, nonLinear, s::Symbol) = (coefficients[s] = 1; nonLinear)
 function findCoefficients!(coefficients, nonLinear, ex::Expr)
   if ! isexpr(ex, :quote) && ! isexpr(ex, :line)
-		if ex.head in [:(=)]
+    if ex.head in [:(=)]
       for iarg in 1:length(ex.args)
         minus = iarg > 1
         arg = ex.args[iarg]      
@@ -255,10 +255,10 @@ function findCoefficients!(coefficients, nonLinear, ex::Expr)
       end
     elseif ex.head == :call
       if ex.args[1] in [+, :+]
-  			for iarg in 2:length(ex.args)
+        for iarg in 2:length(ex.args)
           arg = ex.args[iarg]      
           coeff = Dict()
-			  	nonLinear =  findCoefficients!(coeff, nonLinear, arg) || nonLinear
+          nonLinear =  findCoefficients!(coeff, nonLinear, arg) || nonLinear
           if coefficients == nothing || coeff == nothing
             coefficients = nothing
           else
@@ -325,13 +325,13 @@ function findCoefficients!(coefficients, nonLinear, ex::Expr)
         end
       else
         nonLinear = true
-			end  
-		elseif ex.head == :block
-			for arg in ex.args
+      end  
+    elseif ex.head == :block
+      for arg in ex.args
         coeff = Dict()
         nonLinear = findCoefficients!(coeff, nonLinear, arg) || nonLinear
-			end      
-		end
+      end      
+    end
   end
   nonLinear
 end
@@ -427,9 +427,9 @@ end
 const tSizes = Array{Tuple{Int64,Vararg{Int64,N} where N},1}
 
 function analyzeStructurally(equations, params, unknowns_indices, deriv, unknownsNames, Avar, statesIndices, states, nonStateVariables, n, realStates, findIncidence!, VSizes #=::tSizes =# , VTypes, ESizes #= ::tSizes=# , ETypes, unknowns, partial)
-	# Build incidence structure as bipartite graph.
-	neq = 0
-	G = Array{Any}(0)
+  # Build incidence structure as bipartite graph.
+  neq = 0
+  G = Array{Any}(0)
   coefficients = []
   notLinearVariables = []
   orgEquIndex = []
@@ -446,21 +446,21 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     vertices = []
     for inc in incidence
       i = get(unknowns_indices, inc, 0)
-			if i == 0
-			  i = findfirst(deriv, inc)
-				if i > 0
-				  i = i + length(unknownsNames)
-				end
-			end
-			if i > 0 
+      if i == 0
+        i = findfirst(deriv, inc)
+        if i > 0
+          i = i + length(unknownsNames)
+        end
+      end
+      if i > 0 
         push!(vertices, i)
-			end
+      end
     end
     vertices = unique(vertices)
-		if DebugPrintAssign 
+    if DebugPrintAssign 
       loglnModia("vertices = ", vertices)
     end
-		push!(G, vertices)
+    push!(G, vertices)
     
     if removeSingularities
       # Find linear equations with integer coefficients without offset.    
@@ -475,13 +475,13 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
         end
       end
     end
-  end		
+  end    
 
   names = createNames(unknownsNames, Avar)  
 
   
 # ------------------------------------------------
-  	
+    
 
 function handleSingularities()
     loglnModia("\nREMOVE SINGULARITIES")
@@ -632,7 +632,7 @@ end
   for e in equations
     push!(equationsInfix, prettyPrint(e))
   end
-#	equationsInfix = prettyPrint(equations)
+#  equationsInfix = prettyPrint(equations)
 =#
   equationsInfix = string.(prettyPrint.(equations)) 
 #  equationsInfix = makeList(equationsInfix, 1:length(Bequ), Bequ, true)
@@ -674,7 +674,7 @@ end
       a = Avar[i]
       if a > 0
       # equation: v[i] = der(v[i]) => length(equ) = length(v[i])
-        push!(EESizes, VSizes[i])		
+        push!(EESizes, VSizes[i])    
       end
     end
     =#
@@ -789,7 +789,7 @@ end
 
 # Add function arguments and unnest function.
 function reduceDAEIndex() 
-	loglnModia("\nINDEX REDUCTION")
+  loglnModia("\nINDEX REDUCTION")
   if expandArrayIncidence
     vLengths = [prod(s) for s in VSizes]
     eLengths = [prod(s) for s in ESizes]
@@ -824,15 +824,15 @@ function reduceDAEIndex()
   
 #  checkSizes(VSizes, ESizes)   # VSizes, ESizes not up-to-date
     
-	if logIndexReduction
-#		@show assign
-#		@show Avar
-#		@show Bequ
-	  if ! expandArrayIncidence
-		  loglnModia("\nAssigned equations after index reduction:")
-	  	printAssignedEquations(equationsInfix, unknownsNames, 1:length(G), assign, Avar, Bequ)
+  if logIndexReduction
+#    @show assign
+#    @show Avar
+#    @show Bequ
+    if ! expandArrayIncidence
+      loglnModia("\nAssigned equations after index reduction:")
+      printAssignedEquations(equationsInfix, unknownsNames, 1:length(G), assign, Avar, Bequ)
     end
-	end	
+  end  
 
 # Commented in order to be able to expandArrayIncidence
 #  printUnassigned(equationsInfix, unknownsNames, assign, Avar, Bequ)
@@ -840,38 +840,38 @@ function reduceDAEIndex()
 
 ###  checkAssign(assign, VSizes, VTypes, ESizes, ETypes, equationsInfix, unknownsNames, Avar)
 
-#=	
-	components = BLT(G, assign)
-	
-	if log
-#		@show components
-		
-		loglnModia("\nSorted equations:")
-		printSortedEquations(equationsInfix, unknownsNames, components, assign, Avar, Bequ)
+#=  
+  components = BLT(G, assign)
+  
+  if log
+#    @show components
+    
+    loglnModia("\nSorted equations:")
+    printSortedEquations(equationsInfix, unknownsNames, components, assign, Avar, Bequ)
   end
 =#
 #=
-	AG = [G; buildFullIncidence(length(Avar)-length(Bequ), length(Avar))]
-	assignAG = matching(AG, length(Avar))
-	componentsAG = BLT(AG, assignAG)
+  AG = [G; buildFullIncidence(length(Avar)-length(Bequ), length(Avar))]
+  assignAG = matching(AG, length(Avar))
+  componentsAG = BLT(AG, assignAG)
   if false # log
-	  loglnModia("\nAugmented system.")
-  	@show AG
-		@show assignAG
-		@show componentsAG	
-	
-		loglnModia("\nSorted augmented equations:")	
-		equationsAG = [equationsInfix; fill("der(...)", length(Bequ)-length(equations)); fill("full", length(Avar)-length(Bequ))]
-		BAG = [Bequ; fill(0, length(Avar)-length(Bequ))] # Additional equations not differentiated
-		printSortedEquations(equationsAG, unknownsNames, componentsAG, assignAG, Avar, BAG)
+    loglnModia("\nAugmented system.")
+    @show AG
+    @show assignAG
+    @show componentsAG  
+  
+    loglnModia("\nSorted augmented equations:")  
+    equationsAG = [equationsInfix; fill("der(...)", length(Bequ)-length(equations)); fill("full", length(Avar)-length(Bequ))]
+    BAG = [Bequ; fill(0, length(Avar)-length(Bequ))] # Additional equations not differentiated
+    printSortedEquations(equationsAG, unknownsNames, componentsAG, assignAG, Avar, BAG)
 
-		if ! all(assignAG .> 0)
-			loglnModia("The model is not consistent since all variables could not be assigned:")
-			printUnassigned(equationsAG, unknownsNames, assignAG, Avar, BAG)
-			loglnModia()
+    if ! all(assignAG .> 0)
+      loglnModia("The model is not consistent since all variables could not be assigned:")
+      printUnassigned(equationsAG, unknownsNames, assignAG, Avar, BAG)
+      loglnModia()
     else 
       loglnModia("Augmented system OK")
-		end
+    end
   end
 =#
 end # reduceDAEIndex
@@ -882,8 +882,8 @@ end # reduceDAEIndex
     reduceDAEIndex() 
   end
     
-	loglnModia("\nSTATE SELECTION")
-	IG = copy(G)
+  loglnModia("\nSTATE SELECTION")
+  IG = copy(G)
   if newStateSelection
     # Reduce graph
     newG = copy(IG)
@@ -891,8 +891,8 @@ end # reduceDAEIndex
 #    newG = [newG[i] for i in 1:length(newG) if Bequ[i] == 0]
   end
   
-	vActive = fill(true, length(Avar))
-	vActive[statesIndices] = false
+  vActive = fill(true, length(Avar))
+  vActive[statesIndices] = false
   if log
     println("\nNot active:")
     for i in 1:length(vActive)
@@ -906,7 +906,7 @@ end # reduceDAEIndex
 #    @show IG
    if logTiming
       print("MatchingArray:           ")
-    	@time assignIG = matchingArray(IG, vActive, vLengths, eLengths)
+      @time assignIG = matchingArray(IG, vActive, vLengths, eLengths)
     else
       assignIG = matchingArray(IG, vActive, vLengths, eLengths)
     end
@@ -923,7 +923,7 @@ end # reduceDAEIndex
   else
     if logTiming
       print("Matching:              ")
-    	@time assignIG = matching(IG, length(Avar), vActive)
+      @time assignIG = matching(IG, length(Avar), vActive)
     else
       assignIG = matching(IG, length(Avar), vActive)
     end
@@ -938,30 +938,30 @@ end # reduceDAEIndex
   unassignedNames = [] # unknownsNames[unAssignedVariables]
   
   if logStatistics
-  	println("Number of equations: ", length(IG))
-		println("Number of variables: ", length(assignIG))
-		println("Number of continuous states: ", length(realStates))
+    println("Number of equations: ", length(IG))
+    println("Number of variables: ", length(assignIG))
+    println("Number of continuous states: ", length(realStates))
     if length(nonStateVariables) > 0
-  		println("Number of non states: ", length(nonStateVariables))		
+      println("Number of non states: ", length(nonStateVariables))    
     end
     
-#  	printSymbolList("Unknowns: ", unknownsNames)
-#  	printSymbolList("Real states: ", realStates)
-#  	printSymbolList("Non states: ", nonStateVariables)
+#    printSymbolList("Unknowns: ", unknownsNames)
+#    printSymbolList("Real states: ", realStates)
+#    printSymbolList("Non states: ", nonStateVariables)
   end
   if false # log
-		@show IG
-		@show assignIG
+    @show IG
+    @show assignIG
     @show invAssign
-		@show Avar
-		@show Bequ
-	
-		loglnModia("\nAssigned equations after index reduction and state selection:")
-		printAssignedEquations(equationsInfix, unknownsNames, 1:length(G), assignIGTemp, Avar, Bequ)
+    @show Avar
+    @show Bequ
+  
+    loglnModia("\nAssigned equations after index reduction and state selection:")
+    printAssignedEquations(equationsInfix, unknownsNames, 1:length(G), assignIGTemp, Avar, Bequ)
 
-		printUnassigned(equationsInfix, unknownsNames, assignIGTemp, Avar, Bequ, vActive)
-		loglnModia()
-	end	
+    printUnassigned(equationsInfix, unknownsNames, assignIGTemp, Avar, Bequ, vActive)
+    loglnModia()
+  end  
 
   loglnModia("\nBLT TRANSFORMATION")
   if expandArrayIncidence
@@ -1035,15 +1035,15 @@ end # reduceDAEIndex
   else
     if logTiming
       print("BLT:                   ")
-    	@time componentsIG = BLT(IG, assignIG)
+      @time componentsIG = BLT(IG, assignIG)
     else
       componentsIG = BLT(IG, assignIG)
     end
   end
   
   if log
-		@show componentsIG    
-  end	
+    @show componentsIG    
+  end  
 
   
   if newStateSelection
@@ -1111,23 +1111,23 @@ end # reduceDAEIndex
   
   equationsIG = [equationsInfix; fill("der(...)", length(Bequ)-length(equations))]
   
-	if true # log
-  	loglnModia("\nSorted state equations:")
-	  printSortedEquations(equationsIG, unknownsNames, componentsIG, assignIG, Avar, Bequ)
+  if true # log
+    loglnModia("\nSorted state equations:")
+    printSortedEquations(equationsIG, unknownsNames, componentsIG, assignIG, Avar, Bequ)
     loglnModia()
-	end
-	
-	variables = [unknownsNames; deriv]
-#	solveSortedEquations(equationsIG, [unknownsNames; deriv], componentsIG, assignIG, Avar, Bequ)
-	
-	if false # ! all([assignIG[i] > 0 || ! vActive[i] for i in 1:length(vActive)]) # Temporary disable check for expandArrayIncidence
-	  loglnModia("\nThe model is not consistent since all variables could not be assigned:")
+  end
+  
+  variables = [unknownsNames; deriv]
+#  solveSortedEquations(equationsIG, [unknownsNames; deriv], componentsIG, assignIG, Avar, Bequ)
+  
+  if false # ! all([assignIG[i] > 0 || ! vActive[i] for i in 1:length(vActive)]) # Temporary disable check for expandArrayIncidence
+    loglnModia("\nThe model is not consistent since all variables could not be assigned:")
     
-		@show assignIG
-		@show Avar
-		@show Bequ
-  	error("Translation of model aborted")
-	end
+    @show assignIG
+    @show Avar
+    @show Bequ
+    error("Translation of model aborted")
+  end
   
   loglnModia("End of structural processing.")
   
@@ -1242,7 +1242,7 @@ function  performNewStateselection(unknownsNames, deriv, equations, equationsInf
     end
     
     loglnModia("\nSorted equations")    
-		printAssignedEquations(equationsInfix, unknownsNames, sortedEquations.ESorted, fill(0, length(vNames)), Avar, Bequ)
+    printAssignedEquations(equationsInfix, unknownsNames, sortedEquations.ESorted, fill(0, length(vNames)), Avar, Bequ)
     
     variables = [unknownsNames; deriv]
     equation_code = newDifferentiateEquations(equations, variables, Avar, Bequ, sortedEquations.ESorted, sortedEquations.ESolved)
@@ -1325,7 +1325,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         printSortedEquations(equations, unknownsNames, componentsIG, assignIG, Avar, Bequ)
         loglnModia()
       end
-	    
+      
       func *= "  # Copy state vector and derivative vector to each state and derivative\n"
       for i in 1:length(realStates)
         xName = replace(string(realStates[i]), ".", "_")
@@ -1399,7 +1399,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
           if logFDAE
             func *= "    println(\"f!\")\n"
           end
-#	        (assignedVar, unAssigned) = invertAssign(assignIG)
+#          (assignedVar, unAssigned) = invertAssign(assignIG)
           assignedVar = invAssign
           
           vIndex = 0

@@ -71,7 +71,7 @@ using Modia.Electric
 #  V=StepVoltage(startTime=10, V=1)
   V=ConstantVoltage(V=1)
   Ground1=Ground()
-	obs=Float(start=0.0)
+  obs=Float(start=0.0)
 @equations begin 
   connect(Op1.in_p, G.p) 
   connect(G1.p, Op2.in_p) 
@@ -138,7 +138,7 @@ using Modia.Electric
   connect(Op5.in_p, G4.p) 
   connect(V.p, Ground1.p)            
   connect(V.n, R1.p)  
-	der(obs) = 100000*(Op5.out.v-obs)
+  der(obs) = 100000*(Op5.out.v-obs)
   end
 end
 

@@ -60,29 +60,29 @@ findIncidence!(incidence::Array{Any,1}, ex) = nothing
 findIncidence!(incidence::Array{Any,1}, der::Der) = (push!(incidence, der); nothing)
 findIncidence!(incidence::Array{Any,1}, get::GetField) = (push!(incidence, get.name); nothing)
 function findIncidence!(incidence::Array{Any,1}, ex::Expr)
-	if !isexpr(ex, :quote)
-		if ex.head == :call && ex.args[1] == hide
-		elseif ex.head == :call && (ex.args[1] == Synchronous.previous || ex.args[1] == Synchronous.sample)
-			for arg in ex.args[3:end]  # Skip first argument to previous() and sample()
-				findIncidence!(incidence, arg)
-			end        
-		else
-			for arg in ex.args
-				findIncidence!(incidence, arg)
-			end
-		end
+  if !isexpr(ex, :quote)
+    if ex.head == :call && ex.args[1] == hide
+    elseif ex.head == :call && (ex.args[1] == Synchronous.previous || ex.args[1] == Synchronous.sample)
+      for arg in ex.args[3:end]  # Skip first argument to previous() and sample()
+        findIncidence!(incidence, arg)
+      end        
+    else
+      for arg in ex.args
+        findIncidence!(incidence, arg)
+      end
+    end
   end
   nothing
 end
-	
+  
 function findNonStateVariables(src::VariableDict)
-	nonStateVariables = []
-	for (name, var) in src
-		if isa(var, Variable) && ! var.state
-			push!(nonStateVariables, name)
-		end
-	end
-	return nonStateVariables
+  nonStateVariables = []
+  for (name, var) in src
+    if isa(var, Variable) && ! var.state
+      push!(nonStateVariables, name)
+    end
+  end
+  return nonStateVariables
 end
 
 
@@ -98,7 +98,7 @@ v1 := v2
 v3 = v2 -> 
 =#
 function findAliases!(nonAliasEquations, aliases, eq::Expr, unknowns)
-	if ! isexpr(eq, :quote)
+  if ! isexpr(eq, :quote)
     if eq.head in [:(=), :(:=)]
       e1 = eq.args[1]
       e2 = eq.args[2]
@@ -121,7 +121,7 @@ function findAliases!(nonAliasEquations, aliases, eq::Expr, unknowns)
       else
         push!(nonAliasEquations, eq)
       end
-		end
+    end
   end
   nothing
 end
@@ -616,12 +616,12 @@ function transformStructurally(flat_model)
   end
   
   #=
-	unknownsNames = unknowns.keys
+  unknownsNames = unknowns.keys
   unknowns_indices = [key => k for (k,key) in enumerate(unknownsNames)] 
-	if log 
-	  printSymbolList("\nunknowns: ", unknownsNames)
-	end
-	=#
+  if log 
+    printSymbolList("\nunknowns: ", unknownsNames)
+  end
+  =#
 
   if aliasElimination
     performAliasElimination!(flat_model, unknowns, params, equations)
@@ -641,10 +641,10 @@ function transformStructurally(flat_model)
 #  checkSizes(VSizes, ESizes)
  
   states = Vector()
-	deriv = Vector()
+  deriv = Vector()
   for eq in equations
-	  findStates!(states, deriv, eq)
-	end
+    findStates!(states, deriv, eq)
+  end
   states = unique(states)
   deriv = unique(deriv)
     
@@ -653,44 +653,44 @@ function transformStructurally(flat_model)
 #  @show unknownsNames
   unknowns_indices = Dict(key => k for (k,key) in enumerate(unknownsNames))
   
-	# Build variable association list. Avar[j] points to entry for derivative of variale j.
+  # Build variable association list. Avar[j] points to entry for derivative of variale j.
   Avar = [findfirst(states, GetField(This(), name)) for name in unknownsNames]
 #=
   Avar = fill(0, length(unknownsNames))
   for k in 1:length(deriv)
     d = deriv[k]
-	  j = findfirst(unknownsNames, Symbol(d.base.name))  
-		Avar[j] = k
-	end
+    j = findfirst(unknownsNames, Symbol(d.base.name))  
+    Avar[j] = k
+  end
 =#
-	# Add index offset for deriv vector and append zeros for deriv.
-	Avar = [[if a > 0; a+length(unknownsNames) else 0 end for a in Avar]; fill(0, length(deriv))]
+  # Add index offset for deriv vector and append zeros for deriv.
+  Avar = [[if a > 0; a+length(unknownsNames) else 0 end for a in Avar]; fill(0, length(deriv))]
 
-	if false # log 
-	  printSymbolList("\nUnknowns", unknownsNames, true, true, Avar)
-	end
+  if false # log 
+    printSymbolList("\nUnknowns", unknownsNames, true, true, Avar)
+  end
 
   nonStateVariables = findNonStateVariables(unknowns)
-	
-	if false
-		@show states
-		@show deriv
-		@show Avar
+  
+  if false
+    @show states
+    @show deriv
+    @show Avar
   end
-#	printSymbolList("\ndifferentiated: ", [states[i].name for i in 1:length(states)])
-	printSymbolList("\nNon state variables", nonStateVariables)
-	
-	statesIndices = []
+#  printSymbolList("\ndifferentiated: ", [states[i].name for i in 1:length(states)])
+  printSymbolList("\nNon state variables", nonStateVariables)
+  
+  statesIndices = []
   realStates = []
-	for i in 1:length(states)
-	  if ! (states[i].name in nonStateVariables)
+  for i in 1:length(states)
+    if ! (states[i].name in nonStateVariables)
       push!(realStates, states[i])
-  	  push!(statesIndices, unknowns_indices[states[i].name])
-		end
-	end 
+      push!(statesIndices, unknowns_indices[states[i].name])
+    end
+  end 
 
   setRealStates(realStates)
-	printSymbolList("Real state variables", realStates)
+  printSymbolList("Real state variables", realStates)
   
   n = length(unknownsNames) + length(deriv)
     
@@ -708,7 +708,7 @@ function transformStructurally(flat_model)
   end
 =#
   
-	return equations, variables, assignIG, componentsIG, Avar, Bequ, states, deriv, unassignedNames, incidenceMatrix, varSizes, varTypes, equSizes, equTypes
+  return equations, variables, assignIG, componentsIG, Avar, Bequ, states, deriv, unassignedNames, incidenceMatrix, varSizes, varTypes, equSizes, equTypes
 end
 
 end

@@ -58,7 +58,7 @@ allInstances(s) = return s
 
 function dummyDer(e)
   f = e
-	if typeof(f) == Instantiation.GetField
+  if typeof(f) == Instantiation.GetField
     f = f.name
   end
   if typeof(f) == Instantiation.Der
@@ -70,7 +70,7 @@ end
   
 function dummyState(e)
   f = e
-	if typeof(f) == Instantiation.GetField
+  if typeof(f) == Instantiation.GetField
     f = f.name
   end
   if typeof(f) == Instantiation.Der
@@ -159,7 +159,7 @@ function elaborateModel(flat_model)
     solved_model.equations =  torn_equations
   end    
   
-#	solved_model.variables = [solved_model.variables; SymbolicTransform.dummyDerivatives]
+#  solved_model.variables = [solved_model.variables; SymbolicTransform.dummyDerivatives]
 
   for d in SymbolicTransform.dummyDerivatives.keys
     # Remove der_
@@ -371,7 +371,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     println(@sprintf("Total time: %0.3f", (time_ns()-start)*1E-9), " seconds")
   end
   closeLogModia()
-	return res
+  return res
 end
 
 

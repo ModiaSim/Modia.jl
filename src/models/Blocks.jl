@@ -78,10 +78,10 @@ end
   height=1      # Height of step
   @extends SignalSource()
   @inherits y, offset, startTime
-	t = Float(start=0.0)
+  t = Float(start=0.0)
 @equations begin 
   y = offset + (t < startTime ? 0 : height)
-	der(t) = 1
+  der(t) = 1
   end
 end
 
@@ -94,11 +94,11 @@ end
   startTime=0   # Output y = offset for time < startTime
   @extends SO()
   @inherits y
-	t = Float(start=0.0)
+  t = Float(start=0.0)
 @equations begin 
 #  y = offset + if time < startTime;  0 else amplitude*sin(2*pi*freqHz*(time - startTime) + phase) end
   y = offset + if t < startTime;  0 else amplitude*sin(2*pi*freqHz*(t - startTime) + phase) end
-	der(t) = 1
+  der(t) = 1
   end
 end
 

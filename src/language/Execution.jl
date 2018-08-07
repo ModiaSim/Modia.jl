@@ -818,9 +818,9 @@ makeJSON(ex) = get(operator_table, string(ex), string(ex))
 function makeJSON(ex::Array{Any})
   [makeJSON(e) for e in ex]
 end
-
+  
 function makeJSON(ex::Expr)
-	if isexpr(ex, :quote) || isexpr(ex, :line)
+  if isexpr(ex, :quote) || isexpr(ex, :line)
     nothing
   elseif isexpr(ex, :block)
     makeJSON(ex.args[2])

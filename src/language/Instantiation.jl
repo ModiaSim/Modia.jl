@@ -971,7 +971,7 @@ prettyfy(get::GetField) = Symbol(replace(string(get.name), ".", "_")) # get.name
 #prettyfy(s::Symbol) = s
 prettyfy(ex) = ex
 function prettyfy(ex::Expr)
-	if isexpr(ex, :quote) || isexpr(ex, :line)
+  if isexpr(ex, :quote) || isexpr(ex, :line)
     nothing
   elseif isexpr(ex, :block)
     prettyfy(ex.args[2])
@@ -995,10 +995,10 @@ Array{Any}
 function prettyPrint(e::Expr)
     ex = prettyfy(e)
     if ex.head === :quote
-      return ex
-		elseif ex.head === :(:=)
-      return string(prettyPrint(ex.args[1]), " := ", prettyPrint(ex.args[2]))
-		end
+        return ex
+    elseif ex.head === :(:=)
+        return string(prettyPrint(ex.args[1]), " := ", prettyPrint(ex.args[2]))
+    end
     Expr(ex.head, [prettyPrint(arg) for arg in ex.args]...)
 end
 
