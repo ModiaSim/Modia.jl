@@ -65,19 +65,19 @@ function substituteClocked(previousVariables, ex::Expr)
     if isexpr(ex, :quote)
         ex
     elseif isexpr(ex, :call) && ex.args[1] == Synchronous.Clock
-			global nClocks += 1
+      global nClocks += 1
       Expr(ex.head, ex.args[1], ex.args[2], simulationModel_symbol, nClocks)
     elseif isexpr(ex, :call) && ex.args[1] == Synchronous.sample
-			global nsamples += 1
+      global nsamples += 1
       Expr(ex.head, ex.args[1], ex.args[2], substituteClocked(previousVariables, ex.args[3]), simulationModel_symbol, nsamples)
     elseif isexpr(ex, :call) && ex.args[1] == Synchronous.previous
-		  global nprevious += 1
-			push!(previousVariables, ex.args[2])
+      global nprevious += 1
+      push!(previousVariables, ex.args[2])
       Expr(ex.head, ex.args[1], ex.args[2], substituteClocked(previousVariables, ex.args[3]), simulationModel_symbol, nprevious)
     elseif isexpr(ex, :call) && ex.args[1] == Synchronous.positive
-		  global npositive += 1
+      global npositive += 1
       Expr(ex.head, ModiaMath.ModiaToModiaMath.positive!, ex.args[2], simulationModel_symbol, npositive)
-    else		
+    else    
       Expr(ex.head, [substituteClocked(previousVariables, arg) for arg in ex.args]...)
     end
 end
@@ -153,13 +153,13 @@ function getincidence(e)
     elseif typeof(e) == Instantiation.Der
       incidence = e # getincidence(e.base)
     elseif typeof(e) == Expr
-		  if e.head == :call && e.args[1] == :der	
-        incidence = e	
+      if e.head == :call && e.args[1] == :der  
+        incidence = e  
       elseif ! derAsFunction && e.head == :call && e.args[1] == Synchronous.previous
         incidence = map(getincidence, e.args[3:end])
-			else
+      else
         incidence = map(getincidence, e.args[2:end])
-			end
+      end
     elseif e == time_global || e == :time
       incidence = nothing
     elseif typeof(e) == Symbol
@@ -196,15 +196,15 @@ function getincidence(e)
   function find_incidence!(incidence::Array{Any,1}, ex::Expr)
     if !isexpr(ex, :quote)
         if ex.head == :call
-   				if ex.args[1] in [(Synchronous.previous), :(Synchronous.previous)]
+           if ex.args[1] in [(Synchronous.previous), :(Synchronous.previous)]
             for arg in ex.args[3:end]    # 3:end ?
               find_incidence!(incidence, arg)
             end   
-          elseif ex.args[1] == :der	
-					  println(":der incidence")
-            push!(incidence, ex)	
-					end
-				else
+          elseif ex.args[1] == :der  
+            println(":der incidence")
+            push!(incidence, ex)  
+          end
+        else
           for arg in ex.args
             find_incidence!(incidence, arg)
           end
@@ -219,11 +219,11 @@ function getincidence(e)
   if testincidence(inc, x)
 =#
 
-	function testIncidence(e, x)
-	  inc = getincidence(e)
+  function testIncidence(e, x)
+    inc = getincidence(e)
     return findfirst(inc, x) > 0
   end
-	
+  
 
 # --------------------------------------------------------------
 
@@ -235,7 +235,7 @@ Rewriting rules:
   ex: expression containing x
 
   e = ex  ->  ex = e
-	
+  
   - ex = e  ->  ex = -e
 
   ex + e1 = e2  ->  ex = e2 - e1
@@ -263,35 +263,35 @@ Rewriting rules:
   if logSolve
     println("\nSOLVE: ", string(x), " from:   ", prettyPrint(eq)) 
   end
-	LHS = eq.args[1]
-	RHS = eq.args[2]
+  LHS = eq.args[1]
+  RHS = eq.args[2]
 
   if testIncidence(LHS, x) && testIncidence(RHS, x)
     println("Multiple occurances of unknown: ", prettyPrint(eq))
     return eq, false
   elseif RHS == x || testIncidence(RHS, x)
-	  # Unknown x in RHS
+    # Unknown x in RHS
     if logSolve println("  right incidence, swap") end
-		# Swap LHS and RHS
+    # Swap LHS and RHS
     eq, solved = solve(Expr(:(=), RHS, LHS), x)
     return eq, solved 
-	elseif LHS == x || testIncidence(LHS, x)
-	  # Unknown x in LHS
+  elseif LHS == x || testIncidence(LHS, x)
+    # Unknown x in LHS
     if LHS == x || typeof(LHS) == Symbol || typeof(LHS) == Instantiation.GetField || typeof(LHS) == Instantiation.Der
       if logSolve println("  Already solved: ", prettyPrint(eq)) end
       return eq, true
     elseif LHS.head == :block && (isa(LHS.args[1], LineNumberNode) || isexpr(LHS.args[1], :line))
-			eq = Expr(:(=), LHS.args[2], RHS)
+      eq = Expr(:(=), LHS.args[2], RHS)
       eq, solved = solve(eq, x)
       return eq, solved
     end
 
     op = LHS.args[1]
-		arguments = LHS.args[2:end]
+    arguments = LHS.args[2:end]
     er = RHS 
 
     if size(arguments,1) == 1 && op in [-, :-, :transpose]
-		  # Unary operators - and transpose
+      # Unary operators - and transpose
       #  - ex = er  ->  ex = -er
       #  transpose(ex) = er  ->  ex = transpose(er)
       ex = LHS.args[2]
@@ -300,22 +300,22 @@ Rewriting rules:
       if ex != x
         eq, solved = solve(eq, x)
         return eq, solved
-			else
+      else
         return eq, true
         dump(ex)
         dump(x)
-			  error("Should not happen")
+        error("Should not happen")
       end
     elseif op in [*, :*, +, :+, -, :-, /, :/]   # ^, :^]
       e1 = arguments[1]
-			if size(arguments,1) == 2
-			  e2 = arguments[2]
-			else
+      if size(arguments,1) == 2
+        e2 = arguments[2]
+      else
 #        e2 = Expr(:call, op, arguments[2:end])  # Not correct
         e2 = Expr(:call) # , op, arguments[2])
-				e2.args = [op; arguments[2:end]]  # Fix
-			end
-			
+        e2.args = [op; arguments[2:end]]  # Fix
+      end
+      
       if testIncidence(e1, x) && testIncidence(e2, x)
         println("Multiple occurances of unknown: ", prettyPrint(LHS))
         return eq, false
@@ -323,25 +323,25 @@ Rewriting rules:
         if logSolve println("  left expression incidence") end
         ex = e1
         if op in [*, :*] 
-				  # ex * e2 * ... = er  ->  ex = er / (e2 * ...)
+          # ex * e2 * ... = er  ->  ex = er / (e2 * ...)
           eq = Expr(:(=), ex, Expr(:call, :/, er, e2))
         elseif op in [+, :+] 
-				  # ex + e2 + ... = er  ->  ex = er - (e2 + ...)
+          # ex + e2 + ... = er  ->  ex = er - (e2 + ...)
           eq = Expr(:(=), ex, sub(er, e2))
         elseif op in [-, :-] 
           # ex - e2 - ... = er  ->  ex = er + e2 + ...
-					if size(arguments,1) > 2
-					  e2.args[1] = +
-					end
+          if size(arguments,1) > 2
+            e2.args[1] = +
+          end
           eq = Expr(:(=), ex, add(er, e2))
-				elseif op in [/, :/] 
+        elseif op in [/, :/] 
           # ex / e1 / ... = er  ->  ex = er * e1 * ...
-					if size(arguments,1) > 2
-					  e2.args[1] = *
-					end
+          if size(arguments,1) > 2
+            e2.args[1] = *
+          end
           eq = Expr(:(=), ex, mult(er, e2))
         elseif op in [^, :^] 
-				  # ex ^ 2 = er  ->  ex = sqrt(er)  # Generalize, could be negative
+          # ex ^ 2 = er  ->  ex = sqrt(er)  # Generalize, could be negative
           # eq = Expr(:(=), ex, Expr(:call, :-, Expr(:call, :sqrt, er)))
           return eq, false
         end
@@ -349,53 +349,53 @@ Rewriting rules:
         if logSolve println("  right expression incidence") end
         ex = e2
         if op in [*, :*]
-				  # e1 * ex * ... = er  ->  ex * ... = e1 \ er
+          # e1 * ex * ... = er  ->  ex * ... = e1 \ er
           eq = Expr(:(=), ex, Expr(:call, :\, e1, er))
         elseif op in [+, :+]
-				  # e1 + ex + ... = er  ->  ex + ... = er - e1
+          # e1 + ex + ... = er  ->  ex + ... = er - e1
           eq = Expr(:(=), ex, sub(er, e1))
         elseif op in [-, :-]
           # e1 - ex - ... = er  ->  ex + ... = e1 - er
-					if size(arguments,1) > 2
-					  ex.args[1] = +
-					end
+          if size(arguments,1) > 2
+            ex.args[1] = +
+          end
           eq = Expr(:(=), ex, sub(e1, er))
         elseif op in [/, :/]
           # e1 / ex / ... = er  ->  ex * ... = e1 / er
-					if size(arguments,1) > 2
-					  ex.args[1] = *
-					end
+          if size(arguments,1) > 2
+            ex.args[1] = *
+          end
           eq = Expr(:(=), ex, Expr(:call, /,  e1, er))
         end
       end
-		
+    
       if ex != x
         eq, solved = solve(eq, x)
         return eq, solved
-			else
+      else
         if logSolve println("  Solved: ", prettyPrint(eq)) end
-		    return eq, true
+        return eq, true
       end
-		else
+    else
       if logSolve 
-  		  println("Equations involving this operator are not solved: ", op)
-	  		println("  Not solved: ", prettyPrint(eq))
+        println("Equations involving this operator are not solved: ", op)
+        println("  Not solved: ", prettyPrint(eq))
       end
-#			dump(eq)
+#     dump(eq)
       return eq, false
     end
     if logSolve println("  Never solved: ", prettyPrint(eq)) end
-		error("Should not happen")
+    error("Should not happen")
     return eq, false
-	else
+  else
 #    println("Should not happen:")
-#	  dump(eq.args[1])
-#	  dump(eq.args[2])
-#		dump(x)
+#   dump(eq.args[1])
+#   dump(eq.args[2])
+#   dump(x)
     return eq, false
-	  error("Should not happen")  # Check up!!!
+    error("Should not happen")  # Check up!!!
   end
-	
+  
   if logSolve println("  Not solved: ", prettyPrint(eq)) end
   error("Should not happen")
   return eq, false
@@ -415,32 +415,32 @@ Solve assigned equations.
 
 """
 function solveEquations(equations, variables, indices, assign, A, B)
-	(orgIndexVar, derOrderVar) = invertDer(A)
-	(orgIndexEqu, derOrderEqu) = invertDer(B)
-	(assignedVar,) = invertAssign(assign)
-	for i in indices
-		j = assignedVar[i]
-		if j > 0		
-			if derOrderVar[j] == 1
-				print("der(")
-			elseif derOrderVar[j] > 1
-				print("der", derOrderVar[j], "(")
-			end
-			print(variables[orgIndexVar[j]])
-			if derOrderVar[j] > 0
-				print(")")
-			end
-		end
-		print(": ")
-			
-		if derOrderEqu[i] == 1
-			print("DER() ")
-		elseif derOrderEqu[i] > 1
-			print("DER", derOrderEqu[i], "() ")
-		end
-		println(equations[orgIndexEqu[i]])
-		println(solve(equations[i], variables[j]))
-	end
+  (orgIndexVar, derOrderVar) = invertDer(A)
+  (orgIndexEqu, derOrderEqu) = invertDer(B)
+  (assignedVar,) = invertAssign(assign)
+  for i in indices
+    j = assignedVar[i]
+    if j > 0    
+      if derOrderVar[j] == 1
+        print("der(")
+      elseif derOrderVar[j] > 1
+        print("der", derOrderVar[j], "(")
+      end
+      print(variables[orgIndexVar[j]])
+      if derOrderVar[j] > 0
+        print(")")
+      end
+    end
+    print(": ")
+      
+    if derOrderEqu[i] == 1
+      print("DER() ")
+    elseif derOrderEqu[i] > 1
+      print("DER", derOrderEqu[i], "() ")
+    end
+    println(equations[orgIndexEqu[i]])
+    println(solve(equations[i], variables[j]))
+  end
 end
 
 
@@ -458,36 +458,36 @@ Solve sorted equations.
 
 """
 function solveSortedEquations(equations, variables, components, assign, A, B)
-	println("[assigned variable]: [differentiation] equation")
-	println("Strongly connected components are enclosed in []")
-	for c in components
-	  if length(c) > 1
-		  println("[")
-		end
-		solveEquations(equations, variables, c, assign, A, B)
-	  if length(c) > 1
-		  println("]")
-		end
-	end
+  println("[assigned variable]: [differentiation] equation")
+  println("Strongly connected components are enclosed in []")
+  for c in components
+    if length(c) > 1
+      println("[")
+    end
+    solveEquations(equations, variables, c, assign, A, B)
+    if length(c) > 1
+      println("]")
+    end
+  end
 end
 
 # ----------------------------------------------------------------------------------------
 
-	# Derivatives of functions
-	divide_der_1(x,y) = 1/y
-	divide_der_2(x,y) = x/y^2
+  # Derivatives of functions
+  divide_der_1(x,y) = 1/y
+  divide_der_2(x,y) = x/y^2
 
-	power_der_1(x,y) = y*x^(y-1)
-	power_der_2(x,y) =  x^y*log(x)
-	
-	exp_der(x) = exp(x)
-	log_der(x) = 1/x
-	sin_der(x) = cos(x)
-	cos_der(x) = -sin(x)
-	tan_der(x) = 1/cos(x)^2
-	arcsin_der(x) = 1/sqrt(1-x^2)
-	arccos_der(x) = -1/sqrt(1-x^2)
-	arctan_der(x) = 1/(1+x^2)
+  power_der_1(x,y) = y*x^(y-1)
+  power_der_2(x,y) =  x^y*log(x)
+  
+  exp_der(x) = exp(x)
+  log_der(x) = 1/x
+  sin_der(x) = cos(x)
+  cos_der(x) = -sin(x)
+  tan_der(x) = 1/cos(x)^2
+  arcsin_der(x) = 1/sqrt(1-x^2)
+  arccos_der(x) = -1/sqrt(1-x^2)
+  arctan_der(x) = 1/(1+x^2)
   sqrt_der(x) = 0.5/sqrt(x)
   sqrt_der_der(x) = -0.25/(x*sqrt(x))
  
@@ -506,7 +506,7 @@ end
     if logDifferentiate
 #      print("\nDIFFERENTIATE: "); println(prettyPrint(e))
 #      @show typeof(e)
-		end
+    end
     
     if typeof(e) in [Float64, Int64, String, Bool]
 #      diff = if ! derAsFunction; :($zero*$e) else zero*e end
@@ -571,7 +571,7 @@ end
       elseif e.base.name == Symbol("j.s")   # Hack!!!
         diff = Der(GetField(This(), Symbol("j.v"))) # GetField(This(), Symbol("j.a")) #
       else
-  		  diff = Der(e)
+        diff = Der(e)
       end
 #      @show e diff
       if logDifferentiateVariable
@@ -582,25 +582,25 @@ end
       if logDifferentiate
         logModia("DIFFERENTIATE:    "); loglnModia(prettyPrint(e))
         logModia("  Differentiated: "); loglnModia(prettyPrint(diff)); loglnModia()
-  		end
+      end
     elseif e.head == :block && (isa(e.args[1], LineNumberNode) || isexpr(e.args[1], :line))
       diff = differentiate(e.args[2])
     elseif e.head in [:vect, Symbol("vect"), :row, Symbol("row"), :vcat, Symbol("vcat")]
-		  diff = Expr(e.head)
-		  for i in 1:length(e.args)
-			  push!(diff.args, differentiate(e.args[i]))
-			end
+      diff = Expr(e.head)
+      for i in 1:length(e.args)
+        push!(diff.args, differentiate(e.args[i]))
+      end
 #      @show e
 #      @show diff
     elseif e.head in [:ref]
-		  diff = copy(e)
-			diff.args[1] = differentiate(e.args[1])  # Probably not complete.
+      diff = copy(e)
+      diff.args[1] = differentiate(e.args[1])  # Probably not complete.
     elseif e.head in [:comprehension]
-		  diff = copy(e)
-			diff.args[2].args[2] = differentiate(e.args[2].args[2])
-		elseif e.head in [:if]
-		  diff = Expr(e.head, e.args[1], differentiate(e.args[2]), differentiate(e.args[3]))					
-		elseif e.head == :call
+      diff = copy(e)
+      diff.args[2].args[2] = differentiate(e.args[2].args[2])
+    elseif e.head in [:if]
+      diff = Expr(e.head, e.args[1], differentiate(e.args[2]), differentiate(e.args[3]))          
+    elseif e.head == :call
       op = e.args[1]
       arguments = e.args[2:end]
       if length(arguments) == 1 && op in [:der, :transpose, transpose, Symbol("'"), :residue, Modia.BasicStructuralTransform.residue, :skew, Modia.BasicStructuralTransform.skew] # skewCoords
@@ -618,24 +618,24 @@ end
 #       diff = Expr(:call, *, e, zero)  # = e*zero
 #        diff = zero
       elseif op in [+, :+, -, :-]
-			  # der(e1 + e2 + e3) = der(e1) + der(e2) + der(e3)
-			  # der(e1 - e2 - e3) = der(e1) - der(e2) - der(e3)
+        # der(e1 + e2 + e3) = der(e1) + der(e2) + der(e3)
+        # der(e1 - e2 - e3) = der(e1) - der(e2) - der(e3)
 #        diff = Expr(:call, op, [differentiate(arg) for arg in arguments])  # Not correct
 #        diff = Expr(:call, op)
-#        diff.args = [op; [differentiate(arg) for arg in arguments]]  # Fix		
+#        diff.args = [op; [differentiate(arg) for arg in arguments]]  # Fix   
         diff = Expr(:call, op)
         firstNonZero = false
-				for i in 1:length(arguments)
-				  term = differentiate(arguments[i])
-					if term != zero 
+        for i in 1:length(arguments)
+          term = differentiate(arguments[i])
+          if term != zero 
             if i == 1
               firstNonZero = true
             end
-						push!(diff.args, term)
-					end
-				end
-				if length(diff.args) == 1
-				  diff = zero
+            push!(diff.args, term)
+          end
+        end
+        if length(diff.args) == 1
+          diff = zero
         elseif op in [+, :+] && length(diff.args) == 2
           # The cases:
           #   der(x+5) -> der(x)        
@@ -646,38 +646,38 @@ end
           #   der(5-x) -> -der(x)
           #   der(-x) -> -der(x)
           diff = diff.args[2]
-				end
+        end
       elseif op in [*, :*]
-			  # der(e1 * e2 * e3) = der(e1)*e2*e3 + e1*der(e2)*e3 + e1*e2*der(e3)
+        # der(e1 * e2 * e3) = der(e1)*e2*e3 + e1*der(e2)*e3 + e1*e2*der(e3)
         arguments = e.args[2:end]
         diff = Expr(:call, +)
-				for i in 1:length(arguments)
-				  terms = []
-					for j in 1:length(arguments)
-					  term = if i == j; differentiate(arguments[j]) else arguments[j] end
-						if term == zero  
-						  terms = []
-							break
-						else
-   					  push!(terms, term)
-						end
-					end
-					if terms != []
-  					product = Expr(:call, *)
-						for t in terms
-						  push!(product.args, t)
-						end
+        for i in 1:length(arguments)
+          terms = []
+          for j in 1:length(arguments)
+            term = if i == j; differentiate(arguments[j]) else arguments[j] end
+            if term == zero  
+              terms = []
+              break
+            else
+              push!(terms, term)
+            end
+          end
+          if terms != []
+            product = Expr(:call, *)
+            for t in terms
+              push!(product.args, t)
+            end
             if length(diff.args) > 0
-              push!(diff.args, product)		
-            end							
-					end
-	      end		
-				if length(diff.args) == 1 # Only + operator
-			    diff = zero
+              push!(diff.args, product)   
+            end             
+          end
+        end   
+        if length(diff.args) == 1 # Only + operator
+          diff = zero
         elseif length(diff.args) == 2 # Only + zero, remove +
-				  diff = diff.args[2]
-				end
-			elseif op in [/, :/]
+          diff = diff.args[2]
+        end
+      elseif op in [/, :/]
         # der(e1/e2) = der(e1)/e2 + e1/e2^2*der(e2)
         e1 = arguments[1]
         e2 = arguments[2]
@@ -690,7 +690,7 @@ end
         else
           diff = :($d1/$e2 + $e1/$e2^2*$d2)
         end
-			elseif op in [^, :^] && typeof(arguments[2]) in [Int64]
+      elseif op in [^, :^] && typeof(arguments[2]) in [Int64]
         # der(e1 ^ n) = n*e1^(n-1)*der(e1)
         e1 = arguments[1]
         n = arguments[2]
@@ -698,7 +698,7 @@ end
         p = power(e1, s)
         d = differentiate(e1)
         diff = :($n*$p*$d)
-			elseif op in [^, :^]
+      elseif op in [^, :^]
         # der(e1^e2) = e2*e1^(e2-1)*der(e1) + e1^e2*log(e1)*der(e2)
         e1 = arguments[1]
         e2 = arguments[2]
@@ -752,38 +752,38 @@ end
         d = differentiate(e1)
         diff = :(1/(1+$e1^2)*$d)
       else
-			  # der(f(e1, e2, e3)) = f_der_1(e1, e2, e3)*der(e1) + f_der_2(e1, e2, e3)*der(e2) + f_der_3(e1, e2, e3)*der(e3)
-			  arguments = e.args[2:end]
+        # der(f(e1, e2, e3)) = f_der_1(e1, e2, e3)*der(e1) + f_der_2(e1, e2, e3)*der(e2) + f_der_3(e1, e2, e3)*der(e3)
+        arguments = e.args[2:end]
         diff = Expr(:call, +)
-			  if op in [/, :/]
-				  op = :divide
-				elseif op in [^, :^]
-				  op = :power
-				end
-				for i in 1:length(arguments)
-				  if length(arguments) == 1
-					  f_der = Symbol(string(op, "_der"))
-					else 
-					  f_der = Symbol(string(op, "_der_", i))
-					end
-  		    f_der_i = Expr(:call, f_der)
-					for a in arguments
-				  	push!(f_der_i.args, a)
-					end
-	  			term = mult(f_der_i, differentiate(arguments[i])) 
-					if term != zero
-            push!(diff.args, term)			
-					end
-	      end				
-				if length(diff.args) == 1
-				  push!(diff.args, zero)
-				elseif length(diff.args) == 2
-				  diff = diff.args[2]
-				end
-			end
+        if op in [/, :/]
+          op = :divide
+        elseif op in [^, :^]
+          op = :power
+        end
+        for i in 1:length(arguments)
+          if length(arguments) == 1
+            f_der = Symbol(string(op, "_der"))
+          else 
+            f_der = Symbol(string(op, "_der_", i))
+          end
+          f_der_i = Expr(:call, f_der)
+          for a in arguments
+            push!(f_der_i.args, a)
+          end
+          term = mult(f_der_i, differentiate(arguments[i])) 
+          if term != zero
+            push!(diff.args, term)      
+          end
+        end       
+        if length(diff.args) == 1
+          push!(diff.args, zero)
+        elseif length(diff.args) == 2
+          diff = diff.args[2]
+        end
+      end
     else
       println("Error: ", prettyPrint(e))
-		  println("Not able to differentiate the above expression yet. ")
+      println("Not able to differentiate the above expression yet. ")
       dump(e)
       diff = nothing
     end
@@ -793,19 +793,19 @@ end
 
 
 function differentiateEquations(equations, variables, indices, assign, A, B, residualIndex)
-	(orgIndexVar, derOrderVar) = invertDer(A)
-	(orgIndexEqu, derOrderEqu) = invertDer(B)
-	(assignedVar,) = invertAssign(assign)
-	nSolved = 0
-	component = []
+  (orgIndexVar, derOrderVar) = invertDer(A)
+  (orgIndexEqu, derOrderEqu) = invertDer(B)
+  (assignedVar,) = invertAssign(assign)
+  nSolved = 0
+  component = []
   algebraic = []
-	for i in indices
+  for i in indices
     if logSolve
       println("\nNEXT EQUATION")
     end
-		j = assignedVar[i]
+    j = assignedVar[i]
     assigned = j > 0
-		if assigned
+    if assigned
       if logSolved
         if derOrderVar[j] == 1
            print("der(")
@@ -816,27 +816,27 @@ function differentiateEquations(equations, variables, indices, assign, A, B, res
         if derOrderVar[j] > 0
           print(")")
         end
-		  end 
-		end
-
-		if logSolved
-			print(": ")
-				
-			if derOrderEqu[i] == 1
-				print("DER() ")
-			elseif derOrderEqu[i] > 1
-				print("DER", derOrderEqu[i], "() ")
-			end
-			println(prettyPrint(equations[orgIndexEqu[i]]))
+      end 
     end
-		
-		diff = equations[orgIndexEqu[i]]
-		for d in 1:derOrderEqu[i]
-		  diff = differentiate(diff)
-		end
-		if logSolved
-  		println(prettyPrint(diff))
-		end
+
+    if logSolved
+      print(": ")
+        
+      if derOrderEqu[i] == 1
+        print("DER() ")
+      elseif derOrderEqu[i] > 1
+        print("DER", derOrderEqu[i], "() ")
+      end
+      println(prettyPrint(equations[orgIndexEqu[i]]))
+    end
+    
+    diff = equations[orgIndexEqu[i]]
+    for d in 1:derOrderEqu[i]
+      diff = differentiate(diff)
+    end
+    if logSolved
+      println(prettyPrint(diff))
+    end
     
     if assigned
       solveFor = variables[orgIndexVar[j]]
@@ -914,37 +914,37 @@ function differentiateEquations(equations, variables, indices, assign, A, B, res
       end
       println(prettyPrint(solution))
     end
-	end
+  end
   return component, algebraic, residualIndex
 end
 
 function differentiateSortedEquations(equations, variables, components, assign, A, B)
  if logSolved    
     println("[assigned variable]: [differentiation] equation")
-	  println("Strongly connected components are enclosed in []")
+    println("Strongly connected components are enclosed in []")
   end
   global dummyDerivatives = OrderedDict()
-	solvedComponents =[]
+  solvedComponents =[]
   algebraic = []
   residualIndex = 0
-	for c in components
-	  if logSolved && length(c) > 1
-		  println("[")
-		end
-		(solvedComponent, newAlgebraic, residualIndex) = differentiateEquations(equations, variables, c, assign, A, B, residualIndex)
-		push!(solvedComponents, solvedComponent)
+  for c in components
+    if logSolved && length(c) > 1
+      println("[")
+    end
+    (solvedComponent, newAlgebraic, residualIndex) = differentiateEquations(equations, variables, c, assign, A, B, residualIndex)
+    push!(solvedComponents, solvedComponent)
     for a in newAlgebraic
       push!(algebraic, a)
     end
   
-	  if logSolved && length(c) > 1
-		  println("]")
-		end
-	end
+    if logSolved && length(c) > 1
+      println("]")
+    end
+  end
 #  @show algebraic
 #  @show solvedComponents
 #  println("End of symbolic processing.")
-	return solvedComponents, algebraic, residualIndex
+  return solvedComponents, algebraic, residualIndex
 end
 
 function calcLinearCoeffcients(e)
@@ -968,20 +968,20 @@ end
 function newDifferentiateEquations(equations, variables, A, B, ESorted, ESolved)
   global dummyDerivatives = OrderedDict()
   println("newDifferentiateEquations")
-	(orgIndexVar, derOrderVar) = invertDer(A)
-	(orgIndexEqu, derOrderEqu) = invertDer(B)
-	nSolved = 0
-	component = []
+  (orgIndexVar, derOrderVar) = invertDer(A)
+  (orgIndexEqu, derOrderEqu) = invertDer(B)
+  nSolved = 0
+  component = []
   algebraic = []
-	for k in 1:length(ESorted)
+  for k in 1:length(ESorted)
     i = ESorted[k]
     if logSolve
       println("\nNEXT EQUATION: $i")
     end
-		j = ESolved[k]
+    j = ESolved[k]
 #    @show ESolved[k]
     assigned = j > 0
-		if assigned
+    if assigned
       if logSolved
         if derOrderVar[j] == 1
            print("der(")
@@ -992,28 +992,28 @@ function newDifferentiateEquations(equations, variables, A, B, ESorted, ESolved)
         if derOrderVar[j] > 0
           print(")")
         end
-		  end 
-		end
-
-		if logSolved
-			print(": ")
-				
-			if derOrderEqu[i] == 1
-				print("DER() ")
-			elseif derOrderEqu[i] > 1
-				print("DER", derOrderEqu[i], "() ")
-			end
-			println(prettyPrint(equations[orgIndexEqu[i]]))
+      end 
     end
-		
-		diff = equations[orgIndexEqu[i]]
 
-		for d in 1:derOrderEqu[i]
-		  diff = differentiate(diff)
-		end
-		if logSolved
-  		println(prettyPrint(diff))
-		end
+    if logSolved
+      print(": ")
+        
+      if derOrderEqu[i] == 1
+        print("DER() ")
+      elseif derOrderEqu[i] > 1
+        print("DER", derOrderEqu[i], "() ")
+      end
+      println(prettyPrint(equations[orgIndexEqu[i]]))
+    end
+    
+    diff = equations[orgIndexEqu[i]]
+
+    for d in 1:derOrderEqu[i]
+      diff = differentiate(diff)
+    end
+    if logSolved
+      println(prettyPrint(diff))
+    end
 #    @show assigned
     if assigned
       solveForOrg = variables[orgIndexVar[j]]
@@ -1088,10 +1088,10 @@ function newDifferentiateEquations(equations, variables, A, B, ESorted, ESolved)
       end
       println(prettyPrint(solution))
     end
-	end
+  end
   
   return component
 end
 
 end
-	
+  
