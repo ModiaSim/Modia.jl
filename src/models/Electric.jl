@@ -11,7 +11,7 @@ module Electric
 using ..Instantiation
 using ..Blocks
 using ..Synchronous: positive
-using SIUnits
+using Unitful
 
 using Modia
 
@@ -19,10 +19,10 @@ export Pin, Ground, OnePort, Resistor, Capacitor, Inductor,
   ConstantVoltage, StepVoltage, SignalVoltage, SineVoltage, IdealOpAmp3Pin, IdealDiode,
   Voltage, Current, Resistance, Capacitance
 
-Voltage(; args...) = Variable(;T=Volt, size=(), start=0.0, args...)
-Current(; args...) = Variable(;T=Ampere, size=(), start=0.0, args...)
-Resistance(; args...) = Variable(;T=Ohm, size=(), args...)
-Capacitance(; args...) = Variable(;T=Farad, size=(), args...)
+Voltage(; args...) = Variable(;T=Unitful.V, size=(), start=0.0, args...)
+Current(; args...) = Variable(;T=Unitful.A, size=(), start=0.0, args...)
+Resistance(; args...) = Variable(;T=Unitful.Ω, size=(), args...)
+Capacitance(; args...) = Variable(;T=Unitful.F, size=(), args...)
   
 @model Pin1 begin
   v=Float()
@@ -127,7 +127,7 @@ end
 end
 
 @model ConstantVoltage begin
-  V=1*Volt
+  V=1u"V"
   @extends OnePort()
   @inherits v
 @equations begin
@@ -136,7 +136,7 @@ end
 end
 
 @model StepVoltage begin
-  V=1*Volt
+  V=1u"V"
   startTime = 0*Seconds
   t = Var(start=0.0)
   @extends OnePort()

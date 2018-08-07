@@ -3,32 +3,31 @@
 using .Instantiation
 using .ModelElaboration
 
-using SIUnits
-using SIUnits.ShortUnits
+using Unitful
 using .StructuralTransform
 using .Synchronous: sample, Clock, previous, hold, positive, positiveChange, positiveEdge
 
 Var(; args...) = Variable(; args...)
 
-Float(value=nothing; info="", size=nothing, unit=SIPrefix, displayUnit=SIPrefix, 
+Float(value=nothing; info="", size=nothing, unit=NoUnits, displayUnit=NoUnits, 
     min=nothing, max=nothing, start=nothing, fixed::Bool=false, nominal=nothing,
     variability=continuous, 
     flow::Bool=false, state::Bool=true) = Variable(variability, Float64, size, value, 
     unit, displayUnit, min, max, start, fixed, nominal, info, flow, state, general)
 
-Boolean(value=nothing; info="", size=nothing, unit=SIPrefix, displayUnit=SIPrefix, 
+Boolean(value=nothing; info="", size=nothing, unit=NoUnits, displayUnit=NoUnits, 
     min=nothing, max=nothing, start=nothing, fixed::Bool=false, nominal=nothing,
     variability=continuous, 
     flow::Bool=false, state::Bool=true) = Variable(variability, Bool, size, value, 
     unit, displayUnit, min, max, start, fixed, nominal, info, flow, state, general)
 
-Integ(value=nothing; info="", size=nothing, unit=SIPrefix, displayUnit=SIPrefix, 
+Integ(value=nothing; info="", size=nothing, unit=NoUnits, displayUnit=NoUnits, 
     min=nothing, max=nothing, start=nothing, fixed::Bool=false, nominal=nothing,
     variability=continuous, 
     flow::Bool=false, state::Bool=true) = Variable(variability, Int, size, value, 
     unit, displayUnit, min, max, start, fixed, nominal, info, flow, state, general)
 
-Str(value=nothing; info="", size=nothing, unit=SIPrefix, displayUnit=SIPrefix, 
+Str(value=nothing; info="", size=nothing, unit=NoUnits, displayUnit=NoUnits, 
     min=nothing, max=nothing, start=nothing, fixed::Bool=false, nominal=nothing,
     variability=continuous, 
     flow::Bool=false, state::Bool=true) = Variable(variability, String, size, value, 

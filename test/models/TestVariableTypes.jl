@@ -9,7 +9,6 @@ using Modia
 using ModiaMath.plot
 #using FixedSizeArrays
 using StaticArrays
-using SIUnits
 using Unitful
 using Unitful.DefaultSymbols
 import Unitful:
@@ -40,7 +39,7 @@ Float3x3(;args...) = Variable(T=Float64, size=(3,3); args...)
 FixedFloat3(;args...) = Variable(T=Vec{3,Float64}; args...)
 FixedFloat3x3(;args...) = Variable(T=Mat{3,3,Float64}; args...)
 
-Voltage(; args...) = Variable(T=Volt; args...)
+Voltage(; args...) = Variable(T=Unitful.V; args...)
 
 #Real = (;args...)->Variable(typ=Float64; args...)
 
@@ -137,7 +136,7 @@ println()
 
   v4 = [1,2,3]
   v5 = [1,2,3]
-  v6 = 10.0Volt
+  v6 = 10.0u"V"
   end
 end 
 
@@ -161,8 +160,8 @@ println("Variable(T=Array{Float64,1}; args...) does not work with storeEliminate
   l = 2u"m" + 30cm + 55.7mm  # + 2m not possible due to variable m
 @equations begin
   # SIunits
-  v1 = 10.0Meter  
-  v2 = 5.5Volt  
+  v1 = 10.0u"m"
+  v2 = 5.5u"V"
   # Unitful
   v3 = 1u"kg" + 2u"g" + 10*sin(2*time)*u"hg"  
 #  der(v3) = 1.0u"kg/s"  # Differential equations with units are not handled yet
@@ -172,7 +171,7 @@ println("Variable(T=Array{Float64,1}; args...) does not work with storeEliminate
 end 
 
 result = simulate(TestVariableUnits1, 1)
-#result = checkSimulation(TestVariableUnits1, 1, "v1", 10Meter)
+#result = checkSimulation(TestVariableUnits1, 1, "v1", 10u"m")
 @show result["v2"][end]
 @show result["v3"][end]
 @show result["v4"][end]

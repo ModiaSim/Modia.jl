@@ -19,9 +19,7 @@ using ..Instantiation
 import ..Instantiation: GetField, This, Der, Symbolic, time_global, simulationModel_symbol
 using Base.Meta: quot, isexpr
 using DataStructures
-using SIUnits
-using SIUnits.ShortUnits
-using SIUnits.SIQuantity
+using Unitful
 using ..Synchronous
 using ..BLTandPantelidesUtilities
 #using ..Utilities
@@ -145,7 +143,7 @@ function getincidence(e)
 #    @show e typeof(e)
     if isa(e, Function)
       incidence = [e in operators ? nothing : e] 
-    elseif typeof(e) <: SIUnits.SIQuantity
+    elseif typeof(e) <: Unitful.Quantity
  #     dump(e)
       incidence = nothing
     elseif typeof(e) == Instantiation.GetField
@@ -512,10 +510,10 @@ end
 #      diff = if ! derAsFunction; :($zero*$e) else zero*e end
       diff = if ! derAsFunction; :($zero) else zero*e end
       if ! noUnits 
-        diff = diff / SIUnits.Second
+        diff = diff / Unitful.s
       end
-    elseif typeof(e) <: SIUnits.SIQuantity ||  typeof(e) <: SIUnits.SIUnit
-      diff = zero*e / SIUnits.Second
+    elseif typeof(e) <: Unitful.Quantity ||  typeof(e) <: Unitful.Unitlike
+      diff = zero*e / Unitful.s
     elseif typeof(e) in [Array{Float64}, Array{Int64}]
 #      diff = :($zero*$e) # zero*e
       diff = :($zero) # zero*e
@@ -541,12 +539,12 @@ end
 #        dump(e)
         i = findfirst(realStates, e)
         if i > 0
-          diff = Der(e) # / SIUnits.Second 
+          diff = Der(e) # / Unitful.s
 #        @show realStates i e diff
         else
 #          diff = GetField(This(), Symbol("DER("*string(e.name)*")"))
 #          dummyDerivatives[Symbol("DER("*string(e.name)*")")] = nothing
-          diff = GetField(This(), Symbol("der_"*string(e.name))) # / SIUnits.Second # With units
+          diff = GetField(This(), Symbol("der_"*string(e.name))) # / Unitful.s # With units
           dummyDerivatives[Symbol("der_"*string(e.name))] = nothing
           if logDifferentiateVariable
             println("  Dummy derivative: ", diff)
@@ -565,7 +563,7 @@ end
       if true
         diff = GetField(This(), Symbol("der_der_"*string(e.base.name))) 
         if ! noUnits 
-          diff = diff / SIUnits.Second
+          diff = diff / Unitful.s
         end
         dummyDerivatives[Symbol("der_der_"*string(e.base.name))] = nothing
       elseif e.base.name == Symbol("j.s")   # Hack!!!
@@ -1094,4 +1092,4 @@ function newDifferentiateEquations(equations, variables, A, B, ESorted, ESolved)
 end
   
 end
-  
+
