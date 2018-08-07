@@ -12,7 +12,7 @@ module Utilities
 using ..Instantiation: GetField, Der, InitVariable, Extends, Instance, Variable, Variability, constant, parameter, discrete, continuous, Connect, vars_of
 using ..Execution: split_variables
 using Base.Meta: quot, isexpr
-using SIUnits
+using Unitful
 using ..Instantiation
 
 using ..ModiaLogging 
@@ -132,7 +132,7 @@ function showVariable(v)
       logModia("start = ", v.start)
       first = false
     end
-    if v.unit != SIPrefix
+    if v.unit != NoUnits
       if ! first; logModia(", ") end
       logModia("unit = ", v.unit)
       first = false
