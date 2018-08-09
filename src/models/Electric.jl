@@ -70,7 +70,7 @@ end
 
 "Ideal linear electrical resistor"
 @model Resistor begin
-  R = Parameter(start=1.0, info = "Resistance", T=Unitful.V)
+  R = Parameter(start=1.0, info = "Resistance", T=Unitful.Ω)
   @extends OnePort()
   @inherits i, v
 @equations begin
