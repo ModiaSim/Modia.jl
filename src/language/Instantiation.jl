@@ -26,12 +26,19 @@ using DataStructures.OrderedDict
 @static if VERSION < v"0.7.0-DEV.2005"
   Nothing = Void 
   AbstractDict = Associative
+  macro __MODULE__()
+    return current_module()
+  end
 end
 
 import ModiaMath #0.7
 using Unitful
 using ..ModiaLogging 
 #using ..Synchronous
+
+import Base.Markdown
+import Base.Docs
+
 
 const shortSyntax = true
 
@@ -527,7 +534,7 @@ function code_model(head, top_ex)
     quote
         const $(name) = (let $(this_symbol) = $(quot(This())), $(var_bindings...)
 #            $(quot(Model))($(quot(name)), [$(initializers...)])
-            $(quot(Model))($(quot(name)), [$(args...)], [$(initializers...)])
+            $(quot(Model))($(quot(name)), Modia.Instantiation.@__MODULE__, [$(args...)], [$(initializers...)])
         end)
     end
 end
@@ -615,6 +622,7 @@ A `Model` object is a description on how to fill in an `Instance` object.
 """
 mutable struct Model
     name::Symbol
+    mod::Module
     arguments::Vector
     initializers::Vector{Initializer}
 end
@@ -653,6 +661,8 @@ Instantiations(model::Model) = Instantiations(model, [])
 "Instance of a model, with variable bindings and equations."
 mutable struct Instance
     model_name::Symbol
+    mod::Module
+    info::String
     variables::VariableDict
     equations::Vector{Any}
     partial::Bool
@@ -663,8 +673,8 @@ mutable struct Instance
     F_pre::Vector{Any}
     F_post::Vector{Any}
 end
-function Instance(model_name::Symbol, variables, equations, partial)
-    Instance(model_name, VariableDict(variables), 
+function Instance(model_name::Symbol, mod, info, variables, equations, partial)
+    Instance(model_name, mod, info, VariableDict(variables), 
         collect(Any, equations), partial, [], [], [], [])
 end
 
@@ -760,7 +770,8 @@ end
 
 function instantiate(model::Model, time::Float64, kwargs=[])
     kwargs = Dict(kwargs)
-    instance = Instance(model_name_of(model), VariableDict(), [], :partial in model.arguments)
+    instance = Instance(model_name_of(model), model.mod, get(kwargs, :info, ""), 
+			VariableDict(), [], :partial in model.arguments)
     for initializer in model.initializers
         initialize!(instance, initializer, time, kwargs)
     end
@@ -948,7 +959,7 @@ function flatten(instance::Instance)
         push!(flat.eqs, :($(GetField(This(), name)) = $z) )
     end
 
-    Instance(model_name_of(instance), flat.vars, flat.eqs, instance.partial)
+    Instance(model_name_of(instance), instance.mod, instance.info, flat.vars, flat.eqs, instance.partial)
 end
 
 
@@ -1000,6 +1011,33 @@ function prettyPrint(e::Expr)
         return string(prettyPrint(ex.args[1]), " := ", prettyPrint(ex.args[2]))
     end
     Expr(ex.head, [prettyPrint(arg) for arg in ex.args]...)
+end
+
+
+formatvar(v::Variable) = string("variable : ", v.info, " [", v.typ, "]")
+formatvar(v::Instance) = string("model : ", v.model_name, " : ", v.info)
+formatvar(v) = ""
+
+"Dynamic documentation for Models"
+function Docs.getdoc(m::Model, args = [])
+  docstr = try
+    join(Docs.docstr(Docs.Binding(m.mod, m.name)).text, "\n")
+  catch
+    ""
+  end
+
+  #vars = instantiate(m, 0.0, args).variables
+  vars = instantiate(m, 0.0).variables
+  if length(vars) > 0
+    docstr *= "\n#### Variables\n\n"
+  end
+  for (name, v) in vars
+    docstr *= "* `$name` : "
+    docstr *= formatvar(v)
+    docstr *= "\n"
+  end
+  
+  Markdown.parse(docstr)
 end
 
 
