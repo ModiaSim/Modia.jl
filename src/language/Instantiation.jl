@@ -1015,8 +1015,8 @@ end
 
 
 formatvar(v::Variable) = string("variable : ", v.info, " [", v.typ, "]")
-formatvar(v::Instance) = string("model : ", v.model_name, " : ", v.info)
-formatvar(v) = ""
+formatvar(v::Instance) = string("model : ", v.model_name, v.info != "" ? string(" : ", v.info) : "")
+formatvar(v) = string(typeof(v))
 
 "Dynamic documentation for Models"
 function Docs.getdoc(m::Model, args = [])

@@ -139,7 +139,7 @@ end
 
 @model StepVoltage begin
   V=1u"V"
-  startTime = 0*Seconds
+  startTime = 0u"s"
   t = Var(start=0.0)
   @extends OnePort()
   @inherits v
