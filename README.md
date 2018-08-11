@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Modia is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**. 
+[Modia](https://modiasim.github.io/) is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**. 
 
 Papers and presentations about Modia:
 
