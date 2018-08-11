@@ -40,6 +40,10 @@ module ExactlyRemoveSingularities
 export removeSingularities, upperTrapezoidal
 export printobj, printRemoveSingularities
 
+@static if ! (VERSION < v"0.7.0-DEV.2005")
+  using SparseArrays
+end
+
 """
     (Afac, rk, p1, p2, Bfac) = upperTrapezoidal(A,B) 
     (Afac, rk, p1, p2)       = upperTrapezoidal(A)
@@ -91,7 +95,7 @@ This implementation is based on:
   - Dureisseix D. (2012): Generalized fraction-free LU factorization for singular systems with kernel extraction. Linear Algebra and its Applications, Volume 436, Issue 1, pp. 27-40. Download: http://www.sciencedirect.com/science/article/pii/S0024379511004617#
 """
 function upperTrapezoidal(A::Matrix{Int}, B::Matrix{Int})
-   assert(size(A,1) == size(B,1))
+   @assert(size(A,1) == size(B,1))
    (n1,n2) = size(A)
    nb   = size(B,2)
    p1   = collect(1:n1)
@@ -188,7 +192,7 @@ upperTrapezoidal(A::Matrix{Int})                 =  upperTrapezoidal(A, fill(0,s
 
 
 function upperTrapezoidal(A::SparseMatrixCSC{Int,Int}, B::SparseMatrixCSC{Int,Int})
-   assert(size(A,1) == size(B,1))
+   @assert(size(A,1) == size(B,1))
    (n1,n2) = size(A)
    nb   = size(B,2)
    p1   = collect(1:n1)
@@ -366,8 +370,8 @@ function removeSingularities(A::T, ix::Vector{Int}, iy::Vector{Int}) where T <: 
      eqx2 = px1[1:rk2]
      eqr2 = px1[rk2+1:end]
      
-     eqx  = pv1[rk+eqx2]
-     eqr  = pv1[rk+eqr2]
+     eqx  = pv1[rk.+eqx2]
+     eqr  = pv1[rk.+eqr2]
      ix1  = ix[ px2[1:rk2] ]
      ix2  = ix[ px2[rk2+1:end] ]
      A1   = Xcfac[1:rk2, 1:rk2]
@@ -413,7 +417,7 @@ end
 
 
 function printEquation(coeff, names::Vector{String})
-   assert(length(coeff) == length(names))
+   @assert(length(coeff) == length(names))
    print("   ")
    first = true
    for i=1:length(names)

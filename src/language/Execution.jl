@@ -14,6 +14,11 @@ export setOptions
 
 using Base.Meta: quot, isexpr
 using DataStructures.OrderedDict
+@static if ! (VERSION < v"0.7.0-DEV.2005")
+  using LinearAlgebra
+  using SparseArrays
+end
+
 import ..Instantiation: Symbolic, Der, Instance, AbstractDict, VariableDict, Variable, Nothing, time_symbol, simulationModel_symbol, vars_of, check_start, GetField, This, time_global, simulationModel_global, eqs_of, get_start, get_dims, model_name_of, operator_table, prettyPrint
 import ..Instantiation: Variability, constant, parameter, discrete, continuous
 
@@ -197,6 +202,13 @@ struct Eval{F}
   f::F
 end
 (m::Eval)(x...) = eval(m.f)(x...)
+
+
+@static if VERSION < v"0.7.0-DEV.2005"
+  const letArgs = 1
+else
+  const letArgs = 2
+end      
       
 function prepare_ida(instance::Instance, first_F_args, initial_bindings::AbstractDict{Symbol,Any}; store_eliminated = false, need_eliminated_f = false)
 
@@ -399,7 +411,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
       end
 
       initial_ex = :(let; end)
-      initial_body = (initial_ex.args[1].args)::Vector{Any}
+      initial_body = (initial_ex.args[letArgs].args)::Vector{Any}
       @assert isempty(initial_body)
 
       append!(initial_body, initials)

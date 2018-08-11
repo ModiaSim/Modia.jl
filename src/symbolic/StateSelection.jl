@@ -85,8 +85,12 @@ function getConstraintSets(eBLT::Vector{Int}, Eassign::Vector{Int}, Arev::Vector
          end
       end
       if length(ceq) == 0; break; end
-      unshift!(eConstraints,ceq)   # move ceq to the beginning of the constraints vector
       
+      @static if VERSION < v"0.7.0-DEV.2005"
+        unshift!(eConstraints,ceq)   # move ceq to the beginning of the constraints vector
+      else
+        pushfirst!(eConstraints,ceq)   # move ceq to the beginning of the constraints vector
+      end     
       # Determine unknowns of constraints at one differentiation order less
       veq = fill(0,0)
       for vc in vConstraints[1]
@@ -97,7 +101,11 @@ function getConstraintSets(eBLT::Vector{Int}, Eassign::Vector{Int}, Arev::Vector
             error("Error should not occur: eBLT equations and vBLT variables have different differentiation orders");
          end
       end
-      unshift!(vConstraints,veq)   # move veq to the beginning of the constraints vector
+      @static if VERSION < v"0.7.0-DEV.2005"
+        unshift!(vConstraints,veq)   # move veq to the beginning of the constraints vector
+      else
+        pushfirst!(vConstraints,veq)   # move veq to the beginning of the constraints vector
+      end
    end 
    @assert(length(eConstraints) == length(vConstraints))
    

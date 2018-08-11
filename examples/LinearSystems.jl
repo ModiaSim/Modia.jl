@@ -16,7 +16,7 @@ using ModiaMath.plot
 end
 
 result = checkSimulation(MySISOABCD, 10, "x", 0.5000001198147023)
-plot(result, "x", figure=1, heading="MySISOABCD", figure=13)
+plot(result, "x", heading="MySISOABCD", figure=13)
 
 @model MyMIMOABCD begin
   s=Switch(u1=[1; 1], u2=[2; 3])
@@ -31,6 +31,6 @@ plot(result, "x", figure=1, heading="MySISOABCD", figure=13)
 end
 
 result = checkSimulation(MyMIMOABCD, 10, "x", 0.004778288940817275, storeEliminated=false) # storeEliminated=false needed. Investigate
-plot(result, "x", figure=1, heading="MyMIMOABCD with generic switch", figure=14)
+plot(result, "x", heading="MyMIMOABCD with generic switch", figure=14)
 
 end

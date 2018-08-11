@@ -7,9 +7,9 @@ Modia main module.
 =#
 
 
-import ModiaMath
+#import ModiaMath
 
-doc"""
+"""
 Modia - Dynamic Modeling and Simulation in Julia
 
 To define a model:
@@ -45,24 +45,35 @@ For more information, see (https://github.com/ModiaSim/Modia.jl/blob/master/READ
 """
 module Modia
 
-const Version = "0.2.0-beta.2"
-const Date = "2018-08-08"
+const Version = "0.2.0-beta.3"
+const Date = "2018-08-11"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
 print("Mod")
-print_with_color(:red, "ia", bold=true)
-print(" - ")
-print_with_color(:light_black, "Dynamic ")
-print("Mod")
-print_with_color(:light_black, "eling and Simulation with Jul")
-print_with_color(:red, "ia", bold=true)
+@static if VERSION < v"0.7.0-DEV.2005"
+  print_with_color(:red, "ia", bold=true)
+  print(" - ")
+  print_with_color(:light_black, "Dynamic ")
+  print("Mod")
+  print_with_color(:light_black, "eling and Simulation with Jul")
+  print_with_color(:red, "ia", bold=true)
+else
+  printstyled("ia", bold=true, color=:red)
+  print(" - ")
+  printstyled("Dynamic ", color=:light_black)
+  print("Mod")
+  printstyled("eling and Simulation with Jul", color=:light_black)
+  printstyled("ia", bold=true, color=:red)
+end
+
 println()
 
 println("Version $Version ($Date)")
 println("Type \"?Modia\" for help.\n\n")
 
-const ModiaDir = Pkg.dir("Modia")
+const ModiaDir = dirname(Base.@__DIR__)
+
 export ModiaDir
 
 export @model, simulateModel, simulate, checkSimulation, simulateMultiModeModel

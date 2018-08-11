@@ -7,7 +7,11 @@
 ################################################
 module TestStateSelectionAlgorithm
 
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
 
 include(joinpath("..","..","src","symbolic","StateSelection.jl"))
 using .StateSelection
@@ -15,7 +19,7 @@ using .StateSelection
 
 isAlgebraic(v::Int, A::Vector{Int}, Arev::Vector{Int}) = A[v] == 0 && Arev[v] == 0
 
-doc"""
+"""
     checkSortedEquationGraph(eq,Vx,Vderx) - check result of sortedEquationGraph(..)
     
 - eq   : Result of sortedEquationGraph(..)

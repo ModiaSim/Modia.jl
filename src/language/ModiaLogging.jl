@@ -89,6 +89,10 @@ function increaseLogCategory(category)
   end
 end
 
+@static if VERSION < v"0.7.0-DEV.2005"
+  printstyled(s, i; bold=false, color=:black) = print_with_color(color, s, i, bold=bold)
+end  
+
 function printTestStatus()
   global nOK
   global nNOTOK
@@ -96,8 +100,8 @@ function printTestStatus()
   println()
   println("\n----------------------\n")
   println()
-  print_with_color(:green, "Number of simulations OK    : ", nOK, bold=true); println()
-  print_with_color(:red, "Number of simulations NOT OK: ", nNOTOK, bold=true); println()
+  printstyled("Number of simulations OK    : ", nOK, bold=true, color=:green); println()
+  printstyled("Number of simulations NOT OK: ", nNOTOK, bold=true, color=:red); println()
   println()
   println("Log category statistics:")
   for (cat, count) in logCategories

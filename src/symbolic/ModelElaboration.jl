@@ -342,8 +342,12 @@ function simulateModelWithOptions(model, t; options=Dict())
     @show jsonSolved
   end
 =#    
-  
-  if ! BasicStructuralTransform.newStateSelection
+  @static if VERSION < v"0.7.0-DEV.2005"
+    disableSimulation = false
+  else
+    disableSimulation = true
+  end  
+  if ! BasicStructuralTransform.newStateSelection && ! disableSimulation ## Disable simulation for the moment
     loglnModia("\nSIMULATION")
    # @show incidenceMatrix
     if logTiming
@@ -354,7 +358,7 @@ function simulateModelWithOptions(model, t; options=Dict())
       res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log)
     end
   else
-    res = nothing
+    res = Dict{Symbol,AbstractArray{T,1} where T}()
   end
   
   setDerAsFunction(true)
@@ -381,7 +385,11 @@ end
 
 function simulate(model, stopTime; startTime=0, options...)
   nSteps = 1000
-  t = linspace(startTime, stopTime, nSteps) 
+  @static if VERSION < v"0.7.0-DEV.2005"
+    t = linspace(startTime, stopTime, nSteps) 
+  else
+    t = range(startTime, stop=stopTime, length=nSteps)
+  end
   return simulateModelWithOptions(model, t, options=options)
 end
 
@@ -390,7 +398,9 @@ function print_rgb(r, g, b, t)
 end
      
 
-     
+@static if VERSION < v"0.7.0-DEV.2005"
+  printstyled(s; bold=false, color=:black) = print_with_color(color, s, bold=bold)
+end  
 """
     function checkSimulation(mod, stopTime, observer, finalSolution; options...)
 Simulates model mod until stopTime and checks that the final value of the observer variable is approximately finalSolution. The following options are available:
@@ -410,14 +420,14 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     println()
     println("\n----------------------\n")
     println()
-    print_with_color(:red, "Simulation FAILED:", bold=true); println()
+    printstyled("Simulation FAILED:", bold=true, color=:red); println()
     if isa(err, ErrorException)
-      print_with_color(:red, err.msg, bold=true); println()
+      printstyled(err.msg, bold=true, color=:red); println()
     elseif isa(err, UndefVarError)
-      print_with_color(:red, err, bold=true); println()
+      printstyled(err, bold=true, color=:red); println()
       ModiaLogging.increaseLogCategory(:(UndefinedSymbol))      
     else
-      print_with_color(:red, err, bold=true); println()
+      printstyled(err, bold=true, color=:red); println()
     end
     println()
     println("\n----------------------\n")
@@ -438,7 +448,7 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     if ! ok
       setTestStatus(false)
       println("final solution $observer = $finalSolution")
-      print_with_color(:red, "Simulation NOT OK", bold=true); println()
+      printstyled("Simulation NOT OK", bold=true, color=:red); println()
       println()
       figure()
       title("Simulation NOT OK in "*string(mod.name))
@@ -450,13 +460,13 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     else
       ModiaLogging.increaseLogCategory(:(CalculatedResult))   
       setTestStatus(true)
-      print_with_color(:green, "Simulation OK", bold=true); println()
+      printstyled("Simulation OK", bold=true, color=:green); println()
       println()
       true
     end
   else
     setTestStatus(true)
-    print_with_color(:green, "Simulation RAN", bold=true); println()
+    printstyled("Simulation RAN", bold=true, color=:green); println()
     println()
     true  
   end

@@ -21,7 +21,7 @@ export Connect, addEquation!, deleteEquation!
 export prettyPrint, prettyfy, operator_table
 
 using Base.Meta:quot, isexpr
-using DataStructures.OrderedDict
+using DataStructures: OrderedDict
 #0.7 using SparseArrays
 @static if VERSION < v"0.7.0-DEV.2005"
   Nothing = Void 
@@ -468,6 +468,12 @@ const equations_symbol = Symbol("@equations")
 const time_symbol = gensym("time")
 const simulationModel_symbol = gensym("simulationModel")
 
+@static if VERSION < v"0.7.0-DEV.2005"
+  const macroCallNumberOfArguments = 2
+else
+  const macroCallNumberOfArguments = 3
+end
+
 "Implementation of `@model`"
 function code_model(head, top_ex)
 #=
@@ -491,9 +497,9 @@ function code_model(head, top_ex)
     varnames = OrderedDict{Symbol,Bool}() # variable name => initialized?
     for ex in top_ex.args
         if is_linenumber(ex); continue
-        elseif isexpr(ex, :macrocall, 2)
+        elseif isexpr(ex, :macrocall, macroCallNumberOfArguments)
             if ex.args[1] == inherits_symbol
-                parse_inherits!(varnames, ex.args[2], false)
+                parse_inherits!(varnames, ex.args[macroCallNumberOfArguments], false)
             end
         else
             varnames[get_declared_var_name(ex)] = false
@@ -505,15 +511,15 @@ function code_model(head, top_ex)
     for ex in top_ex.args
         if is_linenumber(ex)
             continue
-        elseif isexpr(ex, :macrocall, 2) && ex.args[1] == equations_symbol
-            @assert length(ex.args) == 2
-            push!(initializers, code_eqs(ex.args[2]))
-        elseif isexpr(ex, :macrocall, 2) && ex.args[1] == extends_symbol
-            @assert length(ex.args) == 2
-            push!(initializers, code_extends(ex.args[2], varnames))
-        elseif isexpr(ex, :macrocall, 2) && ex.args[1] == inherits_symbol
-            @assert length(ex.args) == 2
-            parse_inherits!(varnames, ex.args[2], true)
+        elseif isexpr(ex, :macrocall, macroCallNumberOfArguments) && ex.args[1] == equations_symbol
+            @assert length(ex.args) == macroCallNumberOfArguments
+            push!(initializers, code_eqs(ex.args[macroCallNumberOfArguments]))
+        elseif isexpr(ex, :macrocall, macroCallNumberOfArguments) && ex.args[1] == extends_symbol
+            @assert length(ex.args) == macroCallNumberOfArguments
+            push!(initializers, code_extends(ex.args[macroCallNumberOfArguments], varnames))
+        elseif isexpr(ex, :macrocall, macroCallNumberOfArguments) && ex.args[1] == inherits_symbol
+            @assert length(ex.args) == macroCallNumberOfArguments
+            parse_inherits!(varnames, ex.args[macroCallNumberOfArguments], true)
         else
             initvar_ex = code_variable(ex, varnames)
             push!(initializers, initvar_ex)
@@ -525,7 +531,7 @@ function code_model(head, top_ex)
     push!(var_bindings, :(time = $(quot(time_global))) )
     push!(var_bindings, :(simulationModel = $(quot(simulationModel_global))) )
     quote
-        const $(name) = (let $(this_symbol) = $(quot(This())), $(var_bindings...)
+        $(name) = (let $(this_symbol) = $(quot(This())), $(var_bindings...)
 #            $(quot(Model))($(quot(name)), [$(initializers...)])
             $(quot(Model))($(quot(name)), [$(args...)], [$(initializers...)])
         end)

@@ -8,11 +8,14 @@ Module with tests of SymbolicTransform.
 """
 module testSymbolicTransform
 
-using SymbolicTransform
-using Utilities
+using Modia.SymbolicTransform
+using Modia.Utilities
 
-#using FactCheck
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
 using Base.Meta: isexpr
 
 # Copied from Instantiation.jl

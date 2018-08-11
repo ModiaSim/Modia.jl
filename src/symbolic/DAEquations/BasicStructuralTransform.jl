@@ -16,9 +16,12 @@ import ..Instantiation: GetField, This, Der, Symbolic, prettyPrint, prettyfy
 import ..Execution: logTiming
 import ..Execution: ModiaSimulationModel, extract_results_ida
 import ..Execution: Subs, subs
-using DataStructures.OrderedDict
+using DataStructures: OrderedDict
 
 using Base.Meta: quot, isexpr
+@static if ! (VERSION < v"0.7.0-DEV.2005")
+  using SparseArrays
+end
 
 using DataStructures
 using ..Synchronous
@@ -967,11 +970,11 @@ end # reduceDAEIndex
   if expandArrayIncidence
     loglnModia("IG:")
     vNames = makeList(unknownsNames, 1:length(assignIG), Avar) # ::Vector{String}
-    i = 0
+    ii = 0
     for e in IG
       loglnModia("  ", e) 
-      i += 1
-      logModia(i, " ")
+      ii += 1
+      logModia(ii, " ")
       for v in e
         logModia(vNames[v], " ")
       end
@@ -1053,7 +1056,7 @@ end # reduceDAEIndex
     equation_code = nothing
   end
   
-  if newStateSelection || useKinsol
+  if newStateSelection || useKinsol && false ## Disable simulation for 0.7
     generateCode(newStateSelection, useKinsol, params, realStates, unknownsNames, deriv, equations, componentsIG, assignIG, Avar, Bequ, VSizes, ESizes, invAssign, sortedEquations, equation_code, unknowns)
     
     return nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing

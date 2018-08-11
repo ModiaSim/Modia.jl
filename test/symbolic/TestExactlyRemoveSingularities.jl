@@ -1,9 +1,14 @@
-doc"""
+"""
     module TestExactlyRemoveSingularities - Test Modia/src/symbolic/ExactlyRemoveSingularities.jl
 """
 module TestExactlyRemoveSingularities
 
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+  using SparseArrays
+end
 
 include("../../src/symbolic/ExactlyRemoveSingularities.jl")
 
