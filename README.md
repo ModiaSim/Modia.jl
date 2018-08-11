@@ -19,6 +19,15 @@ Component models are defined by `@model` macros. Such models contain definition 
 
 Modia.jl uses ModiaMath.jl. For more information on installing ModiaMath.jl, see [ModiaMath installation](https://modiasim.github.io/ModiaMath.jl/latest/index.html#Installation-1)
 
+On Julia 0.7 and later, run:
+
+```julia
+julia> Pkg.add("https://github.com/ModiaSim/ModiaMath.jl")
+julia> Pkg.add("https://github.com/ModiaSim/Modia.jl")
+```
+
+On Julia 0.6, run:
+
 ```julia
 julia> Pkg.clone("https://github.com/ModiaSim/ModiaMath.jl")
 julia> Pkg.clone("https://github.com/ModiaSim/Modia.jl")
