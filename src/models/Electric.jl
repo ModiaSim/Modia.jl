@@ -8,7 +8,7 @@ Modia module with electric component models (inspired from Modelica Standard Lib
 """
 module Electric
 
-using ..Instantiation
+#using ..Instantiation
 using ..Blocks
 using ..Synchronous: positive
 using Unitful

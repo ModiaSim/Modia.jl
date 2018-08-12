@@ -410,7 +410,11 @@ Simulates model mod until stopTime and checks that the final value of the observ
 """      
 function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTime=0, options...)
   nSteps = 1000
-  t = linspace(startTime, stopTime, nSteps)
+  @static if VERSION < v"0.7.0-DEV.2005"
+    t = linspace(startTime, stopTime, nSteps) 
+  else
+    t = range(startTime, stop=stopTime, length=nSteps)
+  end
   res = nothing
   try
     res = simulateModelWithOptions(mod, t, options=options)
@@ -477,7 +481,7 @@ end
 
 
 """
-xperimental code for multi-mode handling with impulses.
+Experimental code for multi-mode handling with impulses.
 """
 function simulateMultiModeModel(model, t0, t1; n=1000, m=100, options...)
   opt = Dict(options)  
@@ -492,7 +496,11 @@ function simulateMultiModeModel(model, t0, t1; n=1000, m=100, options...)
   loglnModia("\nSimulating model: ", model.name)
   
   dt = (t1-t0)/m
-  times1 = linspace(t0, t0+dt, 100)  
+  @static if VERSION < v"0.7.0-DEV.2005"
+    times1 = linspace(t0, t0+dt, 100)  
+  else
+    times1 = range(t0, stop=t0+dt, length=100)
+  end
   model1 = flatten(instantiate(model, t0, Dict()))
 #  model1 = elaborateModel(flatten(instantiate(model, t0, Dict()))) 
   println("\nSub-simulation 1; startTime=$t0, interval=$dt")
@@ -507,7 +515,11 @@ function simulateMultiModeModel(model, t0, t1; n=1000, m=100, options...)
 #    finals = [name => values[end] for (name,values) in res1]
     finals = Dict(name => if length(values) > 0; values[end] else false end for (name,values) in res1)
     
-    times2 = linspace(tn, tn+dt, 100)  
+    @static if VERSION < v"0.7.0-DEV.2005"
+      times2 = linspace(tn, tn+dt, 100)  
+    else
+      times2 = range(tn, stop=tn+dt, length=100)
+    end
     model2 = flatten(instantiate(model, tn, Dict())) 
 
     # carry over final values

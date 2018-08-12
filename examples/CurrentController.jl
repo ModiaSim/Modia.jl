@@ -6,7 +6,7 @@ using Modia
 using Modia.Electric
 using Modia.Rotational
 using Modia.Blocks
-using ModiaMath.plot
+using ModiaMath: plot
 
 @model CurrentController begin
   k=30   # Gain of PI current controller

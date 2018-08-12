@@ -2,7 +2,11 @@ module TestVariableTypes
 
 println("\nTestVariableTypes: Demonstrating the handling various variable types")
 
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
 
 using Modia
 #using ModiaMath
@@ -21,10 +25,11 @@ import Unitful:
     J, A, N, mol, cd, V,
     mW, W, Hz
 
-@testset "VariableTypes" begin
 
 #const Vec3 = Vec{3,Float64}
 const Vec3 = SVector{3,Float64}
+
+@testset "VariableTypes" begin
 
 #Var(; args...) = Variable(; args...)
 #Float(; args...) = Variable(T=Float64; args...)

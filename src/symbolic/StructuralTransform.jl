@@ -21,7 +21,11 @@ using ..Synchronous
 using ..SymbolicTransform
 using ..ModiaLogging
 
-#using Debug
+@static if VERSION < v"0.7.0-DEV.2005"
+  notFound = 0
+else
+  notFound = nothing
+end
 
 #export elaborate, prettyPrint, simulateModel, skewCoords, skew, residue, hide, modiaCross, showExpr, transformModel
 export residue, residue_der, hide  # from BasicStructuralTransform to models
@@ -654,17 +658,17 @@ function transformStructurally(flat_model)
   unknowns_indices = Dict(key => k for (k,key) in enumerate(unknownsNames))
   
   # Build variable association list. Avar[j] points to entry for derivative of variale j.
-  Avar = [findfirst(states, GetField(This(), name)) for name in unknownsNames]
+  Avar = [findfirst(isequal(GetField(This(), name)), states) for name in unknownsNames]
 #=
   Avar = fill(0, length(unknownsNames))
   for k in 1:length(deriv)
     d = deriv[k]
-    j = findfirst(unknownsNames, Symbol(d.base.name))  
+    j = findfirst(isequal(Symbol(d.base.name)), unknownsNames)  
     Avar[j] = k
   end
 =#
   # Add index offset for deriv vector and append zeros for deriv.
-  Avar = [[if a > 0; a+length(unknownsNames) else 0 end for a in Avar]; fill(0, length(deriv))]
+  Avar = [[if a != notFound; a+length(unknownsNames) else 0 end for a in Avar]; fill(0, length(deriv))]
 
   if false # log 
     printSymbolList("\nUnknowns", unknownsNames, true, true, Avar)

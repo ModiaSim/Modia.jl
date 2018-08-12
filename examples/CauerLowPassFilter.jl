@@ -3,8 +3,6 @@ module TestCauerLowPassFilter
 
 println("\nTestCauerLowPassFilter: Demonstrating the ability to simulate an electrical model translated from Modelica Standar Library")
 
-using PyPlot 
-
 using Modia
 using Modia.Electric
 
@@ -144,16 +142,6 @@ end
 
 #=
 res = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188)
-
-figure()
-title("CauerLowPassOPV")
-v = "C9.v"
-if res != nothing
-  plot(res["time"], res[v])
-  grid(true)
-  xlabel("time [s]")
-  legend([v],  loc="center right")
-end
 =#
 
 @model CauerLowPassOPVWithoutNodes begin
@@ -251,18 +239,6 @@ end
 end
 
 res = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188, useKinsol=true, removeSingularities = false)
-
-if res != nothing
-  figure()
-  title("CauerLowPassOPVWithoutNodes")
-  v1 = "C9.v"
-  v2 = "Op5.out.v"
-  v3 = "V.v"
-  plot(res["time"], res[v1], res["time"], res[v2], res["time"], res[v3])
-  grid(true)
-  xlabel("time [s]")
-  legend([v1, v2, v3],  loc="center right")
-end
 
 
 end

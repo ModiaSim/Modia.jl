@@ -23,6 +23,12 @@ using Unitful
 @static if ! (VERSION < v"0.7.0-DEV.2005")
   using LinearAlgebra
 end
+@static if VERSION < v"0.7.0-DEV.2005"
+  notFound = 0
+else
+  notFound = nothing
+end
+
 
 using ..Synchronous
 using ..BLTandPantelidesUtilities
@@ -222,13 +228,12 @@ function getincidence(e)
 #=
   inc = []
   find_incidence!(inc, LHS)
-  if testincidence(inc, x)
+  if testIncidence(inc, x)
 =#
 
   function testIncidence(e, x)
     inc = getincidence(e)
-    return findfirst(inc, x) > 0
-#    return findfirst(isequal(x), inc) > 0
+    return findfirst(isequal(x), inc) != notFound
   end
   
 
@@ -546,9 +551,8 @@ end
 #        println("\nGetField:")
 #        @show e
 #        dump(e)
-        i = findfirst(realStates, e)
-#        i = findfirst(isequal(e), realStates)
-        if i > 0
+        i = findfirst(isequal(e), realStates)
+        if i != notFound
           diff = Der(e) # / Unitful.s 
 #        @show realStates i e diff
         else

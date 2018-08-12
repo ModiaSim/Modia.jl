@@ -178,7 +178,11 @@ function showInstance(inst, indent="")
       logModia(indent, "  ", key, " = ")
       showInstance(inst.variables[key], newIndent)
     else
-      keyname = replace(string(key), ".", "_")
+      @static if VERSION < v"0.7.0-DEV.2005"
+        keyname = replace(string(key), ".", "_")
+      else
+        keyname = replace(string(key), "." => "_")
+      end
       logModia(indent, "  ", keyname, " = ") 
       showVariable(inst.variables[key])
     end

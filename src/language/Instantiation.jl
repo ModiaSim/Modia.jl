@@ -971,9 +971,14 @@ end
 
 
 #prettyfy(der::Der) = Symbol("der("*string(der.base.name)*")")
-prettyfy(der::Der) = Symbol("der("*replace(string(der.base.name), ".", "_")*")")
+@static if VERSION < v"0.7.0-DEV.2005"
+  prettyfy(der::Der) = Symbol("der("*replace(string(der.base.name), ".", "_")*")")
+  prettyfy(get::GetField) = Symbol(replace(string(get.name), ".", "_")) # get.name # Handle dummy derivatives
+else
+  prettyfy(der::Der) = Symbol("der("*replace(string(der.base.name), "." => "_")*")")
+  prettyfy(get::GetField) = Symbol(replace(string(get.name), "." => "_")) # get.name # Handle dummy derivatives
+end
 #prettyfy(get::GetField) = get.name
-prettyfy(get::GetField) = Symbol(replace(string(get.name), ".", "_")) # get.name # Handle dummy derivatives
 #prettyfy(s::Symbol) = s
 prettyfy(ex) = ex
 function prettyfy(ex::Expr)

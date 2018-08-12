@@ -84,6 +84,8 @@ end
   end
 end 
 
-checkSimulation(ParallelCapacitorCircuit, 1, "C1.v", 1.0, useKinsol=true, removeSingularities=false)
+# simulate(ParallelCapacitorCircuit, 1, useKinsol=true, removeSingularities=false, logTranslation=true)
+
+# checkSimulation(ParallelCapacitorCircuit, 1, "C1.v", 1.0, useKinsol=true, removeSingularities=false)
 
 end

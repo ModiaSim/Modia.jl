@@ -9,7 +9,7 @@ Modia module with rotational component models (inspired from Modelica Standard L
 module Rotational
 
 export Flange, Inertia, Spring, SpringDamper, EMF, IdealGear, Torque, CurrentSensor 
-using ..Instantiation
+#using ..Instantiation
 using ..Electric
 using ..Blocks
 

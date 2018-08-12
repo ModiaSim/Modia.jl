@@ -22,6 +22,11 @@ using Base.Meta: quot, isexpr
 @static if ! (VERSION < v"0.7.0-DEV.2005")
   using SparseArrays
 end
+@static if VERSION < v"0.7.0-DEV.2005"
+  notFound = 0
+else
+  notFound = nothing
+end
 
 using DataStructures
 using ..Synchronous
@@ -450,12 +455,12 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     for inc in incidence
       i = get(unknowns_indices, inc, 0)
       if i == 0
-        i = findfirst(deriv, inc)
-        if i > 0
+        i = findfirst(isequal(inc), deriv)
+        if i != notFound
           i = i + length(unknownsNames)
         end
       end
-      if i > 0 
+      if i != notFound 
         push!(vertices, i)
       end
     end
@@ -502,7 +507,7 @@ function handleSingularities()
     for i in 1:length(coefficients)
       eCoeff = coefficients[i]
       for v in keys(eCoeff)
-        j = findfirst(linearVars, v)
+        j = findfirst(isequal(v), linearVars)
         linearCoefficientMatrix[i, j] = eCoeff[v]
       end
     end
@@ -514,8 +519,8 @@ function handleSingularities()
     ix = fill(0,0)
     for i in 1:length(Avar)
       if Avar[i] != 0
-        j = findfirst(linearVars, names[i])
-        if j > 0 
+        j = findfirst(isequal(names[i]), linearVars)
+        if j != notFound 
           push!(ix, j)
         end
       end
@@ -528,7 +533,7 @@ function handleSingularities()
     iy = [i for i in 1:length(linearVars)]
     for v in notLinearVariableNames
       if v in linearVars
-        j = findfirst(linearVars, v)
+        j = findfirst(isequal(v), linearVars)
         iy = setdiff(iy, j)
       end
     end
@@ -574,7 +579,7 @@ function handleSingularities()
       loglnModia("Added equation: ", prettyPrint(eq))   
       equationsUpdated = true
       push!(newEquations, eq)
-      push!(newG, [findfirst(names, linearVars[i])])
+      push!(newG, [findfirst(isequal(linearVars[i]), names)])
       push!(newESizes, size(0))
     end
     
@@ -585,7 +590,7 @@ function handleSingularities()
       g = []
       for j in 1:size(A1,2)
         e1 = add(e1, mult(A1[i,j], GetField(This(), linearVarsStrings[ix1[j]])))
-        push!(g, findfirst(names, linearVars[ix1[j]]))
+        push!(g, findfirst(isequal(linearVars[ix1[j]]), names))
         push!(nonStateVariables, linearVars[ix1[j]])
         printSymbolList("\nNon state variables", nonStateVariables)
     
@@ -598,7 +603,7 @@ function handleSingularities()
       end
       for j in 1:size(A2,2)
         e2 = add(e2, mult(A2[i,j], GetField(This(), linearVarsStrings[ix2[j]])))
-        push!(g, findfirst(names, linearVars[ix2[j]]))
+        push!(g, findfirst(isequal(linearVars[ix2[j]]), names))
       end
       eq = :($e1 + $e2 = 0.0)
       loglnModia("Added equation: ", prettyPrint(eq))   
@@ -1166,8 +1171,8 @@ function  performNewStateselection(unknownsNames, deriv, equations, equationsInf
       solvable = []
       for (var, value) in coeff
         if value in [1, -1]
-          ind = findfirst(vNames, string(var))
-          if ind > 0
+          ind = findfirst(isequal(string(var)),vNames)
+          if ind != notFound
             push!(solvable, ind)
           end
         end
@@ -1593,8 +1598,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
       for (name, var) in unknowns
         if var.start != nothing
           loglnModia(name, " = ", var.start)
-          k = findfirst(vNames[sortedEquations.Vx], string(name))
-          if k > 0
+          k = findfirst(isequal(string(name)), vNames[sortedEquations.Vx])
+          if k != notFound
             x0[k] = var.start  # Need to take care of vectors.
           else
             println("Not found: $(string(name)), start=$(var.start)")
@@ -1638,7 +1643,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
       vars = keys(result)
       leg = String[]
       for v in vars
-        if v != "time" && ! (findfirst("der",v) != 0:-1)
+        if v != "time" && ! (findfirst(isequal(v), "der") != notFound)
           plot(result["time"], result[v])
           push!(leg, v)
         end

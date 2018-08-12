@@ -45,8 +45,8 @@ For more information, see (https://github.com/ModiaSim/Modia.jl/blob/master/READ
 """
 module Modia
 
-const Version = "0.2.0-beta.3"
-const Date = "2018-08-11"
+const Version = "0.2.0-beta.4"
+const Date = "2018-08-12"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -90,12 +90,13 @@ include("language/Execution.jl")
 
 include("symbolic/DAEquations/Synchronous.jl") # Before models/Electric, etc
 
-include("models/models.jl")  # Before symbolic because MultiBody is used in BasicStructuralTransform
-
 include("symbolic/symbolic.jl")
 
 using .Instantiation
 
 include("models/ModiaBase.jl")
+
+include("models/models.jl")  # Before symbolic because MultiBody is used in BasicStructuralTransform
+
 
 end
