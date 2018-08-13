@@ -1,7 +1,7 @@
 """
 Modia module with utility functions.
 
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * First version: July 2016
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
@@ -15,11 +15,11 @@ using Base.Meta: quot, isexpr
 using Unitful
 using ..Instantiation
 
-using ..ModiaLogging 
+using ..ModiaLogging
 
 export @show_io, printSymbolList, showModel, showInstance, checkSizes, printJSON
 
-using Base.show_unquoted
+using Base: show_unquoted
 
 # Version of @show for any stream
 macro show_io(io, exs...)
@@ -44,14 +44,14 @@ function printSymbolList(label, symbols, numbering=false, vertical=false, A=[])
       if vertical
         loglnModia()
       else
-        logModia(", ") 
+        logModia(", ")
       end
     end
     if numbering
       if vertical
         logModia(lpad(i, 5, " "), ": ")
       else
-        logModia(i, ": ")      
+        logModia(i, ": ")
       end
     end
     if vertical
@@ -59,10 +59,10 @@ function printSymbolList(label, symbols, numbering=false, vertical=false, A=[])
     else
       logModia(prettyfy(symbols[i]))
     end
-    if A !=[] 
+    if A !=[]
       if A[i] != 0
         logModia("A[$i] = $(A[i])")
-      end        
+      end
     end
   end
   if length(symbols) > maxSymbols
@@ -170,10 +170,10 @@ function showInstance(inst, indent="")
   loglnModia("------")
   @show inst
   loglnModia("------")
-=# 
+=#
   newIndent = string(indent, "  ")
   loglnModia("@model ", inst.model_name, " begin")
-  for key in keys(inst.variables) 
+  for key in keys(inst.variables)
     if isa(key, Instance)
       logModia(indent, "  ", key, " = ")
       showInstance(inst.variables[key], newIndent)
@@ -183,7 +183,7 @@ function showInstance(inst, indent="")
       else
         keyname = replace(string(key), "." => "_")
       end
-      logModia(indent, "  ", keyname, " = ") 
+      logModia(indent, "  ", keyname, " = ")
       showVariable(inst.variables[key])
     end
   end
@@ -195,7 +195,7 @@ function showInstance(inst, indent="")
   end
   loglnModia(indent, "  end")
   loglnModia(indent, "end")
- 
+
 end
 
 function checkSizes(VSizes, ESizes)
@@ -209,7 +209,7 @@ function checkSizes(VSizes, ESizes)
   loglnModia()
   scalarV = sum(length(zeros(v)) for v in VSizes)
   scalarE = sum(length(zeros(e)) for e in ESizes)
-  if scalarV != scalarE  
+  if scalarV != scalarE
     error("Scalarized system matrix is not square: $scalarE x $scalarV")
     ok = false
   else
@@ -250,7 +250,7 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
   loglnModia(file, indent, "{")
   loglnModia(file, indent, "\"id\": \"$(fullName)\",")
   loglnModia(file, indent, "\"class\": \"$(inst.model_name)\",")
-  
+
   params, unknowns = split_variables(vars_of(inst))
   if length(params) > 0
     loglnModia(file, indent, "\"parameters\": {")
@@ -260,14 +260,14 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
       i += 1
       logModia(file, indent1, "\"", n, "\"", " : ", p)
       if i < length(params)
-        loglnModia(file, ",") 
+        loglnModia(file, ",")
       else
-        loglnModia(file) 
+        loglnModia(file)
       end
-    end    
+    end
     loglnModia(file, indent, "},")
   end
-  
+
   loglnModia(file, indent, "\"labels\": [{\"text\": \"$name\"}],")
   if isPort(inst)
     orientation = if length(search(string(parent), "G")) > 0; "\"NORTH\"" elseif length(search(string(name), "p")) > 0 || length(search(string(name), "in")) > 0; "\"WEST\"" else "\"EAST\"" end
@@ -279,12 +279,12 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
     loglnModia(file, indent, "\"width\": $size,")
     loglnModia(file, indent, "\"height\": $size")
   end
-  
+
     first = true
     for (n,v) in inst.variables
       if isa(v, Instance) && isPort(v) && level > 1 # length(search(string(n), "n")) == 0
         if first
-          loglnModia(file, indent, ", \"ports\": [")        
+          loglnModia(file, indent, ", \"ports\": [")
         else
           loglnModia(file, indent, ", ")
         end
@@ -295,12 +295,12 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
     if ! first
       loglnModia(file, indent, "]")
     end
- 
+
     first = true
     for (n,v) in inst.variables
       if isa(v, Instance) && (! isPort(v) || level == 1) #  || (isa(v, Instance) && isPort(v) && length(search(string(n), "n")) > 0)
         if first
-          loglnModia(file, indent, ", \"children\": [")        
+          loglnModia(file, indent, ", \"children\": [")
         else
           loglnModia(file, indent, ", ")
         end
@@ -311,13 +311,13 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
     if ! first
       loglnModia(file, indent, "]")
     end
- 
+
     first = true
     id = 0
     for e in inst.equations
       if isa(e, Connect)
         if first
-          loglnModia(file, indent, ", \"edges\": [") 
+          loglnModia(file, indent, ", \"edges\": [")
         else
           loglnModia(file, indent, ", ")
         end
@@ -328,13 +328,13 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
           loglnModia(file, indent, "   \"source\": \"$(e.a.base.name)\",")
           loglnModia(file, indent, "   \"sourcePort\": \"$(string(e.a.base.name)*string(e.a.name))\",")
         else
-          loglnModia(file, indent, "   \"source\": \"$(e.a.name)\",")        
+          loglnModia(file, indent, "   \"source\": \"$(e.a.name)\",")
         end
         if isa(e.b.base, GetField)
           loglnModia(file, indent, "   \"target\": \"$(e.b.base.name)\",")
           loglnModia(file, indent, "   \"targetPort\": \"$(string(e.b.base.name)*string(e.b.name))\"}")
         else
-          loglnModia(file, indent, "   \"target\": \"$(e.b.name)\"}")        
+          loglnModia(file, indent, "   \"target\": \"$(e.b.name)\"}")
         end
       end
     end

@@ -2,7 +2,7 @@
 Modia module for instantiation and flattening of models.
 
 * Original developer: Toivo Henningsson, Lund
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 
@@ -24,13 +24,13 @@ using Base.Meta:quot, isexpr
 using DataStructures: OrderedDict
 #0.7 using SparseArrays
 @static if VERSION < v"0.7.0-DEV.2005"
-  Nothing = Void 
+  Nothing = Void
   AbstractDict = Associative
 end
 
 import ModiaMath #0.7
 using Unitful
-using ..ModiaLogging 
+using ..ModiaLogging
 #using ..Synchronous
 
 const shortSyntax = true
@@ -62,17 +62,17 @@ mutable struct Variable  # {T,n}
     state::Bool
     property::Property
 end
-# The variability, type and info are added as attributes in the type for uniform treatment. 
+# The variability, type and info are added as attributes in the type for uniform treatment.
 # Input/output, etc should also be added.
 
-Variable(;value=nothing, info="", unit=if typeof(value) <: Unitful.Quantity; Unitful.unit(value) else Unitful.NoUnits end, 
-    displayUnit=unit, 
+Variable(;value=nothing, info="", unit=if typeof(value) <: Unitful.Quantity; Unitful.unit(value) else Unitful.NoUnits end,
+    displayUnit=unit,
     min=nothing, max=nothing, start=nothing, fixed::Bool=false, nominal=nothing,
-    variability=continuous, T=if value==nothing; Any else typeof(value) end, size=if value==nothing; nothing else Base.size(value) end, flow::Bool=false, state::Bool=true, property=general) = 
-    Variable(variability, T, size, value, 
+    variability=continuous, T=if value==nothing; Any else typeof(value) end, size=if value==nothing; nothing else Base.size(value) end, flow::Bool=false, state::Bool=true, property=general) =
+    Variable(variability, T, size, value,
     unit, displayUnit, min, max, start, fixed, nominal, info, flow, state, property)
-    
-    
+
+
 
 function Base.show(io::IO, v::Variable)
   print(io, "Variable(")
@@ -125,7 +125,7 @@ function Base.show(io::IO, v::Variable)
   println(io, ")")
 end
 
-#=    
+#=
 function show(io::IO, x::Volt)
     print(io, "Volt")
     nothing
@@ -173,7 +173,7 @@ end
 
 function Base.show(io::IO, g::GetField)
   if shortSyntax
-    print(io, g.base, ".", g.name)  
+    print(io, g.base, ".", g.name)
   else
     print(io, "GetField(", g.base, ", ", g.name, ")")
   end
@@ -181,7 +181,7 @@ end
 
 "AST node for the derivative of a `Symbolic` node."
 struct Der <: Symbolic
-    base::Symbolic    
+    base::Symbolic
 end
 #=
 function Base.show(io::IO, d::Der)
@@ -193,7 +193,7 @@ function Base.show(io::IO, d::Der)
   if shortSyntax
     print(io, "der(", d.base, ")")
   else
-    print(io, "Der(", d.base, ")")  
+    print(io, "Der(", d.base, ")")
   end
 end
 
@@ -202,7 +202,7 @@ struct This <: Symbolic
 end
 
 #=
-function Base.show(io::IO, this::This)    
+function Base.show(io::IO, this::This)
   print(io, "this")
 end
 =#
@@ -211,14 +211,14 @@ function Base.show(io::IO, this::This)
   if shortSyntax
     print(io, "this")
   else
-    print(io, "This()")  
+    print(io, "This()")
   end
 end
 
 "Representation of a connect equation, used in the equations list."
 struct Connect
-    a::Symbolic    
-    b::Symbolic    
+    a::Symbolic
+    b::Symbolic
 end
 
 function Base.show(io::IO, c::Connect)
@@ -308,7 +308,7 @@ function recode(ex::Expr)
             return :( $(quot(Connect))($(recode(args[2])), $(recode(args[3]))) )
         else
             print("The connect statement takes two arguments: $ex")
-        end        
+        end
     end
 
     args = map(recode, ex.args)
@@ -410,7 +410,7 @@ end
 function code_variable(ex::Expr, varnames)
     @assert isexpr(ex, :(=), 2)
     lhs, rhs = ex.args
-    
+
 #    if typeof(rhs) == Expr && (rhs.head == call || rhs.head == :call)
     if typeof(rhs) == Expr && rhs.head == :call
       args = rhs.args
@@ -434,10 +434,10 @@ function code_variable(ex::Expr, varnames)
           rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
         else
          rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
-        end          
+        end
       end
     end
-    
+
     rhs = recode_initializer(rhs)
     locals = code_init_locals(varnames)
     fdef = :( ($this_symbol,time)->($locals; $rhs) )
@@ -670,7 +670,7 @@ mutable struct Instance
     F_post::Vector{Any}
 end
 function Instance(model_name::Symbol, variables, equations, partial)
-    Instance(model_name, VariableDict(variables), 
+    Instance(model_name, VariableDict(variables),
         collect(Any, equations), partial, [], [], [], [])
 end
 
@@ -689,7 +689,7 @@ function Base.show(io::IO, inst::Instance)
     end
     println(io, "  ]")
   end
-  
+
   println(io, ")")
 end
 =#
@@ -745,7 +745,7 @@ end
 
 function initialize!(instance::Instance, iv::InitVariable, time::Float64, kwargs::AbstractDict)
 #    @show iv.fdef
-    add_variable!(instance, iv.name, 
+    add_variable!(instance, iv.name,
         as_field_value(haskey(kwargs, iv.name) ? kwargs[iv.name] : iv.init(instance, time),
                        time)
     )
@@ -911,7 +911,7 @@ function to_access(connector::Connection, field::Union{Symbol,Nothing})
 end
 
 function flatten(instance::Instance)
-    flat = Flat(VariableDict(), [], 
+    flat = Flat(VariableDict(), [],
         Dict{Symbol, Symbol}(), Dict{Symbol, Dict}())
     flatten!(flat, "", instance)
 
@@ -990,15 +990,18 @@ function prettyfy(ex::Expr)
     Expr(ex.head, [prettyfy(arg) for arg in ex.args]...)
   end
 end
-      
+
 
 
 # Pretty printing of expressions
-const oper = Base.Operators #; [+, -]]
-#const operator_table = [getfield(oper,name) => name for name in
-#    filter(name->isdefined(oper,name), names(oper))]
-const operator_table = Dict(getfield(oper,name) => name for name in
-    filter(name->isdefined(oper,name), names(oper)))
+const oper = [:!, :(!=), :(!==), :%, :&, :*, :+, :-, :/, ://, :<, :<:, :<<, :(<=),
+               :<|, :(==), :(===), :>, :>:, :(>=), :>>, :>>>, :\, :^, :colon,
+               :ctranspose, :getindex, :hcat, :hvcat, :setindex!, :transpose, :vcat,
+               :xor, :|, :|>, :~, :×, :÷, :∈, :∉, :∋, :∌, :∘, :√, :∛, :∩, :∪, :≠, :≤,
+               :≥, :⊆, :⊈, :⊊, :⊻, :⋅]
+               
+const operator_table = Dict(getfield(Base,name) => name for name in
+    filter(name->isdefined(Base,name), oper))
 
 prettyPrint(ex) = get(operator_table, ex, ex)
 Array{Any}
@@ -1014,4 +1017,4 @@ function prettyPrint(e::Expr)
 end
 
 
-end 
+end
