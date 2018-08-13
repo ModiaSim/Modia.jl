@@ -2,7 +2,7 @@
 Modia module for executing a model including code generation and calling DAE solver.
 
 * Original developer: Toivo Henningsson, Lund
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 
@@ -13,10 +13,10 @@ export simulate_ida
 export setOptions
 
 using Base.Meta: quot, isexpr
-using DataStructures.OrderedDict
-@static if !(VERSION < v"0.7.0-DEV.2005")
-    using LinearAlgebra
-    using SparseArrays
+using DataStructures: OrderedDict
+@static if ! (VERSION < v"0.7.0-DEV.2005")
+  using LinearAlgebra
+  using SparseArrays
 end
 
 import ..Instantiation: Symbolic, Der, Instance, AbstractDict, VariableDict, Variable, Nothing, time_symbol, simulationModel_symbol, vars_of, check_start, GetField, This, time_global, simulationModel_global, eqs_of, get_start, get_dims, model_name_of, operator_table, prettyPrint
@@ -30,11 +30,11 @@ const PrintJSONsolved = false
 const showCode = false        # Show the code for initialization and residual calculations
 const logComputations = false # Insert logging of variable values in the code
 const callF = false
-const showJacobian = false  
+const showJacobian = false
 
 global logTiming               # Show timing for each major task, simulate twice to see effect of compilation time.
 global storeEliminated
-global handleImpulses 
+global handleImpulses
 
 function setOptions(options) 
     global storeEliminated = true
@@ -80,7 +80,7 @@ function subs(s::Subs, ex::Symbolic, complete::Bool)
         else               ex
     end
 end
- 
+
 function subs(s::Subs, ex::Expr, complete::Bool)
     if isexpr(ex, :quote)
         ex
@@ -216,7 +216,7 @@ end
 function prepare_ida(instance::Instance, first_F_args, initial_bindings::AbstractDict{Symbol,Any}; store_eliminated=false, need_eliminated_f=false)
     proceed = zeros(Bool, 1)
     global F_Dict
-          
+
     params, vars = split_variables(vars_of(instance))
     for (name, var) in vars
         check_start(var, name)
@@ -252,7 +252,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     function getType(vars, v)
         vars[v].typ
     end
-    
+
     modeConditions = []
     for eq in eqs_of(instance)
         if isexpr(eq, :(:=), 2)
@@ -290,13 +290,13 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
                 println("Mode condition: ", prettyPrint(condExpr), " is $evalCond at time=$time")
                 oldCond = evalCond
             end
-            
+
             global oldCond
             if evalCond != oldCond
                 println("Mode change: ", prettyPrint(condExpr), " became ", evalCond, " at time ", time)
             end
             oldCond = evalCond
-            
+
             e = if evalCond; eq.args[2] else eq.args[3] end
             e = subs(s, e, true)
 
@@ -330,7 +330,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
             append!(x0, vec(s))   
             # @show name, vec(s)            
             append!(diffstates, fill(is_diffstate, length(s)))
-        else                      
+        else
             push!(x0, s)
             # push!(x0, ustrip(s))
             # @show name, s  
@@ -363,13 +363,13 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     else
         state_size = 0
     end
-    
+
     if state_size > 0
         ModiaLogging.increaseLogCategory(:DynamicModel)
     else
         ModiaLogging.increaseLogCategory(:StaticModel)
     end
-    
+
     loglnModia("statesize = ", state_size)
     
     # if ! haskey(F_Dict, modeConditions)
@@ -557,19 +557,19 @@ end
 function simulate_ida(instance::Instance, t, args...; kwargs...)
     simulate_ida(instance, collect(Float64, t), args...; kwargs...)
 end
-      
+
 function simulate_ida(instance::Instance, t::Vector{Float64},
                       jac::Union{SparseMatrixCSC{Bool,Int},Nothing};# =nothing;
                       log=false, relTol=1e-4, maxSparsity=0.1,
                       store_eliminated=storeEliminated)
-    
+
     if PrintJSONsolved
         printJSONforSolvedEquations(instance)
     end
-  
+
     initial_bindings = Dict{Symbol,Any}(time_symbol => t[1])
     initial_m = ModiaSimulationModel()
-    
+
     initial_bindings[simulationModel_symbol] = initial_m
 
     prep = prepare_ida(instance, [simulationModel_symbol], initial_bindings, store_eliminated=storeEliminated, need_eliminated_f=storeEliminated)
@@ -639,7 +639,7 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
         x_res = t
         der_x_res = t
     end
-      
+
     results = extract_results_ida(x_res, der_x_res, states, state_offsets, params)
     # @show keys(results)
     # @show now()-start
@@ -667,7 +667,7 @@ function callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0
     mF = ModiaSimulationModel()
     r0 = fill(0.0, n)
     w = []
-    
+
     Base.invokelatest(F, mF, 0, x0, der_x0, r0, w)
     # @show x0 der_x0 r0
 
@@ -725,7 +725,7 @@ function callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0
             end
         end
     end
-            
+
     if showJacobian
         @show A
         @show size(A)
@@ -740,7 +740,7 @@ function callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0
             println("The implicit system matrix does not have full rank.")
         end
     end
-    
+
     if handleImpulses
         oldx0 = copy(x0)
         X0 = copy(x0)
@@ -795,7 +795,7 @@ JSON.lower(t::This) = "this."
 JSON.lower(s::SIUnits.SIUnit) = string(s)
 =#
 
-""" 
+"""
 Experiemental code for printing the AST of solved equations in JSON format
 """
 function printJSONforSolvedEquations(instance)
@@ -836,7 +836,7 @@ makeJSON(ex) = get(operator_table, string(ex), string(ex))
 function makeJSON(ex::Array{Any})
     [makeJSON(e) for e in ex]
 end
-  
+
 function makeJSON(ex::Expr)
     if isexpr(ex, :quote) || isexpr(ex, :line)
         nothing

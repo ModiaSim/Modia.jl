@@ -2,7 +2,7 @@
 Modia module for instantiation and flattening of models.
 
 * Original developer: Toivo Henningsson, Lund
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 
@@ -28,9 +28,14 @@ using DataStructures: OrderedDict
     AbstractDict = Associative
 end
 
+@static if VERSION < v"0.7.0-DEV.2005"
+else
+  using LinearAlgebra
+end
+
 import ModiaMath #0.7
 using Unitful
-using ..ModiaLogging 
+using ..ModiaLogging
 #using ..Synchronous
 
 const shortSyntax = true
@@ -61,7 +66,7 @@ mutable struct Variable  # {T,n}
     state::Bool
     property::Property
 end
-# The variability, type and info are added as attributes in the type for uniform treatment. 
+# The variability, type and info are added as attributes in the type for uniform treatment.
 # Input/output, etc should also be added.
 
 Variable(;
@@ -144,7 +149,7 @@ function Base.show(io::IO, v::Variable)
     println(io, ")")
 end
 
-#=    
+#=
 function show(io::IO, x::Volt)
     print(io, "Volt")
     nothing
@@ -200,7 +205,7 @@ end
 
 "AST node for the derivative of a `Symbolic` node."
 struct Der <: Symbolic
-    base::Symbolic    
+    base::Symbolic
 end
 #=
 function Base.show(io::IO, d::Der)
@@ -221,7 +226,7 @@ struct This <: Symbolic
 end
 
 #=
-function Base.show(io::IO, this::This)    
+function Base.show(io::IO, this::This)
   print(io, "this")
 end
 =#
@@ -236,8 +241,8 @@ end
 
 "Representation of a connect equation, used in the equations list."
 struct Connect
-    a::Symbolic    
-    b::Symbolic    
+    a::Symbolic
+    b::Symbolic
 end
 
 function Base.show(io::IO, c::Connect)
@@ -327,7 +332,7 @@ function recode(ex::Expr)
             return :( $(quot(Connect))($(recode(args[2])), $(recode(args[3]))) )
         else
             print("The connect statement takes two arguments: $ex")
-        end        
+        end
     end
 
     args = map(recode, ex.args)
@@ -430,7 +435,7 @@ end
 function code_variable(ex::Expr, varnames)
     @assert isexpr(ex, :(=), 2)
     lhs, rhs = ex.args
-    
+
 #    if typeof(rhs) == Expr && (rhs.head == call || rhs.head == :call)
     if typeof(rhs) == Expr && rhs.head == :call
         args = rhs.args
@@ -458,8 +463,15 @@ function code_variable(ex::Expr, varnames)
                 rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
             end          
         end
+        if baseTyp in [:Int64, :Float64, :Bool]
+          sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
+          rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
+        else
+         rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
+        end
+      end
     end
-    
+
     rhs = recode_initializer(rhs)
     locals = code_init_locals(varnames)
     fdef = :( ($this_symbol, time) -> ($locals; $rhs) )
@@ -696,7 +708,7 @@ mutable struct Instance
 end
 
 function Instance(model_name::Symbol, variables, equations, partial)
-    Instance(model_name, VariableDict(variables), 
+    Instance(model_name, VariableDict(variables),
         collect(Any, equations), partial, [], [], [], [])
 end
 
@@ -715,7 +727,7 @@ function Base.show(io::IO, inst::Instance)
     end
     println(io, "  ]")
   end
-  
+
   println(io, ")")
 end
 =#
@@ -1028,13 +1040,16 @@ function prettyfy(ex::Expr)
         Expr(ex.head, [prettyfy(arg) for arg in ex.args]...)
     end
 end
-      
+
 # Pretty printing of expressions
-const oper = Base.Operators #; [+, -]]
-#const operator_table = [getfield(oper,name) => name for name in
-#    filter(name->isdefined(oper,name), names(oper))]
-const operator_table = Dict(getfield(oper, name) => name for name in
-    filter(name -> isdefined(oper, name), names(oper)))
+const oper = [:!, :(!=), :(!==), :%, :&, :*, :+, :-, :/, ://, :<, :<:, :<<, :(<=),
+               :<|, :(==), :(===), :>, :>:, :(>=), :>>, :>>>, :\, :^, #= :colon, =#
+               :ctranspose, :getindex, :hcat, :hvcat, :setindex!, :transpose, :vcat,
+               :xor, :|, :|>, :~ #= , :× =# , :÷, :∈, :∉, :∋, :∌, :∘, :√, :∛, :∩, :∪, :≠, :≤,
+               :≥ #=, :⊆, :⊈, :⊊, :⊻, :⋅=#]
+               
+const operator_table = Dict(getfield(Base,name) => name for name in
+    filter(name->isdefined(Base,name), oper))
 
 prettyPrint(ex) = get(operator_table, ex, ex)
 Array{Any}
@@ -1050,4 +1065,4 @@ function prettyPrint(e::Expr)
 end
 
 
-end 
+end

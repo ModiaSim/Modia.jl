@@ -1,8 +1,14 @@
 module TestEquations
 
+#using LinearAlgebra
 using Modia
 using ModiaMath.plot
-using Base.Test
+
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
 
 # @testset "Equations" begin
 
@@ -27,7 +33,7 @@ using Base.Test
 end;
 
 result = simulate(Test, 5, storeEliminated=false, removeSingularities=false)
-plot(result, ("x"), figure=1, heading="TestEquations", figure=2)
+plot(result, ("x"), heading="TestEquations", figure=2)
 @test result["x"][end] == 1.1776785083961023
 
 end

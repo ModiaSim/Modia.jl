@@ -1,7 +1,7 @@
 """
 Modia module with utility functions.
 
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * First version: July 2016
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
@@ -15,11 +15,11 @@ using Base.Meta: quot, isexpr
 using Unitful
 using ..Instantiation
 
-using ..ModiaLogging 
+using ..ModiaLogging
 
 export @show_io, printSymbolList, showModel, showInstance, checkSizes, printJSON
 
-using Base.show_unquoted
+using Base: show_unquoted
 
 # Version of @show for any stream
 macro show_io(io, exs...)
@@ -318,7 +318,7 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
     if !first
         loglnModia(file, indent, "]")
     end
- 
+
     first = true
     for (n, v) in inst.variables
         if isa(v, Instance) && (!isPort(v) || level == 1) #  || (isa(v, Instance) && isPort(v) && length(search(string(n), "n")) > 0)
@@ -335,7 +335,7 @@ function printJSON(file, inst::Instance, fullName, name, parent="", indent="", l
     if !first
         loglnModia(file, indent, "]")
     end
- 
+
     first = true
     id = 0
     for e in inst.equations

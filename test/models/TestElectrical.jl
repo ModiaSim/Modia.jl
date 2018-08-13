@@ -3,7 +3,12 @@ module TestElectrical
 using ModiaMath.plot
 using Modia
 using Modia.Electric
-using Base.Test
+
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
 
 result = simulate(Resistor, 1)
 @test result["i"][end] == 0.0
