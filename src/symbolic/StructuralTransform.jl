@@ -22,9 +22,9 @@ using ..SymbolicTransform
 using ..ModiaLogging
 
 @static if VERSION < v"0.7.0-DEV.2005"
-  notFound = 0
+    notFound = 0
 else
-  notFound = nothing
+    notFound = nothing
 end
 
 #export elaborate, prettyPrint, simulateModel, skewCoords, skew, residue, hide, modiaCross, showExpr, transformModel
@@ -41,52 +41,51 @@ const tSizes = Array{Tuple{Int64,Vararg{Int64,N} where N},1}
 
 export setOptions
 function setOptions(options) 
-  global aliasElimination = false
-  if haskey(options, :aliasElimination)
-    global aliasElimination = options[:aliasElimination]
-    @show aliasElimination
-  end
+    global aliasElimination = false
+    if haskey(options, :aliasElimination)
+        global aliasElimination = options[:aliasElimination]
+        @show aliasElimination
+    end
 end
 
-
-findStates!(states,deriv::Vector, ex) = nothing
-findStates!(states,deriv::Vector, der::Der) = (push!(states, der.base); push!(deriv, der); nothing)
-function findStates!(states,deriv::Vector, ex::Expr)
-  if !isexpr(ex, :quote)
-    for arg in ex.args
-        findStates!(states, deriv, arg)
+findStates!(states, deriv::Vector, ex) = nothing
+findStates!(states, deriv::Vector, der::Der) = (push!(states, der.base); push!(deriv, der); nothing)
+function findStates!(states, deriv::Vector, ex::Expr)
+    if !isexpr(ex, :quote)
+        for arg in ex.args
+            findStates!(states, deriv, arg)
+        end
     end
-  end
-  nothing
+    nothing
 end
 
 findIncidence!(incidence::Array{Any,1}, ex) = nothing
 findIncidence!(incidence::Array{Any,1}, der::Der) = (push!(incidence, der); nothing)
 findIncidence!(incidence::Array{Any,1}, get::GetField) = (push!(incidence, get.name); nothing)
 function findIncidence!(incidence::Array{Any,1}, ex::Expr)
-  if !isexpr(ex, :quote)
-    if ex.head == :call && ex.args[1] == hide
+    if !isexpr(ex, :quote)
+        if ex.head == :call && ex.args[1] == hide
     elseif ex.head == :call && (ex.args[1] == Synchronous.previous || ex.args[1] == Synchronous.sample)
-      for arg in ex.args[3:end]  # Skip first argument to previous() and sample()
-        findIncidence!(incidence, arg)
-      end        
-    else
-      for arg in ex.args
-        findIncidence!(incidence, arg)
-      end
+            for arg in ex.args[3:end]  # Skip first argument to previous() and sample()
+                findIncidence!(incidence, arg)
+            end        
+        else
+            for arg in ex.args
+                findIncidence!(incidence, arg)
+            end
+        end
     end
-  end
-  nothing
+    nothing
 end
   
 function findNonStateVariables(src::VariableDict)
-  nonStateVariables = []
-  for (name, var) in src
-    if isa(var, Variable) && ! var.state
-      push!(nonStateVariables, name)
+    nonStateVariables = []
+    for (name, var) in src
+        if isa(var, Variable) && !var.state
+            push!(nonStateVariables, name)
+        end
     end
-  end
-  return nonStateVariables
+    return nonStateVariables
 end
 
 
@@ -101,73 +100,74 @@ x = v       # replace v by x if der(x) appear but not der(v)
 v1 := v2
 v3 = v2 -> 
 =#
+
 function findAliases!(nonAliasEquations, aliases, eq::Expr, unknowns)
-  if ! isexpr(eq, :quote)
-    if eq.head in [:(=), :(:=)]
-      e1 = eq.args[1]
-      e2 = eq.args[2]
-      if typeof(e1) == GetField && typeof(e2) == GetField && haskey(unknowns, e1.name) && haskey(unknowns, e2.name) # && unknowns[e1.name].state && unknowns[e2.name].state
-#        nonAliases = collect(values(aliases))
-#        if ! haskey(aliases, e1) && ! (e1 in nonAliases) && ! haskey(aliases, e2) && ! (e2 in nonAliases)
-#        if ! haskey(aliases, e1) && ! (e1 in nonAliases) && ! haskey(aliases, e2) && ! (e2 in nonAliases)
-        if ! haskey(aliases, e1) && getNonAliasVariable(aliases, e2, unknowns)[1] != e1 && if haskey(unknowns, e2.name); unknowns[e2.name].state else false end 
-          aliases[e1] = e2
-          unknowns[e2.name].state = unknowns[e1.name].state
-#          @show e2.name, unknowns[e2.name].state
-        elseif ! haskey(aliases, e2) && getNonAliasVariable(aliases, e1, unknowns)[1] != e2 && if haskey(unknowns, e1.name); unknowns[e1.name].state else false end
-          aliases[e2] = e1
-          unknowns[e1.name].state = unknowns[e2.name].state
-#          @show e1.name, unknowns[e1.name].state
-        else
-          println("Circular aliases between: $e1 and $e2")
-          error("Aborting")
+    if !isexpr(eq, :quote)
+        if eq.head in [:(=), :(:=)]
+            e1 = eq.args[1]
+            e2 = eq.args[2]
+            if typeof(e1) == GetField && typeof(e2) == GetField && haskey(unknowns, e1.name) && haskey(unknowns, e2.name) # && unknowns[e1.name].state && unknowns[e2.name].state
+                # nonAliases = collect(values(aliases))
+                # if ! haskey(aliases, e1) && ! (e1 in nonAliases) && ! haskey(aliases, e2) && ! (e2 in nonAliases)
+                # if ! haskey(aliases, e1) && ! (e1 in nonAliases) && ! haskey(aliases, e2) && ! (e2 in nonAliases)
+                if !haskey(aliases, e1) && getNonAliasVariable(aliases, e2, unknowns)[1] != e1 && if haskey(unknowns, e2.name); unknowns[e2.name].state else false end 
+                    aliases[e1] = e2
+                    unknowns[e2.name].state = unknowns[e1.name].state
+                    # @show e2.name, unknowns[e2.name].state
+                elseif !haskey(aliases, e2) && getNonAliasVariable(aliases, e1, unknowns)[1] != e2 && if haskey(unknowns, e1.name); unknowns[e1.name].state else false end
+                    aliases[e2] = e1
+                    unknowns[e1.name].state = unknowns[e2.name].state
+                    # @show e1.name, unknowns[e1.name].state
+                else
+                    println("Circular aliases between: $e1 and $e2")
+                    error("Aborting")
+                end
+            else
+                push!(nonAliasEquations, eq)
+            end
         end
-      else
-        push!(nonAliasEquations, eq)
-      end
     end
-  end
-  nothing
+    nothing
 end
 
 function getNonAliasVariable(aliases, ex, unknowns)
-#  println("getNonAliasVariable")
-#  @show aliases ex unknowns
-  if haskey(aliases, ex)
-    (e2, state) = getNonAliasVariable(aliases, aliases[ex], unknowns)
-#    @show e2
-    return e2, unknowns[ex.name].state && state
-  else
-    return ex, if haskey(unknowns, ex.name); unknowns[ex.name].state else false end
-  end
+    # println("getNonAliasVariable")
+    # @show aliases ex unknowns
+    if haskey(aliases, ex)
+        (e2, state) = getNonAliasVariable(aliases, aliases[ex], unknowns)
+        # @show e2
+        return e2, unknowns[ex.name].state && state
+    else
+        return ex, if haskey(unknowns, ex.name); unknowns[ex.name].state else false end
+    end
 end
 
-const AliasSubs = Dict{Symbolic, Symbolic}
+const AliasSubs = Dict{Symbolic,Symbolic}
   
 substiteAlias(aliases::AliasSubs, ex, unknowns) = get(aliases, ex, ex)
 
 function substiteAlias(aliases::AliasSubs, ex::Symbolic, unknowns)
     if haskey(aliases, ex)
-      getNonAliasVariable(aliases, aliases[ex], unknowns)[1]
+        getNonAliasVariable(aliases, aliases[ex], unknowns)[1]
     else
-      ex
+        ex
     end
 end
 
 function substiteAlias(aliases::AliasSubs, ex::Der, unknowns) 
-  if haskey(aliases, ex.base)
-    (s, state) = getNonAliasVariable(aliases, aliases[GetField(This(), ex.base.name)], unknowns)
-    Der(GetField(This(), s.name))
-  else
-    ex
-  end
+    if haskey(aliases, ex.base)
+        (s, state) = getNonAliasVariable(aliases, aliases[GetField(This(), ex.base.name)], unknowns)
+        Der(GetField(This(), s.name))
+    else
+        ex
+    end
 end
 
 function substiteAlias(aliases::AliasSubs, ex::Expr, unknowns)
     if isexpr(ex, :quote)
-      ex
+        ex
     else
-      Expr(ex.head, [substiteAlias(aliases, arg, unknowns) for arg in ex.args]...)
+        Expr(ex.head, [substiteAlias(aliases, arg, unknowns) for arg in ex.args]...)
     end
 end
 
@@ -175,25 +175,26 @@ function performAliasElimination!(flat_model, unknowns, params, equations)
     loglnModia("\nALIAS ELIMINATION")
     aliases = AliasSubs()
     nonAliasEquations = []
+
     for eq in equations
-      findAliases!(nonAliasEquations, aliases, eq, unknowns)
+        findAliases!(nonAliasEquations, aliases, eq, unknowns)
     end
+
     loglnModia("\nAlias equations")
     for a in aliases
-      loglnModia(prettyfy(a[1]), " = ", prettyfy(a[2]))
+        loglnModia(prettyfy(a[1]), " = ", prettyfy(a[2]))
     end
 
     loglnModia("\nAlias definitions")
     for a in aliases
-      (nonAlias, state) = getNonAliasVariable(aliases, a[2], unknowns)
-      unknowns[nonAlias.name].state = state
-      loglnModia(prettyfy(a[1]), " := ", prettyfy(nonAlias))
+        (nonAlias, state) = getNonAliasVariable(aliases, a[2], unknowns)
+        unknowns[nonAlias.name].state = state
+        loglnModia(prettyfy(a[1]), " := ", prettyfy(nonAlias))
     end
-    
-    
+        
     substitutedAliasEquations = []
     for eq in nonAliasEquations
-      push!(substitutedAliasEquations, substiteAlias(aliases, eq, unknowns))
+        push!(substitutedAliasEquations, substiteAlias(aliases, eq, unknowns))
     end
     
     equations = substitutedAliasEquations
@@ -201,28 +202,26 @@ function performAliasElimination!(flat_model, unknowns, params, equations)
     
     # Remove alias variables from unknowns
     nonAliased = VariableDict()
-    for (n,v) in unknowns
-      if ! haskey(aliases, GetField(This(), n))
-        nonAliased[n] = v
-      end
+    for (n, v) in unknowns
+        if !haskey(aliases, GetField(This(), n))
+            nonAliased[n] = v
+        end
     end
     
     unknowns = nonAliased
 
     flat_model.variables = copy(unknowns)
-    for (p,v) in params
-      flat_model.variables[p] = v
+    for (p, v) in params
+        flat_model.variables[p] = v
     end
     
     if true # PrintFlattened
-      loglnModia("\nFlattened model after alias elimination")
-      showInstance(flat_model)
-      loglnModia()
+        loglnModia("\nFlattened model after alias elimination")
+        showInstance(flat_model)
+        loglnModia()
     end
 
 end
-
-
 
 # Type and size deduction
 
@@ -242,7 +241,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
     loglnModia("\nSIZE AND TYPE DEDUCTION")
     # Redefinition of get_start:
     get_start(v::Variable) = v.start
-  #  get_start(x) = x
+    #  get_start(x) = x
 
     # Create substitution Dict
     subsValues = Subs() 
@@ -251,96 +250,100 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
     varTypes = VariableDict() 
 
     sizeOfType(T) = try
-      size(zero(T))
+        size(zero(T))
     catch
-      nothing
+        nothing
     end
 
     for (name, var) in unknowns    
-      if var.typ != Any && var.size != nothing
-        # check consistency!!!
-        varSizes[name] = var.size
-        varTypes[name] = var.typ
-        if extendedLog
-          v = name
-          loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: T = ", var.typ, " and: size = ", var.size)
-          end
-      else
-        if var.typ != Any
-          varTypes[name] = var.typ    
-          v = name
-          if extendedLog
-            if v in keys(varSizes)
-              loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: T = ", var.typ)
-            else
-              loglnModia("    ", v, "[", "?", "] :: ", varTypes[v], " derived from: T = ", var.typ)
+        if var.typ != Any && var.size != nothing
+            # check consistency!!!
+            varSizes[name] = var.size
+            varTypes[name] = var.typ
+            if extendedLog
+                v = name
+                loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: T = ", var.typ, " and: size = ", var.size)
             end
-          end
-        end
-        if var.size != nothing
-          varSizes[name] = var.size   
-          v = name
-          if extendedLog
-            if v in keys(varTypes)
-              loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: size = ", var.size)
-            else
-              loglnModia("    ", v, "[", varSizes[v], "] :: ", "Any", " derived from: size = ", var.size)
+        else
+            if var.typ != Any
+                varTypes[name] = var.typ    
+                v = name
+                if extendedLog
+                    if v in keys(varSizes)
+                        loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: T = ", var.typ)
+                    else
+                        loglnModia("    ", v, "[", "?", "] :: ", varTypes[v], " derived from: T = ", var.typ)
+                    end
+                end
             end
-          end            
+        
+            if var.size != nothing
+                varSizes[name] = var.size   
+                v = name
+                if extendedLog
+                    if v in keys(varTypes)
+                        loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: size = ", var.size)
+                    else
+                        loglnModia("    ", v, "[", varSizes[v], "] :: ", "Any", " derived from: size = ", var.size)
+                    end
+                end            
+            end
         end
-      end
-      # Determine or check size and type for variables having start value
-      if var.start != nothing
-        # check consistency
-        siz = size(var.start)
-        typ = typeof(var.start)
-        if name in keys(varSizes) && siz != varSizes[name]
-          println("size($name) and size($name.start) is not consistent.")
+        # Determine or check size and type for variables having start value
+        
+        if var.start != nothing
+            # check consistency
+            siz = size(var.start)
+            typ = typeof(var.start)
+            if name in keys(varSizes) && siz != varSizes[name]
+                println("size($name) and size($name.start) is not consistent.")
+            end
+        
+            #= More elaborate test should be made combining Float constructor with Array{}
+            if name in keys(varTypes) && typ != varTypes[name]
+                println("typeof($name) and typeof($name.start) is not consistent.")
+            end
+            =#
+            varSizes[name] = size(var.start)
+            varTypes[name] = typeof(var.start)
+            loglnModia("    ", name, "[", varSizes[name], "] :: ", varTypes[name], " derived from: start = ", var.start)
         end
-        #= More elaborate test should be made combining Float constructor with Array{}
-        if name in keys(varTypes) && typ != varTypes[name]
-          println("typeof($name) and typeof($name.start) is not consistent.")
-        end
-        =#
-        varSizes[name] = size(var.start)
-        varTypes[name] = typeof(var.start)
-        loglnModia("    ", name, "[", varSizes[name], "] :: ", varTypes[name], " derived from: start = ", var.start)
-      end
     end
-  #=
-      for (k,(name,var)) in enumerate(unknowns)
+    #=
+    for (k,(name,var)) in enumerate(unknowns)
         s[GetField(This(), name)] = name
-  #      s[Der(GetField(This(), name))] = der_name_of(name)
-      end
-  =#
+    #   s[Der(GetField(This(), name))] = der_name_of(name)
+    end
+    =#
 
-  # Substitute parameter values
+    # Substitute parameter values
     for (name, var) in params
-      subsValues[GetField(This(), name)] = get_value(var)
+        subsValues[GetField(This(), name)] = get_value(var)
     end     
+    
     subsValues[time_global] = 0.0
     # Substitute variables with their start values if any
     for (name, var) in unknowns
-  #    st = var.start # get_start(var)
-      if var.start != nothing
-        subsValues[GetField(This(), name)] = var.start
-        subsValues[Der(GetField(This(), name))] = var.start
-      end
+        # st = var.start # get_start(var)
+        if var.start != nothing
+            subsValues[GetField(This(), name)] = var.start
+            subsValues[Der(GetField(This(), name))] = var.start
+        end
     end   
-  #  @show subsValues
+    # @show subsValues
 
     function tryEval(e, eq)
-      E = nothing
-      try 
-        E = eval(e)
-      catch err
-        if isa(err, ErrorException) && contains(err.msg, "Unit mismatch")
-          loglnModia("Warning: ", err.msg, 
+        E = nothing
+        try 
+            E = eval(e)
+        catch err
+            if isa(err, ErrorException) && contains(err.msg, "Unit mismatch")
+                loglnModia("Warning: ", err.msg, 
             "\n  in expression: ", prettyPrint(e), 
             "\n  in equation:   ", prettyPrint(eq))            
+            end
+            E
         end
-        E
-      end
     end
 
             
@@ -349,154 +352,166 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
     equTypes = Dict() # fill(Float64, size(equations))
     equationSubs = copy(equations)
     repeat = true
-    while repeat
-      loglnModia("\nRepeat")
-      repeat = false
-      for i in 1:length(equations)
-        if ! haskey(equSizes, i) || ! haskey(equTypes, i)
-          eq = equations[i]
-#          loglnModia()
-#          loglnModia(prettyPrint(eq))
-          # Substitute parameter values, start values and sofar evaluated variables
-          eqsubs = subs(subsValues, eq, false)
-          equationSubs[i] = eqsubs
-
-          # Should not use solve due to problem with \ operator finding minimum norm solution for non-square matrix
-          vars = []
-          findIncidence!(vars, eqsubs)
-          # If only one remaining unknown, solve for it.
-          if length(vars) == 1
-            (e, solved) = SymbolicTransform.solve(eqsubs, vars[1])
-            if solved 
-#              println(prettyPrint(e))
-              eqsubs = e
-            end
-          end
-          # remove solve
-          
-          lhs = eqsubs.args[1]
-          rhs = eqsubs.args[2]
-          if typeof(lhs) != GetField && typeof(rhs) == GetField
-            # Swap if equation of form expr = v
-            lhs = eqsubs.args[2]
-            rhs = eqsubs.args[1]
-          end
     
-          elhs = eq.args[1]
-          # investigate equation of type: v = expr or (expr = v due to above swapping)
-          if typeof(elhs) == GetField && haskey(varSizes, elhs.name) 
-            if debug
-              @show elhs varSizes[elhs.name]
-            end
-            # Set equation size to the size of the left hand variable
-            equSizes[i] = varSizes[elhs.name]
-            if typeof(rhs) == Expr && rhs.head == :call && rhs.args[1] in [+, -] && length(rhs.args) == 3
-              e1 = rhs.args[2]
-              e2 = rhs.args[3]
-              if typeof(e1) == GetField
-                varSizes[e1.name] = varSizes[elhs.name]
-                v = e1.name
-                if v in keys(varTypes)
-                  loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: ", prettyPrint(eq))
-                else
-                  loglnModia("    ", v, "[", varSizes[v], "] :: ", "Any", " derived from: ", prettyPrint(eq))                
+    while repeat
+        loglnModia("\nRepeat")
+        repeat = false
+        for i in 1:length(equations)
+            if !haskey(equSizes, i) || !haskey(equTypes, i)
+                eq = equations[i]
+                # loglnModia()
+                # loglnModia(prettyPrint(eq))
+                # Substitute parameter values, start values and sofar evaluated variables
+                eqsubs = subs(subsValues, eq, false)
+                equationSubs[i] = eqsubs
+
+                # Should not use solve due to problem with \ operator finding minimum norm solution for non-square matrix
+                vars = []
+                findIncidence!(vars, eqsubs)
+         
+                # If only one remaining unknown, solve for it.
+                if length(vars) == 1
+                    (e, solved) = SymbolicTransform.solve(eqsubs, vars[1])
+                    if solved 
+                        # println(prettyPrint(e))
+                        eqsubs = e
+                    end
                 end
-              end
-              if typeof(e2) == GetField
-                varSizes[e2.name] = varSizes[elhs.name]
-                v = e2.name
-                if v in keys(varTypes)
-                  loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: ", prettyPrint(eq))
-                else
-                  loglnModia("    ", v, "[", varSizes[v], "] :: ", "Any", " derived from: ", prettyPrint(eq))                
-                end
-              end
-            end
-          end
+                # remove solve
           
-          if typeof(elhs) == GetField && haskey(varSizes, elhs.name)
-#=
-            println("\nCHECK OUT")
-            @show prettyPrint(eq)
-            @show elhs.name            
-            @show varSizes[elhs.name]
-            println()
-=#
-            equSizes[i] = varSizes[elhs.name]
-          end
-          if typeof(elhs) == GetField && haskey(varTypes, elhs.name)
-#=
-            println("\nCHECK OUT")
-            @show prettyPrint(eq)
-            @show elhs.name            
-            @show varTypes[elhs.name]
-            println()
-=#
-            equTypes[i] = varTypes[elhs.name]
-          end
+                lhs = eqsubs.args[1]
+                rhs = eqsubs.args[2]
+                
+                if typeof(lhs) != GetField && typeof(rhs) == GetField
+                    # Swap if equation of form expr = v
+                    lhs = eqsubs.args[2]
+                    rhs = eqsubs.args[1]
+                end
+    
+                elhs = eq.args[1]
+                # investigate equation of type: v = expr or (expr = v due to above swapping)
+                if typeof(elhs) == GetField && haskey(varSizes, elhs.name) 
+                    if debug
+                        @show elhs varSizes[elhs.name]
+                    end
+                    # Set equation size to the size of the left hand variable
+                    
+                    equSizes[i] = varSizes[elhs.name]
+                    if typeof(rhs) == Expr && rhs.head == :call && rhs.args[1] in [+, -] && length(rhs.args) == 3
+                        e1 = rhs.args[2]
+                        e2 = rhs.args[3]
+                    
+                        if typeof(e1) == GetField
+                            varSizes[e1.name] = varSizes[elhs.name]
+                            v = e1.name
+                            if v in keys(varTypes)
+                                loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: ", prettyPrint(eq))
+                            else
+                                loglnModia("    ", v, "[", varSizes[v], "] :: ", "Any", " derived from: ", prettyPrint(eq))                
+                            end
+                        end
+                    
+                        if typeof(e2) == GetField
+                            varSizes[e2.name] = varSizes[elhs.name]
+                            v = e2.name
+                            if v in keys(varTypes)
+                                loglnModia("    ", v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: ", prettyPrint(eq))
+                            else
+                                loglnModia("    ", v, "[", varSizes[v], "] :: ", "Any", " derived from: ", prettyPrint(eq))                
+                            end
+                        end
+                    end
+                end
           
-          if typeof(lhs) == GetField 
-            if ! haskey(equSizes, i) || ! haskey(equTypes, i)
-              RHS = tryEval(rhs, eq)
-              if RHS != nothing && typeof(RHS) != GetField && typeof(RHS) != Der
-                if typeof(RHS) == String || typeof(RHS) == Tuple{Array{Float64,2},Array{Float64,2}} # Special case for calling qr function
-                  size_RHS = ()
+                if typeof(elhs) == GetField && haskey(varSizes, elhs.name)
+                    #=
+                    println("\nCHECK OUT")
+                    @show prettyPrint(eq)
+                    @show elhs.name            
+                    @show varSizes[elhs.name]
+                    println()
+                    =#
+                    equSizes[i] = varSizes[elhs.name]
+                end
+                
+                if typeof(elhs) == GetField && haskey(varTypes, elhs.name)
+                    #=
+                    println("\nCHECK OUT")
+                    @show prettyPrint(eq)
+                    @show elhs.name            
+                    @show varTypes[elhs.name]
+                    println()
+                    =#
+                    equTypes[i] = varTypes[elhs.name]
+                end
+          
+                if typeof(lhs) == GetField 
+                    if !haskey(equSizes, i) || !haskey(equTypes, i)
+                        RHS = tryEval(rhs, eq)
+                        if RHS != nothing && typeof(RHS) != GetField && typeof(RHS) != Der
+                            if typeof(RHS) == String || typeof(RHS) == Tuple{Array{Float64,2},Array{Float64,2}} # Special case for calling qr function
+                                size_RHS = ()
+                            else
+                                size_RHS = size(RHS)
+                            end
+                    
+                            loglnModia("  Start values:  ", prettyfy(lhs), " = ", prettyPrint(RHS))
+                            subsValues[lhs] = RHS
+                            subsValues[Der(lhs)] = RHS
+                            varSizes[lhs.name] = size_RHS
+                    
+                            if !haskey(varTypes, lhs.name) || varTypes[lhs.name] != Any
+                                varTypes[lhs.name] = typeof(RHS)
+                            end
+                    
+                            v = lhs.name
+                            loglnModia(v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: ", prettyPrint(eq))
+                            equSizes[i] = size_RHS
+                            equTypes[i] = typeof(RHS)
+                            v = lhs.name
+                            # loglnModia(v, "[", varSizes[v], "] :: ", varTypes[v])
+                            loglnModia("SIZE = ", size_RHS, "\t  TYPE = ", typeof(RHS), "\t   ", prettyPrint(eq))
+                            # Since variable value was determined we need to subsitute and repeat checking of equations
+                            repeat = true
+                        else
+#                           loglnModia("Could not evaluate 2: $rhs")
+                        end
+                    end
                 else
-                  size_RHS = size(RHS)
+                    LHS = tryEval(lhs, eq)
+                    RHS = tryEval(rhs, eq)
+                    # @show eq LHS RHS
+                    if LHS != nothing && typeof(LHS) != Der && RHS != nothing && typeof(RHS) != Der
+                        if typeof(RHS) == String || typeof(RHS) != AbstractArray
+                            size_RHS = ()
+                        else
+                            size_RHS = size(RHS)
+                        end
+                     
+                        if size(LHS) != size_RHS 
+                            loglnModia("Warning: Not equal size of left and right hand side in equation $eq: $LHS = $RHS")
+                        end
+                      
+                        e = promote(LHS, RHS)
+                        t = typeof(e[1])
+                        # loglnModia("ASSERT:  ", typeof(LHS), " == ", typeof(RHS))
+                        loglnModia("SIZE = ", size(LHS), "  \tTYPE = ", t, "  \t", prettyPrint(eq))
+                        equSizes[i] = size(LHS)
+                        equTypes[i] = t
+                        equationSubs[i] = eqsubs
+                        #= Fix for call back function
+                        elseif LHS != nothing && typeof(LHS) != Der
+                        t = typeof(LHS)
+                        loglnModia("SIZE = ", size(LHS), "  \tTYPE = ", t, "  \t", prettyPrint(eq))
+                        equSizes[i] = size(LHS)
+                        equTypes[i] = t
+                        equationSubs[i] = eqsubs
+                        # else RHS
+                        =#
+                    end
                 end
-                loglnModia("  Start values:  ", prettyfy(lhs), " = ", prettyPrint(RHS))
-                subsValues[lhs] = RHS
-                subsValues[Der(lhs)] = RHS
-                varSizes[lhs.name] = size_RHS
-                if ! haskey(varTypes, lhs.name) || varTypes[lhs.name] != Any
-                  varTypes[lhs.name] = typeof(RHS)
-                end
-                v = lhs.name
-                loglnModia(v, "[", varSizes[v], "] :: ", varTypes[v], " derived from: ", prettyPrint(eq))
-                equSizes[i] = size_RHS
-                equTypes[i] = typeof(RHS)
-                v = lhs.name
-#                loglnModia(v, "[", varSizes[v], "] :: ", varTypes[v])
-                loglnModia("SIZE = ", size_RHS, "\t  TYPE = ", typeof(RHS), "\t   ", prettyPrint(eq))
-                # Since variable value was determined we need to subsitute and repeat checking of equations
-                repeat = true
-              else
-#                loglnModia("Could not evaluate 2: $rhs")
-              end
             end
-          else
-            LHS = tryEval(lhs, eq)
-            RHS = tryEval(rhs, eq)
-#            @show eq LHS RHS
-            if LHS != nothing && typeof(LHS) != Der && RHS != nothing && typeof(RHS) != Der
-              if typeof(RHS) == String || typeof(RHS) != AbstractArray
-                size_RHS = ()
-              else
-                size_RHS = size(RHS)
-              end
-              if size(LHS) != size_RHS 
-                loglnModia("Warning: Not equal size of left and right hand side in equation $eq: $LHS = $RHS")
-              end
-              e = promote(LHS, RHS)
-              t = typeof(e[1])
-    #          loglnModia("ASSERT:  ", typeof(LHS), " == ", typeof(RHS))
-              loglnModia("SIZE = ", size(LHS), "  \tTYPE = ", t, "  \t", prettyPrint(eq))
-              equSizes[i] = size(LHS)
-              equTypes[i] = t
-              equationSubs[i] = eqsubs
-  #= Fix for call back function
-            elseif LHS != nothing && typeof(LHS) != Der
-              t = typeof(LHS)
-              loglnModia("SIZE = ", size(LHS), "  \tTYPE = ", t, "  \t", prettyPrint(eq))
-              equSizes[i] = size(LHS)
-              equTypes[i] = t
-              equationSubs[i] = eqsubs
-            # else RHS
-  =#
-            end
-          end
         end
-      end
     end
     
     # Log results
@@ -504,69 +519,80 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
     ESizes = [] # tSize[]
     ETypes = []
     loglnModia()
-  #  @show equSizes
+    # @show equSizes
+    
     for i in 1:length(equations)
-      if ! haskey(equSizes, i) || ! haskey(equTypes, i)
-        eq = equations[i]
-        eqs = equationSubs[i]
-        if ! unknownSizes
-          loglnModia("Unknown equation sizes or types (scalar Float assumed):")
+        if !haskey(equSizes, i) || !haskey(equTypes, i)
+            eq = equations[i]
+            eqs = equationSubs[i]
+    
+            if !unknownSizes
+                loglnModia("Unknown equation sizes or types (scalar Float assumed):")
+            end
+    
+            loglnModia("SIZE = ?  \tTYPE = ?  \t", prettyPrint(eq), ",   \t", prettyPrint(eqs))
+            unknownSizes = true
+            # Patch waiting for inference in flow equations!!!
+            # Assume scalar Float
+            push!(ESizes, ()) ### Patch
+            push!(ETypes, Float64)  ### Patch
+        else
+            push!(ESizes, equSizes[i])
+            push!(ETypes, equTypes[i])
         end
-        loglnModia("SIZE = ?  \tTYPE = ?  \t", prettyPrint(eq), ",   \t", prettyPrint(eqs))
-        unknownSizes = true
-        # Patch waiting for inference in flow equations!!!
-        # Assume scalar Float
-        push!(ESizes, ()) ### Patch
-        push!(ETypes, Float64)  ### Patch
-      else
-        push!(ESizes, equSizes[i])
-        push!(ETypes, equTypes[i])
-      end
     end
     # Patch waiting for inference in flow equations!!!
     unknownSizes = false   ### Patch
     
     loglnModia("\nVariables")
     for v in unknowns.keys
-      if haskey(varSizes, v) && haskey(varTypes, v)
-        loglnModia(v, "[", varSizes[v], "] :: ", varTypes[v])
-        if flat_model.variables[v].typ == Any
-          flat_model.variables[v].typ = varTypes[v]
+        if haskey(varSizes, v) && haskey(varTypes, v)
+            loglnModia(v, "[", varSizes[v], "] :: ", varTypes[v])
+            
+            if flat_model.variables[v].typ == Any
+                flat_model.variables[v].typ = varTypes[v]
+            end
+            
+            if flat_model.variables[v].size == nothing 
+                flat_model.variables[v].size = varSizes[v]
+            end
+            
+            if flat_model.variables[v].start == nothing
+                if varTypes[v] == String
+                    z = ""
+                else
+                    z = 0.0 # zero(varTypes[v]) # Generalize to handle zero for array types
+                end
+                flat_model.variables[v].start = fill(z, varSizes[v])
+            end
+
+        elseif haskey(varSizes, v)
+            loglnModia(v, "[", varSizes[v], "] :: ", "?")
+            
+            if flat_model.variables[v].size == nothing 
+                flat_model.variables[v].size = varSizes[v]
+            end
+            
+            if flat_model.variables[v].start == nothing
+                flat_model.variables[v].start = zeros(varSizes[v])  # Generalize
+            end
+
+        elseif haskey(varTypes, v)
+            if flat_model.variables[v].typ == Any
+                flat_model.variables[v].typ = varTypes[v]
+            end
+            loglnModia(v, "[", "?", "] :: ", varTypes[v])
+        
+        else
+            loglnModia(v, "[?] :: ?")
+            unknownSizes = true
         end
-        if flat_model.variables[v].size == nothing 
-          flat_model.variables[v].size = varSizes[v]
-        end
-        if flat_model.variables[v].start == nothing
-          if varTypes[v] == String
-            z = ""
-          else
-            z = 0.0 # zero(varTypes[v]) # Generalize to handle zero for array types
-          end
-          flat_model.variables[v].start = fill(z, varSizes[v])
-        end
-      elseif haskey(varSizes, v)
-        loglnModia(v, "[", varSizes[v], "] :: ", "?")
-        if flat_model.variables[v].size == nothing 
-          flat_model.variables[v].size = varSizes[v]
-        end
-        if flat_model.variables[v].start == nothing
-          flat_model.variables[v].start = zeros(varSizes[v])  # Generalize
-        end
-      elseif haskey(varTypes, v)
-        if flat_model.variables[v].typ == Any
-          flat_model.variables[v].typ = varTypes[v]
-        end
-        loglnModia(v, "[", "?", "] :: ", varTypes[v])
-      else
-        loglnModia(v, "[?] :: ?")
-        unknownSizes = true
-      end
     end
     loglnModia()
     
     if unknownSizes
-      ModiaLogging.increaseLogCategory(:SizeInferenceError)
-      ModiaLogging.closeLogModia()
+        ModiaLogging.increaseLogCategory(:SizeInferenceError)
+        ModiaLogging.closeLogModia()
     end
     @assert !unknownSizes "Not possible to infer size of all variables and equations. Examine log for what variables that need sizes or start values."
 
@@ -574,11 +600,12 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
     VTypes = []
     
     for v in unknowns.keys
-      s = if haskey(varSizes, v); varSizes[v] else () end
-      push!(VSizes, s)
-      t = if haskey(varTypes, v); varTypes[v] else Any end
-      push!(VTypes, t)
+        s = if haskey(varSizes, v); varSizes[v] else () end
+        push!(VSizes, s)
+        t = if haskey(varTypes, v); varTypes[v] else Any end
+        push!(VTypes, t)
     end
+
     return varSizes, varTypes, equSizes, equTypes, VSizes, VTypes, ESizes, ETypes
 end
 
@@ -586,133 +613,133 @@ end
 # -----------------------------------------------------------------
  
 function transformStructurally(flat_model)
-  equations = flat_model.equations
-  params, unknowns = split_variables(vars_of(flat_model))
-  setTimeInvariants(params.keys)
+    equations = flat_model.equations
+    params, unknowns = split_variables(vars_of(flat_model))
+    setTimeInvariants(params.keys)
   
-  loglnModia("Number of parameters: ", length(params))
-  loglnModia("Number of unknowns:   ", length(unknowns))
-  loglnModia("Number of equations:  ", length(equations))
+    loglnModia("Number of parameters: ", length(params))
+    loglnModia("Number of unknowns:   ", length(unknowns))
+    loglnModia("Number of equations:  ", length(equations))
   
-  nFlow = 0
-  for (n,v) in unknowns
-    if v.flow
-      nFlow += 1
+    nFlow = 0
+    for (n, v) in unknowns
+        if v.flow
+            nFlow += 1
+        end
     end
-  end
-  loglnModia("Number of flow variables:  ", nFlow)
+    loglnModia("Number of flow variables:  ", nFlow)
 
-  retur = false
-  if nFlow == length(equations)
-    println("Connector or connector instances")
-    ModiaLogging.increaseLogCategory(:ConnectorOrConnectorInstances)
-    retur = true
-  end
+    retur = false
+    if nFlow == length(equations)
+        println("Connector or connector instances")
+        ModiaLogging.increaseLogCategory(:ConnectorOrConnectorInstances)
+        retur = true
+    end
 
-  if flat_model.partial 
-    println("Partial model")
-    ModiaLogging.increaseLogCategory(:Partial)
-#    retur = true
-  end
+    if flat_model.partial 
+        println("Partial model")
+        ModiaLogging.increaseLogCategory(:Partial)
+        # retur = true
+    end
 
-  if retur  
-    return nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing
-  end
+    if retur  
+        return nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing
+    end
   
-  #=
-  unknownsNames = unknowns.keys
-  unknowns_indices = [key => k for (k,key) in enumerate(unknownsNames)] 
-  if log 
-    printSymbolList("\nunknowns: ", unknownsNames)
-  end
-  =#
+    #=
+    unknownsNames = unknowns.keys
+    unknowns_indices = [key => k for (k,key) in enumerate(unknownsNames)] 
+    if log 
+        printSymbolList("\nunknowns: ", unknownsNames)
+    end
+    =#
 
-  if aliasElimination
-    performAliasElimination!(flat_model, unknowns, params, equations)
-  end
+    if aliasElimination
+        performAliasElimination!(flat_model, unknowns, params, equations)
+    end
 
-  equations = flat_model.equations
-  params, unknowns = split_variables(vars_of(flat_model))
+    equations = flat_model.equations
+    params, unknowns = split_variables(vars_of(flat_model))
   
-  loglnModia("Number of parameters: ", length(params))
-  loglnModia("Number of unknowns:   ", length(unknowns))
-  loglnModia("Number of equations:  ", length(equations))
+    loglnModia("Number of parameters: ", length(params))
+    loglnModia("Number of unknowns:   ", length(unknowns))
+    loglnModia("Number of equations:  ", length(equations))
     
-  if deduceSizes
-    (varSizes, varTypes, equSizes, equTypes, VSizes, VTypes, ESizes, ETypes) = deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
-  end
+    if deduceSizes
+        (varSizes, varTypes, equSizes, equTypes, VSizes, VTypes, ESizes, ETypes) = deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
+    end
   
-#  checkSizes(VSizes, ESizes)
+    #  checkSizes(VSizes, ESizes)
  
-  states = Vector()
-  deriv = Vector()
-  for eq in equations
-    findStates!(states, deriv, eq)
-  end
-  states = unique(states)
-  deriv = unique(deriv)
-    
-  loglnModia("\nINCIDENCE GRAPH")
-  unknownsNames = unknowns.keys
-#  @show unknownsNames
-  unknowns_indices = Dict(key => k for (k,key) in enumerate(unknownsNames))
-  
-  # Build variable association list. Avar[j] points to entry for derivative of variale j.
-  Avar = [findfirst(isequal(GetField(This(), name)), states) for name in unknownsNames]
-#=
-  Avar = fill(0, length(unknownsNames))
-  for k in 1:length(deriv)
-    d = deriv[k]
-    j = findfirst(isequal(Symbol(d.base.name)), unknownsNames)  
-    Avar[j] = k
-  end
-=#
-  # Add index offset for deriv vector and append zeros for deriv.
-  Avar = [[if a != notFound; a+length(unknownsNames) else 0 end for a in Avar]; fill(0, length(deriv))]
-
-  if false # log 
-    printSymbolList("\nUnknowns", unknownsNames, true, true, Avar)
-  end
-
-  nonStateVariables = findNonStateVariables(unknowns)
-  
-  if false
-    @show states
-    @show deriv
-    @show Avar
-  end
-#  printSymbolList("\ndifferentiated: ", [states[i].name for i in 1:length(states)])
-  printSymbolList("\nNon state variables", nonStateVariables)
-  
-  statesIndices = []
-  realStates = []
-  for i in 1:length(states)
-    if ! (states[i].name in nonStateVariables)
-      push!(realStates, states[i])
-      push!(statesIndices, unknowns_indices[states[i].name])
+    states = Vector()
+    deriv = Vector()
+    for eq in equations
+        findStates!(states, deriv, eq)
     end
-  end 
-
-  setRealStates(realStates)
-  printSymbolList("Real state variables", realStates)
-  
-  n = length(unknownsNames) + length(deriv)
+    states = unique(states)
+    deriv = unique(deriv)
     
-  equations, equationsIG, variables, assignIG, componentsIG, Avar, Bequ, states, deriv, unassignedNames, incidenceMatrix, VSizes, VTypes, ESizes, ETypes = 
+    loglnModia("\nINCIDENCE GRAPH")
+    unknownsNames = unknowns.keys
+    # @show unknownsNames
+    unknowns_indices = Dict(key => k for (k, key) in enumerate(unknownsNames))
+  
+    # Build variable association list. Avar[j] points to entry for derivative of variale j.
+    Avar = [findfirst(isequal(GetField(This(), name)), states) for name in unknownsNames]
+    #=
+    Avar = fill(0, length(unknownsNames))
+    for k in 1:length(deriv)
+        d = deriv[k]
+        j = findfirst(isequal(Symbol(d.base.name)), unknownsNames)  
+        Avar[j] = k
+    end
+    =#
+    # Add index offset for deriv vector and append zeros for deriv.
+    Avar = [[if a != notFound; a + length(unknownsNames) else 0 end for a in Avar]; fill(0, length(deriv))]
+
+    if false # log 
+        printSymbolList("\nUnknowns", unknownsNames, true, true, Avar)
+    end
+
+    nonStateVariables = findNonStateVariables(unknowns)
+  
+    if false
+        @show states
+        @show deriv
+        @show Avar
+    end
+    #  printSymbolList("\ndifferentiated: ", [states[i].name for i in 1:length(states)])
+    printSymbolList("\nNon state variables", nonStateVariables)
+  
+    statesIndices = []
+    realStates = []
+    for i in 1:length(states)
+        if !(states[i].name in nonStateVariables)
+            push!(realStates, states[i])
+            push!(statesIndices, unknowns_indices[states[i].name])
+        end
+    end 
+
+    setRealStates(realStates)
+    printSymbolList("Real state variables", realStates)
+  
+    n = length(unknownsNames) + length(deriv)
+    
+    equations, equationsIG, variables, assignIG, componentsIG, Avar, Bequ, states, deriv, unassignedNames, incidenceMatrix, VSizes, VTypes, ESizes, ETypes = 
     analyzeStructurally(equations, params, unknowns_indices, deriv, unknownsNames, Avar, statesIndices, states, nonStateVariables, n, realStates, findIncidence!, VSizes, VTypes, ESizes, ETypes, unknowns, flat_model.partial)
   
-  if equations == nothing
-    return nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing
-  end
+    if equations == nothing
+        return nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing
+    end
 
-#=
-  loglnModia("Updated equations")
-  for e in equations
-    @show e
-  end
-=#
+    #=
+    loglnModia("Updated equations")
+    for e in equations
+        @show e
+    end
+    =#
   
-  return equations, variables, assignIG, componentsIG, Avar, Bequ, states, deriv, unassignedNames, incidenceMatrix, varSizes, varTypes, equSizes, equTypes
+    return equations, variables, assignIG, componentsIG, Avar, Bequ, states, deriv, unassignedNames, incidenceMatrix, varSizes, varTypes, equSizes, equTypes
 end
 
 end

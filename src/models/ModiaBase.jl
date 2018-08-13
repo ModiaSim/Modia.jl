@@ -53,6 +53,6 @@ Parameter(value; args...) = Variable(variability=parameter, value=value; args...
 Par(; args...) = Variable(variability=parameter; args...)
 Par(value; args...) = Variable(variability=parameter, value=value; args...)
 
-const undefined=nothing
+const undefined = nothing
 
 #end

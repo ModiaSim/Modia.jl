@@ -24,8 +24,8 @@ using Base.Meta:quot, isexpr
 using DataStructures: OrderedDict
 #0.7 using SparseArrays
 @static if VERSION < v"0.7.0-DEV.2005"
-  Nothing = Void 
-  AbstractDict = Associative
+    Nothing = Void 
+    AbstractDict = Associative
 end
 
 import ModiaMath #0.7
@@ -34,7 +34,6 @@ using ..ModiaLogging
 #using ..Synchronous
 
 const shortSyntax = true
-
 
 # Name that should stand for the current instance inside of model declaration
 const this_symbol = :this
@@ -65,64 +64,84 @@ end
 # The variability, type and info are added as attributes in the type for uniform treatment. 
 # Input/output, etc should also be added.
 
-Variable(;value=nothing, info="", unit=if typeof(value) <: Unitful.Quantity; Unitful.unit(value) else Unitful.NoUnits end, 
+Variable(;
+    value=nothing, 
+    info="", 
+    unit=if typeof(value) <: Unitful.Quantity; Unitful.unit(value) else Unitful.NoUnits end, 
     displayUnit=unit, 
-    min=nothing, max=nothing, start=nothing, fixed::Bool=false, nominal=nothing,
-    variability=continuous, T=if value==nothing; Any else typeof(value) end, size=if value==nothing; nothing else Base.size(value) end, flow::Bool=false, state::Bool=true, property=general) = 
+    min=nothing, 
+    max=nothing, 
+    start=nothing, 
+    fixed::Bool=false, 
+    nominal=nothing,
+    variability=continuous, 
+    T=if value == nothing; Any else typeof(value) end, 
+    size=if value == nothing; nothing else Base.size(value) end, 
+    flow::Bool=false, 
+    state::Bool=true, 
+    property=general) = 
     Variable(variability, T, size, value, 
     unit, displayUnit, min, max, start, fixed, nominal, info, flow, state, property)
     
-    
-
 function Base.show(io::IO, v::Variable)
-  print(io, "Variable(")
-  first = true
-  if v.variability != continuous
-    if ! first; print(io, ", ") end
-    print(io, "variability = ", v.variability)
-    first = false
-  end
-  if v.typ != Any
-    if ! first; print(io, ", ") end
-    print(io, "T = ", v.typ)
-    first = false
-  end
-  if v.size != nothing
-    if ! first; print(io, ", ") end
-    print(io, "size = ", v.size)
-    first = false
-  end
-  if v.start != nothing
-    if ! first; print(io, ", ") end
-    print(io, "start = ", v.start)
-    first = false
-  end
-  if v.unit != NoUnits
-    if ! first; print(io, ", ") end
-    print(io, "unit = ", v.unit)
-    first = false
-  end
-  if v.min != nothing
-    if ! first; print(io, ", ") end
-    print(io, "min = ", v.min)
-    first = false
-  end
-  if v.max != nothing
-    if ! first; print(io, ", ") end
-    print(io, "max = ", v.max)
-    first = false
-  end
-  if v.flow != false
-    if ! first; print(io, ", ") end
-    print(io, "flow = ", v.flow)
-    first = false
-  end
-  if v.state != true
-    if ! first; print(io, ", ") end
-    print(io, "state = ", v.state)
-    first = false
-  end
-  println(io, ")")
+    print(io, "Variable(")
+    first = true
+    
+    if v.variability != continuous
+        if !first; print(io, ", ") end
+        print(io, "variability = ", v.variability)
+        first = false
+    end
+    
+    if v.typ != Any
+        if !first; print(io, ", ") end
+        print(io, "T = ", v.typ)
+        first = false
+    end
+    
+    if v.size != nothing
+        if !first; print(io, ", ") end
+        print(io, "size = ", v.size)
+        first = false
+    end
+    
+    if v.start != nothing
+        if !first; print(io, ", ") end
+        print(io, "start = ", v.start)
+        first = false
+    end
+    
+    if v.unit != NoUnits
+        if !first; print(io, ", ") end
+        print(io, "unit = ", v.unit)
+        first = false
+    end
+    
+    if v.min != nothing
+        if !first; print(io, ", ") end
+        print(io, "min = ", v.min)
+        first = false
+    end
+    
+    if v.max != nothing
+        if !first; print(io, ", ") end
+        print(io, "max = ", v.max)
+        first = false
+    end
+    
+    if v.flow != false
+        if !first; print(io, ", ") end
+        print(io, "flow = ", v.flow)
+        first = false
+    end
+    
+    if v.state != true
+        if !first; print(io, ", ") end
+        print(io, "state = ", v.state)
+        first = false
+    end
+    
+    println(io, ")")
 end
 
 #=    
@@ -172,11 +191,11 @@ end
 =#
 
 function Base.show(io::IO, g::GetField)
-  if shortSyntax
-    print(io, g.base, ".", g.name)  
-  else
-    print(io, "GetField(", g.base, ", ", g.name, ")")
-  end
+    if shortSyntax
+        print(io, g.base, ".", g.name)  
+    else
+        print(io, "GetField(", g.base, ", ", g.name, ")")
+    end
 end
 
 "AST node for the derivative of a `Symbolic` node."
@@ -190,11 +209,11 @@ end
 =#
 
 function Base.show(io::IO, d::Der)
-  if shortSyntax
-    print(io, "der(", d.base, ")")
-  else
-    print(io, "Der(", d.base, ")")  
-  end
+    if shortSyntax
+        print(io, "der(", d.base, ")")
+    else
+        print(io, "Der(", d.base, ")")  
+    end
 end
 
 "AST node for access to the current instance."
@@ -208,11 +227,11 @@ end
 =#
 
 function Base.show(io::IO, this::This)
-  if shortSyntax
-    print(io, "this")
-  else
-    print(io, "This()")  
-  end
+    if shortSyntax
+        print(io, "this")
+    else
+        print(io, "This()")  
+    end
 end
 
 "Representation of a connect equation, used in the equations list."
@@ -285,14 +304,14 @@ function recode(ex::Expr)
     if is_linenumber(ex); return ex; end
     head, args = ex.head, ex.args
     if head == :block
-        args = collect(filter(ex->(!is_linenumber(ex)), args))
+        args = collect(filter(ex -> (!is_linenumber(ex)), args))
         if length(args) == 1;  return recode(args[1]);  end
     elseif head == :.
         return :( $(quot(model_getfield))($(recode(args[1])), $(args[2])) )
-#= Problem with multi body no units
+    #= Problem with multi body no units
     elseif head == :ref
         return :( $(quot(model_ref))($(recode(args[1])), $(recode(args[2])) ))
-=#
+    =#
     elseif head == :kw
         @assert length(args) == 2
         arg1, arg2 = quot(args[1]::Symbol), recode(args[2])
@@ -347,7 +366,7 @@ end
 "Implementation of the standalone @equations macro. (no loner used)"
 function code_equation(eq)
     equation = recode(eq)
-#    @show equation
+    # @show equation
     quote
         let $(this_symbol) = $(quot(This()))
             $(equation)
@@ -392,10 +411,10 @@ the corresponding variable has been initialized yet:
 * Not yet initialized variables are bound as uninitialized locals to trigger
   an error if the code tries to use them.
 """
-function code_init_locals(varnames::AbstractDict{Symbol, Bool})
+function code_init_locals(varnames::AbstractDict{Symbol,Bool})
     if isempty(varnames);  return quote end;  end
     Expr(:local,
-        [(init ? :($name = $(quot(initializer_getfield))($this_symbol,$(quot(name)))) : name)
+        [(init ? :($name = $(quot(initializer_getfield))($this_symbol, $(quot(name)))) : name)
             for (name, init) in varnames]...)
 end
 
@@ -404,53 +423,58 @@ function code_variable(name::Symbol, varnames)
     # Variable without initializer. Use the `no_initializer` functions as initializer,
     # which will throw an error at initialization unless a modifier is used to provide
     # another initializer.
-    fdef = :( (this,time)->$(quot(no_initializer))(this, $(quot(name))) )
+    fdef = :( (this, time) -> $(quot(no_initializer))(this, $(quot(name))) )
     :( $(quot(InitVariable))($(quot(name)), $fdef, $(QuoteNode(fdef))) )
 end
+
 function code_variable(ex::Expr, varnames)
     @assert isexpr(ex, :(=), 2)
     lhs, rhs = ex.args
     
 #    if typeof(rhs) == Expr && (rhs.head == call || rhs.head == :call)
     if typeof(rhs) == Expr && rhs.head == :call
-      args = rhs.args
-      if length(args) > 0 && typeof(args[1]) == Expr && args[1].head == :curly
-        first = args[1].args[2]
+        args = rhs.args
+        if length(args) > 0 && typeof(args[1]) == Expr && args[1].head == :curly
+            first = args[1].args[2]
 #        if isa(eval(typ),DataType)
-        if ! isa(first,Int64)
-          typ = first
-          siz = args[1].args[3:end]
-        else
-          typ = Any
-          siz = args[1].args[2:end]
-        end
+            if !isa(first, Int64)
+                typ = first
+                siz = args[1].args[3:end]
+            else
+                typ = Any
+                siz = args[1].args[2:end]
+            end
 #        @show typ
-        baseTyp = typ
-        if siz != []
-          typ = :(Array{$typ, $(length(siz))})
+            baseTyp = typ
+
+            if siz != []
+                typ = :(Array{$typ,$(length(siz))})
+            end
+
+            if baseTyp in [:Int64, :Float64, :Bool]
+                sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
+                rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
+            else
+                rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
+            end          
         end
-        if baseTyp in [:Int64, :Float64, :Bool]
-          sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
-          rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
-        else
-         rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
-        end          
-      end
     end
     
     rhs = recode_initializer(rhs)
     locals = code_init_locals(varnames)
-    fdef = :( ($this_symbol,time)->($locals; $rhs) )
+    fdef = :( ($this_symbol, time) -> ($locals; $rhs) )
     :( $(quot(InitVariable))($(quot(lhs)), $fdef, $(QuoteNode(fdef))) )
 end
+
 "Recode an `@extends` declaration based on the corresponding AST node from a `@model` invocation."
 function code_extends(ex, varnames)
     locals = code_init_locals(varnames)
-    fdef = :( ($this_symbol,time)->($locals; $(recode_initializer(ex))) )
-    :( $(quot(Extends))( $fdef, $(QuoteNode(fdef))) )
+    fdef = :( ($this_symbol, time) -> ($locals; $(recode_initializer(ex))) )
+    :( $(quot(Extends))($fdef, $(QuoteNode(fdef))) )
 end
+
 "Recode an `@equations` declaration based on the corresponding AST node from a `@model` invocation."
-code_eqs(ex) = :( $(quot(Equations))( [$(recode_equations(ex)...)] ) )
+code_eqs(ex) = :( $(quot(Equations))([$(recode_equations(ex)...)]) )
 
 "Parse an `@inherits` declaration an update `varnames`"
 parse_inherits!(varnames::AbstractDict, name::Symbol, init::Bool) = (varnames[name] = init; nothing)
@@ -469,20 +493,20 @@ const time_symbol = gensym("time")
 const simulationModel_symbol = gensym("simulationModel")
 
 @static if VERSION < v"0.7.0-DEV.2005"
-  const macroCallNumberOfArguments = 2
+    const macroCallNumberOfArguments = 2
 else
-  const macroCallNumberOfArguments = 3
+    const macroCallNumberOfArguments = 3
 end
 
 "Implementation of `@model`"
 function code_model(head, top_ex)
-#=
+    #=
     println("---------------------")
     println("code_model")
     @show name top_ex
     println("---------------------")
     @assert isexpr(top_ex, :block)
-=#
+    =#
     # Extract name and any model arguments
     if isa(head, Symbol)
         name = head
@@ -496,7 +520,7 @@ function code_model(head, top_ex)
     # Gather local variable names - short version of loop below
     varnames = OrderedDict{Symbol,Bool}() # variable name => initialized?
     for ex in top_ex.args
-        if is_linenumber(ex); continue
+            if is_linenumber(ex); continue
         elseif isexpr(ex, :macrocall, macroCallNumberOfArguments)
             if ex.args[1] == inherits_symbol
                 parse_inherits!(varnames, ex.args[macroCallNumberOfArguments], false)
@@ -528,8 +552,9 @@ function code_model(head, top_ex)
     end
 
     var_bindings = [:( $(name) = $(quot(GetField(This(), name))) ) for name in keys(varnames)]
-    push!(var_bindings, :(time = $(quot(time_global))) )
-    push!(var_bindings, :(simulationModel = $(quot(simulationModel_global))) )
+    push!(var_bindings, :(time = $(quot(time_global))))
+    push!(var_bindings, :(simulationModel = $(quot(simulationModel_global))))
+
     quote
         $(name) = (let $(this_symbol) = $(quot(This())), $(var_bindings...)
 #            $(quot(Model))($(quot(name)), [$(initializers...)])
@@ -550,14 +575,14 @@ Fill in a `Model` instance with the given declarations and equations and assign 
 to a constant named <Name>.
 """
 macro model(head, ex)
-#    esc(code_model(head, ex))
+    # esc(code_model(head, ex))
     coded = code_model(head, ex)
-#=
+    #=
     println("coded:")
     println("------------------")
     @show coded
     println("------------------")
-=#
+    =#
     esc(coded)
 end
 
@@ -653,7 +678,7 @@ end
 Instantiations(model::Model) = Instantiations(model, [])
 
 # Calling a `Model` (optionally with keyword arguments) creates an Instantiations.
-#call(model::Model; kwargs...) = Instantiations(model, kwargs)
+# call(model::Model; kwargs...) = Instantiations(model, kwargs)
 (model::Model)(;kwargs...) = Instantiations(model, kwargs)
 
 "Instance of a model, with variable bindings and equations."
@@ -669,6 +694,7 @@ mutable struct Instance
     F_pre::Vector{Any}
     F_post::Vector{Any}
 end
+
 function Instance(model_name::Symbol, variables, equations, partial)
     Instance(model_name, VariableDict(variables), 
         collect(Any, equations), partial, [], [], [], [])
@@ -711,7 +737,9 @@ function initializer_getfield(x, name)
     @show name
     error()
 end
+
 initializer_getfield(x, name::Symbol) = getfield(x, name)
+
 function initializer_getfield(instance::Instance, name::Symbol)
     if !haskey(instance.variables, name)
         ModiaLogging.increaseLogCategory(:NoFieldDefined)
@@ -725,9 +753,6 @@ function no_initializer(inst::Instance, name::Symbol)
     error("No initializer given for variable $(model_name_of(inst)).$name")
 end
 
-
-
-
 # -------------------------------- instantiate --------------------------------
 
 # Pass through anything that's not an Instantiations
@@ -737,19 +762,19 @@ as_field_value(insts::Vector{Instantiations}, time::Float64) = Instance[instanti
 
 function add_variable!(instance::Instance, name::Symbol, value)
     if haskey(instance.variables, name)
-#        error("Multiple definitions of $(name) in $(model_name_of(instance))")
+        # error("Multiple definitions of $(name) in $(model_name_of(instance))")
         println("Multiple definitions of $(name) in $(model_name_of(instance))")
     end
     instance.variables[name] = value
 end
 
 function initialize!(instance::Instance, iv::InitVariable, time::Float64, kwargs::AbstractDict)
-#    @show iv.fdef
+    # @show iv.fdef
     add_variable!(instance, iv.name, 
         as_field_value(haskey(kwargs, iv.name) ? kwargs[iv.name] : iv.init(instance, time),
-                       time)
-    )
+                       time))
 end
+
 function initialize!(instance::Instance, ext::Extends, time::Float64, kwargs::AbstractDict)
     base_instantiation = ext.init(instance, time)::Instantiations
     base_instantiation.kwargs = merge!(Dict{Symbol,Any}(base_instantiation.kwargs), kwargs)
@@ -760,6 +785,7 @@ function initialize!(instance::Instance, ext::Extends, time::Float64, kwargs::Ab
     end
     append!(instance.equations, base.equations)
 end
+
 function initialize!(instance::Instance, eqs::Equations, time::Float64, kwargs::AbstractDict)
     append!(instance.equations, eqs.equations)
 end
@@ -774,14 +800,16 @@ function instantiate(model::Model, time::Float64, kwargs=[])
     instance
 end
 
-
 # --------------------------------- flatten ----------------------------------
 
 flatten_this(ex, prefix::AbstractString) = ex
+
 function flatten_this(ex::Expr, prefix::AbstractString)
     Expr(ex.head, [flatten_this(arg, prefix) for arg in ex.args]...)
 end
+
 flatten_this(ex::Der, prefix::AbstractString) = Der(flatten_this(ex.base, prefix))
+
 function flatten_this(ex::GetField, prefix::AbstractString)
     if ex.base == This()
         GetField(This(), Symbol(prefix, ex.name))
@@ -793,11 +821,13 @@ function flatten_this(ex::GetField, prefix::AbstractString)
 end
 
 lookup(instance::Instance, ::This) = instance
+
 function lookup(instance::Instance, g::GetField)
     instance = lookup(instance, g.base)::Instance
     var = vars_of(instance)[g.name]
     var
 end
+
 function lookup(instance::Instance, r::Ref)
     #@show instance
     #@show r
@@ -817,8 +847,8 @@ const Connection = Pair{Symbol,Bool}
 struct Flat
     vars::VariableDict
     eqs::Vector{Any}
-    connections::Dict{Connection, Connection}
-    connection_types::Dict{Connection, Dict}
+    connections::Dict{Connection,Connection}
+    connection_types::Dict{Connection,Dict}
 end
 
 function get_representative(flat::Flat, c::Connection)
@@ -842,8 +872,8 @@ function connect!(flat::Flat, a::Connection, b::Connection, ctype::Dict)
 end
 
 get_this_fieldname(g::GetField) = (@assert g.base === This(); g.name)
-
 get_connection_sign(ex::This) = false
+
 function get_connection_sign(ex::GetField)
     if !isa(ex.base, This); error("Can only connect current model and submodels"); end
     true
@@ -857,19 +887,23 @@ function add_connection!(flat::Flat, prefix::AbstractString, instance::Instance,
     # Check if connector exist in instance
     inst = lookup(instance, eq.a.base)::Instance
     if eq.a.name in keys(vars_of(inst))
-      atype = get_connector_type(lookup(instance, eq.a))
+        atype = get_connector_type(lookup(instance, eq.a))
     else
-      error("Connector $(eq.a.name) not found in: $eq in model $(instance.model_name)")
+        error("Connector $(eq.a.name) not found in: $eq in model $(instance.model_name)")
     end
+
     inst = lookup(instance, eq.b.base)::Instance
+
     if eq.b.name in keys(vars_of(inst))
-      btype = get_connector_type(lookup(instance, eq.b))
+        btype = get_connector_type(lookup(instance, eq.b))
     else
-      error("Connector $(eq.b.name) not found in: $eq in model $(instance.model_name)")
+        error("Connector $(eq.b.name) not found in: $eq in model $(instance.model_name)")
     end
+
     if atype != btype
-      ModiaLogging.increaseLogCategory(:IncompatibleConnect)
+        ModiaLogging.increaseLogCategory(:IncompatibleConnect)
     end
+
     @assert atype == btype "Ports in connect statement $eq are not of same type: $atype, $btype"
 
     aconn = get_connection(eq.a, prefix)
@@ -882,14 +916,17 @@ function flatten!(flat::Flat, prefix::AbstractString, name::Symbol, var)
     flat.vars[Symbol(prefix, name)] = var
     nothing
 end
+
 function flatten!(flat::Flat, prefix::AbstractString, name::Symbol, inst::Instance)
     flatten!(flat, string(prefix, name, "."), inst)
 end
+
 function flatten!(flat::Flat, prefix::AbstractString, name::Symbol, insts::Vector{Instance})
-    for (k,inst) in enumerate(insts)
+    for (k, inst) in enumerate(insts)
         flatten!(flat, string(prefix, name, "[$k]."), insts[k])
     end
 end
+
 function flatten!(flat::Flat, prefix::AbstractString, instance::Instance)
     for (name, var) in vars_of(instance)
         flatten!(flat, prefix, name, var)
@@ -905,6 +942,7 @@ end
 
 to_access(connector::Symbol, field::Symbol) = GetField(This(), Symbol(connector, ".", field))
 to_access(connector::Symbol, ::Nothing) = GetField(This(), Symbol(connector))
+
 function to_access(connector::Connection, field::Union{Symbol,Nothing})
     ex = to_access(connector.first, field)
     connector.second ? (:( $(-)($ex) )) : ex
@@ -912,19 +950,18 @@ end
 
 function flatten(instance::Instance)
     flat = Flat(VariableDict(), [], 
-        Dict{Symbol, Symbol}(), Dict{Symbol, Dict}())
+        Dict{Symbol,Symbol}(), Dict{Symbol,Dict}())
     flatten!(flat, "", instance)
 
     # Gather connection sets
-    connection_sets = Dict{Connection, Set{Connection}}()
+    connection_sets = Dict{Connection,Set{Connection}}()
     for node in keys(flat.connections)
         rep = get_representative(flat, node)
-        set = get!(()->Set{Connection}([rep]), connection_sets, rep)
+        set = get!(() -> Set{Connection}([rep]), connection_sets, rep)
         push!(set, node)
     end
 
-    unconnected_flow_vars = VariableDict(
-        filter((name,var)->(isa(var,Variable) && var.flow), flat.vars))
+    unconnected_flow_vars = VariableDict(filter((name, var) -> (isa(var, Variable) && var.flow), flat.vars))
 
     # Create connection equations
     for (rep, set) in connection_sets
@@ -951,7 +988,7 @@ function flatten(instance::Instance)
     for (name, var) in unconnected_flow_vars
         dims = get_dims(var)
         z = dims == () ? 0 : zeros(dims)
-        push!(flat.eqs, :($(GetField(This(), name)) = $z) )
+        push!(flat.eqs, :($(GetField(This(), name)) = $z))
     end
 
     Instance(model_name_of(instance), flat.vars, flat.eqs, instance.partial)
@@ -963,42 +1000,41 @@ end
 addEquation!(M, e) = begin push!(M.initializers, Equations([e])) end
 
 function deleteEquation!(M, e)
-  M.initializers = filter!(i -> if typeof(i) == Equations; i.equations[1] != e else true end, M.initializers)
+    M.initializers = filter!(i -> if typeof(i) == Equations; i.equations[1] != e else true end, M.initializers)
 end
 
 
 # --------------------------------- utilities ----------------------------------
 
 
-#prettyfy(der::Der) = Symbol("der("*string(der.base.name)*")")
+# prettyfy(der::Der) = Symbol("der("*string(der.base.name)*")")
 @static if VERSION < v"0.7.0-DEV.2005"
-  prettyfy(der::Der) = Symbol("der("*replace(string(der.base.name), ".", "_")*")")
-  prettyfy(get::GetField) = Symbol(replace(string(get.name), ".", "_")) # get.name # Handle dummy derivatives
+    prettyfy(der::Der) = Symbol("der(" * replace(string(der.base.name), ".", "_") * ")")
+    prettyfy(get::GetField) = Symbol(replace(string(get.name), ".", "_")) # get.name # Handle dummy derivatives
 else
-  prettyfy(der::Der) = Symbol("der("*replace(string(der.base.name), "." => "_")*")")
-  prettyfy(get::GetField) = Symbol(replace(string(get.name), "." => "_")) # get.name # Handle dummy derivatives
+    prettyfy(der::Der) = Symbol("der(" * replace(string(der.base.name), "." => "_") * ")")
+    prettyfy(get::GetField) = Symbol(replace(string(get.name), "." => "_")) # get.name # Handle dummy derivatives
 end
-#prettyfy(get::GetField) = get.name
-#prettyfy(s::Symbol) = s
+# prettyfy(get::GetField) = get.name
+# prettyfy(s::Symbol) = s
 prettyfy(ex) = ex
+
 function prettyfy(ex::Expr)
-  if isexpr(ex, :quote) || isexpr(ex, :line)
-    nothing
-  elseif isexpr(ex, :block)
-    prettyfy(ex.args[2])
-  else
-    Expr(ex.head, [prettyfy(arg) for arg in ex.args]...)
-  end
+    if isexpr(ex, :quote) || isexpr(ex, :line)
+        nothing
+    elseif isexpr(ex, :block)
+        prettyfy(ex.args[2])
+    else
+        Expr(ex.head, [prettyfy(arg) for arg in ex.args]...)
+    end
 end
       
-
-
 # Pretty printing of expressions
 const oper = Base.Operators #; [+, -]]
 #const operator_table = [getfield(oper,name) => name for name in
 #    filter(name->isdefined(oper,name), names(oper))]
-const operator_table = Dict(getfield(oper,name) => name for name in
-    filter(name->isdefined(oper,name), names(oper)))
+const operator_table = Dict(getfield(oper, name) => name for name in
+    filter(name -> isdefined(oper, name), names(oper)))
 
 prettyPrint(ex) = get(operator_table, ex, ex)
 Array{Any}
