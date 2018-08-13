@@ -145,7 +145,7 @@ end
   equationsBig = [tooManyEquations; fill("h(., der(.)) = 0", length(EGbig)-length(tooManyEquations))]
   assignBig = matching(EGbig, length(EGbig))
   Abig = [Abig; fill(0, length(EGbig)-length(Abig))]
-   printAssignedEquations(equationsBig, tooFewVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
+  printAssignedEquations(equationsBig, tooFewVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
   printUnassigned(equationsBig, tooFewVariables, assignBig, Abig, fill(0, length(EGbig)))
   componentsBig = BLT(EGbig, assignBig)
   @show componentsBig
@@ -165,7 +165,7 @@ end
   equationsBig = [equationsBig; fill("h(., der(.)) = 0", length(EGbig)-length(equationsBig))]
   assignBig = matching(EGbig, length(EGbig))
   Abig = [Abig; fill(0, length(EGbig)-length(Abig))]
-   printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
+  printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
   printUnassigned(equationsBig, tooManyVariables, assignBig, Abig, fill(0, length(EGbig)))
   componentsBig = BLT(EGbig, assignBig)
   @show componentsBig
@@ -184,7 +184,7 @@ end
   @show EGbig
   assignBig = matching(EGbig, length(EGbig))
   Abig = [Abig; fill(0, length(EGbig)-length(Abig))]
-   printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
+  printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
   printUnassigned(equationsBig, tooManyVariables, assignBig, Abig, fill(0, length(EGbig)))
   componentsBig = BLT(EGbig, assignBig)
   @show componentsBig
@@ -217,7 +217,7 @@ end
   println("------------------------------------------------------")
   println()
   vActive = fill(true, length(A))
-  vActive[[1,3]] = false
+  vActive[[1,3]] .= false
   @show vActive
   assign = matching(G, length(A), vActive)
   @show assign

@@ -28,6 +28,11 @@ using DataStructures: OrderedDict
   AbstractDict = Associative
 end
 
+@static if VERSION < v"0.7.0-DEV.2005"
+else
+  using LinearAlgebra
+end
+
 import ModiaMath #0.7
 using Unitful
 using ..ModiaLogging
@@ -995,10 +1000,10 @@ end
 
 # Pretty printing of expressions
 const oper = [:!, :(!=), :(!==), :%, :&, :*, :+, :-, :/, ://, :<, :<:, :<<, :(<=),
-               :<|, :(==), :(===), :>, :>:, :(>=), :>>, :>>>, :\, :^, :colon,
+               :<|, :(==), :(===), :>, :>:, :(>=), :>>, :>>>, :\, :^, #= :colon, =#
                :ctranspose, :getindex, :hcat, :hvcat, :setindex!, :transpose, :vcat,
-               :xor, :|, :|>, :~, :×, :÷, :∈, :∉, :∋, :∌, :∘, :√, :∛, :∩, :∪, :≠, :≤,
-               :≥, :⊆, :⊈, :⊊, :⊻, :⋅]
+               :xor, :|, :|>, :~ #= , :× =# , :÷, :∈, :∉, :∋, :∌, :∘, :√, :∛, :∩, :∪, :≠, :≤,
+               :≥ #=, :⊆, :⊈, :⊊, :⊻, :⋅=#]
                
 const operator_table = Dict(getfield(Base,name) => name for name in
     filter(name->isdefined(Base,name), oper))

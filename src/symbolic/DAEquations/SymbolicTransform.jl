@@ -99,7 +99,7 @@ function add(e1, e2)
   elseif e2 == zero 
     return e1
   else
-    Expr(:call, +, e1, e2)
+    Expr(:call, :+, e1, e2)
   end
 end
 
@@ -107,11 +107,11 @@ function sub(e1, e2)
   if typeof(e1) in [Float64, Int64] && typeof(e2) in [Float64, Int64]
     e1 - e2
   elseif e1 == zero
-    return Expr(:call, -, e2)
+    return Expr(:call, :-, e2)
   elseif e2 == zero 
     return e1
   else
-    Expr(:call, -, e1, e2)
+    Expr(:call, :-, e1, e2)
   end
 end
 
@@ -123,7 +123,7 @@ function mult(e1, e2)
   elseif e2 == one 
     return e1  
   else
-    Expr(:call, *, e1, e2)
+    Expr(:call, :*, e1, e2)
   end
 end
 
@@ -131,7 +131,7 @@ function power(e1, e2)
   if e2 == one 
     return e1
   else
-    Expr(:call, ^, e1, e2)
+    Expr(:call, :^, e1, e2)
   end
 end
 
@@ -377,7 +377,7 @@ Rewriting rules:
           if size(arguments,1) > 2
             ex.args[1] = *
           end
-          eq = Expr(:(=), ex, Expr(:call, /,  e1, er))
+          eq = Expr(:(=), ex, Expr(:call, :/,  e1, er))
         end
       end
     
@@ -627,7 +627,7 @@ end
 #        @show diff
       elseif op in [:zeros, zeros, :eye, eye]
         diff = zero # !!!!
-#       diff = Expr(:call, *, e, zero)  # = e*zero
+#       diff = Expr(:call, :*, e, zero)  # = e*zero
 #        diff = zero
       elseif op in [+, :+, -, :-]
         # der(e1 + e2 + e3) = der(e1) + der(e2) + der(e3)
@@ -662,7 +662,7 @@ end
       elseif op in [*, :*]
         # der(e1 * e2 * e3) = der(e1)*e2*e3 + e1*der(e2)*e3 + e1*e2*der(e3)
         arguments = e.args[2:end]
-        diff = Expr(:call, +)
+        diff = Expr(:call, :+)
         for i in 1:length(arguments)
           terms = []
           for j in 1:length(arguments)
@@ -675,7 +675,7 @@ end
             end
           end
           if terms != []
-            product = Expr(:call, *)
+            product = Expr(:call, :*)
             for t in terms
               push!(product.args, t)
             end
@@ -766,7 +766,7 @@ end
       else
         # der(f(e1, e2, e3)) = f_der_1(e1, e2, e3)*der(e1) + f_der_2(e1, e2, e3)*der(e2) + f_der_3(e1, e2, e3)*der(e3)
         arguments = e.args[2:end]
-        diff = Expr(:call, +)
+        diff = Expr(:call, :+)
         if op in [/, :/]
           op = :divide
         elseif op in [^, :^]

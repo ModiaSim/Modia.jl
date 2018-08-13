@@ -437,7 +437,11 @@ const tSizes = Array{Tuple{Int64,Vararg{Int64,N} where N},1}
 function analyzeStructurally(equations, params, unknowns_indices, deriv, unknownsNames, Avar, statesIndices, states, nonStateVariables, n, realStates, findIncidence!, VSizes #=::tSizes =# , VTypes, ESizes #= ::tSizes=# , ETypes, unknowns, partial)
   # Build incidence structure as bipartite graph.
   neq = 0
-  G = Array{Any}(0)
+  @static if VERSION < v"0.7.0-DEV.2005"
+    G = Array{Any}(0)
+  else
+    G = [] # Array{Any}(undef, 0)
+  end
   coefficients = []
   notLinearVariables = []
   orgEquIndex = []
