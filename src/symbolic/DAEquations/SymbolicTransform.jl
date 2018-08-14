@@ -17,6 +17,7 @@ module SymbolicTransform
 using ..Modia
 using ..Instantiation
 import ..Instantiation: GetField, This, Der, Symbolic, time_global, simulationModel_symbol
+import LinearAlgebra
 using Base.Meta: quot, isexpr
 using DataStructures
 using Unitful
@@ -643,7 +644,7 @@ function differentiate(e)
                 diff = Expr(:call, op, diffarg)  
             end
             # @show diff
-        elseif op in [:zeros, zeros, :eye, eye]
+        elseif op in [:zeros, zeros, :eye, LinearAlgebra.I, :identity, identity]
             diff = zero # !!!!
             # diff = Expr(:call, *, e, zero)  # = e*zero
             # diff = zero
