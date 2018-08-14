@@ -14,10 +14,10 @@ uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 version = "0.3.13"
 
 [[CodecZlib]]
-deps = ["BinaryProvider", "Compat", "Libdl", "Test", "TranscodingStreams"]
-git-tree-sha1 = "82742ef572290f566c6fc6d977d87586a0d3d5f1"
+deps = ["BinaryProvider", "Libdl", "Pkg", "Test", "TranscodingStreams"]
+git-tree-sha1 = "83cb3d65c37ea1364c2d5bf7bcea41843ba645dc"
 uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
-version = "0.4.3"
+version = "0.5.0"
 
 [[ColorTypes]]
 deps = ["FixedPointNumbers", "Random", "Test"]
@@ -157,7 +157,7 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[ModiaMath]]
 deps = ["DataFrames", "DataStructures", "Documenter", "LinearAlgebra", "Printf", "PyPlot", "StaticArrays", "Sundials", "Unitful"]
-git-tree-sha1 = "da5984df46ed5e2e368f024875e9359e1263e54c"
+git-tree-sha1 = "34c88737a38579c6b8bd28ff088710acd4629bd8"
 repo-rev = "master"
 repo-url = "ModiaMath"
 uuid = "80923050-9e1b-11e8-0c9e-c9f8e684994a"
