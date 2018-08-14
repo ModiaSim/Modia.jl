@@ -32,22 +32,22 @@ Example:
      [4,8]
 """
 function buildExtendedSystem(A)
-  G = []
-  for i in 1:length(A)
-    a = A[i]
-    if a > 0
-      push!(G, [i, a])    # h(x, der(x))
+    G = []
+    for i in 1:length(A)
+        a = A[i]
+        if a > 0
+            push!(G, [i, a])    # h(x, der(x))
+        end
     end
-  end
-  return G
+    return G
 end
 
 function addDependencies(G, Vindices)
-  newG = []
-  for g in G
-    push!(newG, [g; Vindices])
-  end  
-  return newG
+    newG = []
+    for g in G
+        push!(newG, [g; Vindices])
+    end  
+    return newG
 end
 
 """
@@ -65,12 +65,12 @@ Example:
      [1,2,3] 
      [1,2,3] 
 """
-function buildFullIncidence(n,m)
-  G = []
-  for i in 1:n
-    push!(G, [j for j in 1:m])    
-  end
-  return G
+function buildFullIncidence(n, m)
+    G = []
+    for i in 1:n
+        push!(G, [j for j in 1:m])    
+    end
+    return G
 end
 
 
@@ -90,16 +90,16 @@ Example:
 ([1,2,3,4,1,2,3,4,9,1,2],[0,0,0,0,1,1,1,1,0,2,2])
 """
 function invertDer(A)
-  orgIndex = [i for i in 1:length(A)]  # Index of original variable or equation
-  derOrder = fill(0, length(A)) # Derivative order
-  for i in 1:length(A)
-    a = A[i]
-    if a > 0
-      derOrder[a] = derOrder[i] + 1
-      orgIndex[a] = orgIndex[i]
+    orgIndex = [i for i in 1:length(A)]  # Index of original variable or equation
+    derOrder = fill(0, length(A)) # Derivative order
+    for i in 1:length(A)
+        a = A[i]
+        if a > 0
+            derOrder[a] = derOrder[i] + 1
+            orgIndex[a] = orgIndex[i]
+        end
     end
-  end
-  return orgIndex, derOrder
+    return orgIndex, derOrder
 end
 
 
@@ -123,17 +123,17 @@ julia> BLTandPantelides.invertAssign(inv[1])
 ([0,0,0,0,1,2,7,4,3,9,8],[5,6,10,11])
 """
 function invertAssign(assign, n=length(assign))
-  invAssign = fill(0, n)
-  unAssigned::Vector{Int} = []
-  for j in 1:length(assign)
-     i = assign[j]
-    if i > 0
-      invAssign[i] = j
-    else
-      push!(unAssigned, j)
+    invAssign = fill(0, n)
+    unAssigned::Vector{Int} = []
+    for j in 1:length(assign)
+        i = assign[j]
+        if i > 0
+            invAssign[i] = j
+        else
+            push!(unAssigned, j)
+        end
     end
-  end
-  return invAssign, unAssigned
+    return invAssign, unAssigned
 end
 
 """
@@ -150,21 +150,21 @@ x, y, w, z, der(x), der(y), der(w), der(z), T, der2(x), der2(y)
 
 """
 function createNames(infixes, A)
-  names = []
-  (orgIndex, derOrder) = invertDer(A)
-  for j in 1:length(A)
-    if derOrder[j] > 0
-      d = "der"
-      if derOrder[j] > 1
-        d = d*string(derOrder[j])
-      end
-      d = "$d($(infixes[orgIndex[j]]))"
-    else
-      d = infixes[orgIndex[j]]
+    names = []
+    (orgIndex, derOrder) = invertDer(A)
+    for j in 1:length(A)
+        if derOrder[j] > 0
+            d = "der"
+            if derOrder[j] > 1
+                d = d * string(derOrder[j])
+            end
+            d = "$d($(infixes[orgIndex[j]]))"
+        else
+            d = infixes[orgIndex[j]]
+        end
+        push!(names, d)
     end
-    push!(names, d)
-  end
-  names
+    names
 end
 
 
@@ -184,64 +184,71 @@ x, y, w, z, der(x), der(y), der(w), der(z), T, der2(x), der2(y)
 
 """
 function printList(infixes, indices, A, vertical=false)
-  (orgIndex, derOrder) = invertDer(A)
-  for ind in 1:length(indices)
-    j = indices[ind]
-    if j > 0    
-      if ind > 1
-        if vertical
-          loglnModia()
-        else
-          logModia(", ")
+    (orgIndex, derOrder) = invertDer(A)
+    for ind in 1:length(indices)
+        j = indices[ind]
+        if j > 0    
+            if ind > 1
+                if vertical
+                    loglnModia()
+                else
+                    logModia(", ")
+                end
+            end
+          
+            if derOrder[j] > 0
+                if vertical
+                    logModia("DER")
+                else
+                    logModia("der")
+                end
+          
+                if derOrder[j] > 1
+                    logModia(derOrder[j])
+                end
+                logModia("(")
+            end
+          
+            logModia(infixes[orgIndex[j]])
+          
+            if derOrder[j] > 0
+                logModia(")")
+            end
         end
-      end
-      if derOrder[j] > 0
-        if vertical
-          logModia("DER")
-        else
-          logModia("der")
-        end
-        if derOrder[j] > 1
-          logModia(derOrder[j])
-        end
-        logModia("(")
-      end
-      logModia(infixes[orgIndex[j]])
-      if derOrder[j] > 0
-        logModia(")")
-      end
     end
-  end
-  loglnModia()
+    loglnModia()
 end
 
 function makeList(infixes, indices, A, vertical=false)
-  l = String[]
-  (orgIndex, derOrder) = invertDer(A)
-  for ind in 1:length(indices)
-    s = ""
-    j = indices[ind]
-    if j > 0    
-      if derOrder[j] > 0
-        if vertical
-          s = "DER"
-        else
-          s = "der"
+    l = String[]
+    (orgIndex, derOrder) = invertDer(A)
+    for ind in 1:length(indices)
+        s = ""
+        j = indices[ind]
+        if j > 0    
+            if derOrder[j] > 0
+                if vertical
+                    s = "DER"
+                else
+                    s = "der"
+                end
+          
+                if derOrder[j] > 1
+                    s *= string(derOrder[j])
+                end
+                s *= "_" # "("
+                # s *= "this."
+            end
+
+            s *= string(infixes[orgIndex[j]])
+            if derOrder[j] > 0
+                # s *= ")"
+            end
+            
+            push!(l, s)
         end
-        if derOrder[j] > 1
-          s *= string(derOrder[j])
-        end
-        s *= "_" # "("
-#        s *= "this."
-      end
-      s *= string(infixes[orgIndex[j]])
-      if derOrder[j] > 0
-#        s *= ")"
-      end
-      push!(l, s)
     end
-  end
-  return l
+    return l
 end
 
 """
@@ -261,44 +268,45 @@ See testBLTandPantelides.testPendulum
 
 """
 function printAssignedEquations(equations, variables, indices, assign, A, B)
-  (orgIndexVar, derOrderVar) = invertDer(A)
-  (orgIndexEqu, derOrderEqu) = invertDer(B)
-  (assignedVar, unAssigned) = invertAssign(assign)
-  if unAssigned != []
-#    @show assignedVar unAssigned
-  end
-  for i in indices
-    logModia(lpad(string(i)*":", 5, " "))
-    j = assignedVar[i]
-    if j > 0    
-      if derOrderVar[j] == 1
-        prefix = "der("
-        suffix = ")"
-      elseif derOrderVar[j] > 1
-        prefix = "der"*string(derOrderVar[j])*"("
-        suffix = ")"
-      else
-        prefix = ""
-        suffix = ""
-      end
-      logModia(lpad(prefix*string(variables[orgIndexVar[j]])*suffix, 25, " "))
-    else
-      logModia(" "^25)
+    (orgIndexVar, derOrderVar) = invertDer(A)
+    (orgIndexEqu, derOrderEqu) = invertDer(B)
+    (assignedVar, unAssigned) = invertAssign(assign)
+    if unAssigned != []
+        # @show assignedVar unAssigned
     end
-    logModia(":  ")
+    
+    for i in indices
+        logModia(lpad(string(i) * ":", 5, " "))
+        j = assignedVar[i]
+        if j > 0    
+            if derOrderVar[j] == 1
+                prefix = "der("
+                suffix = ")"
+            elseif derOrderVar[j] > 1
+                prefix = "der" * string(derOrderVar[j]) * "("
+                suffix = ")"
+            else
+                prefix = ""
+                suffix = ""
+            end
+            logModia(lpad(prefix * string(variables[orgIndexVar[j]]) * suffix, 25, " "))
+        else
+            logModia(" "^25)
+        end
+        logModia(":  ")
       
-    if derOrderEqu[i] == 1
-      prefix = "DER( "
-      suffix = " )"
-    elseif derOrderEqu[i] > 1
-      prefix = "DER"*string(derOrderEqu[i])*"( "
-      suffix = " )"
-    else  
-      prefix = ""
-      suffix = ""
+        if derOrderEqu[i] == 1
+            prefix = "DER( "
+            suffix = " )"
+        elseif derOrderEqu[i] > 1
+            prefix = "DER" * string(derOrderEqu[i]) * "( "
+            suffix = " )"
+        else  
+            prefix = ""
+            suffix = ""
+        end
+        loglnModia(prefix * string(equations[orgIndexEqu[i]]) * suffix)
     end
-    loglnModia(prefix*string(equations[orgIndexEqu[i]])*suffix)
-  end
 end
 
 
@@ -319,17 +327,19 @@ See testBLTandPantelides.testPendulum
 
 """
 function printSortedEquations(equations, variables, components, assign, A, B)
-  loglnModia("[assigned variable]: [differentiation] equation")
-  loglnModia("Strongly connected components are enclosed in []")
-  for c in components
-    if length(c) > 1
-      loglnModia("[")
+    loglnModia("[assigned variable]: [differentiation] equation")
+    loglnModia("Strongly connected components are enclosed in []")
+    for c in components
+        if length(c) > 1
+            loglnModia("[")
+        end
+    
+        printAssignedEquations(equations, variables, c, assign, A, B)
+    
+        if length(c) > 1
+            loglnModia("]")
+        end
     end
-    printAssignedEquations(equations, variables, c, assign, A, B)
-    if length(c) > 1
-      loglnModia("]")
-    end
-  end
 end
 
 
@@ -349,28 +359,28 @@ See testBLTandPantelides.testPendulum
 
 """
 function printUnassigned(equations, variables, assign, A, B, vActive=[])
-  (invAssign, unAssignedVariables) = invertAssign(assign, length(B))
-  (ass, unAssignedEquations) = invertAssign(invAssign, length(assign))
-  if false # BLTandPantelides.log
-    @show vActive
-    @show invAssign unAssignedVariables
-    @show ass unAssignedEquations
-  end
-  if vActive != []
-    # Don't print not active variables
-    unass = []
-    for v in unAssignedVariables
-      if vActive[v]
-        push!(unass, v)
-      end
+    (invAssign, unAssignedVariables) = invertAssign(assign, length(B))
+    (ass, unAssignedEquations) = invertAssign(invAssign, length(assign))
+    if false # BLTandPantelides.log
+        @show vActive
+        @show invAssign unAssignedVariables
+        @show ass unAssignedEquations
     end
-    unAssignedVariables = unass
-  end   
-  loglnModia("\nUnassigned variables:")
-  printList(variables, unAssignedVariables, A)
+    if vActive != []
+    # Don't print not active variables
+        unass = []
+        for v in unAssignedVariables
+            if vActive[v]
+                push!(unass, v)
+            end
+        end
+        unAssignedVariables = unass
+    end   
+    loglnModia("\nUnassigned variables:")
+    printList(variables, unAssignedVariables, A)
 
-  loglnModia("\nUnassigned equations:")
-  printList(equations, unAssignedEquations, B, true)
+    loglnModia("\nUnassigned equations:")
+    printList(equations, unAssignedEquations, B, true)
 end
 
 end

@@ -52,23 +52,22 @@ const Date = "2018-08-13"
 print(" \n\nWelcome to ")
 print("Mod")
 @static if VERSION < v"0.7.0-DEV.2005"
-  print_with_color(:red, "ia", bold=true)
-  print(" - ")
-  print_with_color(:light_black, "Dynamic ")
-  print("Mod")
-  print_with_color(:light_black, "eling and Simulation with Jul")
-  print_with_color(:red, "ia", bold=true)
+    print_with_color(:red, "ia", bold=true)
+    print(" - ")
+    print_with_color(:light_black, "Dynamic ")
+    print("Mod")
+    print_with_color(:light_black, "eling and Simulation with Jul")
+    print_with_color(:red, "ia", bold=true)
 else
-  printstyled("ia", bold=true, color=:red)
-  print(" - ")
-  printstyled("Dynamic ", color=:light_black)
-  print("Mod")
-  printstyled("eling and Simulation with Jul", color=:light_black)
-  printstyled("ia", bold=true, color=:red)
+    printstyled("ia", bold=true, color=:red)
+    print(" - ")
+    printstyled("Dynamic ", color=:light_black)
+    print("Mod")
+    printstyled("eling and Simulation with Jul", color=:light_black)
+    printstyled("ia", bold=true, color=:red)
 end
 
 println()
-
 println("Version $Version ($Date)")
 println("Type \"?Modia\" for help.\n\n")
 
@@ -89,13 +88,11 @@ include("language/Instantiation.jl")
 include("language/Execution.jl")
 
 include("symbolic/DAEquations/Synchronous.jl") # Before models/Electric, etc
-
 include("symbolic/symbolic.jl")
 
 using .Instantiation
 
 include("models/ModiaBase.jl")
-
 include("models/models.jl")  # Before symbolic because MultiBody is used in BasicStructuralTransform
 
 
