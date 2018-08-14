@@ -48,7 +48,7 @@ checkSimulation(LPfilterWithoutGround, 2, "C.v", 9.996843043981416, removeSingul
 
 @model LPfilterWithoutGround1 begin
     R = Resistor(R=100.0Ohm) # , n=Pin(v=Float(start=0.0)))
-    C = Capacitor(C=2.5  Milli * Farad, v=Voltage(start=0.0Volt))
+    C = Capacitor(C=2.5Milli * Farad, v=Voltage(start=0.0Volt))
     V = ConstantVoltage(V=10.0Volt)
     @equations begin
         connect(V.p, R.p)

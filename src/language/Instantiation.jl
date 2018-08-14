@@ -454,14 +454,7 @@ function code_variable(ex::Expr, varnames)
 
             if siz != []
                 typ = :(Array{$typ,$(length(siz))})
-            end
-
-            if baseTyp in [:Int64, :Float64, :Bool]
-                sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
-                rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
-            else
-                rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
-            end          
+                  
         end
         if baseTyp in [:Int64, :Float64, :Bool]
           sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))

@@ -170,7 +170,7 @@ const Vec3 = SVector{3,Float64}
             # Unitful
             v3 = 1u"kg" + 2u"g" + 10 * sin(2 * time) * u"hg"  
             #  der(v3) = 1.0u"kg/s"  # Differential equations with units are not handled yet
-            v4 = 3  u"kg" * 0.5u"m/s^2" + time * u"N"
+            v4 = 3u"kg" * 0.5u"m/s^2" + time * u"N"
             a = F / m
         end
     end 
