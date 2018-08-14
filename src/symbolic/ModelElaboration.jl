@@ -358,7 +358,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     @static if VERSION < v"0.7.0-DEV.2005"
         disableSimulation = false
     else
-        disableSimulation = false
+        disableSimulation = true
     end  
   
     if !BasicStructuralTransform.newStateSelection && !disableSimulation ## Disable simulation for the moment
