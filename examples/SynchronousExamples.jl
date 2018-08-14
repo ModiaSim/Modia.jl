@@ -5,7 +5,11 @@ println("\nSynchronousExamples: Demonstrating the ability to simulate models wit
 using Modia
 using Modia.Synchronous: sample, Clock, previous, hold
 using ModiaMath.plot
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
 
 @testset "Synchronous" begin
 
@@ -24,7 +28,7 @@ end
 
 #=
 result = simulate(SynchronousOperators, 5.0, storeEliminated=false, logSimulation=false)
-plot(result, ("obs"), figure=1, heading="SynchronousOperators",figure=15)
+plot(result, ("obs"), heading="SynchronousOperators",figure=15)
 @test result["obs"][end] == 25
 =#
 
@@ -63,7 +67,7 @@ end
 end 
 
 result = simulate(SpeedControl, 5.0, storeEliminated=false, logSimulation=false)
-plot(result, ("v", "fobs"), figure=1, heading="SpeedControl", figure=15)
+plot(result, ("v", "fobs"), heading="SpeedControl", figure=15)
 @test result["v"][end] == 98.03921568627446
 
 @model SpeedControlPI begin
@@ -95,7 +99,7 @@ plot(result, ("v", "fobs"), figure=1, heading="SpeedControl", figure=15)
 end 
 
 result = simulate(SpeedControlPI, 5.0, storeEliminated=false, logSimulation=false)
-plot(result, ("v", "fobs"), figure=1, heading="SpeedControlPI", figure=16)
+plot(result, ("v", "fobs"), heading="SpeedControlPI", figure=16)
 @show result["v"][end]
 @test result["v"][end] == 100.2849917097788
 

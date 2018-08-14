@@ -1,9 +1,14 @@
-doc"""
+"""
     module TestExactlyRemoveSingularities - Test Modia/src/symbolic/ExactlyRemoveSingularities.jl
 """
 module TestExactlyRemoveSingularities
 
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+  using SparseArrays
+end
 
 include("../../src/symbolic/ExactlyRemoveSingularities.jl")
 
@@ -174,7 +179,11 @@ Av = [    1    -1    -1    0      0       0;
           1    -1     0    0      0      -1;
           0     0     0   -1     -1       0];
 
-ix = Array{Int64}(0)
+  @static if VERSION < v"0.7.0-DEV.2005"
+    ix = Array{Int64}(0)
+  else
+    ix = Array{Int64}(undef, 0)
+  end
 iy = [1,2]
 r  = removeSingularities(Av,ix,iy)
 # printRemoveSingularities(Av,r,names)

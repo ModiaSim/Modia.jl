@@ -8,11 +8,20 @@ Module with tests of SymbolicTransform.
 """
 module testSymbolicTransform
 
-using SymbolicTransform
-using Utilities
+using Modia.SymbolicTransform
+using Modia.Utilities
 
-#using FactCheck
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
+
+@static if VERSION < v"0.7.0-DEV.2005"
+else
+  using LinearAlgebra
+end
+
 using Base.Meta: isexpr
 
 # Copied from Instantiation.jl
@@ -33,11 +42,14 @@ function prettyfy(ex::Expr)
 end
 
 # Pretty printing of expressions
-const oper = Base.Operators #; [+, -]]
-#const operator_table = [getfield(oper,name) => name for name in
-#    filter(name->isdefined(oper,name), names(oper))]
-const operator_table = Dict(getfield(oper,name) => name for name in
-    filter(name->isdefined(oper,name), names(oper)))
+const oper = [:!, :(!=), :(!==), :%, :&, :*, :+, :-, :/, ://, :<, :<:, :<<, :(<=),
+               :<|, :(==), :(===), :>, :>:, :(>=), :>>, :>>>, :\, :^, #= :colon, =#
+               :ctranspose, :getindex, :hcat, :hvcat, :setindex!, :transpose, :vcat,
+               :xor, :|, :|>, :~ #= , :× =# , :÷, :∈, :∉, :∋, :∌, :∘, :√, :∛, :∩, :∪, :≠, :≤,
+               :≥ #=, :⊆, :⊈, :⊊, :⊻, :⋅=#]
+               
+const operator_table = Dict(getfield(Base,name) => name for name in
+    filter(name->isdefined(Base,name), oper))
 
 prettyPrint(ex) = get(operator_table, ex, ex)
 function prettyPrint(e::Expr)
@@ -76,16 +88,16 @@ function testSolve()
   sol = showSolve(:(y = x + z), :x)
   @test sol == "x = y - z"
   
-  sol = showSolve(Expr(:(=), :y, Expr(:call, +, :x, :z, :v, :w)), :x)
+  sol = showSolve(Expr(:(=), :y, Expr(:call, :+, :x, :z, :v, :w)), :x)
   @test prettyPrint(sol) == "x = y - (z + v + w)"
 
-  sol = showSolve(Expr(:(=), :y, Expr(:call, +, :x, :z, :v, :w)), :z)
+  sol = showSolve(Expr(:(=), :y, Expr(:call, :+, :x, :z, :v, :w)), :z)
   @test sol == "z = (y - x) - (v + w)"
 
-  sol = showSolve(Expr(:(=), :y, Expr(:call, +, :x, :z, :v, :w)), :v)
+  sol = showSolve(Expr(:(=), :y, Expr(:call, :+, :x, :z, :v, :w)), :v)
   @test sol == "v = ((y - x) - z) - w"
 
-  sol = showSolve(Expr(:(=), :y, Expr(:call, +, :x, :z, :v, :w)), :w)
+  sol = showSolve(Expr(:(=), :y, Expr(:call, :+, :x, :z, :v, :w)), :w)
   @test sol == "w = ((y - x) - z) - v"
 
   sol = showSolve(:(y = x - z), :x)
@@ -94,10 +106,10 @@ function testSolve()
   sol = showSolve(:(y = x - z - w), :x)
   @test sol == "x = (y + w) + z"
     
-  sol = showSolve(Expr(:(=), :y, Expr(:call, -, :x, :z, :v, :w)), :x)
+  sol = showSolve(Expr(:(=), :y, Expr(:call, :-, :x, :z, :v, :w)), :x)
   @test sol == "x = y + (z + v + w)"
 
-  sol = showSolve(Expr(:(=), :y, Expr(:call, -, :x, :z, :v, :w)), :v) # Solve: v from: y = x - z - v - w
+  sol = showSolve(Expr(:(=), :y, Expr(:call, :-, :x, :z, :v, :w)), :v) # Solve: v from: y = x - z - v - w
   @test sol == "v = ((x - y) - z) - w"
 
   sol = showSolve(:(y = z - x), :x)
@@ -109,7 +121,7 @@ function testSolve()
   sol = showSolve(:(y = x*z*z*z), :x)
   @test sol == "x = y / (z * z * z)"
 
-  sol = showSolve(Expr(:(=), :y, Expr(:call, /, :x, :z, :w)), :x)
+  sol = showSolve(Expr(:(=), :y, Expr(:call, :/, :x, :z, :w)), :x)
   @test sol == "x = y * (z * w)"
 
   sol = showSolve(Expr(:(=), :y, Expr(:call, /, :x, :z, :w)), :z)
@@ -136,13 +148,13 @@ function testDifferentiate()
   der = showDifferentiate(differentiate(:(x + 5 + z = w)))
   @test der == "der(der(x)) + der(der(z)) = der(der(w))"
   
-  der = showDifferentiate(Expr(:(=), Expr(:call, +, :x), :w))
+  der = showDifferentiate(Expr(:(=), Expr(:call, :+, :x), :w))
   @test der == "der(x) = der(w)"
   
   der = showDifferentiate(:(2 + 3 = w))
   @test der == "0.0 = der(w)"
   
-  der = showDifferentiate(Expr(:(=), Expr(:call, -, :x), :w))
+  der = showDifferentiate(Expr(:(=), Expr(:call, :-, :x), :w))
   @test der == "-(der(x)) = der(w)"
   
   der = showDifferentiate(:(x - 5 - z = w))
@@ -224,11 +236,15 @@ function testDifferentiate()
   @test der == "der(y) = f_der_1(x, 5, g(z)) * der(x) + f_der_3(x, 5, g(z)) * (g_der(z) * der(z))"
   
   der = showDifferentiate(:(y = true ? x : y))  
-  @test der == "der(y) = if true\n        der(x)\n    else \n        der(y)\n    end"
-
-  der = showDifferentiate(:(y = if b; x elseif false y else z end))  
-  @test der == "der(y) = if b\n        der(x)\n    else \n        if false\n            der(y)\n        else \n            der(z)\n        end\n    end"
-  
+@static if VERSION < v"0.7.0-DEV.2005"
+    @test der == "der(y) = if true\n        der(x)\n    else \n        der(y)\n    end"
+  else
+    @test der == "der(y) = if true\n        der(x)\n    else\n        der(y)\n    end"
+  end
+#=
+  der = showDifferentiate(:(y = if b; x elseif false; y else z end))  
+  @test der == "der(y) = if b\n        der(x)\n    else\n        if false\n            der(y)\n        else \n            der(z)\n        end\n    end"
+=#  
   der = showDifferentiate(:(y = time))  
   @test der == "der(y) = 1.0"
   
@@ -237,6 +253,8 @@ function testDifferentiate()
   @test der == "der(y) = a * der(x)"
   
   println("\n\n----------------------\n")
+  
+  
   
   # check: time
 end

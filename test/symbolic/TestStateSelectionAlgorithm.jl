@@ -7,15 +7,19 @@
 ################################################
 module TestStateSelectionAlgorithm
 
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
 
-include(joinpath("..","..","src","symbolic","StateSelection.jl"))
+include(joinpath("..", "..", "src", "symbolic", "StateSelection.jl"))
 using .StateSelection
 
 
 isAlgebraic(v::Int, A::Vector{Int}, Arev::Vector{Int}) = A[v] == 0 && Arev[v] == 0
 
-doc"""
+"""
     checkSortedEquationGraph(eq,Vx,Vderx) - check result of sortedEquationGraph(..)
     
 - eq   : Result of sortedEquationGraph(..)
@@ -23,69 +27,67 @@ doc"""
 - Vderx: Required value of eq.Vderx
 """
 function checkSortedEquationGraph(eq;nx=0, nc=0, Vx=Int[], Vderx=Int[])
-   @test length(eq.Vx)+length(eq.Vmue) == nx
-   @test length(eq.Er)                 == nx
-   @test eq.nc    == nc
-   @test eq.Vx    == Vx
-   @test eq.Vderx == Vderx
+    @test length(eq.Vx) + length(eq.Vmue) == nx
+    @test length(eq.Er)                 == nx
+    @test eq.nc    == nc
+    @test eq.Vx    == Vx
+    @test eq.Vderx == Vderx
    
    # Check correct indices
-   for i in eachindex(eq.Vx)
-      vx = eq.Vx[i]
-      if vx != 0
-         if eq.Arev[vx] > 0
-            vxInt_index_isZero = eq.VxRev[ eq.Arev[vx] ] == 0
-            @test vxInt_index_isZero == false
-         end
-      end    
-   end
-   
-   for i in eachindex(eq.Vderx)
-      vderx = eq.Vderx[i]
-      if vderx == 0
-         if !isAlgebraic(eq.Vx[i], eq.A, eq.Arev)
-            vx = eq.Vx[i]
-            dervx = eq.A[vx]
-            @test (dervx == 0) == false                            
-            if dervx != 0
-               der_vx_index = eq.VxRev[ dervx ]
-               @test (der_vx_index == 0) == false
+    for i in eachindex(eq.Vx)
+        vx = eq.Vx[i]
+        if vx != 0
+            if eq.Arev[vx] > 0
+                vxInt_index_isZero = eq.VxRev[ eq.Arev[vx] ] == 0
+                @test vxInt_index_isZero == false
             end
-         end
-      end
-   end
+        end    
+    end
    
+    for i in eachindex(eq.Vderx)
+        vderx = eq.Vderx[i]
+        if vderx == 0
+            if !isAlgebraic(eq.Vx[i], eq.A, eq.Arev)
+                vx = eq.Vx[i]
+                dervx = eq.A[vx]
+                @test (dervx == 0) == false                            
+                if dervx != 0
+                    der_vx_index = eq.VxRev[ dervx ]
+                    @test (der_vx_index == 0) == false
+                end
+            end
+        end
+    end
 end
 
 
 
 @testset "\nTest StateSelection algorithm" begin 
 
+    @testset "... Test two coupled inertias (all/subset/no unknowns can be solved for)" begin
 
-@testset "... Test two coupled inertias (all/subset/no unknowns can be solved for)" begin
+    #= -----------------------------------------
+    @model CoupledInertias1 begin
+        J1_J = 1
+        J1_tau = Float()
+        J1_phi = Float(start = 1.0)
+        J1_w = Float(start = 0.0)
 
-#= -----------------------------------------
-@model CoupledInertias1 begin
-  J1_J = 1
-  J1_tau = Float()
-  J1_phi = Float(start = 1.0)
-  J1_w = Float(start = 0.0)
+        J2_J = 2
+        J2_tau = Float()
+        J2_phi = Float(start = 0.0)
+        J2_w = Float(start = 0.0)
+        @equations begin
+            J1_w = der(J1_phi)
+            J1_J * der(J1_w) = J1_tau
 
-  J2_J = 2
-  J2_tau = Float()
-  J2_phi = Float(start = 0.0)
-  J2_w = Float(start = 0.0)
-@equations begin
-  J1_w = der(J1_phi)
-  J1_J * der(J1_w) = J1_tau
+            J2_w = der(J2_phi)
+            J2_J * der(J2_w) = J2_tau
 
-  J2_w = der(J2_phi)
-  J2_J * der(J2_w) = J2_tau
-
-  J2_phi = J1_phi
-  J2_tau + J1_tau = 0
-  end
-end
+            J2_phi = J1_phi
+            J2_tau + J1_tau = 0
+        end
+    end
 
 gives:
 
@@ -127,12 +129,12 @@ vNames:
 =#
 # println("\n\n... Test two coupled inertias (all unknowns can be solved for)")
 
-Gorigin = [[3,7],[8,1],[6,9],[10,4],[5,2],[4,1],[9,7],[8,11],[10,12],[12,11]]
-BLT = Array{Int64,1}[[1],[3],[8,10,9,4,6,2],[5],[7]]
-assign = [6,0,0,4,0,0,1,2,3,9,8,10]
-Avar = [0,7,8,0,9,10,11,0,12,0,0,0]
-Bequ = [8,0,9,0,7,0,10,0,0,0]
-VNames = ["J1_tau",
+        Gorigin = [[3,7],[8,1],[6,9],[10,4],[5,2],[4,1],[9,7],[8,11],[10,12],[12,11]]
+        BLT = Array{Int64,1}[[1],[3],[8,10,9,4,6,2],[5],[7]]
+        assign = [6,0,0,4,0,0,1,2,3,9,8,10]
+        Avar = [0,7,8,0,9,10,11,0,12,0,0,0]
+        Bequ = [8,0,9,0,7,0,10,0,0,0]
+        VNames = ["J1_tau",
           "J1_phi",
           "J1_w",
           "J2_tau",
@@ -145,32 +147,32 @@ VNames = ["J1_tau",
           "der2(J1_phi)",
           "der2(J2_phi)"]
 
-# First version where all unknowns can be solved for
-eqInit = StateSelection.SortedEquationGraph(Gorigin,BLT,assign,Avar,Bequ,VNames)
-Gsolvable = eqInit.Gunknowns
+        # First version where all unknowns can be solved for
+        eqInit = StateSelection.SortedEquationGraph(Gorigin, BLT, assign, Avar, Bequ, VNames)
+        Gsolvable = eqInit.Gunknowns
 
-eq = getSortedEquationGraph!(eqInit,Gsolvable)
-# printSortedEquationGraph(eq)
-checkSortedEquationGraph(eq; nx=2, nc=0, Vx=[2,7], Vderx=[0,11])
+        eq = getSortedEquationGraph!(eqInit, Gsolvable)
+        # printSortedEquationGraph(eq)
+        checkSortedEquationGraph(eq; nx=2, nc=0, Vx=[2,7], Vderx=[0,11])
 
-# println("\n\n... Test two coupled inertias (only a subset of unknowns can be solved for)")
-eqInit = StateSelection.SortedEquationGraph(Gorigin,BLT,assign,Avar,Bequ,VNames)
-Gsolvable = Any[Any[3,7],Any[1],Any[6,9],Any[4],Any[2,5],Any[1,4],Any[7,9],[8,11],[10,12],[12,11]]
-eq = getSortedEquationGraph!(eqInit,Gsolvable)
-# printSortedEquationGraph(eq)
-checkSortedEquationGraph(eq; nx=2, nc=0, Vx=[5,9], Vderx=[0,12])
+        # println("\n\n... Test two coupled inertias (only a subset of unknowns can be solved for)")
+        eqInit = StateSelection.SortedEquationGraph(Gorigin, BLT, assign, Avar, Bequ, VNames)
+        Gsolvable = Any[Any[3,7],Any[1],Any[6,9],Any[4],Any[2,5],Any[1,4],Any[7,9],[8,11],[10,12],[12,11]]
+        eq = getSortedEquationGraph!(eqInit, Gsolvable)
+        # printSortedEquationGraph(eq)
+        checkSortedEquationGraph(eq; nx=2, nc=0, Vx=[5,9], Vderx=[0,12])
 
-# println("\n\n... Test two coupled inertias (no unknowns can be solved for)")
-Gsolvable = newRaggedIntMatrix(length(Gorigin))
-eq = getSortedEquationGraph(Gorigin,Gsolvable,BLT,assign,Avar,Bequ,VNames)
-# printSortedEquationGraph(eq)
-checkSortedEquationGraph(eq; nx=9, nc=4, Vx=[2, 5, 7, 9, 6, 3, 0, 0], Vderx=[0, 0, 11, 12, 10, 8, 4, 1])
+        # println("\n\n... Test two coupled inertias (no unknowns can be solved for)")
+        Gsolvable = newRaggedIntMatrix(length(Gorigin))
+        eq = getSortedEquationGraph(Gorigin, Gsolvable, BLT, assign, Avar, Bequ, VNames)
+        # printSortedEquationGraph(eq)
+        checkSortedEquationGraph(eq; nx=9, nc=4, Vx=[2, 5, 7, 9, 6, 3, 0, 0], Vderx=[0, 0, 11, 12, 10, 8, 4, 1])
 
-end
+    end
 
 
 
-@testset "... Test simple sliding mass model" begin
+    @testset "... Test simple sliding mass model" begin
 
 
 #= 
@@ -210,17 +212,17 @@ end
 =#
 
 
-assign = [0,0,0,3,5,0,4,0,7,8,0,9]
-A = [6,8,10,0,0,7,0,9,0,0,12,0]
-B = [6,8,0,0,0,7,0,0,0]
-VNames = ["s", "r", "v", "f", "u", "der(s)", "der2(s)",
+        assign = [0,0,0,3,5,0,4,0,7,8,0,9]
+        A = [6,8,10,0,0,7,0,9,0,0,12,0]
+        B = [6,8,0,0,0,7,0,0,0]
+        VNames = ["s", "r", "v", "f", "u", "der(s)", "der2(s)",
           "der(r)", "der2(r)", "der(v)", "sf", "der(sf)"]
 
-BLT = [[5],
+        BLT = [[5],
        [9],
        [7,8,3,4]]
 
-G = [[2,1],
+        G = [[2,1],
      [3,8],
      [10,4,5],
      [4],
@@ -230,7 +232,7 @@ G = [[2,1],
      [10,9],
      [12,11]]
 
-Gsolvable = [[2],
+        Gsolvable = [[2],
              [3,8],
              [10,4,5],
              [],
@@ -240,19 +242,19 @@ Gsolvable = [[2],
              [10,9],
              [12]]
 
-eqInit = SortedEquationGraph(G,BLT,assign,A,B,VNames)
-eq = getSortedEquationGraph!(eqInit,Gsolvable)
-#printSortedEquationGraph(eq)
+        eqInit = SortedEquationGraph(G, BLT, assign, A, B, VNames)
+        eq = getSortedEquationGraph!(eqInit, Gsolvable)
+        #printSortedEquationGraph(eq)
 
-checkSortedEquationGraph(eq; nx=3, nc=0, Vx=[1,6,11], Vderx=[0,7,12])
+        checkSortedEquationGraph(eq; nx=3, nc=0, Vx=[1,6,11], Vderx=[0,7,12])
 
-end
+    end
 
 
 
-@testset "... Test Multi-index DAE (with and without tearing)" begin
+    @testset "... Test Multi-index DAE (with and without tearing)" begin
 
-#= 
+    #= 
   1: 0 = u1(t) + x1 - x2
   2: 0 = u2(t) + x1 + x2 - x3 + der(x6)
   3: 0 = u3(t) + x1 + der(x3) - x4
@@ -311,19 +313,19 @@ end
 =#
 
 
-assign = [0,0,0,0,5,0,6,0,0,0,4,0,10,12,13,0,19,8,14,16,18]
-A = [8,9,10,11,0,12,19,13,14,15,0,16,0,0,0,17,0,0,20,21,0]
-B = [9,11,13,0,0,14,15,0,10,0,12,0,0,16,17,18,19,0,0]
-VNames = ["x1", "x2", "x3", "x4", "x5", "x6", "x7",
+        assign = [0,0,0,0,5,0,6,0,0,0,4,0,10,12,13,0,19,8,14,16,18]
+        A = [8,9,10,11,0,12,19,13,14,15,0,16,0,0,0,17,0,0,20,21,0]
+        B = [9,11,13,0,0,14,15,0,10,0,12,0,0,16,17,18,19,0,0]
+        VNames = ["x1", "x2", "x3", "x4", "x5", "x6", "x7",
           "der(x1)", "der(x2)", "der(x3)", "der(x4)", "der(x6)",
           "der2(x1)", "der2(x2)", "der2(x3)", "der2(x6)",
           "der3(x6)", "x8", "der(x7)", "der2(x7)", "der3(x7)"]
 
-BLT = [[8],
+        BLT = [[8],
        [18,19],
        [10,12,13,4,5]]
 
-G = [[1,2],
+        G = [[1,2],
      [1,2,3,12],
      [1,10,4],
      [13,14,15,11,17],
@@ -343,26 +345,26 @@ G = [[1,2],
      [17,21],
      [17,21]]
 
-# println("\n\n... Test Multi-Index DAE without tearing")
-Gsolvable = newRaggedIntMatrix(length(G))
-eqInit = SortedEquationGraph(G,BLT,assign,A,B,VNames)
-eq = getSortedEquationGraph!(eqInit,Gsolvable)
-# printSortedEquationGraph(eq)
+        # println("\n\n... Test Multi-Index DAE without tearing")
+        Gsolvable = newRaggedIntMatrix(length(G))
+        eqInit = SortedEquationGraph(G, BLT, assign, A, B, VNames)
+        eq = getSortedEquationGraph!(eqInit, Gsolvable)
+        # printSortedEquationGraph(eq)
 
-checkSortedEquationGraph(eq; nx=21, nc=12, Vx=[7, 6, 19, 12, 20, 16, 1, 2, 3, 8, 9, 10, 4, 18, 0], 
+        checkSortedEquationGraph(eq; nx=21, nc=12, Vx=[7, 6, 19, 12, 20, 16, 1, 2, 3, 8, 9, 10, 4, 18, 0], 
                                            Vderx=[0, 0, 0, 0, 21, 17, 0, 0, 0, 13, 14, 15, 11, 0, 5])
 
                                            
-# println("\n\n... Test Multi-Index DAE WITH tearing")
-Gsolvable    = copy(G)
-Gsolvable[8] = fill(0,0)  # "0 = u8(t) + x8 - sin(x8)" cannot be solved for x8
-eqInit = SortedEquationGraph(G,BLT,assign,A,B,VNames)
-eq = getSortedEquationGraph!(eqInit,Gsolvable)
-#printSortedEquationGraph(eq)
+        # println("\n\n... Test Multi-Index DAE WITH tearing")
+        Gsolvable    = copy(G)
+        Gsolvable[8] = fill(0, 0)  # "0 = u8(t) + x8 - sin(x8)" cannot be solved for x8
+        eqInit = SortedEquationGraph(G, BLT, assign, A, B, VNames)
+        eq = getSortedEquationGraph!(eqInit, Gsolvable)
+        #printSortedEquationGraph(eq)
 
-checkSortedEquationGraph(eq; nx=8, nc=4, Vx=[7, 19, 20, 2, 9, 18], 
+        checkSortedEquationGraph(eq; nx=8, nc=4, Vx=[7, 19, 20, 2, 9, 18], 
                                          Vderx=[0, 0, 21, 0, 14, 0])
 
-end
+    end
 end
 end

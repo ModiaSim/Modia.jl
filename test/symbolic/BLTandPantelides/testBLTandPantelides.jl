@@ -8,11 +8,13 @@ Module with tests for BLTandPantelides.
 """
 module testBLTandPantelides
 
-#0.7 =
 using Modia.BLTandPantelides
 using Modia.BLTandPantelidesUtilities
-#0.7 =#
-using Base.Test
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+end
 
 @testset "BLTandPantelides" begin
 
@@ -143,7 +145,7 @@ using Base.Test
   equationsBig = [tooManyEquations; fill("h(., der(.)) = 0", length(EGbig)-length(tooManyEquations))]
   assignBig = matching(EGbig, length(EGbig))
   Abig = [Abig; fill(0, length(EGbig)-length(Abig))]
-   printAssignedEquations(equationsBig, tooFewVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
+  printAssignedEquations(equationsBig, tooFewVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
   printUnassigned(equationsBig, tooFewVariables, assignBig, Abig, fill(0, length(EGbig)))
   componentsBig = BLT(EGbig, assignBig)
   @show componentsBig
@@ -163,7 +165,7 @@ using Base.Test
   equationsBig = [equationsBig; fill("h(., der(.)) = 0", length(EGbig)-length(equationsBig))]
   assignBig = matching(EGbig, length(EGbig))
   Abig = [Abig; fill(0, length(EGbig)-length(Abig))]
-   printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
+  printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
   printUnassigned(equationsBig, tooManyVariables, assignBig, Abig, fill(0, length(EGbig)))
   componentsBig = BLT(EGbig, assignBig)
   @show componentsBig
@@ -182,7 +184,7 @@ using Base.Test
   @show EGbig
   assignBig = matching(EGbig, length(EGbig))
   Abig = [Abig; fill(0, length(EGbig)-length(Abig))]
-   printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
+  printAssignedEquations(equationsBig, tooManyVariables, 1:length(EGbig), assignBig, Abig, fill(0, length(EGbig)))  
   printUnassigned(equationsBig, tooManyVariables, assignBig, Abig, fill(0, length(EGbig)))
   componentsBig = BLT(EGbig, assignBig)
   @show componentsBig
@@ -215,7 +217,7 @@ using Base.Test
   println("------------------------------------------------------")
   println()
   vActive = fill(true, length(A))
-  vActive[[1,3]] = false
+  vActive[[1,3]] .= false
   @show vActive
   assign = matching(G, length(A), vActive)
   @show assign
@@ -395,29 +397,40 @@ function bigTest(G)
   end
 end
 
-
+const n=10000  # Stack overflow for band and n=100000
+const nFull=1000
+  
 function test()
-
-  const n=10000  # Stack overflow for band and n=100000
   println("\nBig tests, n = ", n)
   println("\nBig test: diagonal")
-  G1 = Array{Any}(n)
+  @static if VERSION < v"0.7.0-DEV.2005"
+    G1 = Array{Any}(n)
+  else
+    G1 = Array{Any}(undef, n)
+  end
   for i in 1:n
     G1[i] = [i]
   end
   @time bigTest(G1)
 
   println("\nBig test: band")
-  G2 = Array{Any}(n)
+  @static if VERSION < v"0.7.0-DEV.2005"
+    G2 = Array{Any}(n)
+  else
+    G2 = Array{Any}(undef, n)
+  end
   for i in 1:n
     G2[i] = [i-1 < 1 ? n : i-1, i, mod(i,n)+1]
   end
   @time bigTest(G2)
 
-  const nFull=1000
   println("\nBig test: full, n=", nFull)
   
-  G3 = Array{Any}(nFull)
+   @static if VERSION < v"0.7.0-DEV.2005"
+    G3 = Array{Any}(nFull)
+  else
+    G3 = Array{Any}(undef, nFull)
+  end
   for i in 1:nFull
     G3[i] = [i for i in 1:nFull]
   end
