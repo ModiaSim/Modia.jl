@@ -132,7 +132,7 @@ const Vec3 = SVector{3,Float64}
         @equations begin
             scalar = 1
             vector = [1.0, 2.0, 3.0]
-            matrix = eye(3, 3)
+            matrix = [1.0  0.0  0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
             anyVector = [1,2,3]
             v1 = ones(3)
             v2 = ones(3)

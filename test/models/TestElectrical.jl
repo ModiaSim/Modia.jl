@@ -1,6 +1,6 @@
 module TestElectrical
 
-using ModiaMath.plot
+using ModiaMath: plot
 using Modia
 using Modia.Electric
 
@@ -13,7 +13,6 @@ end
 result = simulate(Resistor, 1)
 @test result["i"][end] == 0.0
 @test result["v"][end] == 0.0
-
 
 @model ParallelResistors begin
     R1 = Resistor(R=1, p=Pin(v=Float(start=0.0)), n=Pin(v=Float(start=0.0)))

@@ -2,11 +2,12 @@ module TestEquations
 
 #using LinearAlgebra
 using Modia
-using ModiaMath.plot
+using ModiaMath: plot
 
 @static if VERSION < v"0.7.0-DEV.2005"
   using Base.Test
 else
+  using LinearAlgebra: diagm, qr
   using Test
 end
 
@@ -26,8 +27,8 @@ end
         on = time > 1 && time < 3
         s := on ? "on" : "off"
         dummy = if time < 0.00001 || abs(time - 2.0) < 0.01; println("Size of u: ", size(u), " time=", time) else nothing end
-        ((9 + 1) * diagm(1:n) + ones(n, n))^3 * M * diagm(1:n) = eye(n)
-        QR = qr(M)
+        ((9 + 1) * diagm(0=>1:n) + ones(n, n))^3 * M * diagm(0=>1:n) = diagm(0=>ones(n))
+        QR = Tuple{Array,Array}(qr(M))
         Q = QR[1]; R = QR[2]
     end
 end;
