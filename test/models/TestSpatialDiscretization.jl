@@ -1,7 +1,7 @@
 module TestSpatialDiscretization
 
 using Modia
-using ModiaMath.plot
+using ModiaMath: plot
 
 const n = 5
 @model SpatialDiscretization begin
@@ -17,4 +17,3 @@ result = simulate(SpatialDiscretization, 1)
 plot(result, "u")
 
 end
-

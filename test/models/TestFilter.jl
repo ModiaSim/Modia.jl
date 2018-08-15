@@ -4,6 +4,7 @@ println("TestFilter: Tests various features of the symbolic handling.")
 
 using ModiaMath.plot
 
+using Test
 using Modia
 using Modia.Electric
 
