@@ -4,7 +4,7 @@ println("\nRectifier: Demonstrating the ability to simulate models with state ev
 
 using Modia
 using Modia.Electric
-using ModiaMath.plot
+using ModiaMath: plot
 
 @model Rectifier begin
   R=Resistor(R=1)

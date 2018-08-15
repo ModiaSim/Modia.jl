@@ -14,9 +14,13 @@ export setOptions
 
 using Base.Meta: quot, isexpr
 using DataStructures: OrderedDict
-@static if ! (VERSION < v"0.7.0-DEV.2005")
-  using LinearAlgebra
-  using SparseArrays
+@static if VERSION < v"0.7.0-DEV.2005"
+    evaluate(m, x) = eval(m, x)
+else
+    using LinearAlgebra
+    using SparseArrays
+    using Dates
+    evaluate(m, x) = Core.eval(m, x)
 end
 
 import ..Instantiation: Symbolic, Der, Instance, AbstractDict, VariableDict, Variable, Nothing, time_symbol, simulationModel_symbol, vars_of, check_start, GetField, This, time_global, simulationModel_global, eqs_of, get_start, get_dims, model_name_of, operator_table, prettyPrint
@@ -143,7 +147,11 @@ function code_eliminated_func(fname, unpack, eliminated_computations, vars, x::S
         
         if !isempty(dims);  T = Array{T,length(dims)};  end
 
-        push!(alloc_eliminated, :($res_name = $results[$(string(name))] = Vector{$(quot(T))}(0)))
+        @static if VERSION < v"0.7.0-DEV.2005"
+            push!(alloc_eliminated, :($res_name = $results[$(string(name))] = Vector{$(quot(T))}(0)))
+        else
+            push!(alloc_eliminated, :($res_name = $results[$(string(name))] = Vector{$(quot(T))}(undef, 0)))
+        end
         push!(push_eliminated,  :($(quot(push!))($res_name, $name)))
     end
     # @show eliminated_computations
@@ -500,7 +508,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     end
 
     # F = Eval(F_code)
-    F = eval(Module(), F_code)
+    F = evaluate(Module(), F_code)
     #=
       if modeConditions != []
         F_Dict[modeConditions] = (F, initial_eliminated)
@@ -513,7 +521,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     if need_eliminated_f
         eliminated_code = code_eliminated_func(string("eliminated_", model_name_of(instance), "!"),
             unpack, eliminated_computations, vars, x, der_x)
-        eliminated_f = eval(Module(), eliminated_code)
+        eliminated_f = evaluate(Module(), eliminated_code)
     else
         eliminated_f = nothing
     end
