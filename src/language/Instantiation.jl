@@ -162,7 +162,7 @@ end
 
 "Check that a start value (possibly default) exists for the var, or give an error."
 function check_start(var::Variable, name)
-    if (var.start === nothing) && (var.typ !== Void) && !applicable(zero, var.typ)
+    if (var.start === nothing) && (var.typ !== Nothing) && !applicable(zero, var.typ)
         error("Variable ", name, " has no start value and no default exists for type ", var.typ)
     end
 end
@@ -459,14 +459,14 @@ function code_variable(ex::Expr, varnames)
             if siz != []
                 typ = :(Array{$typ,$(length(siz))})
                   
+            end
+            if baseTyp in [:Int64, :Float64, :Bool]
+              sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
+              rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
+            else
+             rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
+            end
         end
-        if baseTyp in [:Int64, :Float64, :Bool]
-          sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
-          rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
-        else
-         rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
-        end
-      end
     end
 
     rhs = recode_initializer(rhs)
@@ -974,8 +974,11 @@ function flatten(instance::Instance)
         push!(set, node)
     end
 
-    unconnected_flow_vars = VariableDict(filter((name, var) -> (isa(var, Variable) && var.flow), flat.vars))
-
+    @static if VERSION < v"0.7.0-DEV.2005"
+        unconnected_flow_vars = VariableDict(filter((name, var) -> (isa(var, Variable) && var.flow), flat.vars))
+    else
+        unconnected_flow_vars = VariableDict(filter(p::Pair -> (isa(p.second, Variable) && p.second.flow), flat.vars))
+    end
     # Create connection equations
     for (rep, set) in connection_sets
         ctype = flat.connection_types[rep]

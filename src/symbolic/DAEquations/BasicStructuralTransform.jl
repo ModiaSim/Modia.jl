@@ -391,7 +391,7 @@ function testGetCoefficients()
 end
 
 
-@enum D undef = 1 F T
+@enum D undefined = 1 F T
 
 mutable struct Status
     statusV::OrderedDict{Int64,D} 
@@ -449,7 +449,7 @@ const tSizes = Array{Tuple{Int64,Vararg{Int64,N} where N},1}
 function analyzeStructurally(equations, params, unknowns_indices, deriv, unknownsNames, Avar, statesIndices, states, nonStateVariables, n, realStates, findIncidence!, VSizes, VTypes, ESizes, ETypes, unknowns, partial)
   # Build incidence structure as bipartite graph.
     neq = 0
-    G = Array{Any}(0)
+    G = [] # Array{Any}(undef, 0)
     coefficients = []
     notLinearVariables = []
     orgEquIndex = []
@@ -926,7 +926,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     end
   
     vActive = fill(true, length(Avar))
-    vActive[statesIndices] = false
+    vActive[statesIndices] .= false
     if log
         println("\nNot active:")
         for i in 1:length(vActive)

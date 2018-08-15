@@ -21,7 +21,7 @@ using Base.Meta: quot, isexpr
 using DataStructures
 using Unitful
 @static if !(VERSION < v"0.7.0-DEV.2005")
-    using LinearAlgebra
+    import LinearAlgebra
 end
 @static if VERSION < v"0.7.0-DEV.2005"
     notFound = 0
@@ -643,10 +643,10 @@ function differentiate(e)
                 diff = Expr(:call, op, diffarg)  
             end
             # @show diff
-        elseif op in [:zeros, zeros, :eye, eye]
+        elseif (VERSION < v"0.7.0-DEV.2005" && op in [:zeros, zeros, :eye, eye] ) ||
+              ( ! (VERSION < v"0.7.0-DEV.2005") && op in [:zeros, zeros, :eye, LinearAlgebra.I, :identity, identity] )
             diff = zero # !!!!
             # diff = Expr(:call, *, e, zero)  # = e*zero
-            # diff = zero
         elseif op in [+, :+, -, :-]
             # der(e1 + e2 + e3) = der(e1) + der(e2) + der(e3)
             # der(e1 - e2 - e3) = der(e1) - der(e2) - der(e3)

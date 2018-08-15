@@ -9,9 +9,8 @@ else
 end
 
 using Modia
-#using ModiaMath
-using ModiaMath.plot
-#using FixedSizeArrays
+using ModiaMath: plot
+
 using StaticArrays
 using Unitful
 using Unitful.DefaultSymbols

@@ -4,7 +4,7 @@ println("\nLinearSystems: Demonstrates type and size deduction.")
 
 using Modia
 using Modia.Blocks: ABCD, Switch
-using ModiaMath.plot
+using ModiaMath: plot
 
 
 @model MySISOABCD begin

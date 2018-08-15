@@ -1,4 +1,4 @@
-
+#import Modia
 import ModiaMath
 
 include("../../../src/language/Instantiation.jl")
@@ -15,5 +15,3 @@ include("../../../src/symbolic/StateSelection.jl")
 include("../../../src/symbolic/DAEquations/Synchronous.jl")
 include("../../../src/symbolic/DAEquations/SymbolicTransform.jl")
 include("../../../src/symbolic/DAEquations/BasicStructuralTransform.jl")
-
-
