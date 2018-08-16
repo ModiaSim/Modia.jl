@@ -51,6 +51,8 @@ const elaborate = true
 const tearing = false
 #@show tearing
 
+const noResult = Dict{Symbol,AbstractArray{T,1} where T}()
+
 allInstances(s) = return s
 
 function dummyDer(e)
@@ -284,7 +286,11 @@ function simulateModelWithOptions(model, t; options=Dict())
     end
 
     if fileStdOut
-        originalSTDOUT = STDOUT
+        @static if VERSION < v"0.7.0-DEV.2005"
+            originalSTDOUT = STDOUT
+        else
+            originalSTDOUT = stdout
+        end
         (outRead, outWrite) = redirect_stdout()
     end  
   
@@ -451,11 +457,11 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
         println()
         println("\n----------------------\n")
         println()
-        return nothing
+        return noResult
     end 
 
     final = nothing
-    if res != nothing && observer != "" && haskey(res, observer)
+    if res != noResult && observer != "" && haskey(res, observer)
         obs = res[observer]
         if length(obs) > 0
             final = obs[end]
@@ -464,7 +470,7 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     
     if final != nothing
         println("final $observer = $final")
-        ok = finalSolution == nothing || typeof(final) == Float64 && Base.isapprox(final, finalSolution, rtol=1.0E-4) || final == finalSolution
+        ok = finalSolution == nothing || typeof(final) == Float64 && Base.isapprox(final, finalSolution, rtol=1.0E-3) || final == finalSolution
     
         if !ok
             setTestStatus(false)

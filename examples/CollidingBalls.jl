@@ -3,7 +3,14 @@ module TestBalls
 println("\nCollidingBalls: Demonstrating the use of allInstances to set up contact force between any number of balls")
 
 using Modia
-using ModiaMath
+using ModiaMath:plot
+
+@static if VERSION < v"0.7.0-DEV.2005"
+  using Base.Test
+else
+  using Test
+  using LinearAlgebra
+end
 
 const k=10000
 const d=0
@@ -56,7 +63,7 @@ end
 
 #=
 result = checkSimulation(Balls1, 1.5, "b3.r", 2.0, expandArrayIncidence=true, storeEliminated=false)
-ModiaMath.plot(result, ("b1.r", "b2.r", "b3.r"), figure=1)
+plot(result, ("b1.r", "b2.r", "b3.r"), figure=1)
 =#
 
 # -----------------------------
@@ -69,7 +76,7 @@ end
 
 #=
 result = checkSimulation(Balls2, 1.5, "b3.r", 2.0, expandArrayIncidence=true, storeEliminated=false)
-ModiaMath.plot(result, ("b1.r", "b2.r", "b3.r"), figure=2)
+plot(result, ("b1.r", "b2.r", "b3.r"), figure=2)
 =#
 
 # -----------------------------
@@ -84,7 +91,7 @@ ModiaMath.plot(result, ("b1.r", "b2.r", "b3.r"), figure=2)
 end
 
 result = simulate(Balls3, 8, expandArrayIncidence=true, storeEliminated=false)
-ModiaMath.plot(result, Tuple(["b$i.r" for i in 1:5]), figure=1, heading="Colliding balls", grid=false, figure=19)
+plot(result, Tuple(["b$i.r" for i in 1:5]), heading="Colliding balls", grid=false, figure=19)
 
 # -----------------------------
 

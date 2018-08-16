@@ -1,6 +1,6 @@
 module TestElectrical
 
-using ModiaMath.plot
+using ModiaMath:plot
 using Modia
 using Modia.Electric
 

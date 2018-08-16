@@ -4,11 +4,12 @@ println("\nSynchronousExamples: Demonstrating the ability to simulate models wit
 
 using Modia
 using Modia.Synchronous: sample, Clock, previous, hold
-using ModiaMath: plot
+using ModiaMath:plot
+
 @static if VERSION < v"0.7.0-DEV.2005"
-  using Base.Test
+    using Base.Test
 else
-  using Test
+    using Test
 end
 
 @testset "Synchronous" begin

@@ -1,4 +1,4 @@
-#module ModiaBase
+
 
 using .Instantiation
 using .ModelElaboration
@@ -55,4 +55,3 @@ Par(value; args...) = Variable(variability=parameter, value=value; args...)
 
 const undefined = nothing
 
-#end

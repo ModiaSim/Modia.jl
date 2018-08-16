@@ -1,11 +1,13 @@
 module TestVariableTypes
 
-println("\nTestVariableTypes: Demonstrating the handling various variable types")
+println("\nTestVariableTypes: Demonstrating the handling of various variable types")
 
 @static if VERSION < v"0.7.0-DEV.2005"
     using Base.Test
 else
     using Test
+    using LinearAlgebra
+    eye(m, n) = Matrix{Float64}(I, m, n)
 end
 
 using Modia

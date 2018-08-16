@@ -7,6 +7,10 @@ import ModiaMath.ModiaToModiaMath  # ModiaSimulationModel, EventRestart, Restart
 import ModiaMath.ModiaToModiaMath.ModiaSimulationModel
 import ModiaMath.Restart
 
+@static if VERSION < v"0.7.0-DEV.2005"
+    Nothing = Void 
+end
+
 #= Synchronous Modelica primitives
 
 Clock() 
@@ -47,7 +51,11 @@ mutable struct Store
     nextPrevious::Vector{Any}
     crossings::Vector{Any}
   
-    Store() = new(zeros(nClock), Array{Any}(nSample), zeros(nPrevious), zeros(nPrevious), zeros(nCrossings))
+    @static if VERSION < v"0.7.0-DEV.2005"
+      Store() = new(zeros(nClock), Array{Any}(nSample), zeros(nPrevious), zeros(nPrevious), zeros(nCrossings))
+    else
+      Store() = new(zeros(nClock), Array{Any}(undef, nSample), zeros(nPrevious), zeros(nPrevious), zeros(nCrossings))
+    end    
 end
 
 isLog(m) = true
@@ -71,7 +79,7 @@ function Clock(interval::ModiaMath.Time, m::ModiaSimulationModel, nr::Int)
             println("        in Clock, nr = $nr (isInitial)")
         end
 
-        if typeof(m.store) == Void
+        if typeof(m.store) == Nothing
             m.store = Store()
         end
 
@@ -96,7 +104,7 @@ function Clock(interval::ModiaMath.Time, m::ModiaSimulationModel, nr::Int)
 end
 
 function positive(crossing::Float64, m::ModiaSimulationModel, nr::Int; restart::ModiaToModiaMath.EventRestart=Restart)
-    if typeof(m.store) == Void
+    if typeof(m.store) == Nothing
         m.store = Store()
     end
         println("positive:"); @show nr m; ModiaToModiaMath.positive!(crossing, m, nr; restart=restart)
@@ -118,7 +126,7 @@ function sample(v, clock::Bool, m::ModiaSimulationModel, nr::Int)
             println("        in sample, nr = $nr (initialize sample store)")
         end
 
-        if typeof(m.store) == Void
+        if typeof(m.store) == Nothing
             m.store = Store()
         end 
 
@@ -150,7 +158,7 @@ function initPrevious(v, m::ModiaSimulationModel, nr::Int)
             println("        in initPrevious, nr = $nr (initialize previous store)")
         end
 
-        if typeof(m.store) == Void
+        if typeof(m.store) == Nothing
             m.store = Store()
         end
 
@@ -173,7 +181,7 @@ function previous(v, clock::Bool, m::ModiaSimulationModel, nr::Int)
             println("        in previous, nr = $nr (initialize previous store)")
         end
 
-        if typeof(m.store) == Void
+        if typeof(m.store) == Nothing
             m.store = Store()
         end      
 
@@ -199,7 +207,7 @@ end
 
 function updatePrevious(v, m::ModiaSimulationModel, nr::Int) 
     if ModiaToModiaMath.isInitial(m)
-        if typeof(m.store) == Void
+        if typeof(m.store) == Nothing
             m.store = Store()
         end 
     end

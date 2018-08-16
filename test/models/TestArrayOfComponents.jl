@@ -4,7 +4,7 @@ println("\nTestArrayOfComponents: Demonstrating the handling of arrays of compon
 
 using Modia
 using Modia.Electric
-using ModiaMath.plot
+using ModiaMath:plot
 using Base.Test
 
 @model LPfilter begin
@@ -72,7 +72,7 @@ connect(M[i].p, M[i+1].n) for i in 1:size(M)
 # -----------------------------------
 
 # Experimental:
-using Modia.@equation
+using Modia:@equation
 addEquation!(M, e) = begin @show e; push!(M.initializers, Modia.Instantiation.Equations([e])) end
 
 @model LPfilterComponent begin

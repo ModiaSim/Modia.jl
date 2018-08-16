@@ -4,12 +4,12 @@ println("ElectricalVehicleAndCharger: Demonstrates the ability to change models 
 
 using Modia
 using Modia.Electric
-using ModiaMath.plot
+using ModiaMath:plot
 
 
-using Modia.@equation
-using Modia.addEquation!
-using Modia.deleteEquation!
+using Modia:@equation
+using Modia:addEquation!
+using Modia:deleteEquation!
 
 # -----------------------------------
 
