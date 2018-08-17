@@ -525,7 +525,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
 
     # Add additional equation to set undefined variables 
     for i in iya
-        eq = :($(GetField(This(), linearVarsStrings[i])) = 0)
+        eq = :($(GetField(This(), Symbol(linearVarsStrings[i]))) = 0)
         loglnModia("Added equation: ", prettyPrint(eq))   
         equationsUpdated = true
         push!(newEquations, eq)
@@ -540,7 +540,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
         g = []
     
         for j in 1:size(A1, 2)
-            e1 = add(e1, mult(A1[i,j], GetField(This(), linearVarsStrings[ix1[j]])))
+            e1 = add(e1, mult(A1[i,j], GetField(This(), Symbol(linearVarsStrings[ix1[j]]))))
             push!(g, findfirst(isequal(linearVars[ix1[j]]), names))
             push!(nonStateVariables, linearVars[ix1[j]])
             printSymbolList("\nNon state variables", nonStateVariables)
@@ -554,7 +554,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
         end
     
         for j in 1:size(A2, 2)
-            e2 = add(e2, mult(A2[i,j], GetField(This(), linearVarsStrings[ix2[j]])))
+            e2 = add(e2, mult(A2[i,j], GetField(This(), Symbol(linearVarsStrings[ix2[j]]))))
             push!(g, findfirst(isequal(linearVars[ix2[j]]), names))
         end
     
