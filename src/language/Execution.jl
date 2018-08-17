@@ -161,8 +161,11 @@ function code_eliminated_func(fname, unpack, eliminated_computations, vars, x::S
         function $(fname)($results, $ts, $xs, $der_xs)
             $(alloc_eliminated...)
             for ($k, $time_symbol) in enumerate($ts)
-                $x = $(quot(vec))($xs[$k, :])
-                $der_x = $(quot(vec))($der_xs[$k, :])
+#                $x = $(quot(vec))($xs[$k, :])
+                # For 0.7:
+                $x = $xs[$k, :]
+#                $der_x = $(quot(vec))($der_xs[$k, :])
+                $der_x = $der_xs[$k, :]
                 $(unpack...)
                 $(eliminated_computations...)
                 $(push_eliminated...)
@@ -574,15 +577,15 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
     if PrintJSONsolved
         printJSONforSolvedEquations(instance)
     end
-
+    
     initial_bindings = Dict{Symbol,Any}(time_symbol => t[1])
     initial_m = ModiaSimulationModel()
 
     initial_bindings[simulationModel_symbol] = initial_m
-
+    
     prep = prepare_ida(instance, [simulationModel_symbol], initial_bindings, store_eliminated=storeEliminated, need_eliminated_f=storeEliminated)
     F, eliminated_f, x0, der_x0, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
-
+    
     eliminated_results = Vector[Vector{T}() for T in values(eliminated)]
     # temporary until we can store it in simulationModel
     global global_elim_results = eliminated_results
