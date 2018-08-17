@@ -4,10 +4,11 @@ println("\nTestVariableTypes: Demonstrating the handling of various variable typ
 
 @static if VERSION < v"0.7.0-DEV.2005"
     using Base.Test
+    identity(m,n) = eye(m,n)
 else
     using Test
     using LinearAlgebra
-    eye(m, n) = Matrix{Float64}(I, m, n)
+    identity(m, n) = Matrix{Float64}(I, m, n)
 end
 
 using Modia
@@ -134,7 +135,7 @@ const Vec3 = SVector{3,Float64}
         @equations begin
             scalar = 1
             vector = [1.0, 2.0, 3.0]
-            matrix = eye(3, 3)
+            matrix = identity(3, 3)
             anyVector = [1,2,3]
             v1 = ones(3)
             v2 = ones(3)
