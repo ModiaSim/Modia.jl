@@ -32,7 +32,7 @@ end
 
 "An electric node for connections."
 @model Pin begin
-    v = Voltage(info = "Voltage of the pin to ground")
+    v = Voltage(info = "Potential of the pin")
     i = Current(info = "Current into the pin", flow = true)
 end 
 
@@ -57,7 +57,7 @@ end
 
 "Base model for an electric device with two `Pin`s."
 @model OnePort begin
-    v = Voltage(info = "Voltage between `n` and `p`")
+    v = Voltage(info = "Voltage between `p` and `n`")
     i = Current(info = "Current from `p` to `n`")
     p = Pin(info = "Positive pin")
     n = Pin(info = "Negative pin")
@@ -70,7 +70,7 @@ end
 
 "Ideal linear electrical resistor"
 @model Resistor begin
-    R = Parameter(start = 1.0, info = "Resistance", T = Unitful.Ω)
+    R = Parameter(1.0, start=1.0, info = "Resistance", T = Unitful.Ω)
     @extends OnePort()
     @inherits i, v
     @equations begin

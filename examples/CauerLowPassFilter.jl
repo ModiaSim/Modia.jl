@@ -5,6 +5,7 @@ println("\nTestCauerLowPassFilter: Demonstrating the ability to simulate an elec
 
 using Modia
 using Modia.Electric
+using ModiaMath:plot
 
 
 @model CauerLowPassOPV begin
@@ -237,6 +238,9 @@ res = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188)
   connect(V.n, R1.p)  
   end
 end
+
+result=simulate(CauerLowPassOPVWithoutNodes, 60)
+plot(result, ("C9.v"), figure=20)
 
 res = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188, useKinsol=true, removeSingularities = false)
 
