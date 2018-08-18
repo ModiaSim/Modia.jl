@@ -41,6 +41,12 @@ else
     using Printf
 end
 
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
+end
+
 export elaborate, prettyPrint, simulateModel, simulate, skewCoords, skew, residue, residue_der, modiaCross, showExpr, transformModel, simulateMultiModeModel, allInstances
 # export modiaSwitches, defineSwitch, setSwitch, showSwitches, getSwitch, 
 export checkSimulation
@@ -395,6 +401,7 @@ function simulateModelWithOptions(model, t; options=Dict())
         println(@sprintf("Total time: %0.3f", (time_ns() - start) * 1E-9), " seconds")
     end
     closeLogModia()
+    @test res != noResult
     return res
 end
 
@@ -447,19 +454,20 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
         println()
             printstyled("Simulation FAILED:", bold=true, color=:red); println()
         if isa(err, ErrorException)
-                  printstyled(err.msg, bold=true, color=:red); println()
+            printstyled(err.msg, bold=true, color=:red); println()
         elseif isa(err, UndefVarError)
-                  printstyled(err, bold=true, color=:red); println()
+            printstyled(err, bold=true, color=:red); println()
             ModiaLogging.increaseLogCategory(:(UndefinedSymbol))      
         else
-                  printstyled(err, bold=true, color=:red); println()
+            printstyled(err, bold=true, color=:red); println()
         end
         println()
         println("\n----------------------\n")
         println()
+        @test false
         return noResult
     end 
-
+    
     final = nothing
     if res != noResult && observer != "" && haskey(res, observer)
         obs = res[observer]
@@ -471,11 +479,12 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     if final != nothing
         println("final $observer = $final")
         ok = finalSolution == nothing || typeof(final) == Float64 && Base.isapprox(final, finalSolution, rtol=1.0E-3) || final == finalSolution
-    
+        @test ok
+        
         if !ok
             setTestStatus(false)
             println("final solution $observer = $finalSolution")
-                  printstyled("Simulation NOT OK", bold=true, color=:red); println()
+            printstyled("Simulation NOT OK", bold=true, color=:red); println()
             println()
             figure()
             title("Simulation NOT OK in " * string(mod.name))
@@ -487,16 +496,17 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
         else
             ModiaLogging.increaseLogCategory(:(CalculatedResult))   
             setTestStatus(true)
-                  printstyled("Simulation OK", bold=true, color=:green); println()
+            printstyled("Simulation OK", bold=true, color=:green); println()
             println()
             true
         end
     
     else
         setTestStatus(true)
-            printstyled("Simulation RAN", bold=true, color=:green); println()
+        printstyled("Simulation RAN", bold=true, color=:green); println()
         println()
         true  
+        @test true
     end
     res
 end
