@@ -4,11 +4,13 @@ language: julia
 #  - linux
 julia:
   - 0.6
+before_install:
+  - (sudo apt-get -qq update && sudo apt-get install -y python3 python3-matplotlib)
 notifications:
   email: false
-#script:
-#    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#    - julia -e 'Pkg.clone(pwd()); Pkg.build("BenchmarkTools"); Pkg.test("BenchmarkTools"; coverage=true)'
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia -e 'Pkg.clone(pwd()); Pkg.build("Modia"); Pkg.test("Modia")'
 #after_success:
 #    - |
 #        julia -e '
