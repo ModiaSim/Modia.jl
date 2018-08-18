@@ -21,7 +21,7 @@ include("LinearSystems.jl")
 include("SynchronousExamples.jl")
 include("ElectricalVehicleAndCharger.jl")
 include("CollidingBalls.jl")
-include("heattransfer2d.jl")
+include("HeatTransfer2D.jl")
 
 Modia.ModiaLogging.printTestStatus()
 
