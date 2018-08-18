@@ -19,8 +19,9 @@ export Pin, Ground, OnePort, Resistor, Capacitor, Inductor,
   ConstantVoltage, StepVoltage, SignalVoltage, SineVoltage, IdealOpAmp3Pin, IdealDiode,
   Voltage, Current, Resistance, Capacitance
 
-Voltage(; args...) = Variable(;T=Unitful.V, size=(), start=0.0, args...)
-Current(; args...) = Variable(;T=Unitful.A, size=(), start=0.0, args...)
+"Electric potential, volts"
+Voltage(; args...) = Variable(;T=Unitful.V, size=(), start=0.0, info="Voltage", args...)
+Current(; args...) = Variable(;T=Unitful.A, size=(), start=0.0, info="Current", args...)
 Resistance(; args...) = Variable(;T=Unitful.Ω, size=(), args...)
 Capacitance(; args...) = Variable(;T=Unitful.F, size=(), args...)
   
@@ -29,13 +30,14 @@ Capacitance(; args...) = Variable(;T=Unitful.F, size=(), args...)
     i = Float(flow=true)
 end 
 
+"An electric node for connections."
 @model Pin begin
-    v = Voltage()
-    i = Current(flow=true)
+    v = Voltage(info = "Voltage of the pin to ground")
+    i = Current(info = "Current into the pin", flow = true)
 end 
 
 @model Ground begin
-    p = Pin()
+    p = Pin(info = "Grounded pin (zero volts)")
     @equations begin
         p.v = 0
     end
@@ -53,11 +55,12 @@ end
     end
 end 
 
+"Base model for an electric device with two `Pin`s."
 @model OnePort begin
-    v = Voltage()
-    i = Current()
-    p = Pin()
-    n = Pin()
+    v = Voltage(info = "Voltage between `n` and `p`")
+    i = Current(info = "Current from `p` to `n`")
+    p = Pin(info = "Positive pin")
+    n = Pin(info = "Negative pin")
     @equations begin
         v = p.v - n.v
         0 = p.i + n.i
@@ -65,12 +68,13 @@ end
     end
 end 
 
-@model Resistor begin # Ideal linear electrical resistor
+"Ideal linear electrical resistor"
+@model Resistor begin
+    R = Parameter(start = 1.0, info = "Resistance", T = Unitful.Ω)
     @extends OnePort()
     @inherits i, v
-    R = 1 # Parameter(start=1.0) # undefined # Resistance
     @equations begin
-        R * i = v
+        R*i = v
     end
 end
 
@@ -88,15 +92,15 @@ end
     end
 end 
 
-# Setting state=false for v does not work with extends.
+"Ideal linear electric capacitor."
 @model Capacitor begin
-    @extends OnePort(v=Float(start=0.0))
+    @extends OnePort(v=Float(start=0.0))   # Setting state=false for v does not work with extends.
     @inherits i, v
-    # C=Capacitance() # undefined
-    C = undefined
+    #  C=Capacitance() # undefined
+    C=undefined
     @equations begin
-        C * der(v) = i
-        # der(v) = i/C
+        C*der(v) = i
+        #  der(v) = i/C
     end
 end 
 
@@ -135,8 +139,8 @@ end
 
 @model StepVoltage begin
     V = 1u"V"
-    startTime = 0 * Seconds
-    t = Var(start=0.0)
+    startTime = 0u"s"
+    t = Var(start = 0.0)
     @extends OnePort()
     @inherits v
     @equations begin
