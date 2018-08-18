@@ -1,5 +1,5 @@
 """
-Modia module with block component models (inspired from Modelica Standard Library.
+Modia module with block component models (inspired from Modelica Standard Library).
 
 * Developer: Hilding Elmqvist, Mogram AB  
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
@@ -17,17 +17,21 @@ export FirstOrder, Feedback, PI, Step, Sine, Switch, MIMO
 @model Block begin
 end
 
+"""
+Single-Input-Single-Output continuous control block
+"""
 @model SISO begin
-    # Single Input Single Output continuous control block
+    u = Float(info = "Input signal")
+    y = Float(info = "Output signal")
     @extends Block()
-    u = Float()
-    y = Float()
 end
 
+"""
+First-order transfer function block (= 1 pole)
+"""
 @model FirstOrder begin
-    # First order transfer function block (= 1 pole)
-    k = 1   # Gain
-    T = 1   # Time Constant
+    k = Parameter(1.0, info = "Gain")
+    T = Parameter(1.0, info = "Time Constant")
 
     @extends SISO()
     @inherits u, y
@@ -36,20 +40,24 @@ end
     end
 end 
 
+"""
+Output difference between commanded and feedback input
+"""
 @model Feedback begin
-    # Output difference between commanded and feedback input
-    u1 = Float()
-    u2 = Float()
-    y = Float()
+    u1 = Float(info = "Input 1")
+    u2 = Float(info = "Input 2")
+    y = Float(info = "Output signal")
     @equations begin 
         y = u1 - u2
     end
 end 
 
+"""
+Proportional-Integral controller
+"""
 @model PI begin
-    # Proportional-Integral controller  
-    k = 1   # Gain
-    T = Parameter(1, min=1E-10)   # Time Constant (T>0 required)
+    k = Parameter(1.0, info = "Gain")
+    T = Parameter(1.0, min = 1E-10, info = "Time Constant (T>0 required)")
 
     @extends SISO()
     @inherits u, y
@@ -60,22 +68,28 @@ end
     end
 end
 
+"""
+Single-Output continuous control block
+"""
 @model SO begin
-    # Single Output continuous control block
+    y = Variable(info = "Output signal")
     @extends Block()
-    y = Variable()
 end
 
+"""
+Base class for a continuous signal source
+"""
 @model SignalSource begin
-    # Base class for continuous signal source
+    offset = Parameter(0.0, info = "Offset of output signal y")
+    startTime = Parameter(0.0, info = "Output y = offset for time < startTime")
     @extends SO()
-    offset = 0      # Offset of output signal y
-    startTime = 0   # Output y = offset for time < startTime
 end
 
+"""
+Step signal
+"""
 @model Step begin
-    # Generate step signal of type Real
-    height = 1      # Height of step
+    height = Parameter(1.0, info = "Height of step")
     @extends SignalSource()
     @inherits y, offset, startTime
     t = Float(start=0.0)
@@ -85,13 +99,15 @@ end
     end
 end
 
+"""
+Sinusoidal signal
+"""
 @model Sine begin
-    # Generate sine signal
-    amplitude = 1 # Amplitude of sine wave
-    freqHz = Parameter() # Frequency of sine wave
-    phase = 0 # Phase of sine wave
-    offset = 0      # Offset of output signal y
-    startTime = 0   # Output y = offset for time < startTime
+    amplitude = Parameter(1.0, info = "Amplitude of sine wave")
+    freqHz = Parameter(info = "Frequency of sine wave")
+    phase = Parameter(0.0, info = "Phase of sine wave")
+    offset = Parameter(0.0, info = "Offset of output signal y")
+    startTime = Parameter(0.0, info = "Output y = offset for time < startTime")
     @extends SO()
     @inherits y
     t = Float(start=0.0)
@@ -114,19 +130,26 @@ end
     end
 end
 
+"""
+Switch
+"""
 @model Switch begin
-    sw = Boolean()
-    u1 = Variable(); u2 = Variable()
-    y = Variable()
+    sw = Boolean(info = "Switch position (if `true`, use `u1`, else use `u2`)")
+    u1 = Variable(info = "Input 1")
+    u2 = Variable(info = "Input 2")
+    y = Variable(info = "Output signal")
     @equations begin
         y = if sw; u1 else u2 end
     end
 end
 
+"""
+ABCD model
+"""
 @model ABCD begin
     A = -1; B = 1; C = 1; D = 0
-    u = Float(); y = Float()
-    x = Float(start=0)
+    u = Float(info = "Input signal"); y = Float(info = "Output signal")
+    x = Float(start = 0)
     @equations begin
         der(x) = A * x + B * u
         y = C * x + D * u
