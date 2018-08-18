@@ -19,6 +19,15 @@ Component models are defined by `@model` macros. Such models contain definition 
 
 **Modia currently only runs with Julia version 0.6.x.**
 
+On Julia 0.7 and later, run:
+
+```julia
+julia> Pkg.add("https://github.com/ModiaSim/ModiaMath.jl")
+julia> Pkg.add("https://github.com/ModiaSim/Modia.jl")
+```
+
+On Julia 0.6, run:
+
 ```julia
 julia> Pkg.add("Modia")
 ```
