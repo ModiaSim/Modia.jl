@@ -10,13 +10,6 @@ notifications:
   email: false
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia -e 'Pkg.clone(pwd()); Pkg.build("Modia"); Pkg.test("Modia")'
-#after_success:
-#    - |
-#        julia -e '
-#          import BenchmarkTools, Pkg
-#          Pkg.add("Coverage")
-#          using Coverage
-#          cd(normpath(dirname(pathof(BenchmarkTools)), ".."))
-#          Coveralls.submit(Coveralls.process_folder())
-#        '
+  - julia -e 'Pkg.clone(pwd()); Pkg.build("Modia"); Pkg.test("Modia", coverage = true)'
+after_success:
+  - julia -e 'cd(Pkg.dir("Modia")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
