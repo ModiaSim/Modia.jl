@@ -1,5 +1,8 @@
 # Modia.jl
 
+[![Travis](https://travis-ci.org/ModiaSim/Modia.jl.svg?branch=master)](https://travis-ci.org/ModiaSim/Modia.jl)
+[![Coverage Status](https://coveralls.io/repos/github/ModiaSim/Modia.jl/badge.svg?branch=master)](https://coveralls.io/github/ModiaSim/Modia.jl?branch=master)
+
 ## Introduction
 
 [Modia](https://modiasim.github.io/) is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**. 
