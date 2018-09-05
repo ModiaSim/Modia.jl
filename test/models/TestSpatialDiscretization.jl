@@ -17,6 +17,7 @@ result = simulate(SpatialDiscretization, 1)
 plot(result, "u")
 
 
+
 splice(uodd, ueven) = [if isodd(i); uodd[div(i,2)+1] else ueven[div(i,2)] end for i in 1:length(ueven)+length(uodd)] 
 
 @model SpatialDiscretization2 begin
