@@ -47,12 +47,26 @@ const shortSyntax = true
 # Name that should stand for the current instance inside of model declaration
 const this_symbol = :this
 
+"Enum for variability of a variable"
 @enum Variability constant = 1 parameter discrete continuous
+"Indicates a constant valued variable"
+constant
+"Indicates an input value that stays constant with time"
+parameter
+"Indicates a continuous variable"
+continuous
+"Indicates a discrete variable"
+discrete
+
 @enum Property general = 1 symmetric orthogonal rotationGroup3D
+
 
 FLOAT = Union{Float64,AbstractArray{Float64,1},AbstractArray{Float64,2}}
 
-# Constructor for variables in order to support Modelica variable attributes
+
+#"""
+#The main object for a model variable with attributes
+#"""
 mutable struct Variable  # {T,n}
     variability::Variability
     typ
@@ -70,9 +84,31 @@ mutable struct Variable  # {T,n}
     state::Bool
     property::Property
 end
+
+"""
+A constructor for a `Variable`, the main object for a model variable with attributes
+
+## Keyword arguments 
+
+  * `value = undefined`: the value of the Variable
+  * `info = ""`: documentation string
+  * `unit`: unit of measure: defaults to no units unless provided with the `value`
+  * `displayUnit = unit`: unit used for display
+  * `min = undefined`: minimum value
+  * `max = undefined`: maximum value
+  * `start = undefined`: starting value
+  * `fixed::Bool = false`: fixed value
+  * `nominal = undefined`: nominal value
+  * `variability = continuous`: other options include `parameter`, `constant`, or `discrete`
+  * `T`: type of the value; taken from `value`
+  * `size::Tuple = ()`: size of the variable
+  * `flow::Bool = false`: indicates a flow variable for connectors
+  * `state::Bool = true`: indicates a state Variable
+  * `property = general`: other options include `symmetric`, `orthogonal`, and `rotationGroup3D`
+
+"""
 # The variability, type and info are added as attributes in the type for uniform treatment.
 # Input/output, etc should also be added.
-
 Variable(;
     value=nothing, 
     info="", 

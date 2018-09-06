@@ -1,5 +1,5 @@
 """
-Modia module with rotational component models (inspired from Modelica Standard Library.
+Modia module with rotational component models (inspired from Modelica Standard Library).
 
 * Developer: Hilding Elmqvist, Mogram AB  
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
@@ -9,27 +9,38 @@ Modia module with rotational component models (inspired from Modelica Standard L
 module Rotational
 
 export Flange, Inertia, Spring, SpringDamper, EMF, IdealGear, Torque, CurrentSensor 
-#using ..Instantiation
 using ..Electric
 using ..Blocks
+using Unitful
 
 using Modia
 
+"Rotational angle variable"
+Angle(; args...) = Variable(; start = 0.0, size = (), 
+                       T = u"rad", info = "Rotational angle", args...)
+TorqueVar(; args...) = Variable(; start = 0.0, size = (), 
+                           T = u"N*m", info = "Torque", args...)
+
+"""
+Connector for 1D rotational systems
+"""
 @model Flange begin
-    phi = Var(T=Float64, size=())
-    tau = Float(flow=true, size=())
+    phi = Angle() 
+    tau = TorqueVar(flow = true)
 end
 
+"""
+1D-rotational component with inertia
+"""
 @model Inertia begin
-    # 1D-rotational component with inertia"
-    J = Parameter(0, min=0)   # Moment of inertia 
+    J = Parameter(0, min=0, info = "Moment of inertia", T = u"kg*m^2")
 
-    flange_a = Flange()  # Left flange of shaft
-    flange_b = Flange()  # Right flange of shaft
+    flange_a = Flange(info = "Left flange of shaft")
+    flange_b = Flange(info = "Right flange of shaft")
 
-    phi = Float(start=0.0)
-    w = Float(start=0.0)
-    a = Float()  
+    phi = Angle()
+    w = Var(start = 0.0, info = "Angular velocity", T = u"rad/s")
+    a = Var(info = "Angular acceleration", T = u"rad/s^2")
     @equations begin 
         phi = flange_a.phi
         phi = flange_b.phi
@@ -39,12 +50,14 @@ end
     end
 end
 
+"""
+Partial model for the compliant connection of two rotational 1-dim. shaft flanges
+"""
 @model PartialCompliant begin
-    # Partial model for the compliant connection of two rotational 1-dim. shaft flanges
-    phi_rel = Float()
-    tau = Float(size=())
-    flange_a = Flange()
-    flange_b = Flange()
+    phi_rel = Angle()
+    tau = TorqueVar()
+    flange_a = Flange(info = "Left flange of shaft")
+    flange_b = Flange(info = "Right flange of shaft")
     @equations begin 
         phi_rel = flange_b.phi - flange_a.phi
         flange_b.tau = tau
@@ -52,41 +65,47 @@ end
     end
 end 
 
+"""
+Linear 1D rotational spring
+"""
 @model Spring begin
-    # Linear 1D rotational spring
+    c = Parameter(min = 0, start = 1.0e5, info = "Spring constant", T = u"N*m/rad")
+    phi_rel0 = Parameter(0.0, start = 0.0, info = "Unstretched spring angle", T = u"rad")
     @extends PartialCompliant()
     @inherits tau, phi_rel
-    c = Parameter(min=0, start=1.0e5)       # Spring constant
-    phi_rel0 = 0   # Unstretched spring angle
     @equations begin 
         tau = c * (phi_rel - phi_rel0)
     end
 end 
 
+"""
+Linear 1D rotational spring with damper
+"""
 @model SpringDamper begin
-    # Linear 1D rotational spring
-    @extends PartialCompliant(phi_rel=Float(size=(), state=false))
+    c = Parameter(min = 0, start = 1.0e5, info = "Spring constant", T = u"N*m/rad")
+    d = Parameter(info = "Damping constant", T = u"N*m*s/rad")
+    phi_rel0 = Parameter(0.0, start = 0.0, info = "Unstretched spring angle", T = u"rad")
+    @extends PartialCompliant(phi_rel=Angle(size=(), state=false))
     @inherits tau, phi_rel
-    c = Parameter(min=0, start=1.0e5)       # Spring constant
-    d = Parameter()
-    phi_rel0 = 0   # Unstretched spring angle
     @equations begin 
         tau = c * (phi_rel - phi_rel0) + d * der(phi_rel)
     end
 end 
 
+"""
+Electromotoric force (electric/mechanic) transformer
+"""
 @model EMF begin
-    # Electromotoric force (electric/mechanic transformer)
-    k = 1
+    k = Parameter(1.0, info = "Transformation coefficient", T = u"N*m/A")
 
-    p = Pin()
-    n = Pin()
-    flange = Flange()
+    p = Pin(info = "Positive pin")
+    n = Pin(info = "Negative pin")
+    flange = Flange(info = "Support/housing of the EMF shaft")
   
-    v = Float(size=())
-    i = Float(size=())
-    phi = Float(state=false, size=())
-    w = Float(size=())
+    v = Voltage()
+    i = Current()
+    phi = Angle(state = false)
+    w = Var(info = "Angular velocity", T = u"rad/s")
     @equations begin 
         v = p.v - n.v
         0 = p.i + n.i
@@ -99,16 +118,18 @@ end
     end
 end
 
+"""
+Ideal gear without inertia
+"""
 @model IdealGear begin
-    # Ideal gear without inertia
     # @extends Gear()
 
     # @extends PartialElementaryTwoFlangesAndSupport2()
-    flange_a = Flange()  # Left flange of shaft
-    flange_b = Flange()  # Right flange of shaft
-    ratio = 1     # Transmission ratio (flange_a.phi/flange_b.phi)
-    phi_a = Float(size=())
-    phi_b = Float(size=())
+    flange_a = Flange(info = "Left flange of shaft")
+    flange_b = Flange(info = "Right flange of shaft")
+    ratio = Parameter(1.0, info = "Transmission ratio (flange_a.phi/flange_b.phi)")
+    phi_a = Angle(info = "Angle of the left flange")
+    phi_b = Angle(info = "Angle of the right flange")
     @equations begin 
         phi_a = flange_a.phi
         phi_b = flange_b.phi
@@ -117,9 +138,12 @@ end
     end
 end 
 
-@model Torque begin # Input signal acting as external torque on a flange
-    flange = Flange()  # Flange of shaft
-    tau = Float()
+"""
+Input signal acting as external torque on a flange
+"""
+@model Torque begin
+    tau = TorqueVar()
+    flange = Flange()
     @equations begin 
         flange.tau = -tau
     end
@@ -129,12 +153,14 @@ end
    
 end 
 
+"""
+Sensor to measure the current in a branch
+"""
 @model CurrentSensor begin
-    # Sensor to measure the current in a branch
+    p = Pin(info = "Positive pin")
+    n = Pin(info = "Negative pin")
+    i = Current()
     @extends RotationalSensor()
-    p = Pin()
-    n = Pin()
-    i = Float(size=())
     @equations begin 
         p.v = n.v
         p.i = i
