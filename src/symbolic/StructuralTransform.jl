@@ -31,7 +31,7 @@ end
 export residue, residue_der, hide  # from BasicStructuralTransform to models
 
 global aliasElimination
-const deduceSizes = true
+global deduceSizes
 const log = true
 const extendedLog = false
 const debug = false
@@ -45,6 +45,11 @@ function setOptions(options)
     if haskey(options, :aliasElimination)
         global aliasElimination = options[:aliasElimination]
         @show aliasElimination
+    end
+    global deduceSizes = true
+    if haskey(options, :deduceSizes)
+        global deduceSizes = options[:deduceSizes]
+        @show deduceSizes
     end
 end
 
@@ -480,7 +485,6 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                 else
                     LHS = tryEval(lhs, eq)
                     RHS = tryEval(rhs, eq)
-                    # @show eq LHS RHS
                     if LHS != nothing && typeof(LHS) != Der && RHS != nothing && typeof(RHS) != Der
                         if typeof(RHS) == String || typeof(RHS) != AbstractArray
                             size_RHS = ()
@@ -489,7 +493,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                         end
                      
                         if size(LHS) != size_RHS 
-                            loglnModia("Warning: Not equal size of left and right hand side in equation $eq: $LHS = $RHS")
+                            loglnModia("Warning: Not equal size of left and right hand side in equation $(prettyPrint(eq)): $LHS = $RHS")
                         end
                       
                         e = promote(LHS, RHS)

@@ -175,6 +175,13 @@ function showVariable(v)
             logModia("state = ", v.state)
             first = false
         end
+
+        if v.info != ""
+            if !first; logModia(", ") end
+            logModia("info = \"", v.info, "\"")
+            first = false
+        end
+
         loglnModia(")")
     else
         loglnModia(v)

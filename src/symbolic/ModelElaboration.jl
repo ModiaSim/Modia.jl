@@ -469,7 +469,7 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     end 
     
     final = nothing
-    if res != noResult && observer != "" && haskey(res, observer)
+    if res != nothing && res != noResult && observer != "" && haskey(res, observer)
         obs = res[observer]
         if length(obs) > 0
             final = obs[end]
