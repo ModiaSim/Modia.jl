@@ -33,7 +33,7 @@ else
     using LinearAlgebra
 end
 
-import ModiaMath #0.7
+import ModiaMath 
 using Unitful
 using ..ModiaLogging
 #using ..Synchronous
@@ -386,6 +386,22 @@ function recode_equations(eqs)
     for eq in eqs.args
         if is_linenumber(eq)
             continue
+        elseif isexpr(eq, :for)
+            println("recode_equation: for found")
+            dump(eq)
+            return
+#=
+        elseif isexpr(eq, :if, 3)  # need to handle missing else and elseif
+            println("if equation found")
+            dump(eq)
+            cond = eval(eq.args[1])
+            @show cond
+            if cond
+                push!(equations, recode(eq.args[2]))
+            else
+                push!(equations, recode(eq.args[3]))
+            end       
+=#            
         else
             push!(equations, recode(eq))
         end
@@ -444,7 +460,7 @@ end
 
 "Get the variable name declared in a variable declaration AST node."
 get_declared_var_name(name::Symbol) = name
-get_declared_var_name(ex::Expr) = (@assert isexpr(ex, :(=), 2); ex.args[1])
+get_declared_var_name(ex::Expr) = (if ! isexpr(ex, :(=), 2); dump(ex); end; @assert isexpr(ex, :(=), 2); ex.args[1])
 
 """
 Create code that initializes all variables that are known as local to the instance.
@@ -570,6 +586,14 @@ function code_model(head, top_ex)
             if ex.args[1] == inherits_symbol
                 parse_inherits!(varnames, ex.args[macroCallNumberOfArguments], false)
             end
+        elseif isexpr(ex, :if, 2)
+            println("if found")
+            dump(ex)
+            cond = eval(ex.args[1])
+            @show cond
+            if cond
+                varnames[get_declared_var_name(ex.args[2].args[2])] = false
+            end        
         else
             varnames[get_declared_var_name(ex)] = false
         end
@@ -589,6 +613,14 @@ function code_model(head, top_ex)
         elseif isexpr(ex, :macrocall, macroCallNumberOfArguments) && ex.args[1] == inherits_symbol
             @assert length(ex.args) == macroCallNumberOfArguments
             parse_inherits!(varnames, ex.args[macroCallNumberOfArguments], true)
+        elseif isexpr(ex, :if, 2)
+            println("if found 2")
+            dump(ex)
+            cond = eval(ex.args[1])
+            @show cond
+            if cond
+                varnames[get_declared_var_name(ex.args[2].args[2])] = true
+            end        
         else
             initvar_ex = code_variable(ex, varnames)
             push!(initializers, initvar_ex)
@@ -834,8 +866,54 @@ function initialize!(instance::Instance, ext::Extends, time::Float64, kwargs::Ab
     append!(instance.equations, base.equations)
 end
 
+function instantiate_equation!(instance::Instance, eq)
+    if !isexpr(eq, :if, 3) # only handle if-else for now
+        push!(instance.equations, eq)
+        return
+    end
+    if isexpr(eq, :for)
+      dump(eq)
+      return
+    end
+    
+    # if equation
+    cond = eq.args[1]
+    if typeof(cond) == GetField # only handle name that resolves in the model for now
+      cond_value = lookup(instance, cond)
+      if typeof(cond_value) == Variable
+        cond_value = cond_value.value
+      end
+    else
+      dump(cond)
+      op = cond.args[1]
+      if typeof(cond.args[2]) == GetField 
+        cond_value = lookup(instance, cond.args[2])
+        if typeof(cond_value) == Variable
+          cond_value = cond_value.value
+        end
+      else
+        error("Too complex expression: $cond")
+      end
+      if op == !
+        cond_value = ! cond_value
+      else
+        error("Not handled operator $op")
+      end
+    end
+    @show eq cond cond_value
+    dump(cond_value)
+    
+    eq_index = cond_value ? 2 : 3
+    branch_eq = eq.args[eq_index]
+    
+    instantiate_equation!(instance, branch_eq)
+end
+
 function initialize!(instance::Instance, eqs::Equations, time::Float64, kwargs::AbstractDict)
-    append!(instance.equations, eqs.equations)
+    #append!(instance.equations, eqs.equations)
+    for eq in eqs.equations
+        instantiate_equation!(instance, eq)
+    end
 end
 
 function instantiate(model::Model, time::Float64, kwargs=[])
@@ -934,14 +1012,19 @@ end
 
 function add_connection!(flat::Flat, prefix::AbstractString, instance::Instance, eq::Connect)
     # Check if connector exist in instance
-    inst = lookup(instance, eq.a.base)::Instance
+    inst = lookup(instance, eq.a.base)
+    if inst === nothing; return; end
+    inst::Instance
+    
     if eq.a.name in keys(vars_of(inst))
         atype = get_connector_type(lookup(instance, eq.a))
     else
         error("Connector $(eq.a.name) not found in: $eq in model $(instance.model_name)")
     end
 
-    inst = lookup(instance, eq.b.base)::Instance
+    inst = lookup(instance, eq.b.base)
+    if inst === nothing; return; end
+    inst::Instance
 
     if eq.b.name in keys(vars_of(inst))
         btype = get_connector_type(lookup(instance, eq.b))

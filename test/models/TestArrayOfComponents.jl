@@ -59,21 +59,13 @@ plot(result, Tuple(["F[$i].C.v" for i in 1:nFilters]), heading="ManyDifferentFil
     end
 end 
 
-#=
-# Alternative connect constructs:
-for i in 1:size(M)
-  connect(M[i].p, M[i+1].n)
-end
-connect(M[1:end-1].p, M[2:end].n)]
-[connect(M[i].p, M[i+1].n) for i in 1:size(M)]
-connect(M[i].p, M[i+1].n) for i in 1:size(M)
-=#
+simulate(AdvancedLPfilter, 1)
 
 # -----------------------------------
 
 # Experimental:
 using Modia:@equation
-addEquation!(M, e) = begin @show e; push!(M.initializers, Modia.Instantiation.Equations([e])) end
+#addEquation!(M, e) = begin @show e; push!(M.initializers, Modia.Instantiation.Equations([e])) end
 
 @model LPfilterComponent begin
     R = Resistor(R=100.0)
@@ -100,12 +92,39 @@ end
 end
 
 #=
-Not working yet
+# Not working yet
 for i in 1:nFilters-1
   addEquation!(ManyConnectedDifferentFilters, @equation(connect(this.F[$i].out, this.F[$(i+1)].in)))
+  # ERROR: LoadError: type Expr has no field out
 end
-
 simulate(ManyConnectedDifferentFilters, 1)
 =#
 
+#=
+@model ManyConnectedDifferentFilters2 begin
+    V = ConstantVoltage(V=10.0)
+    ground = Ground()
+    F = [LPfilterComponent(C=Capacitor(C=i * 2.5E-3)) for i in 1:nFilters]
+    i = Integ()
+    @equations begin
+        connect(V.n, ground.p)
+        #  connect(V.p, F[1].in)
+        # Alternative connect constructs:
+        
+        for i in 1:length(F)                   # ERROR: LoadError: UndefVarError: i not defined
+          connect(F[i].in, F[i+1].out)
+        end
+        
+        #connect(F[1:end-1].in, F[2:end].out)     # ERROR: LoadError: UndefVarError: end not defined
+        #connect(F[1:length(F)-1].in, F[2:length(F)].out)    # ERROR: LoadError: type Expr has no field in
+        #[connect(F[i].in, F[i+1].out) for i in 1:length(F)] # ERROR: LoadError: UndefVarError: i not defined
+        #connect(F[i].in, F[i+1].out) for i in length(F)     # ERROR: LoadError: syntax: extra token "for" after end of expression
+
+    end
+end
+
+println("ManyConnectedDifferentFilters2")
+simulate(ManyConnectedDifferentFilters2, 1)
+
+=#
 end
