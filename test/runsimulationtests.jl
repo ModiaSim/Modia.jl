@@ -18,6 +18,9 @@ end
     include("models/TestElectrical.jl")
     include("models/TestFilter.jl")
     include("models/TestArrayOfComponents.jl")
+    include("models/TestConditionalComponents.jl")
+    include("models/TestConditionalEquations.jl")
+    
     include("models/TestSpatialDiscretization.jl")
 
     #include("models/TestCoupledInertias.jl")
@@ -27,5 +30,5 @@ end
 
     Modia.ModiaLogging.printTestStatus()
 
-end # testset
+end 
 nothing

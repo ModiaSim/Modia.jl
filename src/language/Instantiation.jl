@@ -867,46 +867,57 @@ function initialize!(instance::Instance, ext::Extends, time::Float64, kwargs::Ab
 end
 
 function instantiate_equation!(instance::Instance, eq)
-    if !isexpr(eq, :if, 3) # only handle if-else for now
+    if !isexpr(eq, :if) 
         push!(instance.equations, eq)
         return
     end
+    #=
     if isexpr(eq, :for)
-      dump(eq)
-      return
+        dump(eq)
+        return
     end
+    =#
     
-    # if equation
+    println("Conditional equation:")
+    println(prettyPrint(eq)) 
+    if length(eq.args) > 3 
+        error("elseif is presently not handled.")
+    end
     cond = eq.args[1]
     if typeof(cond) == GetField # only handle name that resolves in the model for now
-      cond_value = lookup(instance, cond)
-      if typeof(cond_value) == Variable
-        cond_value = cond_value.value
-      end
-    else
-      dump(cond)
-      op = cond.args[1]
-      if typeof(cond.args[2]) == GetField 
-        cond_value = lookup(instance, cond.args[2])
+        cond_value = lookup(instance, cond)
         if typeof(cond_value) == Variable
-          cond_value = cond_value.value
+            cond_value = cond_value.value
         end
-      else
-        error("Too complex expression: $cond")
-      end
-      if op == !
-        cond_value = ! cond_value
-      else
-        error("Not handled operator $op")
-      end
+    else
+        op = cond.args[1]
+        if typeof(cond.args[2]) == GetField 
+            cond_value = lookup(instance, cond.args[2])
+            if typeof(cond_value) == Variable
+              cond_value = cond_value.value
+            end
+        else
+            error("Too complex expression: $cond")
+        end
+        if op == !
+            cond_value = ! cond_value
+        else
+            error("Not handled operator.")
+        end
     end
-    @show eq cond cond_value
-    dump(cond_value)
+    println("condition = ", cond_value)
     
     eq_index = cond_value ? 2 : 3
-    branch_eq = eq.args[eq_index]
-    
-    instantiate_equation!(instance, branch_eq)
+    if eq_index <= length(eq.args)
+      branch_eq = eq.args[eq_index]
+      if ! (branch_eq.head in [:(=), :block])
+          error("At most one equation is currently allowed in conditional equation.")
+      end
+      
+      if branch_eq.head == :(=) 
+          instantiate_equation!(instance, branch_eq)
+      end
+    end
 end
 
 function initialize!(instance::Instance, eqs::Equations, time::Float64, kwargs::AbstractDict)
@@ -1158,7 +1169,9 @@ function prettyfy(ex::Expr)
     if isexpr(ex, :quote) || isexpr(ex, :line)
         nothing
     elseif isexpr(ex, :block)
-        prettyfy(ex.args[2])
+#        if length(ex.args) >=2 # need to handle emtpy else 
+          prettyfy(ex.args[2])
+#        end
     else
         Expr(ex.head, [prettyfy(arg) for arg in ex.args]...)
     end
