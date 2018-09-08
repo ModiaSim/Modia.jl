@@ -38,7 +38,13 @@ using Unitful
 using ..ModiaLogging
 #using ..Synchronous
 
-import Base.Markdown
+
+@static if VERSION >= v"1.0.0"
+    import Markdown
+else
+    import Base.Markdown
+end
+
 import Base.Docs
 
 
