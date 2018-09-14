@@ -145,9 +145,9 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[ModiaMath]]
 deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Printf", "PyPlot", "StaticArrays", "Sundials", "Test", "Unitful"]
-git-tree-sha1 = "c17b43118d01fe11207f325b65b857d0ec8fa676"
+git-tree-sha1 = "8b7d529a9678e14748a913ea0df65418b2d123b7"
 repo-rev = "master"
-repo-url = "https://github.com/ModiaSim/ModiaMath.jl"
+repo-url = "ModiaMath"
 uuid = "80923050-9e1b-11e8-0c9e-c9f8e684994a"
 version = "0.2.1"
 
