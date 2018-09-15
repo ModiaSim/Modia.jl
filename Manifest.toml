@@ -50,16 +50,16 @@ uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 version = "0.13.1"
 
 [[DataStreams]]
-deps = ["Dates", "Missings", "Test", "WeakRefStrings"]
-git-tree-sha1 = "c54fb051465fb0741caa57972b67bd21ce2f39c7"
+deps = ["Dates", "Missings", "Pkg", "Test", "WeakRefStrings"]
+git-tree-sha1 = "69c72a1beb4fc79490c361635664e13c8e4a9548"
 uuid = "9a8bc11e-79be-5b39-94d7-1ccc349a1a85"
-version = "0.4.0"
+version = "0.4.1"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "REPL", "Random", "Serialization", "Test"]
-git-tree-sha1 = "2afbbd0294306b0b74a753c196be50b35edb625c"
+git-tree-sha1 = "5162c360c52e9265e0bfafb71415c31f746f7e04"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.11.1"
+version = "0.12.0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -71,25 +71,13 @@ uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 
 [[DiffEqBase]]
 deps = ["Compat", "IteratorInterfaceExtensions", "LinearAlgebra", "Pkg", "RecipesBase", "RecursiveArrayTools", "Requires", "StaticArrays", "Statistics", "TableTraits", "Test", "TreeViews"]
-git-tree-sha1 = "d70f84e11a25aea27594c000cc4b7121758bb44b"
+git-tree-sha1 = "fd7608dfa62e87acdbf082c1bcea9dbaaaa764f1"
 uuid = "2b5f629d-d688-5b77-993f-72d75c75574e"
-version = "4.24.3"
+version = "4.25.0"
 
 [[Distributed]]
 deps = ["LinearAlgebra", "Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
-
-[[DocStringExtensions]]
-deps = ["LibGit2", "Markdown", "Pkg", "Test"]
-git-tree-sha1 = "a016e0bfe98a748c4488e2248c2ef4c67d6fdd35"
-uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-version = "0.5.0"
-
-[[Documenter]]
-deps = ["Compat", "DocStringExtensions", "Logging", "REPL"]
-git-tree-sha1 = "7534ff3c50333a69ae0778d4d869e6f5c9ec022a"
-uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-version = "0.19.6"
 
 [[FixedPointNumbers]]
 deps = ["Pkg", "Test"]
@@ -156,12 +144,12 @@ version = "0.3.0"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[ModiaMath]]
-deps = ["DataFrames", "DataStructures", "Documenter", "LinearAlgebra", "Printf", "PyPlot", "StaticArrays", "Sundials", "Unitful"]
-git-tree-sha1 = "dca9238e9713909c538fd5d903fc8612cf4e79f3"
+deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Printf", "PyPlot", "StaticArrays", "Sundials", "Test", "Unitful"]
+git-tree-sha1 = "8b7d529a9678e14748a913ea0df65418b2d123b7"
 repo-rev = "master"
 repo-url = "ModiaMath"
 uuid = "80923050-9e1b-11e8-0c9e-c9f8e684994a"
-version = "0.2.2-dev.1"
+version = "0.2.1"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
@@ -199,9 +187,9 @@ version = "0.6.0"
 
 [[RecursiveArrayTools]]
 deps = ["RecipesBase", "Requires", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "797075ed835f708dec7a8475c67657abdccfd0b3"
+git-tree-sha1 = "5e8a10ef2b3ba2c1d2e3f0a7d15337f97f2dbccf"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "0.18.0"
+version = "0.18.1"
 
 [[Reexport]]
 deps = ["Pkg"]
@@ -309,6 +297,6 @@ version = "1.1.2"
 
 [[WeakRefStrings]]
 deps = ["Missings", "Random", "Test"]
-git-tree-sha1 = "d4631352d65840254d33ab703e2de3d9768cdb77"
+git-tree-sha1 = "1087e8be380f2c8b96434b02bb1150fc1c511135"
 uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
-version = "0.5.2"
+version = "0.5.3"

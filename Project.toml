@@ -1,7 +1,7 @@
 name = "Modia"
 uuid = "e4773e00-9f9a-11e8-2abb-2769e83b9912"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>"]
-version = "0.2.0-beta.10"
+version = "0.2.0-beta.12"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -13,10 +13,6 @@ ModiaMath = "80923050-9e1b-11e8-0c9e-c9f8e684994a"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[extras]
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
