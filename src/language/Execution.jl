@@ -13,6 +13,7 @@ export setOptions
 using Sundials
 using Base.Meta: quot, isexpr
 using DataStructures: OrderedDict
+
 @static if VERSION < v"0.7.0-DEV.2005"
     evaluate(m, x) = eval(m, x)
 else
@@ -34,6 +35,8 @@ const showCode = false        # Show the code for initialization and residual ca
 const logComputations = false # Insert logging of variable values in the code
 const callF = false
 const showJacobian = false
+const MODULES = Module[]
+
 
 global logTiming               # Show timing for each major task, simulate twice to see effect of compilation time.
 global storeEliminated
@@ -514,7 +517,9 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
 
         @show F_code
     # F = Eval(F_code)
-    F = evaluate(Main, F_code)
+    push!(MODULES, Module())
+    index_Module_F = length(MODULES)
+    F = evaluate(MODULES[index_Module_F], F_code)
     #=
       if modeConditions != []
         F_Dict[modeConditions] = (F, initial_eliminated)
@@ -527,7 +532,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     if need_eliminated_f
         eliminated_code = code_eliminated_func(string("eliminated_", model_name_of(instance), "!"),
             unpack, eliminated_computations, vars, x, der_x)
-        eliminated_f = evaluate(Main, eliminated_code)
+        eliminated_f = evaluate(MODULES[index_Module_F], eliminated_code)
     else
         eliminated_f = nothing
     end

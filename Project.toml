@@ -1,7 +1,7 @@
 name = "Modia"
 uuid = "e4773e00-9f9a-11e8-2abb-2769e83b9912"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>"]
-version = "0.2.0-beta.11"
+version = "0.2.0-beta.12"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"

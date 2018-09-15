@@ -65,7 +65,7 @@ plot(result, ("x", "y"), heading="ConditionalInstance", figure=3)
   end
 end 
 
-result = simulate(Conditional2, 2, logTranslation=true, removeSingularities=false)
+result = simulate(Conditional2, 2, logTranslation=false, removeSingularities=false)
 plot(result, ("x"), heading="Conditional2", figure=1)
 
 end

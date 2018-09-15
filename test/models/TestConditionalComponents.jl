@@ -34,7 +34,7 @@ plot(result, ("C.v", "V.v"), heading="Conditional", figure=12)
     @extends ConditionalLoad(extraLoad = false)
 end
 
-result = simulate(NoExtraLoad, 2, logTranslation=true)
+result = simulate(NoExtraLoad, 2) # , logTranslation=true) # Problem with logging nothing in Julia 1.0
 plot(result, ("C.v", "V.v"), heading="Conditional", figure=12)
 
 end
