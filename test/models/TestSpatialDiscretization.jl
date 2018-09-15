@@ -47,9 +47,10 @@ n = 100
     end
 end
 
-@time result = simulate(SpatialDiscretization3, 1, logTranslation=true, storeEliminated=false)
-plot(result, "ueven", figure=3)
-
+@static if VERSION < v"0.7.0-DEV.2005"
+    @time result = simulate(SpatialDiscretization3, 1, logTranslation=true, storeEliminated=false)
+    plot(result, "ueven", figure=3)
+end
 
 @model SpatialDiscretization4 begin
     u = Var(size=(2*n+1,))
