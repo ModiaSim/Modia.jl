@@ -8,10 +8,9 @@ Modia module for executing a model including code generation and calling DAE sol
 
 """
 module Execution
-
 export simulate_ida
 export setOptions
-
+using Sundials
 using Base.Meta: quot, isexpr
 using DataStructures: OrderedDict
 @static if VERSION < v"0.7.0-DEV.2005"
@@ -39,6 +38,8 @@ const showJacobian = false
 global logTiming               # Show timing for each major task, simulate twice to see effect of compilation time.
 global storeEliminated
 global handleImpulses
+const MOD = Module()
+@show MOD
 
 function setOptions(options) 
     global storeEliminated = true
@@ -485,14 +486,15 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     end
 
     name = Symbol("F_", model_name_of(instance))
-    F_code = :( function $(name)($(first_F_args...), _t, $x, $der_x, $r, _w)
+#    F_code = :( function $(name)($(first_F_args...), _t, $x, $der_x, $r, _w)
+    F_code = :( function $(name)($r, $der_x, $x, $simulationModel_symbol, _t)
 #                  $r[0] = 0.0 # For the case of no differential equations
                   end )
     F_body = (F_code.args[2].args)::Vector{Any}
     # @assert isempty(F_body)
 
     append!(F_body, unpack)
-    push!(F_body, :($time_symbol = $simulationModel_symbol.simulationState.time)) ####might break Sundials (not DAE)
+ push!(F_body, :($time_symbol = $simulationModel_symbol.simulationState.time)) ####might break Sundials (not DAE)
     append!(F_body, instance.F_pre)
     append!(F_body, computations)
     append!(F_body, instance.F_post)
@@ -510,8 +512,9 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
         @show F_code
     end
 
+        @show F_code
     # F = Eval(F_code)
-    F = evaluate(Module(), F_code)
+    F = evaluate(Main, F_code)
     #=
       if modeConditions != []
         F_Dict[modeConditions] = (F, initial_eliminated)
@@ -524,7 +527,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     if need_eliminated_f
         eliminated_code = code_eliminated_func(string("eliminated_", model_name_of(instance), "!"),
             unpack, eliminated_computations, vars, x, der_x)
-        eliminated_f = evaluate(Module(), eliminated_code)
+        eliminated_f = evaluate(Main, eliminated_code)
     else
         eliminated_f = nothing
     end
@@ -533,7 +536,6 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     for (name, value) in zip(eliminated, initial_eliminated)
         eliminated_Ts[name] = typeof(value)
     end
-
     der_x0 = zeros(size(x0)) # todo: allow other initial guesses for der_x?
     (F, eliminated_f, x0, der_x0, diffstates, params, states, state_sizes, state_offsets, eliminated_Ts)
 end
@@ -629,7 +631,25 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
             m = ModiaSimulationModel(string(model_name_of(instance)), F, x0;
                         maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, jac=jac, x_fixed=diffstates)
         end 
-
+        dump(m.simulationState)
+        eventinfo = ModiaMath.DAE.EventInfo() 
+        function condition(u, t, int)
+            println("COND t = $(int.t)")
+            z = fill(0.0, m.simulationState.eventHandler.nz)
+            ModiaMath.DAE.getEventIndicators!(m, m.simulationState, t, u, int.du.v, z)
+            return z
+        end
+        function affect!(int)
+            println("CALLBACK t = $(int.t)")
+            ModiaMath.DAE.processEvent!(m, m.simulationState, int.t, int.u.v, int.du.v, eventinfo)
+        end
+        callback = ContinuousCallback(condition, affect!)
+        newF = (r, der_x, x, p, t) -> Base.invokelatest(F, r, der_x, x, p, t) 
+        prob = DAEProblem(newF, der_x0, x0, (0.0, 2.0), m, differential_vars = diffstates)
+	    res = solve(prob, IDA(), callback = callback)
+	    # res = solve(prob, IDA())
+	    return res
+			    
         if logTiming
             print("\n  ModiaMath:           ")
             @time ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
