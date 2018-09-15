@@ -111,7 +111,6 @@ A constructor for a `Variable`, the main object for a model variable with attrib
   * `flow::Bool = false`: indicates a flow variable for connectors
   * `state::Bool = true`: indicates a state Variable
   * `property = general`: other options include `symmetric`, `orthogonal`, and `rotationGroup3D`
-
 """
 Variable(;
     # The variability, type and info are added as attributes in the type for uniform treatment.  
