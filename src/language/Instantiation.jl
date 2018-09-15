@@ -39,7 +39,7 @@ using ..ModiaLogging
 #using ..Synchronous
 
 
-@static if VERSION >= v"1.0.0"
+@static if VERSION >= v"0.7.0-DEV.2005"
     import Markdown
 else
     import Base.Markdown
@@ -113,9 +113,10 @@ A constructor for a `Variable`, the main object for a model variable with attrib
   * `property = general`: other options include `symmetric`, `orthogonal`, and `rotationGroup3D`
 
 """
-# The variability, type and info are added as attributes in the type for uniform treatment.
-# Input/output, etc should also be added.
 Variable(;
+    # The variability, type and info are added as attributes in the type for uniform treatment.  
+    # Input/output, etc should also be added.
+
     value=nothing, 
     info="", 
     unit=if typeof(value) <: Unitful.Quantity; Unitful.unit(value) else Unitful.NoUnits end, 
