@@ -489,8 +489,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     end
 
     name = Symbol("F_", model_name_of(instance))
-#    F_code = :( function $(name)($(first_F_args...), _t, $x, $der_x, $r, _w)
-    F_code = :( function $(name)($r, $der_x, $x, $simulationModel_symbol, _t)
+    F_code = :( function $(name)($(first_F_args...), _t, $x, $der_x, $r, _w)
 #                  $r[0] = 0.0 # For the case of no differential equations
                   end )
     F_body = (F_code.args[2].args)::Vector{Any}
@@ -636,23 +635,17 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
             m = ModiaSimulationModel(string(model_name_of(instance)), F, x0;
                         maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, jac=jac, x_fixed=diffstates)
         end 
-        dump(m.simulationState)
+        # The following event code doesn't work.
+        #   The `condition` seems to be run, but the `affect!` isn't being triggered.
         eventinfo = ModiaMath.DAE.EventInfo() 
-        function condition(u, t, int)
-            println("COND t = $(int.t)")
-            z = fill(0.0, m.simulationState.eventHandler.nz)
-            ModiaMath.DAE.getEventIndicators!(m, m.simulationState, t, u, int.du.v, z)
-            return z
-        end
-        function affect!(int)
-            println("CALLBACK t = $(int.t)")
-            ModiaMath.DAE.processEvent!(m, m.simulationState, int.t, int.u.v, int.du.v, eventinfo)
-        end
-        callback = ContinuousCallback(condition, affect!)
-        newF = (r, der_x, x, p, t) -> Base.invokelatest(F, r, der_x, x, p, t) 
+        nz = m.simulationState.eventHandler.nz
+        z = fill(1.0, nz)
+        callbacks = CallbackSet((ContinuousCallback((u, t, int) -> (ModiaMath.DAE.getEventIndicators!(m, m.simulationState, t, int.u.v, int.du.v, z); z[i]),
+                                                    (int) -> ModiaMath.DAE.processEvent!(m, m.simulationState, int.t, int.u.v, int.du.v, eventinfo)) 
+                                 for i in 1:nz)...)
+        newF = (r, der_x, x, p, t) -> Base.invokelatest(F, p, t, x, der_x, r, nothing) 
         prob = DAEProblem(newF, der_x0, x0, (0.0, 2.0), m, differential_vars = diffstates)
-	    res = solve(prob, IDA(), callback = callback)
-	    # res = solve(prob, IDA())
+	    res = solve(prob, IDA(), callback = callbacks)
 	    return res
 			    
         if logTiming
