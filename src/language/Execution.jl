@@ -8,10 +8,9 @@ Modia module for executing a model including code generation and calling DAE sol
 
 """
 module Execution
-
 export simulate_ida
 export setOptions
-
+using Sundials
 using Base.Meta: quot, isexpr
 using DataStructures: OrderedDict
 
@@ -495,7 +494,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     # @assert isempty(F_body)
 
     append!(F_body, unpack)
-    push!(F_body, :($time_symbol = $simulationModel_symbol.simulationState.time)) ####might break Sundials (not DAE)
+ push!(F_body, :($time_symbol = $simulationModel_symbol.simulationState.time)) ####might break Sundials (not DAE)
     append!(F_body, instance.F_pre)
     append!(F_body, computations)
     append!(F_body, instance.F_post)
@@ -538,7 +537,6 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     for (name, value) in zip(eliminated, initial_eliminated)
         eliminated_Ts[name] = typeof(value)
     end
-
     der_x0 = zeros(size(x0)) # todo: allow other initial guesses for der_x?
     (F, eliminated_f, x0, der_x0, diffstates, params, states, state_sizes, state_offsets, eliminated_Ts)
 end
@@ -634,7 +632,19 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
             m = ModiaSimulationModel(string(model_name_of(instance)), F, x0;
                         maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, jac=jac, x_fixed=diffstates)
         end 
-
+        # The following event code doesn't work.
+        #   The `condition` seems to be run, but the `affect!` isn't being triggered.
+        eventinfo = ModiaMath.DAE.EventInfo() 
+        nz = m.simulationState.eventHandler.nz
+        z = fill(1.0, nz)
+        callbacks = CallbackSet((ContinuousCallback((u, t, int) -> (ModiaMath.DAE.getEventIndicators!(m, m.simulationState, t, int.u.v, int.du.v, z); z[i]),
+                                                    (int) -> ModiaMath.DAE.processEvent!(m, m.simulationState, int.t, int.u.v, int.du.v, eventinfo)) 
+                                 for i in 1:nz)...)
+        newF = (r, der_x, x, p, t) -> Base.invokelatest(F, p, t, x, der_x, r, nothing) 
+        prob = DAEProblem(newF, der_x0, x0, (0.0, 2.0), m, differential_vars = diffstates)
+	    res = solve(prob, IDA(), callback = callbacks)
+	    return res
+			    
         if logTiming
             print("\n  ModiaMath:           ")
             @time ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
