@@ -41,8 +41,6 @@ const MODULES = Module[]
 global logTiming               # Show timing for each major task, simulate twice to see effect of compilation time.
 global storeEliminated
 global handleImpulses
-const MOD = Module()
-@show MOD
 
 function setOptions(options) 
     global storeEliminated = true
@@ -514,7 +512,6 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
         @show F_code
     end
 
-        @show F_code
     # F = Eval(F_code)
     push!(MODULES, Module())
     index_Module_F = length(MODULES)
