@@ -21,9 +21,9 @@ version = "0.5.0"
 
 [[ColorTypes]]
 deps = ["FixedPointNumbers", "Random", "Test"]
-git-tree-sha1 = "0e3209ba7418aed732e5c3818076b4400ee36c08"
+git-tree-sha1 = "f73b0e10f2a5756de7019818a41654686da06b09"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.7.4"
+version = "0.7.5"
 
 [[Colors]]
 deps = ["ColorTypes", "FixedPointNumbers", "InteractiveUtils", "Pkg", "Printf", "Reexport", "Test"]
@@ -144,12 +144,12 @@ version = "0.3.0"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[ModiaMath]]
-deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Printf", "PyPlot", "StaticArrays", "Sundials", "Test", "Unitful"]
-git-tree-sha1 = "8b7d529a9678e14748a913ea0df65418b2d123b7"
+deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Printf", "Requires", "StaticArrays", "Sundials", "Test", "Unitful"]
+git-tree-sha1 = "78fdb4fca613fe01ee881efcedea8a471085c646"
 repo-rev = "master"
 repo-url = "ModiaMath"
 uuid = "80923050-9e1b-11e8-0c9e-c9f8e684994a"
-version = "0.2.1"
+version = "0.2.2"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
