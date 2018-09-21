@@ -145,11 +145,11 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[ModiaMath]]
 deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Printf", "Requires", "StaticArrays", "Sundials", "Test", "Unitful"]
-git-tree-sha1 = "78fdb4fca613fe01ee881efcedea8a471085c646"
+git-tree-sha1 = "5262546e3d26ed09a19e343f9f764b1a7067ab94"
 repo-rev = "master"
 repo-url = "ModiaMath"
-uuid = "80923050-9e1b-11e8-0c9e-c9f8e684994a"
-version = "0.2.2"
+uuid = "67ccffd1-116d-535b-ad39-76a8fd0cbf71"
+version = "0.2.3"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
