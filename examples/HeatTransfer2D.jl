@@ -2,7 +2,6 @@ module HeatTransfer2D
 
 using Modia
 using ModiaMath
-using PyPlot
 
 # Definition of model  
 const N      = 30 # 100 # Number of nodes in x-direction (same number of nodes in y-direction
