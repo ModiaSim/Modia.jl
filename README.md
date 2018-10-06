@@ -21,12 +21,6 @@ Component models are defined by `@model` macros. Such models contain definition 
 
 ## Installation
 
-**Modia currently only runs with Julia version 0.6.x.**
-
-```julia
-julia> Pkg.add("Modia")
-```
-
 The package is registered in METADATA.jl. Once the registration process of
 ModiaMath 0.2.4 is finalized, a new release of Modia will be registered
 and Modia can be installed with Pkg.add.
