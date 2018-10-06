@@ -17,9 +17,9 @@ using Modia
 
 "Rotational angle variable"
 Angle(; args...) = Variable(; start = 0.0, size = (), 
-                       T = u"rad", info = "Rotational angle", args...)
+                       T = U"rad", info = "Rotational angle", args...)
 TorqueVar(; args...) = Variable(; start = 0.0, size = (), 
-                           T = u"N*m", info = "Torque", args...)
+                           T = U"N*m", info = "Torque", args...)
 
 """
 Connector for 1D rotational systems
@@ -33,14 +33,14 @@ end
 1D-rotational component with inertia
 """
 @model Inertia begin
-    J = Parameter(0, min=0, info = "Moment of inertia", T = u"kg*m^2")
+    J = Parameter(0, min=0, info = "Moment of inertia", T = U"kg*m^2")
 
     flange_a = Flange(info = "Left flange of shaft")
     flange_b = Flange(info = "Right flange of shaft")
 
     phi = Angle()
-    w = Var(start = 0.0, info = "Angular velocity", T = u"rad/s")
-    a = Var(info = "Angular acceleration", T = u"rad/s^2")
+    w = Var(start = 0.0, info = "Angular velocity", T = U"rad/s")
+    a = Var(info = "Angular acceleration", T = U"rad/s^2")
     @equations begin 
         phi = flange_a.phi
         phi = flange_b.phi
@@ -69,8 +69,8 @@ end
 Linear 1D rotational spring
 """
 @model Spring begin
-    c = Parameter(min = 0, start = 1.0e5, info = "Spring constant", T = u"N*m/rad")
-    phi_rel0 = Parameter(0.0, start = 0.0, info = "Unstretched spring angle", T = u"rad")
+    c = Parameter(min = 0, start = 1.0e5, info = "Spring constant", T = U"N*m/rad")
+    phi_rel0 = Parameter(0.0, start = 0.0, info = "Unstretched spring angle", T = U"rad")
     @extends PartialCompliant()
     @inherits tau, phi_rel
     @equations begin 
@@ -82,9 +82,9 @@ end
 Linear 1D rotational spring with damper
 """
 @model SpringDamper begin
-    c = Parameter(min = 0, start = 1.0e5, info = "Spring constant", T = u"N*m/rad")
-    d = Parameter(info = "Damping constant", T = u"N*m*s/rad")
-    phi_rel0 = Parameter(0.0, start = 0.0, info = "Unstretched spring angle", T = u"rad")
+    c = Parameter(min = 0, start = 1.0e5, info = "Spring constant", T = U"N*m/rad")
+    d = Parameter(info = "Damping constant", T = U"N*m*s/rad")
+    phi_rel0 = Parameter(0.0, start = 0.0, info = "Unstretched spring angle", T = U"rad")
     @extends PartialCompliant(phi_rel=Angle(size=(), state=false))
     @inherits tau, phi_rel
     @equations begin 
@@ -96,7 +96,7 @@ end
 Electromotoric force (electric/mechanic) transformer
 """
 @model EMF begin
-    k = Parameter(1.0, info = "Transformation coefficient", T = u"N*m/A")
+    k = Parameter(1.0, info = "Transformation coefficient", T = U"N*m/A")
 
     p = Pin(info = "Positive pin")
     n = Pin(info = "Negative pin")
@@ -105,7 +105,7 @@ Electromotoric force (electric/mechanic) transformer
     v = Voltage()
     i = Current()
     phi = Angle(state = false)
-    w = Var(info = "Angular velocity", T = u"rad/s")
+    w = Var(info = "Angular velocity", T = U"rad/s")
     @equations begin 
         v = p.v - n.v
         0 = p.i + n.i

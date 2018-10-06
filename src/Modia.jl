@@ -83,6 +83,11 @@ export skew, skewCoords
 export allInstances
 export @component, addComponent!
 
+# Make string macro U_str available by "using Modia"
+include("language/Unitful_U_str.jl")
+using  .Unitful_U_str
+export @U_str
+
 include("language/ModiaLogging.jl")
 include("language/Instantiation.jl")
 include("language/Execution.jl")
