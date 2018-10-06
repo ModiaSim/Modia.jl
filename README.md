@@ -6,7 +6,7 @@
 
 ## Introduction
 
-[Modia](https://modiasim.github.io/) is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**. 
+[Modia](https://modiasim.github.io/) is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**.
 
 Papers and presentations about Modia:
 
@@ -26,6 +26,27 @@ Component models are defined by `@model` macros. Such models contain definition 
 ```julia
 julia> Pkg.add("Modia")
 ```
+
+The package is registered in METADATA.jl. Once the registration process of
+ModiaMath 0.2.4 is finalized, a new release of Modia will be registered
+and Modia can be installed with Pkg.add.
+
+```julia
+# Julia 0.6, 0.7, 1.0:
+julia> Pkg.add("Modia")
+
+# alternatively in Julia 0.7 and 1.0:
+julia> ]add Modia
+```
+
+Modia uses [PyPlot](https://github.com/JuliaPy/PyPlot.jl) for plotting.
+If `PyPlot` is not available in your current Julia environment
+an information message is printed and all `plot(..)` calls are ignored.
+In order that plot windows are displayed, you need to add `PyPlot` to your current environment
+via `]add PyPlot`. Often this automatic installation fails and it is recommended to follow
+instead the instructions
+[Installing PyPlot in a robust way](https://github.com/ModiaSim/ModiaMath.jl/wiki/Installing-PyPlot-in-a-robust-way).
+
 
 ## Use
 
@@ -101,7 +122,7 @@ The version released now is partial since certain prototype functionalities need
 
 - Alias handling
 - Handle overdetermined equations
-- Introduction of partial and block attribute to models 
+- Introduction of partial and block attribute to models
 - Automatic state selection
 - Arrays of components
 - Complex data type
