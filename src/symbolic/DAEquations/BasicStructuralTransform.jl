@@ -38,7 +38,9 @@ using ..StateSelection
 import ModiaMath
 using ..ModiaLogging
 
+#= Temporarily removed due to problem with PyPlot
 using PyPlot
+=#
 #using ModiaMath.plot
 
 export residue, hide, skew, skewCoords, residue_der
@@ -1693,7 +1695,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         println("\nSimulate")
         t = linspace(0.0, 50, 1000)
         result = ModiaMath.ModiaToModiaMath.simulate(m, t; log=false, tolRel=1E-5)
-      
+        
+#= Temporarily removed due to problem with PyPlot
         # Plot results
         t = result["time"]
         # figure()
@@ -1713,6 +1716,14 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         # @show result vars leg
         # plot(result, Tuple(leg))
         #    (t_res,x_res,der_x_res) = ModiaMath.ModiaToModiaMath.getRawResult(m)
+=#
+        reuse=false
+        for v in keys(result)
+           if v != "time" && !(findfirst(isequal(v), "der") != notFound)
+               ModiaMath.plot(result, v, reuse=reuse)
+               reuse=true
+           end
+        end
     end
     # results = extract_results_ida(x_res, der_x_res, states, state_offsets, params)
     nothing

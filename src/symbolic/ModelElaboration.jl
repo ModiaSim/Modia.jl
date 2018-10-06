@@ -33,7 +33,11 @@ using ..StructuralTransform
 using ..SymbolicTransform
 using ..Utilities
 using ..ModiaLogging
+#= Temporarily removed due to problem with PyPlot
 using PyPlot
+=#
+import ModiaMath
+
 using JSON
 
 @static if VERSION < v"0.7.0-DEV.2005"
@@ -486,12 +490,15 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
             println("final solution $observer = $finalSolution")
             printstyled("Simulation NOT OK", bold=true, color=:red); println()
             println()
+#= Replaced PyPlot solution with ModiaMath.plot(..) call
             figure()
             title("Simulation NOT OK in " * string(mod.name))
             plot(res["time"], res[observer])
             grid(true)
             xlabel("time [s]")
             legend([observer],  loc="center right")
+=#
+            ModiaMath.plot(res, observer, heading="Simulation NOT OK in " * string(mod.name))
             false
         else
             ModiaLogging.increaseLogCategory(:(CalculatedResult))   
