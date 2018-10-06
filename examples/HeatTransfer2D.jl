@@ -85,14 +85,14 @@ end
 result = simulate(HeatTransfer, 30)
 #ModiaMath.plot(result, "T", figure=22)
 
-res = Dict{Symbol,AbstractArray{T,1} where T}()
-res[:time] = result["time"]
+res = Dict{AbstractString,Any}()
+res["time"] = result["time"]
 T = result["T"]
 T = reshape(T, size(T,1), N, N)
-v1 = Symbol("T[$(div(N,2)),1]")
-v2 = Symbol("T[1, $(div(N,2))]")
-v3 = Symbol("T[$N,1]")
-v4 = Symbol("T[1, $N]")
+v1 = "T[$(div(N,2)),1]"
+v2 = "T[1, $(div(N,2))]"
+v3 = "T[$N,1]"
+v4 = "T[1, $N]"
 res[v1] = T[:, div(N,2),1]
 res[v2] = T[:, 1, div(N,2)]
 res[v3] = T[:, N, 1]
