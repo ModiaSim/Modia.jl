@@ -11,15 +11,22 @@ module testSymbolicTransform
 using Modia.SymbolicTransform
 using Modia.Utilities
 
+# Desired:
+#   using Test
+#   using LinearAlgebra
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+import Modia
+
 @static if VERSION < v"0.7.0-DEV.2005"
   using Base.Test
 else
-  using Test
+  using Modia.Test
 end
 
 @static if VERSION < v"0.7.0-DEV.2005"
 else
-  using LinearAlgebra
+  using Modia.LinearAlgebra
 end
 
 using Base.Meta: isexpr

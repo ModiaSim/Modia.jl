@@ -2,22 +2,31 @@ module TestVariableTypes
 
 println("\nTestVariableTypes: Demonstrating the handling of various variable types")
 
+# Desired:
+#   using Test
+#   using LinearAlgebray
+#   using ModiaMath.plot
+#   using StaticArrays
+#   using Unitful
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia
+
 @static if VERSION < v"0.7.0-DEV.2005"
     using Base.Test
     identity(m,n) = eye(m,n)
 else
-    using Test
-    using LinearAlgebra
+    using Modia.Test
+    using Modia.LinearAlgebra
     identity(m, n) = Matrix{Float64}(I, m, n)
 end
 
-using Modia
-using ModiaMath: plot
+using  Modia.ModiaMath: plot
 
-using StaticArrays
-using Unitful
-using Unitful.DefaultSymbols
-import Unitful:
+using  Modia.StaticArrays
+using  Modia.Unitful
+using  Modia.Unitful.DefaultSymbols
+import Modia.Unitful:
     nm, μm, mm, cm, m, km, inch, ft, mi,
     ac,
     mg, g, kg, A,

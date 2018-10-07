@@ -4,7 +4,12 @@ println("\nRectifier: Demonstrating conditional components")
 
 using Modia
 using Modia.Electric
-using ModiaMath: plot
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
 
 @model ConditionalLoad begin
     R=Resistor(R=1)

@@ -6,7 +6,13 @@ using Modia
 using Modia.Electric
 using Modia.Rotational
 using Modia.Blocks
-using ModiaMath: plot
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that ModiaMath need not to be defined in the user environment, it is included via Modia:
+using Modia.ModiaMath: plot
+
 
 @model CurrentController begin
   k=30   # Gain of PI current controller
@@ -46,10 +52,10 @@ end
 
 #result = simulate(CurrentController, 0.1, storeEliminated=false)
 
-#=
-result = checkSimulation(CurrentController, 0.1, "load.w", 0.07929151315487117, removeSingularities=false)
-plot(result, ("currentSensor.i", "step.y", "load.w"))
-=#
+# result = checkSimulation(CurrentController, 0.1, "load.w", 0.07929151315487117, removeSingularities=false)
+# plot(result, ("currentSensor.i", "step.y", "load.w"))
+
+
 @static if VERSION < v"0.7.0-DEV.2005"
   result = checkSimulation(CurrentController, 0.1, "load.w", 0.07927285979038304, removeSingularities=true)
   plot(result, [("currentSensor.i", "step.y"), "load.w"], heading="CurrentController", figure=11)

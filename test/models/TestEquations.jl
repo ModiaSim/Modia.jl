@@ -1,13 +1,20 @@
 module TestEquations
 
 using Modia
-using ModiaMath: plot
+
+# Desired:
+#   using ModiaMath: plot
+#   using Test
+#   using LinearAlgebra
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
 
 @static if VERSION < v"0.7.0-DEV.2005"
     using Base.Test
 else
-    using Test
-    using LinearAlgebra
+    using Modia.Test
+    using Modia.LinearAlgebra
     eye(n) = Matrix{Float64}(I, n, n)
     diagm(v) = Matrix(Diagonal(v))
     q(qr) = qr.Q

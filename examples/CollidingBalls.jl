@@ -3,13 +3,20 @@ module TestBalls
 println("\nCollidingBalls: Demonstrating the use of allInstances to set up contact force between any number of balls")
 
 using Modia
-using ModiaMath:plot
+
+# Desired:
+#   using ModiaMath: plot
+#   using Test
+#   using LinearAlgebra
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
 
 @static if VERSION < v"0.7.0-DEV.2005"
   using Base.Test
 else
-  using Test
-  using LinearAlgebra
+  using Modia.Test
+  using Modia.LinearAlgebra
 end
 
 const k=10000

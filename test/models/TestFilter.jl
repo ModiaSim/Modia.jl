@@ -2,10 +2,15 @@ module TestFilter
 
 println("TestFilter: Tests various features of the symbolic handling.")
 
-using ModiaMath: plot
-
 using Modia
 using Modia.Electric
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
+
 
 @model LPfilter begin
     R = Resistor(R=100.0)

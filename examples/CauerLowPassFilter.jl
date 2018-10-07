@@ -5,7 +5,12 @@ println("\nTestCauerLowPassFilter: Demonstrating the ability to simulate an elec
 
 using Modia
 using Modia.Electric
-using ModiaMath:plot
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that ModiaMath need not to be defined in the user environment, it is included via Modia:
+using Modia.ModiaMath: plot
 
 
 @model CauerLowPassOPV begin

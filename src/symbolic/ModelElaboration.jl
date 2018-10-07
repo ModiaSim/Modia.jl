@@ -242,7 +242,13 @@ function substituteAllInstances(ex, modified_model, class, flat)
     if typeof(ex) == Expr && ex.head == :call && ex.args[1] == allInstances
         all = []
         name = string(ex.args[2].name)
+
+@static if VERSION < v"0.7.0-DEV.2005"
         name = name[rsearchindex(name, ".") + 1:end]
+else
+        name = name[first(something(findlast(".", name), 0:-1)) + 1:end]
+end
+       
         name = Symbol(name)
 
         if !flat

@@ -3,7 +3,12 @@ module ConditionalEquations
 println("\nDemonstrating conditional equations")
 
 using Modia
-using ModiaMath: plot
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
 
 @model Conditional begin
     x = Var(start=1.0)

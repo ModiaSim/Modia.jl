@@ -3,7 +3,13 @@ module MergingModifiers
 println("\nDemonstrating merging modifiers")
 
 using Modia
-using ModiaMath: plot
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
+
 
 @model M begin
   x = Float(start=1.0, info="state")

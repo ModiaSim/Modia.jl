@@ -21,7 +21,21 @@ export Connect, addEquation!, deleteEquation!
 export prettyPrint, prettyfy, operator_table
 
 using Base.Meta:quot, isexpr
-using DataStructures: OrderedDict
+
+
+# Desired:
+#   using  DataStructures: OrderedDict
+#   using  LinearAlgebra
+#   import ModiaMath
+#   using  Unitful
+#   import Markdown
+#
+# Since package Instantiation is included directly in a test (in Modia/test/symbolic/BLTandPantelides/setup.jl)
+# all these packages above are included via Modia, in order that these packages need not to be defined in the 
+# user environment.
+#
+import Modia
+using  Modia.DataStructures: OrderedDict
 #0.7 using SparseArrays
 @static if VERSION < v"0.7.0-DEV.2005"
     Nothing = Void 
@@ -30,17 +44,17 @@ using DataStructures: OrderedDict
         return current_module()
     end
 else
-    using LinearAlgebra
+    using Modia.LinearAlgebra
 end
 
-import ModiaMath 
-using Unitful
+import Modia.ModiaMath 
+using  Modia.Unitful
 using ..ModiaLogging
 #using ..Synchronous
 
 
 @static if VERSION >= v"0.7.0-DEV.2005"
-    import Markdown
+    import Modia.Markdown
 else
     import Base.Markdown
 end

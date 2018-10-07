@@ -21,8 +21,8 @@ include("LinearSystems.jl")
 include("SynchronousExamples.jl")
 @static if VERSION < v"0.7.0-DEV.2005"
   include("ElectricalVehicleAndCharger.jl") # Problem in 1.0
-  include("CollidingBalls.jl")
 end
+include("CollidingBalls.jl")
 include("HeatTransfer2D.jl")
 
 Modia.ModiaLogging.printTestStatus()
