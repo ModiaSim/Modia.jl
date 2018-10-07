@@ -21,24 +21,23 @@ Component models are defined by `@model` macros. Such models contain definition 
 
 ## Installation
 
-The package is registered in METADATA.jl. Once the registration process of
-ModiaMath 0.2.4 is finalized, a new release of Modia will be registered
-and Modia can be installed with Pkg.add.
+**Modia** is registered in METADATA.jl and can be installed with Pkg.add:
 
 ```julia
-# Julia 0.6, 0.7, 1.0:
+# Julia 0.6:
 julia> Pkg.add("Modia")
 
-# alternatively in Julia 0.7 and 1.0:
+# Julia 0.7 and 1.0:
 julia> ]add Modia
 ```
 
 Modia uses [PyPlot](https://github.com/JuliaPy/PyPlot.jl) for plotting.
 If `PyPlot` is not available in your current Julia environment
 an information message is printed and all `plot(..)` calls are ignored.
+
 In order that plot windows are displayed, you need to add `PyPlot` to your current environment
 via `]add PyPlot`. Often this automatic installation fails and it is recommended to follow
-instead the instructions
+the instructions
 [Installing PyPlot in a robust way](https://github.com/ModiaSim/ModiaMath.jl/wiki/Installing-PyPlot-in-a-robust-way).
 
 
@@ -66,6 +65,9 @@ instead the instructions
 ```
 
 ## Examples
+
+The schematics below are screenshots of [Modelica models](https://www.modelica.org/). These models have been converted to Modia and the examples below execute these models. Note, in Modia there is not (yet) a graphical definition of models.
+
 ### Current Controller
 ![Current Controller](https://github.com/ModiaSim/Modia.jl/blob/master/docs/CurrentController.png "Multi-domain model: Current Controller")
 
