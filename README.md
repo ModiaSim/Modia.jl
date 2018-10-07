@@ -81,11 +81,13 @@ The schematics below are screenshots of [Modelica models](https://www.modelica.o
 
 ### To run examples:
 ```julia
+  using Modia
   include("$(Modia.ModiaDir)/examples/runexamples.jl")
 ```
 
 ### To run tests:
 ```julia
+  using Modia
   include("$(Modia.ModiaDir)/test/runtests.jl")
 ```
 
