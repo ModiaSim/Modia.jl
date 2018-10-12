@@ -45,8 +45,8 @@ For more information, see (https://github.com/ModiaSim/Modia.jl/blob/master/READ
 """
 module Modia
 
-const Version = "0.2.1"
-const Date = "2018-10-07"
+const Version = "0.2.2"
+const Date = "2018-10-12"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -84,7 +84,7 @@ export allInstances
 export @component, addComponent!
 
 # Import packages that are used in examples and tests
-# (in order that there are no requirements on the environment 
+# (in order that there are no requirements on the environment
 #  in which the examples and tests are executed).
 import DataStructures
 import ModiaMath
