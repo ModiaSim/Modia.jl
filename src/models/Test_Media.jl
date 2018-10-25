@@ -2,6 +2,8 @@
 # Initial author: Martin Otter, DLR-SR (first version: Jan. 14, 2017)
 # License: MIT (expat)
 
+
+
 """
    module Media
 
@@ -42,7 +44,7 @@ end
 Simple medium model of water
 """
 module SimpleWater
-   import Media
+   import ..Media
 
    # Constants of medium that have the same value for every medium instance
    const cp_const = 4184
@@ -74,8 +76,8 @@ Test media models
 """
 module Test_Media
 
-import Media
-import SimpleWater
+import ..Media
+import ..SimpleWater
 
 #=
 @model FluidPort begin
