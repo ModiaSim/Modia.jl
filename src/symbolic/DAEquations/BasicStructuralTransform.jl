@@ -987,7 +987,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
              "\n   Number of equations: ", length(IG),
              "\n   Number of variables: ", length(assignIG),
              "\n   Number of continuous states: ", length(realStates),
-             "\nNote: Number of equations + Number of variables + Number of continuous states must be zero.",
+             "\nNote: Number of equations - Number of variables + Number of continuous states must be zero.",
              variableEquationDifference > 0 ?
                  "\nIt might be that " * string(variableEquationDifference) * " states must be defined to be non-states" *
                  "\n(note, Modia does not yet support automatic state selection)." : "")
