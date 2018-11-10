@@ -798,12 +798,15 @@ function differentiate(e)
             end
             
             for i in 1:length(arguments)
-                if length(arguments) == 1
-                    f_der = Symbol(string(op, "_der"))
-                else 
-                    f_der = Symbol(string(op, "_der_", i))
+                path = split(string(op), ".")
+                mod = path[end-1]
+                func = path[end]
+                f_der_name = Symbol(string(func * "_der_", i))
+                
+                if ! (f_der_name in names(getfield(Main, Symbol(mod))))
+                    error("Derivative function ", string(f_der_name), " is missing.")
                 end
-            
+                f_der = getfield(getfield(Main, Symbol(mod)), f_der_name)
                 f_der_i = Expr(:call, f_der)
                 for a in arguments
                     push!(f_der_i.args, a)
