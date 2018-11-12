@@ -457,7 +457,9 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     try
         res = simulateModelWithOptions(mod, t, options=options)
     catch err
+        st = stacktrace(catch_backtrace())
         closeLogModia()
+    
         setTestStatus(false)
         println()
         println("\n----------------------\n")
@@ -474,6 +476,11 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
         println()
         println("\n----------------------\n")
         println()
+        println("Stack trace: ------------------------------------------------")
+        for l in st
+            println(l)
+        end
+        println("End stack trace: --------------- ----------------------------")
         @test false
         return noResult
     end 

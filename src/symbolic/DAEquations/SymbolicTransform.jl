@@ -798,22 +798,30 @@ function differentiate(e)
             end
             
             for i in 1:length(arguments)
-                path = split(string(op), ".")
-                mod = path[end-1]
-                func = path[end]
-                f_der_name = Symbol(string(func * "_der_", i))
+                arg_der = differentiate(arguments[i])
+                if arg_der != zero
+                    path = split(string(op), ".")
+                    if length(path) >= 2
+                        mod = path[end-1]
+                    else 
+                        mod = ""
+                    end
+                    func = path[end]
+                    f_der = Symbol(string(func * "_der_", i))
+                    
+                    if mod == ""
+                        println("Derivative function ", string(f_der), " not found.")
+                    elseif ! (f_der in names(getfield(Main, Symbol(mod))))
+                        error("Derivative function ", string(f_der), " not found.")
+                    else
+                        f_der = getfield(getfield(Main, Symbol(mod)), f_der)
+                    end
+                    f_der_i = Expr(:call, f_der)
+                    for a in arguments
+                        push!(f_der_i.args, a)
+                    end
                 
-                if ! (f_der_name in names(getfield(Main, Symbol(mod))))
-                    error("Derivative function ", string(f_der_name), " is missing.")
-                end
-                f_der = getfield(getfield(Main, Symbol(mod)), f_der_name)
-                f_der_i = Expr(:call, f_der)
-                for a in arguments
-                    push!(f_der_i.args, a)
-                end
-            
-                term = mult(f_der_i, differentiate(arguments[i])) 
-                if term != zero
+                    term = mult(f_der_i, arg_der) 
                     push!(diff.args, term)      
                 end
             end       

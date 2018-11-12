@@ -454,7 +454,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                     if !haskey(equSizes, i) || !haskey(equTypes, i)
                         RHS = tryEval(rhs, eq)
                         if RHS != nothing && typeof(RHS) != GetField && typeof(RHS) != Der
-                            if typeof(RHS) == String || isstructtype(typeof(RHS)) || typeof(RHS) == Tuple{Array{Float64,2},Array{Float64,2}} # Special case for calling qr function
+                            if typeof(RHS) == String || fieldnames(typeof(RHS)) != () || typeof(RHS) == Tuple{Array{Float64,2},Array{Float64,2}} # Special case for calling qr function
                                 size_RHS = ()
                             else
                                 size_RHS = size(RHS)
@@ -486,7 +486,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                     LHS = tryEval(lhs, eq)
                     RHS = tryEval(rhs, eq)
                     if LHS != nothing && typeof(LHS) != Der && RHS != nothing && typeof(RHS) != Der
-                        if typeof(RHS) == String || typeof(RHS) != AbstractArray || isstructtype(typeof(RHS))
+                        if typeof(RHS) == String || typeof(RHS) != AbstractArray || fieldnames(typeof(RHS)) != ()
                             size_RHS = ()
                         else
                             size_RHS = size(RHS)

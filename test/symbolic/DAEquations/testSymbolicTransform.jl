@@ -240,7 +240,7 @@ function testDifferentiate()
   @test der == "der(y) = f_der_1(x, 5, z) * der(x) + f_der_3(x, 5, z) * der(z)"
   
   der = showDifferentiate(:(y = f(x, 5, g(z))))
-  @test der == "der(y) = f_der_1(x, 5, g(z)) * der(x) + f_der_3(x, 5, g(z)) * (g_der(z) * der(z))"
+  @test der == "der(y) = f_der_1(x, 5, g(z)) * der(x) + f_der_3(x, 5, g(z)) * (g_der_1(z) * der(z))"
   
   der = showDifferentiate(:(y = true ? x : y))  
 @static if VERSION < v"0.7.0-DEV.2005"

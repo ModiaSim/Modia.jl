@@ -50,7 +50,7 @@ function openLogModia()
 
         logFileName = homedir() * "/" * "ModiaResults/" * logName * ".txt"
         global logFileModia = open(logFileName, "w")
-        println("Log file: ", homedir(), "/", logFileName)
+        println("Log file: ", logFileName)
     else
         global logFileModia = defaultOutput
     end
