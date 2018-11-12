@@ -980,6 +980,19 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     
     unassignedNames = [] # unknownsNames[unAssignedVariables]
   
+    # Check number of variables
+    variableEquationDifference = length(IG) + length(realStates) - length(assignIG)
+    if variableEquationDifference != 0
+       error("\nThe number of equations and the number of unknowns/states does not match.",
+             "\n   Number of equations: ", length(IG),
+             "\n   Number of variables: ", length(assignIG),
+             "\n   Number of continuous states: ", length(realStates),
+             "\nNote: Number of equations - Number of variables + Number of continuous states must be zero.",
+             variableEquationDifference > 0 ?
+                 "\nIt might be that " * string(variableEquationDifference) * " states must be defined to be non-states" *
+                 "\n(note, Modia does not yet support automatic state selection)." : "")
+    end
+
     if logStatistics
         println("Number of equations: ", length(IG))
         println("Number of variables: ", length(assignIG))
