@@ -28,6 +28,8 @@ end
 
     include("models/MergingModifiers.jl")
 
+    include("models/TestFluid.jl")
+
     #include("models/TestCoupledInertias.jl")
     #include("models/TestPendulum.jl")
     #include("models/TestStateSelection.jl")
