@@ -57,7 +57,7 @@ const MediumVariable() = Var(size=())
 module BaseProperties
     using  Modia
     using  ...MyModiaMedia
-    using  ...Fluid3: MediumVariable
+    using  ...TestFluid: MediumVariable
 
     export BaseProperties_Air, BaseProperties_SimpleMedium
 
