@@ -50,7 +50,7 @@ using Modia.ModiaMath: plot
   end
 end
 
-result = checkSimulation(CurrentController, 0.1, "load.w", 0.07929151315487117, tearing=false)
+result = checkSimulation(CurrentController, 0.1, "load.w", 0.07929151315487117, tearing=true)
 
 result = checkSimulation(CurrentController, 0.1, "load.w", 0.07927285979038304)
 plot(result, [("currentSensor.i", "step.y"), "load.w"], heading="CurrentController", figure=11)

@@ -9,6 +9,8 @@ Module for structural analysis of models.
 """
 module BasicStructuralTransform
 
+include("../tearing.jl")
+
 using ..BLTandPantelides
 using ..BLTandPantelidesUtilities
 using ..Utilities
@@ -56,6 +58,7 @@ global useIncidenceMatrix = false
 global expandArrayIncidence = false
 removeSingularitiesDefault = true
 global removeSingularities = removeSingularitiesDefault
+global tearing = false
 const consistencyCheck = true
 global newStateSelection = false
 global logFDAE = false
@@ -82,6 +85,12 @@ function setOptions(options)
     if haskey(options, :removeSingularities)
         global removeSingularities = options[:removeSingularities]
         @show removeSingularities
+    end
+
+    global tearing = false
+    if haskey(options, :tearing)
+        global tearing = options[:tearing]
+        @show tearing
     end
 
     global expandArrayIncidence = false
@@ -1098,6 +1107,38 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
             @time componentsIG = BLT(IG, assignIG)
         else
             componentsIG = BLT(IG, assignIG)
+
+            if tearing
+                tornComponents = []
+                for c in componentsIG
+                    if length(c) == 1
+                        push!(tornComponents, c)
+                    else
+                        es = Array{Int64,1}(c)
+                        vs = invAssign[es]
+
+                        td = TraverseDAG(IG, length(assignIG))
+                        (eSolved, vSolved, eResidue, vTear) = tearEquations!(td, IG, es, vs)
+                        
+                        for e in eSolved
+                            push!(tornComponents, [e])
+                        end
+                        push!(tornComponents, eResidue)
+                          
+                        for i in 1:length(eSolved)
+                            assignIG[vSolved[i]] = eSolved[i]
+                        end
+                        for i in 1:length(eResidue)
+                            assignIG[vTear[i]] = eResidue[i]
+                        end
+
+                        (invAssign, unAssignedVariables) = invertAssign(assignIG, length(Bequ)) 
+                        
+                        loglnModia("Reduced system of equation size from $(length(c)) to $(length(eResidue))")
+                    end
+                end
+                componentsIG = tornComponents
+            end
         end
     end
   

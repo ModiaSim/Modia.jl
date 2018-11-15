@@ -570,10 +570,11 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
             if flat_model.variables[v].start == nothing
                 if varTypes[v] == String
                     z = ""
+                    flat_model.variables[v].start = fill(z, varSizes[v])
                 else
                     z = 0.0 # zero(varTypes[v]) # Generalize to handle zero for array types
+                    flat_model.variables[v].start = if varSizes[v] == (); z else fill(z, varSizes[v]) end
                 end
-                flat_model.variables[v].start = if varSizes[v] == (); z else fill(z, varSizes[v]) end
             end
 
         elseif haskey(varSizes, v)
