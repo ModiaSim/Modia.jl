@@ -301,6 +301,16 @@ function simulateModelWithOptions(model, t; options=Dict())
         log = opt[:logSimulation]
     end
 
+    relTol = 1e-4
+    if haskey(opt, :relTol)
+        relTol = opt[:relTol]
+    end
+
+    hev = 1e-8
+    if haskey(opt, :hev)
+        hev = opt[:hev]
+    end
+
     if fileStdOut
         @static if VERSION < v"0.7.0-DEV.2005"
             originalSTDOUT = STDOUT
@@ -389,9 +399,9 @@ function simulateModelWithOptions(model, t; options=Dict())
         if logTiming
             print("Code generation and simulation:         ")
             # @show solved_model t useIncidenceMatrix log
-            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log)
+            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol)
         else
-            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log)
+            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol)
         end
     else
         res = Dict{Symbol,AbstractArray{T,1} where T}()
