@@ -105,7 +105,7 @@ Electromotoric force (electric/mechanic) transformer
     v = Voltage()
     i = Current()
     phi = Angle(state = false)
-    w = Var(info = "Angular velocity", T = U"rad/s")
+    w = Variable(T = U"rad/s", info = "Angular velocity")
     @equations begin 
         v = p.v - n.v
         0 = p.i + n.i

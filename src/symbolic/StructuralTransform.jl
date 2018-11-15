@@ -573,7 +573,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                 else
                     z = 0.0 # zero(varTypes[v]) # Generalize to handle zero for array types
                 end
-                flat_model.variables[v].start = fill(z, varSizes[v])
+                flat_model.variables[v].start = if varSizes[v] == (); z else fill(z, varSizes[v]) end
             end
 
         elseif haskey(varSizes, v)

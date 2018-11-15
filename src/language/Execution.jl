@@ -36,6 +36,7 @@ const showCode = false        # Show the code for initialization and residual ca
 const logComputations = false # Insert logging of variable values in the code
 const callF = false
 const showJacobian = false
+
 const MODULES = Module[]
 
 
@@ -279,6 +280,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
             # ex = :($lhs_name::$T = $rhs)
             push!(computations, ex)
             if logComputations
+                push!(computations, :(if !$proceed[1]; @show typeof($lhs_name) end))
                 push!(computations, :(if !$proceed[1]; @show $lhs_name end))
             end
             push!(eliminated_computations, ex)
@@ -394,7 +396,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     if logComputations
         push!(unpack, :(
           if !$proceed[1]; 
-            println("Press enter to continue, q to stop, p to proceed: "); l = readline(STDIN); if l != "" && l[1] == 'q'; error("quit") elseif l != "" && l[1] == 'p'; $proceed[1] = true end
+            println("Press enter to continue, q to stop, p to proceed: "); l = readline(stdin); if l != "" && l[1] == 'q'; error("quit") elseif l != "" && l[1] == 'p'; $proceed[1] = true end
         end))
         push!(unpack, :(if !$proceed[1]; println("\nUnpack:") end))
     end
@@ -413,10 +415,14 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
         end      
         i += prod(get_dims(var))        
         if logComputations
+            push!(unpack, :(if !$proceed[1]; @show typeof($name), typeof($der_name) end))        
             push!(unpack, :(if !$proceed[1]; @show $name, $der_name end))
         end
+
         push!(initials, :($name = $(quot(get_start(var)))))
-        # push!(initials, :(@show $name) )
+        if logComputations
+            push!(initials, :(@show typeof($name) $name) )
+        end
         # push!(initials, :($der_name = 0 * $(quot(get_start(var))) / SIUnits.Second) )
         push!(initials, :($der_name = 0 * $(quot(get_start(var))) ))
     end

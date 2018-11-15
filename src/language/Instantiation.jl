@@ -229,6 +229,7 @@ default(T::Type) = zero(T)
 
 "Get the start value of `var`. Returns a default value if no start value is given."
 get_start(var::Variable) = var.start === nothing ? default(var.typ) : var.start
+
 "Get the array dimensions of `var`."
 get_dims(var::Variable) = size(get_start(var))
 
@@ -511,7 +512,6 @@ end
 function code_variable(ex::Expr, varnames)
     @assert isexpr(ex, :(=), 2)
     lhs, rhs = ex.args
-
 #    if typeof(rhs) == Expr && (rhs.head == call || rhs.head == :call)
     if typeof(rhs) == Expr && rhs.head == :call
         args = rhs.args
@@ -533,10 +533,10 @@ function code_variable(ex::Expr, varnames)
                   
             end
             if baseTyp in [:Int64, :Float64, :Bool]
-              sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
-              rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
+                sta = Expr(:kw, :start, zeros(eval(baseTyp), siz...))
+                rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), sta, args[2:end]...)
             else
-             rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
+                rhs = Expr(:call, :Variable, Expr(:kw, :typ, typ), args[2:end]...)
             end
         end
     end

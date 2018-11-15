@@ -146,9 +146,7 @@ using Modia.ModiaMath: plot
   end
 end
 
-#=
-res = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188)
-=#
+result = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188)
 
 @model CauerLowPassOPVWithoutNodes begin
   # Cauer low pass filter with operational amplifiers
@@ -244,10 +242,9 @@ res = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188)
   end
 end
 
-result=simulate(CauerLowPassOPVWithoutNodes, 60)
+result = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188)
 plot(result, ("C9.v"), figure=20)
-
-res = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188, useKinsol=true, removeSingularities = false)
+result = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188, tearing=false)
 
 
 end
