@@ -582,7 +582,7 @@ end
 
 function simulate_ida(instance::Instance, t::Vector{Float64},
                       jac::Union{SparseMatrixCSC{Bool,Int},Nothing};# =nothing;
-                      log=false, relTol=1e-4, maxSparsity=0.1,
+                      log=false, relTol=1e-4, hev=1e-8, maxSparsity=0.1,
                       store_eliminated=storeEliminated)
 
     if PrintJSONsolved
@@ -634,11 +634,11 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
     if length(x0) > 0    
         if false
             m = ModiaSimulationModel(model_name_of(instance), F, x0, der_x0, jac;
-                        xw_states=diffstates, maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial,
+                        xw_states=diffstates, maxSparsity=maxSparsity, nc=1, hev=hev, nz=initial_m.nz_preInitial,
                         xNames=xNames)
         else
             m = ModiaSimulationModel(string(model_name_of(instance)), F, x0;
-                        maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, jac=jac, x_fixed=diffstates)
+                        maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, hev=hev, jac=jac, x_fixed=diffstates)
         end 
 
         if logTiming

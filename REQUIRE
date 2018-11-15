@@ -1,6 +1,6 @@
 julia 0.6
 DataStructures
 JSON
-ModiaMath
+ModiaMath 0.2.5
 StaticArrays
 Unitful
