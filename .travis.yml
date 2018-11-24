@@ -2,21 +2,24 @@
 language: julia
 os:
   - linux
-  - osx
+#  - osx
 
 julia:
   - 1.0
-  - 0.7
-  - 0.6
+#  - 0.7
+#  - 0.6
 
 #before_install:
 #  - (sudo apt-get -qq update && sudo apt-get install -y python3 python3-matplotlib)
 notifications:
   email: true
+git:
+  depth: 99999999
 
+before_install:
 #script:
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#  - julia -e 'Pkg.clone(pwd()); Pkg.build("Modia"); Pkg.test("Modia", coverage = true)'
+- julia -e 'Pkg.clone(pwd()); Pkg.build("Modia"); Pkg.test("Modia", coverage = true)'
 
 after_success:
 #  - julia -e 'using Pkg; cd(Pkg.dir("Modia")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(Codecov.process_folder());'
