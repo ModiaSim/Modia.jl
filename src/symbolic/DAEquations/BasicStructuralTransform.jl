@@ -9,7 +9,7 @@ Module for structural analysis of models.
 """
 module BasicStructuralTransform
 
-include("../tearing.jl")
+include("../Tearing.jl")
 
 using ..BLTandPantelides
 using ..BLTandPantelidesUtilities

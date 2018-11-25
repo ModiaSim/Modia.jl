@@ -3,15 +3,15 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryProvider]]
 deps = ["Libdl", "Pkg", "SHA", "Test"]
-git-tree-sha1 = "9930c1a6cd49d9fcd7218df6be417e6ae4f1468a"
+git-tree-sha1 = "055eb2690182ebc31087859c3dd8598371d3ef9e"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
-version = "0.5.2"
+version = "0.5.3"
 
 [[CategoricalArrays]]
-deps = ["Compat", "Future", "JSON", "Missings", "Printf", "Reexport"]
-git-tree-sha1 = "6362c49130b5888f5628bc197ee5f17aec7d2a88"
+deps = ["Compat", "Future", "Missings", "Printf", "Reexport", "Requires"]
+git-tree-sha1 = "64651a0315fc342e7e35d03d67b2da920937c9be"
 uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-version = "0.4.0"
+version = "0.5.0"
 
 [[CodecZlib]]
 deps = ["BinaryProvider", "Libdl", "Test", "TranscodingStreams"]
@@ -21,9 +21,9 @@ version = "0.5.1"
 
 [[Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "2d9e14d19bad3f9ad5cc5e4cffabc3cfa59de825"
+git-tree-sha1 = "ec61a16eed883ad0cfa002d7489b3ce6d039bb9a"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "1.3.0"
+version = "1.4.0"
 
 [[DataFrames]]
 deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "IteratorInterfaceExtensions", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "TableTraits", "Tables", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
@@ -108,10 +108,8 @@ version = "0.3.1"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[ModiaMath]]
-deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Printf", "Requires", "StaticArrays", "Sundials", "Test", "Unitful"]
+deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Pkg", "Printf", "Requires", "StaticArrays", "Sundials", "Test", "Unitful"]
 git-tree-sha1 = "82cebde6d94c25cee42ce6e96a02d62972aa6683"
-repo-rev = "master"
-repo-url = "ModiaMath"
 uuid = "67ccffd1-116d-535b-ad39-76a8fd0cbf71"
 version = "0.2.5"
 
@@ -145,9 +143,9 @@ version = "0.6.0"
 
 [[RecursiveArrayTools]]
 deps = ["RecipesBase", "Requires", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "24dd0469af1479902590e3b2d266b5058cf6f6c9"
+git-tree-sha1 = "5ac1ea7d018bec90b0be614a9a37d1fd80dce8d9"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "0.18.3"
+version = "0.18.4"
 
 [[Reexport]]
 deps = ["Pkg"]
@@ -163,9 +161,9 @@ version = "0.5.2"
 
 [[Roots]]
 deps = ["Compat", "Printf"]
-git-tree-sha1 = "9a66815d2530705097a5668efa8b88aa238ada47"
+git-tree-sha1 = "2e7171b6f3b58b81201ba37d9e1220aff6d904a1"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "0.7.3"
+version = "0.7.4"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
