@@ -28,7 +28,7 @@ using Modia.ModiaMath: plot
   end
 end 
 
-result = checkSimulation(Rectifier, 2, "C.v", 0.4773911315322196)
+result = checkSimulation(Rectifier, 2, "C.v", 0.4773911315322196, logTranslation=true)
 
 plot(result, ("C.v", "V.v"), heading="Rectifier", figure=12)
 

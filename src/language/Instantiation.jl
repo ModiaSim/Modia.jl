@@ -19,9 +19,36 @@ export mark_solved_equations
 export instantiate, flatten
 export Connect, addEquation!, deleteEquation!
 export prettyPrint, prettyfy, operator_table
+export setOptions
 
-using Base.Meta:quot, isexpr
+global logMacros = false
+global logInstantiation = false
+global logFlattening = false
+#const distributed = false
 
+function setOptions(options) 
+    global logMacros = false
+    if haskey(options, :logMacros)
+        global logMacros = options[:logMacros]
+        @show logMacros
+        delete!(options, :logMacros)
+    end
+
+    global logInstantiation = false
+    if haskey(options, :logInstantiation)
+        global logInstantiation = options[:logInstantiation]
+        @show logInstantiation
+        delete!(options, :logInstantiation)
+    end
+
+    global logFlattening = false
+    if haskey(options, :logFlattening)
+        global logFlattening = options[:logFlattening]
+        @show logFlattening
+        delete!(options, :logFlattening)
+    end
+
+end
 
 # Desired:
 #   using  DataStructures: OrderedDict
@@ -58,9 +85,8 @@ using ..ModiaLogging
 else
     import Base.Markdown
 end
-
+using Base.Meta:quot, isexpr
 import Base.Docs
-
 
 const shortSyntax = true
 
@@ -209,12 +235,6 @@ function Base.show(io::IO, v::Variable)
     println(io, ")")
 end
 
-#=
-function show(io::IO, x::Volt)
-    print(io, "Volt")
-    nothing
-end
-=#
 
 "Check that a start value (possibly default) exists for the var, or give an error."
 function check_start(var::Variable, name)
@@ -250,12 +270,6 @@ struct Ref <: Symbolic
     inds::Vector
 end
 
-#=
-function Base.show(io::IO, g::GetField)
-    print(io, g.base, ".", g.name)
-end
-=#
-
 function Base.show(io::IO, g::GetField)
     if shortSyntax
         print(io, g.base, ".", g.name)  
@@ -268,11 +282,6 @@ end
 struct Der <: Symbolic
     base::Symbolic
 end
-#=
-function Base.show(io::IO, d::Der)
-    print(io, "der(", d.base, ")")
-end
-=#
 
 function Base.show(io::IO, d::Der)
     if shortSyntax
@@ -285,12 +294,6 @@ end
 "AST node for access to the current instance."
 struct This <: Symbolic
 end
-
-#=
-function Base.show(io::IO, this::This)
-  print(io, "this")
-end
-=#
 
 function Base.show(io::IO, this::This)
     if shortSyntax
@@ -672,15 +675,29 @@ Fill in a `Model` instance with the given declarations and equations and assign 
 to a constant named <Name>.
 """
 macro model(head, ex)
-    # esc(code_model(head, ex))
     coded = code_model(head, ex)
-    #=
-    println("coded:")
-    println("------------------")
-    @show coded
-    println("------------------")
-    =#
-    esc(coded)
+    # Resolve code in macro environment
+    esccoded = esc(coded)
+    
+    if logMacros
+        println("@model:", head)
+        @show Base.remove_linenums!(ex)
+        println()
+        dump(Base.remove_linenums!(ex), maxdepth=100)
+        println("------------------")
+        println("coded:")
+        @show Base.remove_linenums!(coded)
+        println()
+        dump(Base.remove_linenums!(coded), maxdepth=100)
+        println("------------------")
+        println("Resolved (esc(coded)):")
+        @show Base.remove_linenums!(esccoded)
+        println()
+        dump(Base.remove_linenums!(esccoded), maxdepth=100)
+        println("------------------")
+    end
+
+    return esccoded
 end
 
 
@@ -947,14 +964,45 @@ function initialize!(instance::Instance, eqs::Equations, time::Float64, kwargs::
     end
 end
 
+# using Distributed
+# using SharedArrays
+
 function instantiate(model::Model, time::Float64, kwargs=[])
     kwargs = Dict(kwargs)
+    if logInstantiation
+        println("\ninstanciate:::::::")
+        @show model
+        println("dump(model):")
+        dump(model, maxdepth=100)
+        @show kwargs
+    end
     instance = Instance(model_name_of(model), model.mod, get(kwargs, :info, ""), 
 			VariableDict(), [], :partial in model.arguments)
-    for initializer in model.initializers
-        initialize!(instance, initializer, time, kwargs)
+    if logInstantiation
+        println("dump(instance):")
+        dump(instance, maxdepth=100)
     end
-
+#    if ! distributed
+        for initializer in model.initializers
+            if logInstantiation
+                println("dump(initializer):")
+                dump(initializer, maxdepth=100)
+            end
+            initialize!(instance, initializer, time, kwargs)
+        end
+#=
+    else # This is not working yet
+        insts = SharedArray{Instance,1}(length(model.initializers))
+        @distributed for i in 1:length(model.initializers)
+            insts[i] = []
+            initializer = model.initializers[i]
+            initialize!(insts[i], initializer, time, kwargs)
+            @show insts[i]
+        end    
+        @show insts
+        instance = vcat(insts)
+    end
+=#
     instance
 end
 
@@ -1092,9 +1140,15 @@ end
 
 function flatten!(flat::Flat, prefix::AbstractString, instance::Instance)
     for (name, var) in vars_of(instance)
+        if logFlattening
+            println(name)
+        end
         flatten!(flat, prefix, name, var)
     end
     for eq in eqs_of(instance)
+        if logFlattening
+            println(prettyPrint(eq))
+        end
         if isa(eq, Connect)
             add_connection!(flat, prefix, instance, eq)
         else

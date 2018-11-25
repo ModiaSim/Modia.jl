@@ -294,7 +294,11 @@ function simulateModelWithOptions(model, t; options=Dict())
     ModiaLogging.setOptions(opt)  
     StructuralTransform.setOptions(opt)  
     BasicStructuralTransform.setOptions(opt)  
+    Instantiation.setOptions(opt) 
     Execution.setOptions(opt)  
+    if length(keys(opt)) > 0
+        println("Option(s) not found: ", keys(opt))
+    end
   
     log = false
     if haskey(opt, :logSimulation)
@@ -331,7 +335,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     loglnModia("\nSimulating model: ", model.name)
   
     if PrintOriginalModel 
-        loglnModia("Original model:")
+        loglnModia("ORIGINAL MODEL:")
         showModel(model)
     end
 
@@ -344,7 +348,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     traverseAndSubstituteAllInstances(:(), modified_model, modified_model, false)
 
     if PrintInstantiated 
-        loglnModia("Instantiated model:")
+        loglnModia("INSTANTIATED MODEL:")
         showInstance(modified_model)
         loglnModia()
     end
@@ -548,13 +552,16 @@ end
 Experimental code for multi-mode handling with impulses.
 """
 function simulateMultiModeModel(model, t0, t1; n=1000, m=100, options...)
-    opt = Dict(options)  
-    opt = Dict(options)  
+    opt = Dict(options)   
     ModiaLogging.setDefaultLogName(string(model.name))
     ModiaLogging.setOptions(opt)  
     StructuralTransform.setOptions(opt)  
     BasicStructuralTransform.setOptions(opt)  
+    Instiantiation.setOptions(opt) 
     Execution.setOptions(opt)  
+    if length(keys(opt)) >= 0
+        println("Option(s) not found: ", keys(opt))
+    end
 
     println("\nSimulating model: ", model.name)
     loglnModia("\nSimulating model: ", model.name)

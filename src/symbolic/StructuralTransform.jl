@@ -45,11 +45,13 @@ function setOptions(options)
     if haskey(options, :aliasElimination)
         global aliasElimination = options[:aliasElimination]
         @show aliasElimination
+        delete!(options, :aliasElimination)
     end
     global deduceSizes = true
     if haskey(options, :deduceSizes)
         global deduceSizes = options[:deduceSizes]
         @show deduceSizes
+        delete!(options, :deduceSizes)
     end
 end
 

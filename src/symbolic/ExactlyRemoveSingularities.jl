@@ -385,6 +385,11 @@ instead of displaying it on the terminal.
 """
 displayAsString(x) = sprint((io, x) -> display(TextDisplay(io), x), x)
 
+@static if VERSION < v"0.7.0-DEV.2005"
+else
+    searchindex(s,t) = first(something(findfirst(t, s), 0:-1))
+    replace(s::String, t::String, u::String) = Base.replace(s, t=>u)
+end
 
 """---------------------------------------------------------------
     str = displayAsString2(x)

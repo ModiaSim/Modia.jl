@@ -49,18 +49,21 @@ function setOptions(options)
     if haskey(options, :storeEliminated)
         global storeEliminated = options[:storeEliminated]
         @show storeEliminated
+        delete!(options, :storeEliminated)
     end
 
     global handleImpulses = false
     if haskey(options, :handleImpulses)
         global handleImpulses = options[:handleImpulses]
         @show handleImpulses
+        delete!(options, :handleImpulses)
     end
 
     global logTiming = false
     if haskey(options, :logTiming)
         global logTiming = options[:logTiming]
         @show logTiming
+        delete!(options, :logTiming)
     end
 end
 

@@ -85,42 +85,49 @@ function setOptions(options)
     if haskey(options, :removeSingularities)
         global removeSingularities = options[:removeSingularities]
         @show removeSingularities
+        delete!(options, :removeSingularities)
     end
 
     global tearing = false
     if haskey(options, :tearing)
         global tearing = options[:tearing]
         @show tearing
+        delete!(options, :tearing)
     end
 
     global expandArrayIncidence = false
     if haskey(options, :expandArrayIncidence)
         global expandArrayIncidence = options[:expandArrayIncidence]
         @show expandArrayIncidence
+        delete!(options, :expandArrayIncidence)
     end
     
     global useIncidenceMatrix = false
     if haskey(options, :useIncidenceMatrix)
         global useIncidenceMatrix = options[:useIncidenceMatrix]
         @show useIncidenceMatrix
+        delete!(options, :useIncidenceMatrix)
     end
     
     global newStateSelection = false
     if haskey(options, :newStateSelection)
         global newStateSelection = options[:newStateSelection]
         @show newStateSelection
+        delete!(options, :newStateSelection)
     end
     
     global useKinsol = false
     if haskey(options, :useKinsol)
         global useKinsol = options[:useKinsol]
         @show useKinsol
+        delete!(options, :useKinsol)
     end
     
     global logStatistics = true
     if haskey(options, :logStatistics)
         global logStatistics = options[:logStatistics]
-#    @show logStatistics
+        @show logStatistics
+        delete!(options, :logStatistics)
     end
 end
 
@@ -454,6 +461,9 @@ end
 
 function handleSingularities(coefficients, notLinearVariables, unknowns_indices, names, states, statesIndices, nonStateVariables, equations, orgEquIndex, Avar, G, ESizes, logTiming)
     loglnModia("\nREMOVE SINGULARITIES")
+    if log
+        @show coefficients notLinearVariables names states
+    end
     linearVars = []
     for eCoeff in coefficients
         for v in keys(eCoeff)
@@ -461,7 +471,9 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
         end
     end
     linearVars = unique(linearVars)
-    # printSymbolList("\nLinear variables", linearVars, true)
+    if log
+        printSymbolList("\nLinear variables", linearVars, true)
+    end
     linearVarsStrings = [string(v) for v in linearVars]
 
     linearCoefficientMatrix = spzeros(Int64, length(coefficients), length(linearVars))
@@ -473,10 +485,10 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
         end
     end
 
-    # fullLinearCoefficientMatrix = full(linearCoefficientMatrix)
-
-    # printobj("fullLinearCoefficientMatrix", fullLinearCoefficientMatrix)
-
+    if log
+        fullLinearCoefficientMatrix = Array(linearCoefficientMatrix)
+        printobj("fullLinearCoefficientMatrix", fullLinearCoefficientMatrix)
+    end
     ix = fill(0, 0)
     for i in 1:length(Avar)
         if Avar[i] != 0
@@ -489,7 +501,10 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
 
     notLinearVariables = [i for i in notLinearVariables if i <= length(linearVars)]
     notLinearVariableNames = names[notLinearVariables]
-
+    if log
+        @show notLinearVariableNames
+    end
+    
     # Build iy, don't include derivatives or potential states
     iy = [i for i in 1:length(linearVars)]
     for v in notLinearVariableNames
@@ -500,6 +515,9 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
     end
     iy = setdiff(iy, ix)
     
+    if log
+        @show linearCoefficientMatrix ix iy
+    end
     if logTiming
         print("Remove singularities:  ")
         @time result = ExactlyRemoveSingularities.removeSingularities(linearCoefficientMatrix, ix, iy)
@@ -510,6 +528,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
     (iya, eqr, ix1, ix2, eqx, A1, A2) = result
 
     if log 
+        @show iya eqr ix1 ix2 eqx A1 A2
         printRemoveSingularities(linearCoefficientMatrix, result, linearVarsStrings)   
     end
 
