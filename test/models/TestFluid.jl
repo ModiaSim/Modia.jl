@@ -1,3 +1,5 @@
+module TestFluid  #################################################################
+
 module MyModiaMedia #################################################################
 
 export AbstractMedium
@@ -41,22 +43,19 @@ density_der_2(Medium::Water, p) = Medium.data
 density_der_2(Medium::Air  , p) = Medium.data
 
 end
-
-
-
-module TestFluid  #################################################################
+using  .MyModiaMedia
 
 println("TestFluid: Tests features needed for Fluid models")
 
 using  Modia
 import ModiaMath
-using  ..MyModiaMedia
+
 
 const MediumVariable() = Var(size=())
 
 module BaseProperties
     using  Modia
-    using  ...MyModiaMedia
+    using  ..MyModiaMedia
     using  ...TestFluid: MediumVariable
 
     export BaseProperties_Air, BaseProperties_SimpleMedium
