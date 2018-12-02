@@ -631,6 +631,9 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
         end
     end
     # @show xNames
+    getVariableName(model::Any, vcat::ModiaMath.DAE.VariableCategory, vindex::Int) = vcat == ModiaMath.DAE.Category_X ? xNames[vindex] :
+                                                                                    (vcat == ModiaMath.DAE.Category_W ? "w[" * string(vindex) * "]" :
+                                                                                                                        "der(" * xNames[vindex] * ")" )
 
     start = now()
     
@@ -640,7 +643,7 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
                         xw_states=diffstates, maxSparsity=maxSparsity, nc=1, hev=hev, nz=initial_m.nz_preInitial,
                         xNames=xNames)
         else
-            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0;
+            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0, getVariableName;
                         maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, hev=hev, jac=jac, x_fixed=diffstates)
         end 
 
