@@ -403,9 +403,9 @@ function simulateModelWithOptions(model, t; options=Dict())
         if logTiming
             print("Code generation and simulation:         ")
             # @show solved_model t useIncidenceMatrix log
-            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol)
+            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol, hev=hev)
         else
-            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol)
+            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol, hev=hev)
         end
     else
         res = Dict{Symbol,AbstractArray{T,1} where T}()

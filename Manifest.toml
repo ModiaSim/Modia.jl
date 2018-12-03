@@ -108,8 +108,10 @@ version = "0.3.1"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[ModiaMath]]
-deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Pkg", "Printf", "Requires", "StaticArrays", "Sundials", "Test", "Unitful"]
+deps = ["DataFrames", "DataStructures", "LinearAlgebra", "Printf", "Requires", "StaticArrays", "Sundials", "Test", "Unitful"]
 git-tree-sha1 = "ff9b6fe5dbc650659f8ead0daf0a5b610bd31a93"
+repo-rev = "master"
+repo-url = "ModiaMath"
 uuid = "67ccffd1-116d-535b-ad39-76a8fd0cbf71"
 version = "0.2.6"
 
