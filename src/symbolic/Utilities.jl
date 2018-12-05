@@ -238,10 +238,14 @@ function checkSizes(VSizes, ESizes)
     scalarE = sum(length(zeros(e)) for e in ESizes)
     
     if scalarV != scalarE  
-        error("Scalarized system matrix is not square: $scalarE x $scalarV")
+        # error("Scalarized system matrix is not square: $scalarE x $scalarV")
+        ModiaLogging.closeLogModia()
+        error("The number of scalarized unknowns (= $scalarV) is not equal to the number of scalarized equations (= $scalarE).\n",
+              "If option `simulate(<model>, ...; logTranslation=true)` is set, inspect <user>/ModiaResults/<model>.txt for more info.")
         ok = false
     else
-        loglnModia("Scalarized system matrix is square: $scalarE x $scalarV")
+        # loglnModia("Scalarized system matrix is square: $scalarE x $scalarV")
+        loglnModia("The number of scalarized unknowns (= $scalarV) is equal to the number of scalarized equations (= $scalarE).")
     end
 
     if false && (sort(VSizes) != sort(ESizes) )  ### Testing
