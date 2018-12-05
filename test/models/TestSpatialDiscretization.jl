@@ -82,7 +82,7 @@ maskEven(n) = [if isodd(i); 0 else 1 end for i in 1:n]
     end
 end
 
-@time result = simulate(SpatialDiscretization5, 1, logTranslation=true, storeEliminated=false, removeSingularities=false, logSimulation=true, hev=0.1)
-plot(result, "u", figure=5)
+# @time result = simulate(SpatialDiscretization5, 1, logTranslation=true, storeEliminated=false, removeSingularities=false)
+# plot(result, "u", figure=5)
 
 end
