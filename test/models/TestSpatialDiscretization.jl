@@ -76,7 +76,7 @@ plot(result, "ueven", figure=4)
 maskEven(n) = [if isodd(i); 0 else 1 end for i in 1:n]
 
 @model SpatialDiscretization5 begin
-    u = Float(start=[if iseven(i); div(i,2) else 0 end for i in 1:2*n+1], fixed=false)
+    u = Float(start=[if iseven(i); div(i,2) else 0 end for i in 1:2*n+1], state=false)
     @equations begin
         broadcast(*, maskEven(2*n+1), der(u)) = u 
     end
