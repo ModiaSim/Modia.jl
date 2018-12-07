@@ -52,8 +52,10 @@ nFilters = 10
 end
 result = simulate(ManyDifferentFilters, 1)
 plot(result, Tuple(["F[$i].C.v" for i in 1:nFilters]), heading="ManyDifferentFilters", figure=5)
-@test result["F[1].C.v"][end] == 9.816405569531037
-@test result["F[$nFilters].C.v"][end] == 3.2967995487381305
+@test isapprox(result["F[1].C.v"][end], 9.816405569531037, atol=1e-8)
+@test isapprox(result["F[$nFilters].C.v"][end], 3.2967995487381305, atol=1e-7)
+
+
 
 # -----------------------------------
 

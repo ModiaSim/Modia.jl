@@ -76,13 +76,13 @@ plot(result, "ueven", figure=4)
 maskEven(n) = [if isodd(i); 0 else 1 end for i in 1:n]
 
 @model SpatialDiscretization5 begin
-    u = Float(start=[if iseven(i); div(i,2) else 0 end for i in 1:2*n+1])
+    u = Float(start=[if iseven(i); div(i,2) else 0 end for i in 1:2*n+1], fixed=false)
     @equations begin
         broadcast(*, maskEven(2*n+1), der(u)) = u 
     end
 end
 
-@time result = simulate(SpatialDiscretization5, 1, logTranslation=true, storeEliminated=false, removeSingularities=false)
-plot(result, "u", figure=5)
+# @time result = simulate(SpatialDiscretization5, 1, logTranslation=true, storeEliminated=false, removeSingularities=false)
+# plot(result, "u", figure=5)
 
 end

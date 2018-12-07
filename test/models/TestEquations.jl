@@ -48,6 +48,7 @@ end;
 
 result = simulate(Test, 5, storeEliminated=false, logTranslation=true, removeSingularities=false)
 plot(result, ("x"), heading="TestEquations", figure=2)
-@test result["x"][end] == 1.1776785083961023
+@test isapprox(result["x"][end], 1.1776785083961023; atol=1e-8)
+
 
 end
