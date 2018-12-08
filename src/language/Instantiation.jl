@@ -202,6 +202,12 @@ function Base.show(io::IO, v::Variable)
         first = false
     end
     
+    if v.nominal != nothing
+        if !first; print(io, ", ") end
+        print(io, "nominal = ", v.nominal)
+        first = false
+    end
+    
     if v.unit != NoUnits
         if !first; print(io, ", ") end
         print(io, "unit = ", v.unit)

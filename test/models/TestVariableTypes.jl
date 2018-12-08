@@ -61,6 +61,7 @@ const Vec3 = SVector{3,Float64}
 
     @model TestVariableTypes1 begin
         f = Float()
+        x = Float(start=3.0E10, nominal=20.0E10)
         b = Boolean()
         i = Integ()
         s = Str()
@@ -71,13 +72,14 @@ const Vec3 = SVector{3,Float64}
         # c2 = Var(start=Complex(2.0, 3.0))  # InexactError
         @equations begin
             f = 1
+            der(x) = -x
             b = true
             i = 1
             s = "asdf"
             c = Complex(2.0, 3.0)
             re = real(c)
             im = imag(c)
-            der(c1) = Complex(1.0, 0.0)
+            der(c1) = Complex(1.0, 0.0) # nominal no supported
             # der(c2) = Complex(1.5, 2.5)  # InexactError # Allocation of Complex in state vector not supported yet.
         end
     end 
@@ -96,7 +98,7 @@ const Vec3 = SVector{3,Float64}
     # ----------------------
 
     @model TestArrays1 begin
-        f = Float(start=[1,2,3])
+        f = Float(start=[1,2,3], nominal=[1,2,3])
         b = Boolean()
         i = Integ()
         s = Str()
@@ -138,7 +140,7 @@ const Vec3 = SVector{3,Float64}
         v2 = Variable(T=Vec3, start=ones(3), min=3)
         v3 = Variable(T=Vec3)
 
-        v4 = Float3(min=3)
+        v4 = Float3(min=3, nominal=[1,2,3])
         v5 = Var()
         v6 = Voltage(start=0.0)
         @equations begin

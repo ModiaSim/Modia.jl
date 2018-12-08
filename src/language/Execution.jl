@@ -341,22 +341,26 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     for eq in eqs_of(instance);  find_diffstates!(d, eq);  end
 
     x0 = Float64[]
+    x_nominal = Float64[]
     diffstates = Bool[]
     for (name, var) in states
         is_diffstate = GetField(This(), name) in d
         s = get_start(var)
         if isa(s, AbstractArray)
-            append!(x0, vec(s))   
+            append!(x0, vec(s))
+            append!(x_nominal, vec(var.nominal === nothing ? fill(1.0, var.size) : var.nominal))
             # @show name, vec(s)            
             append!(diffstates, fill(is_diffstate, length(s)))
         else
             push!(x0, s)
+            push!(x_nominal, var.nominal === nothing ? 1.0 : var.nominal)
             # push!(x0, ustrip(s))
             # @show name, s  
             push!(diffstates, is_diffstate)
         end
     end
     # @show x0 size(x0)
+    # @show x_nominal
     # @show diffstates
     #=
     println("State vector allocation:")
