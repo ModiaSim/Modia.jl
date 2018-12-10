@@ -553,7 +553,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     end
 
     der_x0 = zeros(size(x0)) # todo: allow other initial guesses for der_x?
-    (F, eliminated_f, x0, der_x0, diffstates, params, states, state_sizes, state_offsets, eliminated_Ts)
+    (F, eliminated_f, x0, der_x0, x_nominal, diffstates, params, states, state_sizes, state_offsets, eliminated_Ts)
 end
 
 # Temporary until we can store it in SimulationModel
@@ -602,7 +602,7 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
     initial_bindings[simulationModel_symbol] = initial_m
     
     prep = prepare_ida(instance, [simulationModel_symbol], initial_bindings, store_eliminated=storeEliminated, need_eliminated_f=storeEliminated)
-    F, eliminated_f, x0, der_x0, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
+    F, eliminated_f, x0, der_x0, x_nominal, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
     
     eliminated_results = Vector[Vector{T}() for T in values(eliminated)]
     # temporary until we can store it in simulationModel
@@ -645,9 +645,9 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
         if false
             m = ModiaSimulationModel(model_name_of(instance), F, x0, der_x0, jac;
                         xw_states=diffstates, maxSparsity=maxSparsity, nc=1, hev=hev, nz=initial_m.nz_preInitial,
-                        xNames=xNames)
+                        xNames=xNames, x_nominal=x_nominal)
         else
-            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0, getVariableName;
+            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0, getVariableName; x_nominal=x_nominal,
                         maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, hev=hev, jac=jac, x_fixed=diffstates)
         end 
 
