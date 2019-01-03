@@ -6,6 +6,12 @@ println("\nTestCauerLowPassFilter: Demonstrating the ability to simulate an elec
 using Modia
 using Modia.Electric
 
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that ModiaMath need not to be defined in the user environment, it is included via Modia:
+using Modia.ModiaMath: plot
+
 
 @model CauerLowPassOPV begin
   # Cauer low pass filter with operational amplifiers
@@ -140,9 +146,7 @@ using Modia.Electric
   end
 end
 
-#=
-res = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188)
-=#
+result = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188, logTranslation=false, removeSingularities=false, logTiming=true)
 
 @model CauerLowPassOPVWithoutNodes begin
   # Cauer low pass filter with operational amplifiers
@@ -237,8 +241,11 @@ res = checkSimulation(CauerLowPassOPV, 60, "C9.v", -0.5003139583081188)
   connect(V.n, R1.p)  
   end
 end
-
-res = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188, useKinsol=true, removeSingularities = false)
-
+#=
+result = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188)
+plot(result, ("C9.v"), figure=20)
+result = checkSimulation(CauerLowPassOPVWithoutNodes, 60, "C9.v", -0.5003139583081188, tearing=true)
+plot(result, ("C9.v"), figure=20)
+=#
 
 end

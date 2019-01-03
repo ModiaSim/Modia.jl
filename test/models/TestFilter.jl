@@ -2,10 +2,15 @@ module TestFilter
 
 println("TestFilter: Tests various features of the symbolic handling.")
 
-using ModiaMath.plot
-
 using Modia
 using Modia.Electric
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
+
 
 @model LPfilter begin
     R = Resistor(R=100.0)
@@ -26,7 +31,7 @@ checkSimulation(LPfilter, 2, "C.v", 9.996843043981416, logTranslation=true, logS
 simulate(LPfilter, 2, aliasElimination=true)
 checkSimulation(LPfilter, 2, "C.v", 9.996843043981416, aliasElimination=true, logName="LPfilter aliasElimination")
 checkSimulation(LPfilter, 2, "C.v", 9.996843043981416, aliasElimination=true, removeSingularities=true, logName="LPfilter aliasElimination removeSingularities")
-simulateModel(LPfilter, linspace(0.0, 2.0, 1000), aliasElimination=true, removeSingularities=true, logName="LPfilter aliasElimination removeSingularities")
+simulate(LPfilter, 2.0, aliasElimination=true, removeSingularities=true, logName="LPfilter aliasElimination removeSingularities")
 #checkSimulation(LPfilter, 2, "C.v", 9.996843043981416, aliasElimination=true, removeSingularities=true, expandArrayIncidence=true, logName="LPfilter aliasElimination removeSingularities expandArrayIncidence")
 #checkSimulation(LPfilter, 2, "C.v", 9.996843043981416, aliasElimination=true, removeSingularities=true, expandArrayIncidence=true, useIncidenceMatrix=true, logName="LPfilter aliasElimination removeSingularities expandArrayIncidence useIncidenceMatrix")
 #checkSimulation(LPfilter, 2, "C.v", 9.996843043981416, newStateSelection=true)
@@ -48,7 +53,7 @@ checkSimulation(LPfilterWithoutGround, 2, "C.v", 9.996843043981416, removeSingul
 
 @model LPfilterWithoutGround1 begin
     R = Resistor(R=100.0Ohm) # , n=Pin(v=Float(start=0.0)))
-    C = Capacitor(C=2.5  Milli * Farad, v=Voltage(start=0.0Volt))
+    C = Capacitor(C=2.5Milli * Farad, v=Voltage(start=0.0Volt))
     V = ConstantVoltage(V=10.0Volt)
     @equations begin
         connect(V.p, R.p)

@@ -21,7 +21,7 @@ using Base.Meta: quot, isexpr
 using DataStructures
 using Unitful
 @static if !(VERSION < v"0.7.0-DEV.2005")
-    using LinearAlgebra
+    import LinearAlgebra
 end
 @static if VERSION < v"0.7.0-DEV.2005"
     notFound = 0
@@ -643,10 +643,10 @@ function differentiate(e)
                 diff = Expr(:call, op, diffarg)  
             end
             # @show diff
-        elseif op in [:zeros, zeros, :eye, eye]
+        elseif (VERSION < v"0.7.0-DEV.2005" && op in [:zeros, zeros, :eye, eye] ) ||
+              ( ! (VERSION < v"0.7.0-DEV.2005") && op in [:zeros, zeros, :eye, LinearAlgebra.I, :identity, identity] )
             diff = zero # !!!!
             # diff = Expr(:call, *, e, zero)  # = e*zero
-            # diff = zero
         elseif op in [+, :+, -, :-]
             # der(e1 + e2 + e3) = der(e1) + der(e2) + der(e3)
             # der(e1 - e2 - e3) = der(e1) - der(e2) - der(e3)
@@ -798,19 +798,30 @@ function differentiate(e)
             end
             
             for i in 1:length(arguments)
-                if length(arguments) == 1
-                    f_der = Symbol(string(op, "_der"))
-                else 
-                    f_der = Symbol(string(op, "_der_", i))
-                end
-            
-                f_der_i = Expr(:call, f_der)
-                for a in arguments
-                    push!(f_der_i.args, a)
-                end
-            
-                term = mult(f_der_i, differentiate(arguments[i])) 
-                if term != zero
+                arg_der = differentiate(arguments[i])
+                if arg_der != zero
+                    path = split(string(op), ".")
+                    if length(path) >= 2
+                        mod = path[end-1]
+                    else 
+                        mod = ""
+                    end
+                    func = path[end]
+                    f_der = Symbol(string(func * "_der_", i))
+                    
+                    if mod == ""
+                        println("Derivative function ", string(f_der), " not found.")
+                    elseif ! (f_der in names(getfield(Main, Symbol(mod))))
+                        error("Derivative function ", string(f_der), " not found.")
+                    else
+                        f_der = getfield(getfield(Main, Symbol(mod)), f_der)
+                    end
+                    f_der_i = Expr(:call, f_der)
+                    for a in arguments
+                        push!(f_der_i.args, a)
+                    end
+                
+                    term = mult(f_der_i, arg_der) 
                     push!(diff.args, term)      
                 end
             end       

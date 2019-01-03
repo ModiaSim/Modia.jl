@@ -4,19 +4,25 @@ println("\nLinearSystems: Demonstrates type and size deduction.")
 
 using Modia
 using Modia.Blocks: ABCD, Switch
-using ModiaMath.plot
+
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that ModiaMath need not to be defined in the user environment, it is included via Modia:
+using Modia.ModiaMath: plot
 
 
 @model MySISOABCD begin
-  @extends ABCD(x=Float(start=[0.0; 0.0]), A=[-1 -2; 0.5 -2], B=[1; 1], C=[1 1], u=1.0)
+  @extends ABCD(x=Float(start=[0.0; 0.0]), A=[-1 -2; 0.5 -2], B=[1; 1], C=[1 1], D=[0], u=1.0)
   @inherits u
 @equations begin
   # u = 1.0 # Does not work since size deduction finds the wrong "solution" which is not consistent (inv finds minimum norm solution).
   end
 end
 
-result = checkSimulation(MySISOABCD, 10, "x", 0.5000001198147023)
-plot(result, "x", heading="MySISOABCD", figure=13)
+result = checkSimulation(MySISOABCD, 10, "x", 0.5000001198147023, logTranslation=true) #logOnFile = true)
+# plot(result, "x", heading="MySISOABCD", figure=13)
 
 @model MyMIMOABCD begin
   s=Switch(u1=[1; 1], u2=[2; 3])

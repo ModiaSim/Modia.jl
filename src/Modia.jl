@@ -1,12 +1,12 @@
 #=
 Modia main module.
 
-* Developers: Hilding Elmqvist, Mogram AB, Toivo Henningsson, Lund and Martin Otter, DLR 
+* Developers: Hilding Elmqvist, Mogram AB, Toivo Henningsson, Lund and Martin Otter, DLR
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 =#
 
-
+ 
 #import ModiaMath
 
 """
@@ -45,8 +45,8 @@ For more information, see (https://github.com/ModiaSim/Modia.jl/blob/master/READ
 """
 module Modia
 
-const Version = "0.2.0-beta.5"
-const Date = "2018-08-13"
+const Version = "0.2.3-beta.5"
+const Date = "2018-12-07"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -83,6 +83,31 @@ export skew, skewCoords
 export allInstances
 export @component, addComponent!
 
+# Import packages that are used in examples and tests
+# (in order that there are no requirements on the environment
+#  in which the examples and tests are executed).
+import DataStructures
+import ModiaMath
+import StaticArrays
+import Unitful
+
+@static if VERSION >= v"0.7.0-DEV.2005"
+    import LinearAlgebra
+    import Markdown
+    import SparseArrays
+    import Test
+end
+
+
+
+# Make string macro U_str available by "using Modia"
+include("language/Unitful_U_str.jl")
+using  .Unitful_U_str
+export @U_str
+
+
+
+# Include all sub-modules of Modia
 include("language/ModiaLogging.jl")
 include("language/Instantiation.jl")
 include("language/Execution.jl")
@@ -94,6 +119,7 @@ using .Instantiation
 
 include("models/ModiaBase.jl")
 include("models/models.jl")  # Before symbolic because MultiBody is used in BasicStructuralTransform
+
 
 
 end

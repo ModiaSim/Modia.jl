@@ -1,8 +1,13 @@
 # Modia.jl
 
+[![Travis](https://travis-ci.org/ModiaSim/Modia.jl.svg?branch=master)](https://travis-ci.org/ModiaSim/Modia.jl)
+[![AppVoyer](https://ci.appveyor.com/api/projects/status/github/ModiaSim/Modia.jl?svg=true)](https://ci.appveyor.com/project/MartinOtter/modia-jl)
+[![codecov.io](http://codecov.io/github/ModiaSim/Modia.jl/coverage.svg?branch=master)](http://codecov.io/github/ModiaSim/Modia.jl?branch=master)
+[![The MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/ModiaSim/Modia.jl/blob/master/LICENSE)
+
 ## Introduction
 
-[Modia](https://modiasim.github.io/) is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**. 
+[Modia](https://modiasim.github.io/) is a domain specific extension of [Julia](http://julialang.org/ "Julia") for **modeling and simulation of physical systems**.
 
 Papers and presentations about Modia:
 
@@ -17,11 +22,25 @@ Component models are defined by `@model` macros. Such models contain definition 
 
 ## Installation
 
-**Modia currently only runs with Julia version 0.6.x.**
+**Modia** is registered in METADATA.jl and can be installed with Pkg.add:
 
 ```julia
+# Julia 0.6:
 julia> Pkg.add("Modia")
+
+# Julia 0.7 and 1.0:
+julia> ]add Modia
 ```
+
+Modia uses [PyPlot](https://github.com/JuliaPy/PyPlot.jl) for plotting.
+If `PyPlot` is not available in your current Julia environment
+an information message is printed and all `plot(..)` calls are ignored.
+
+In order that plot windows are displayed, you need to add `PyPlot` to your current environment
+via `]add PyPlot`. Often this automatic installation fails and it is recommended to follow
+the instructions
+[Installing PyPlot in a robust way](https://github.com/ModiaSim/ModiaMath.jl/wiki/Installing-PyPlot-in-a-robust-way).
+
 
 ## Use
 
@@ -47,6 +66,9 @@ julia> Pkg.add("Modia")
 ```
 
 ## Examples
+
+The schematics below are screenshots of [Modelica models](https://www.modelica.org/). These models have been converted to Modia and the examples below execute these models. Note, in Modia there is not (yet) a graphical definition of models.
+
 ### Current Controller
 ![Current Controller](https://github.com/ModiaSim/Modia.jl/blob/master/docs/CurrentController.png "Multi-domain model: Current Controller")
 
@@ -60,11 +82,13 @@ julia> Pkg.add("Modia")
 
 ### To run examples:
 ```julia
+  using Modia
   include("$(Modia.ModiaDir)/examples/runexamples.jl")
 ```
 
 ### To run tests:
 ```julia
+  using Modia
   include("$(Modia.ModiaDir)/test/runtests.jl")
 ```
 
@@ -97,7 +121,7 @@ The version released now is partial since certain prototype functionalities need
 
 - Alias handling
 - Handle overdetermined equations
-- Introduction of partial and block attribute to models 
+- Introduction of partial and block attribute to models
 - Automatic state selection
 - Arrays of components
 - Complex data type

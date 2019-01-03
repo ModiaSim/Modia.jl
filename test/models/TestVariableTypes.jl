@@ -1,21 +1,32 @@
 module TestVariableTypes
 
-println("\nTestVariableTypes: Demonstrating the handling various variable types")
+println("\nTestVariableTypes: Demonstrating the handling of various variable types")
+
+# Desired:
+#   using Test
+#   using LinearAlgebray
+#   using ModiaMath.plot
+#   using StaticArrays
+#   using Unitful
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia
 
 @static if VERSION < v"0.7.0-DEV.2005"
     using Base.Test
+    identity(m,n) = eye(m,n)
 else
-    using Test
+    using Modia.Test
+    using Modia.LinearAlgebra
+    identity(m, n) = Matrix{Float64}(I, m, n)
 end
 
-using Modia
-#using ModiaMath
-using ModiaMath.plot
-#using FixedSizeArrays
-using StaticArrays
-using Unitful
-using Unitful.DefaultSymbols
-import Unitful:
+using  Modia.ModiaMath: plot
+
+using  Modia.StaticArrays
+using  Modia.Unitful
+using  Modia.Unitful.DefaultSymbols
+import Modia.Unitful:
     nm, μm, mm, cm, m, km, inch, ft, mi,
     ac,
     mg, g, kg, A,
@@ -50,6 +61,7 @@ const Vec3 = SVector{3,Float64}
 
     @model TestVariableTypes1 begin
         f = Float()
+        x = Float(start=3.0E10, nominal=20.0E10)
         b = Boolean()
         i = Integ()
         s = Str()
@@ -60,13 +72,14 @@ const Vec3 = SVector{3,Float64}
         # c2 = Var(start=Complex(2.0, 3.0))  # InexactError
         @equations begin
             f = 1
+            der(x) = -x
             b = true
             i = 1
             s = "asdf"
             c = Complex(2.0, 3.0)
             re = real(c)
             im = imag(c)
-            der(c1) = Complex(1.0, 0.0)
+            der(c1) = Complex(1.0, 0.0) # nominal no supported
             # der(c2) = Complex(1.5, 2.5)  # InexactError # Allocation of Complex in state vector not supported yet.
         end
     end 
@@ -85,7 +98,7 @@ const Vec3 = SVector{3,Float64}
     # ----------------------
 
     @model TestArrays1 begin
-        f = Float(start=[1,2,3])
+        f = Float(start=[1,2,3], nominal=[1,2,3])
         b = Boolean()
         i = Integ()
         s = Str()
@@ -127,13 +140,13 @@ const Vec3 = SVector{3,Float64}
         v2 = Variable(T=Vec3, start=ones(3), min=3)
         v3 = Variable(T=Vec3)
 
-        v4 = Float3(min=3)
+        v4 = Float3(min=3, nominal=[1,2,3])
         v5 = Var()
         v6 = Voltage(start=0.0)
         @equations begin
             scalar = 1
             vector = [1.0, 2.0, 3.0]
-            matrix = eye(3, 3)
+            matrix = identity(3, 3)
             anyVector = [1,2,3]
             v1 = ones(3)
             v2 = ones(3)
@@ -170,7 +183,7 @@ const Vec3 = SVector{3,Float64}
             # Unitful
             v3 = 1u"kg" + 2u"g" + 10 * sin(2 * time) * u"hg"  
             #  der(v3) = 1.0u"kg/s"  # Differential equations with units are not handled yet
-            v4 = 3  u"kg" * 0.5u"m/s^2" + time * u"N"
+            v4 = 3u"kg" * 0.5u"m/s^2" + time * u"N"
             a = F / m
         end
     end 

@@ -25,18 +25,21 @@ function setOptions(options)
     if haskey(options, :logTranslation)
         global logTranslation = options[:logTranslation]
         @show logTranslation
+        delete!(options, :logTranslation)
     end
 
     global logOnFile = true
     if haskey(options, :logOnFile)
         global logOnFile = options[:logOnFile]
         @show logOnFile
+        delete!(options, :logOnFile)
     end
   
     global logName = defaultLogName
     if haskey(options, :logName)
         global logName = options[:logName]
         @show logName
+        delete!(options, :logName)
     end
 end
 
@@ -50,7 +53,7 @@ function openLogModia()
 
         logFileName = homedir() * "/" * "ModiaResults/" * logName * ".txt"
         global logFileModia = open(logFileName, "w")
-        println("Log file: ", homedir(), "/", logFileName)
+        println("Log file: ", logFileName)
     else
         global logFileModia = defaultOutput
     end

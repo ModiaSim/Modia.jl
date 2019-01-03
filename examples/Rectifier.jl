@@ -4,7 +4,13 @@ println("\nRectifier: Demonstrating the ability to simulate models with state ev
 
 using Modia
 using Modia.Electric
-using ModiaMath.plot
+
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that ModiaMath need not to be defined in the user environment, it is included via Modia:
+using Modia.ModiaMath: plot
+
 
 @model Rectifier begin
   R=Resistor(R=1)
@@ -22,7 +28,7 @@ using ModiaMath.plot
   end
 end 
 
-result = checkSimulation(Rectifier, 2, "C.v", 0.4773911315322196)
+result = checkSimulation(Rectifier, 2, "C.v", 0.4773911315322196, logTranslation=true)
 
 plot(result, ("C.v", "V.v"), heading="Rectifier", figure=12)
 

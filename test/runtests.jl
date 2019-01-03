@@ -1,9 +1,14 @@
 
+# Desired:
+#   using Test
+#
+# In order that Test need not to be defined in the user environment, it is included via Modia:
+import Modia
 
 @static if VERSION < v"0.7.0-DEV.2005"
     using Base.Test
 else
-    using Test
+    using Modia.Test
 end
 
 @testset "RunTests" begin

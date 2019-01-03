@@ -9,6 +9,8 @@ Module for structural analysis of models.
 """
 module BasicStructuralTransform
 
+include("../Tearing.jl")
+
 using ..BLTandPantelides
 using ..BLTandPantelidesUtilities
 using ..Utilities
@@ -38,7 +40,9 @@ using ..StateSelection
 import ModiaMath
 using ..ModiaLogging
 
+#= Temporarily removed due to problem with PyPlot
 using PyPlot
+=#
 #using ModiaMath.plot
 
 export residue, hide, skew, skewCoords, residue_der
@@ -54,6 +58,7 @@ global useIncidenceMatrix = false
 global expandArrayIncidence = false
 removeSingularitiesDefault = true
 global removeSingularities = removeSingularitiesDefault
+global tearing = false
 const consistencyCheck = true
 global newStateSelection = false
 global logFDAE = false
@@ -80,36 +85,49 @@ function setOptions(options)
     if haskey(options, :removeSingularities)
         global removeSingularities = options[:removeSingularities]
         @show removeSingularities
+        delete!(options, :removeSingularities)
+    end
+
+    global tearing = false
+    if haskey(options, :tearing)
+        global tearing = options[:tearing]
+        @show tearing
+        delete!(options, :tearing)
     end
 
     global expandArrayIncidence = false
     if haskey(options, :expandArrayIncidence)
         global expandArrayIncidence = options[:expandArrayIncidence]
         @show expandArrayIncidence
+        delete!(options, :expandArrayIncidence)
     end
     
     global useIncidenceMatrix = false
     if haskey(options, :useIncidenceMatrix)
         global useIncidenceMatrix = options[:useIncidenceMatrix]
         @show useIncidenceMatrix
+        delete!(options, :useIncidenceMatrix)
     end
     
     global newStateSelection = false
     if haskey(options, :newStateSelection)
         global newStateSelection = options[:newStateSelection]
         @show newStateSelection
+        delete!(options, :newStateSelection)
     end
     
     global useKinsol = false
     if haskey(options, :useKinsol)
         global useKinsol = options[:useKinsol]
         @show useKinsol
+        delete!(options, :useKinsol)
     end
     
     global logStatistics = true
     if haskey(options, :logStatistics)
         global logStatistics = options[:logStatistics]
-#    @show logStatistics
+        @show logStatistics
+        delete!(options, :logStatistics)
     end
 end
 
@@ -391,7 +409,7 @@ function testGetCoefficients()
 end
 
 
-@enum D undef = 1 F T
+@enum D undefined = 1 F T
 
 mutable struct Status
     statusV::OrderedDict{Int64,D} 
@@ -439,6 +457,159 @@ function substituteShift(ex::Expr)
     end
 end
 
+# ------------------------------------------------
+
+function handleSingularities(coefficients, notLinearVariables, unknowns_indices, names, states, statesIndices, nonStateVariables, equations, orgEquIndex, Avar, G, ESizes, logTiming)
+    loglnModia("\nREMOVE SINGULARITIES")
+    if log
+        @show coefficients notLinearVariables names states
+    end
+    linearVars = []
+    for eCoeff in coefficients
+        for v in keys(eCoeff)
+            push!(linearVars, v)
+        end
+    end
+    linearVars = unique(linearVars)
+    if log
+        printSymbolList("\nLinear variables", linearVars, true)
+    end
+    linearVarsStrings = [string(v) for v in linearVars]
+
+    linearCoefficientMatrix = spzeros(Int64, length(coefficients), length(linearVars))
+    for i in 1:length(coefficients)
+        eCoeff = coefficients[i]
+        for v in keys(eCoeff)
+            j = findfirst(isequal(v), linearVars)
+            linearCoefficientMatrix[i, j] = eCoeff[v]
+        end
+    end
+
+    if log
+        fullLinearCoefficientMatrix = Array(linearCoefficientMatrix)
+        printobj("fullLinearCoefficientMatrix", fullLinearCoefficientMatrix)
+    end
+    ix = fill(0, 0)
+    for i in 1:length(Avar)
+        if Avar[i] != 0
+            j = findfirst(isequal(names[i]), linearVars)
+            if j != notFound 
+                push!(ix, j)
+            end
+        end
+    end
+
+    notLinearVariables = [i for i in notLinearVariables if i <= length(linearVars)]
+    notLinearVariableNames = names[notLinearVariables]
+    if log
+        @show notLinearVariableNames
+    end
+    
+    # Build iy, don't include derivatives or potential states
+    iy = [i for i in 1:length(linearVars)]
+    for v in notLinearVariableNames
+        if v in linearVars
+            j = findfirst(isequal(v), linearVars)
+            iy = setdiff(iy, j)
+        end
+    end
+    iy = setdiff(iy, ix)
+    
+    if log
+        @show linearCoefficientMatrix ix iy
+    end
+    if logTiming
+        print("Remove singularities:  ")
+        @time result = ExactlyRemoveSingularities.removeSingularities(linearCoefficientMatrix, ix, iy)
+    else
+        result = ExactlyRemoveSingularities.removeSingularities(linearCoefficientMatrix, ix, iy)
+    end      
+
+    (iya, eqr, ix1, ix2, eqx, A1, A2) = result
+
+    if log 
+        @show iya eqr ix1 ix2 eqx A1 A2
+        printRemoveSingularities(linearCoefficientMatrix, result, linearVarsStrings)   
+    end
+
+    # Remove redundant equations and constraint equations
+    newEquations = []
+    newG = Array{Int,1}[]
+    newESizes = []
+    eqrOrg = orgEquIndex[eqr]
+    eqxOrg = orgEquIndex[eqx]
+
+    equationsUpdated = false
+    for i in 1:length(equations)
+        e = equations[i]
+        g = G[i]
+        if !(i in eqrOrg) & !(i in eqxOrg)
+            push!(newEquations, e)
+            push!(newG, g)
+            push!(newESizes, ESizes[i])
+        else 
+            loglnModia("Removed equation: ", prettyPrint(e))
+            equationsUpdated = true
+        end
+    end    
+
+    # Add additional equation to set undefined variables 
+    for i in iya
+        eq = :($(GetField(This(), Symbol(linearVarsStrings[i]))) = 0)
+        loglnModia("Added equation: ", prettyPrint(eq))   
+        equationsUpdated = true
+        push!(newEquations, eq)
+        push!(newG, [findfirst(isequal(linearVars[i]), names)])
+        push!(newESizes, size(0))
+    end
+
+    # Add new constraint equations
+    for i in 1:size(A1, 1)
+        e1 = zero
+        e2 = zero
+        g = []
+    
+        for j in 1:size(A1, 2)
+            e1 = add(e1, mult(A1[i,j], GetField(This(), Symbol(linearVarsStrings[ix1[j]]))))
+            push!(g, findfirst(isequal(linearVars[ix1[j]]), names))
+            push!(nonStateVariables, linearVars[ix1[j]])
+            printSymbolList("\nNon state variables", nonStateVariables)
+
+            statesIndices = []
+            for k in 1:length(states)
+                if !(states[k] in nonStateVariables)
+                    push!(statesIndices, [unknowns_indices[states[k].name]])
+                end
+            end 
+        end
+    
+        for j in 1:size(A2, 2)
+            e2 = add(e2, mult(A2[i,j], GetField(This(), Symbol(linearVarsStrings[ix2[j]]))))
+            push!(g, findfirst(isequal(linearVars[ix2[j]]), names))
+        end
+    
+        eq = :($e1 + $e2 = 0.0)
+        loglnModia("Added equation: ", prettyPrint(eq))   
+        push!(newEquations, eq)
+        push!(newG, g)
+        push!(newESizes, size(0)) ### Should be generalized
+        equationsUpdated = true
+    end
+
+    equations = newEquations
+    # G::Array{Array{Int,1},1} = newG
+    G = newG
+    ESizes = newESizes
+
+    if equationsUpdated
+        loglnModia("\nUpdated equations")
+        for e in equations
+            loglnModia(prettyPrint(e))
+        end
+    end
+    return equations, G, ESizes, nonStateVariables
+end  
+
 
 # ---------------------------
 
@@ -449,7 +620,7 @@ const tSizes = Array{Tuple{Int64,Vararg{Int64,N} where N},1}
 function analyzeStructurally(equations, params, unknowns_indices, deriv, unknownsNames, Avar, statesIndices, states, nonStateVariables, n, realStates, findIncidence!, VSizes, VTypes, ESizes, ETypes, unknowns, partial)
   # Build incidence structure as bipartite graph.
     neq = 0
-    G = Array{Any}(0)
+    G = [] # Array{Any}(undef, 0)
     coefficients = []
     notLinearVariables = []
     orgEquIndex = []
@@ -489,8 +660,13 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
             # Find linear equations with integer coefficients without offset.    
             coeff = Dict() 
             nonLinear = getCoefficients!(coeff, eq)
-            
-            if !nonLinear && intersect(keys(coeff), keys(params)) == [] && !(1 in keys(coeff))
+           
+            @static if VERSION < v"0.7.0-DEV.2005"
+                emptySet = []
+            else
+                emptySet = Set(Any[])
+            end
+            if !nonLinear && (intersect(keys(coeff), keys(params)) == emptySet) && !(1 in keys(coeff))
                 push!(coefficients, copy(coeff))
                 push!(orgEquIndex, neq)
             else
@@ -502,151 +678,9 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     end    
 
     names = createNames(unknownsNames, Avar)  
-
-    # ------------------------------------------------
     
-    function handleSingularities()
-        loglnModia("\nREMOVE SINGULARITIES")
-        linearVars = []
-
-        for eCoeff in coefficients
-            for v in keys(eCoeff)
-                push!(linearVars, v)
-            end
-        end
-        linearVars = unique(linearVars)
-        # printSymbolList("\nLinear variables", linearVars, true)
-        linearVarsStrings = [string(v) for v in linearVars]
-    
-        linearCoefficientMatrix = spzeros(Int64, length(coefficients), length(linearVars))
-        for i in 1:length(coefficients)
-            eCoeff = coefficients[i]
-            for v in keys(eCoeff)
-                j = findfirst(isequal(v), linearVars)
-                linearCoefficientMatrix[i, j] = eCoeff[v]
-            end
-        end
-
-        # fullLinearCoefficientMatrix = full(linearCoefficientMatrix)
-
-        # printobj("fullLinearCoefficientMatrix", fullLinearCoefficientMatrix)
-    
-        ix = fill(0, 0)
-        for i in 1:length(Avar)
-            if Avar[i] != 0
-                j = findfirst(isequal(names[i]), linearVars)
-                if j != notFound 
-                    push!(ix, j)
-                end
-            end
-        end
-
-        notLinearVariables = [i for i in notLinearVariables if i <= length(linearVars)]
-        notLinearVariableNames = names[notLinearVariables]
-
-        # Build iy, don't include derivatives or potential states
-        iy = [i for i in 1:length(linearVars)]
-        for v in notLinearVariableNames
-            if v in linearVars
-                j = findfirst(isequal(v), linearVars)
-                iy = setdiff(iy, j)
-            end
-        end
-        iy = setdiff(iy, ix)
-   
-        if logTiming
-            print("Remove singularities:  ")
-            @time result = ExactlyRemoveSingularities.removeSingularities(linearCoefficientMatrix, ix, iy)
-        else
-            result = ExactlyRemoveSingularities.removeSingularities(linearCoefficientMatrix, ix, iy)
-        end      
-
-        (iya, eqr, ix1, ix2, eqx, A1, A2) = result
-
-        if log 
-            printRemoveSingularities(linearCoefficientMatrix, result, linearVarsStrings)   
-        end
-    
-        # Remove redundant equations and constraint equations
-        newEquations = []
-        newG = Array{Int,1}[]
-        newESizes = []
-        eqrOrg = orgEquIndex[eqr]
-        eqxOrg = orgEquIndex[eqx]
-
-        equationsUpdated = false
-        for i in 1:length(equations)
-            e = equations[i]
-            g = G[i]
-            if !(i in eqrOrg) & !(i in eqxOrg)
-                push!(newEquations, e)
-                push!(newG, g)
-                push!(newESizes, ESizes[i])
-            else 
-                loglnModia("Removed equation: ", prettyPrint(e))
-                equationsUpdated = true
-            end
-        end    
-    
-        # Add additional equation to set undefined variables 
-        for i in iya
-            eq = :($(GetField(This(), linearVarsStrings[i])) = 0)
-            loglnModia("Added equation: ", prettyPrint(eq))   
-            equationsUpdated = true
-            push!(newEquations, eq)
-            push!(newG, [findfirst(isequal(linearVars[i]), names)])
-            push!(newESizes, size(0))
-        end
-    
-        # Add new constraint equations
-        for i in 1:size(A1, 1)
-            e1 = zero
-            e2 = zero
-            g = []
-        
-            for j in 1:size(A1, 2)
-                e1 = add(e1, mult(A1[i,j], GetField(This(), linearVarsStrings[ix1[j]])))
-                push!(g, findfirst(isequal(linearVars[ix1[j]]), names))
-                push!(nonStateVariables, linearVars[ix1[j]])
-                printSymbolList("\nNon state variables", nonStateVariables)
-    
-                statesIndices = []
-                for k in 1:length(states)
-                    if !(states[k] in nonStateVariables)
-                        push!(statesIndices, [unknowns_indices[states[k].name]])
-                    end
-                end 
-            end
-        
-            for j in 1:size(A2, 2)
-                e2 = add(e2, mult(A2[i,j], GetField(This(), linearVarsStrings[ix2[j]])))
-                push!(g, findfirst(isequal(linearVars[ix2[j]]), names))
-            end
-        
-            eq = :($e1 + $e2 = 0.0)
-            loglnModia("Added equation: ", prettyPrint(eq))   
-            push!(newEquations, eq)
-            push!(newG, g)
-            push!(newESizes, size(0)) ### Should be generalized
-            equationsUpdated = true
-        end
-  
-        equations = newEquations
-        # G::Array{Array{Int,1},1} = newG
-        G = newG
-        ESizes = newESizes
-    
-        if equationsUpdated
-            loglnModia("\nUpdated equations")
-            for e in equations
-                loglnModia(prettyPrint(e))
-            end
-        end
-    end  
-
-
     if removeSingularities
-        handleSingularities()
+        (equations, G, ESizes, nonStateVariables) = handleSingularities(coefficients, notLinearVariables, unknowns_indices, names, states, statesIndices, nonStateVariables, equations, orgEquIndex, Avar, G, ESizes, logTiming)
     end
 
     # ------------------------------------------------
@@ -926,7 +960,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     end
   
     vActive = fill(true, length(Avar))
-    vActive[statesIndices] = false
+    vActive[statesIndices] .= false
     if log
         println("\nNot active:")
         for i in 1:length(vActive)
@@ -974,6 +1008,19 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     
     unassignedNames = [] # unknownsNames[unAssignedVariables]
   
+    # Check number of variables
+    variableEquationDifference = length(IG) + length(realStates) - length(assignIG)
+    if variableEquationDifference != 0
+       error("\nThe number of equations and the number of unknowns/states does not match.",
+             "\n   Number of equations: ", length(IG),
+             "\n   Number of variables: ", length(assignIG),
+             "\n   Number of continuous states: ", length(realStates),
+             "\nNote: Number of equations - Number of variables + Number of continuous states must be zero.",
+             variableEquationDifference > 0 ?
+                 "\nIt might be that " * string(variableEquationDifference) * " states must be defined to be non-states" *
+                 "\n(note, Modia does not yet support automatic state selection)." : "")
+    end
+
     if logStatistics
         println("Number of equations: ", length(IG))
         println("Number of variables: ", length(assignIG))
@@ -1079,6 +1126,38 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
             @time componentsIG = BLT(IG, assignIG)
         else
             componentsIG = BLT(IG, assignIG)
+
+            if tearing
+                tornComponents = []
+                for c in componentsIG
+                    if length(c) == 1
+                        push!(tornComponents, c)
+                    else
+                        es = Array{Int64,1}(c)
+                        vs = invAssign[es]
+
+                        td = TraverseDAG(IG, length(assignIG))
+                        (eSolved, vSolved, eResidue, vTear) = tearEquations!(td, IG, es, vs)
+                        
+                        for e in eSolved
+                            push!(tornComponents, [e])
+                        end
+                        push!(tornComponents, eResidue)
+                          
+                        for i in 1:length(eSolved)
+                            assignIG[vSolved[i]] = eSolved[i]
+                        end
+                        for i in 1:length(eResidue)
+                            assignIG[vTear[i]] = eResidue[i]
+                        end
+
+                        (invAssign, unAssignedVariables) = invertAssign(assignIG, length(Bequ)) 
+                        
+                        loglnModia("Reduced system of equation size from $(length(c)) to $(length(eResidue))")
+                    end
+                end
+                componentsIG = tornComponents
+            end
         end
     end
   
@@ -1689,7 +1768,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         println("\nSimulate")
         t = linspace(0.0, 50, 1000)
         result = ModiaMath.ModiaToModiaMath.simulate(m, t; log=false, tolRel=1E-5)
-      
+        
+#= Temporarily removed due to problem with PyPlot
         # Plot results
         t = result["time"]
         # figure()
@@ -1709,6 +1789,14 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         # @show result vars leg
         # plot(result, Tuple(leg))
         #    (t_res,x_res,der_x_res) = ModiaMath.ModiaToModiaMath.getRawResult(m)
+=#
+        reuse=false
+        for v in keys(result)
+           if v != "time" && !(findfirst(isequal(v), "der") != notFound)
+               ModiaMath.plot(result, v, reuse=reuse)
+               reuse=true
+           end
+        end
     end
     # results = extract_results_ida(x_res, der_x_res, states, state_offsets, params)
     nothing

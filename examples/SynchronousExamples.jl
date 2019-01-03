@@ -4,11 +4,18 @@ println("\nSynchronousExamples: Demonstrating the ability to simulate models wit
 
 using Modia
 using Modia.Synchronous: sample, Clock, previous, hold
-using ModiaMath.plot
+
+# Desired:
+#   using ModiaMath: plot
+#   using Test
+#
+# In order that these packages need not to be defined in the user environment, they are included via Modia:
+using Modia.ModiaMath: plot
+
 @static if VERSION < v"0.7.0-DEV.2005"
-  using Base.Test
+    using Base.Test
 else
-  using Test
+    using Modia.Test
 end
 
 @testset "Synchronous" begin
@@ -101,7 +108,7 @@ end
 result = simulate(SpeedControlPI, 5.0, storeEliminated=false, logSimulation=false)
 plot(result, ("v", "fobs"), heading="SpeedControlPI", figure=16)
 @show result["v"][end]
-@test result["v"][end] == 100.2849917097788
+@test isapprox(result["v"][end], 100.2849917097788; atol=1e-8)
 
 @model ControlledMassBasic begin
   @extends MassWithSpringDamper(k=0) # k=100

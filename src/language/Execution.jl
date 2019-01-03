@@ -14,9 +14,14 @@ export setOptions
 
 using Base.Meta: quot, isexpr
 using DataStructures: OrderedDict
-@static if ! (VERSION < v"0.7.0-DEV.2005")
-  using LinearAlgebra
-  using SparseArrays
+
+@static if VERSION < v"0.7.0-DEV.2005"
+    evaluate(m, x) = eval(m, x)
+else
+    using LinearAlgebra
+    using SparseArrays
+    using Dates
+    evaluate(m, x) = Core.eval(m, x)
 end
 
 import ..Instantiation: Symbolic, Der, Instance, AbstractDict, VariableDict, Variable, Nothing, time_symbol, simulationModel_symbol, vars_of, check_start, GetField, This, time_global, simulationModel_global, eqs_of, get_start, get_dims, model_name_of, operator_table, prettyPrint
@@ -32,6 +37,9 @@ const logComputations = false # Insert logging of variable values in the code
 const callF = false
 const showJacobian = false
 
+const MODULES = Module[]
+
+
 global logTiming               # Show timing for each major task, simulate twice to see effect of compilation time.
 global storeEliminated
 global handleImpulses
@@ -41,18 +49,21 @@ function setOptions(options)
     if haskey(options, :storeEliminated)
         global storeEliminated = options[:storeEliminated]
         @show storeEliminated
+        delete!(options, :storeEliminated)
     end
 
     global handleImpulses = false
     if haskey(options, :handleImpulses)
         global handleImpulses = options[:handleImpulses]
         @show handleImpulses
+        delete!(options, :handleImpulses)
     end
 
     global logTiming = false
     if haskey(options, :logTiming)
         global logTiming = options[:logTiming]
         @show logTiming
+        delete!(options, :logTiming)
     end
 end
 
@@ -143,7 +154,11 @@ function code_eliminated_func(fname, unpack, eliminated_computations, vars, x::S
         
         if !isempty(dims);  T = Array{T,length(dims)};  end
 
-        push!(alloc_eliminated, :($res_name = $results[$(string(name))] = Vector{$(quot(T))}(0)))
+        @static if VERSION < v"0.7.0-DEV.2005"
+            push!(alloc_eliminated, :($res_name = $results[$(string(name))] = Vector{$(quot(T))}(0)))
+        else
+            push!(alloc_eliminated, :($res_name = $results[$(string(name))] = Vector{$(quot(T))}(undef, 0)))
+        end
         push!(push_eliminated,  :($(quot(push!))($res_name, $name)))
     end
     # @show eliminated_computations
@@ -153,8 +168,11 @@ function code_eliminated_func(fname, unpack, eliminated_computations, vars, x::S
         function $(fname)($results, $ts, $xs, $der_xs)
             $(alloc_eliminated...)
             for ($k, $time_symbol) in enumerate($ts)
-                $x = $(quot(vec))($xs[$k, :])
-                $der_x = $(quot(vec))($der_xs[$k, :])
+#                $x = $(quot(vec))($xs[$k, :])
+                # For 0.7:
+                $x = $xs[$k, :]
+#                $der_x = $(quot(vec))($der_xs[$k, :])
+                $der_x = $der_xs[$k, :]
                 $(unpack...)
                 $(eliminated_computations...)
                 $(push_eliminated...)
@@ -265,6 +283,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
             # ex = :($lhs_name::$T = $rhs)
             push!(computations, ex)
             if logComputations
+                push!(computations, :(if !$proceed[1]; @show typeof($lhs_name) end))
                 push!(computations, :(if !$proceed[1]; @show $lhs_name end))
             end
             push!(eliminated_computations, ex)
@@ -322,22 +341,26 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     for eq in eqs_of(instance);  find_diffstates!(d, eq);  end
 
     x0 = Float64[]
+    x_nominal = Float64[]
     diffstates = Bool[]
     for (name, var) in states
         is_diffstate = GetField(This(), name) in d
         s = get_start(var)
         if isa(s, AbstractArray)
-            append!(x0, vec(s))   
+            append!(x0, vec(s))
+            append!(x_nominal, vec(var.nominal === nothing ? fill(1.0, var.size) : var.nominal))
             # @show name, vec(s)            
             append!(diffstates, fill(is_diffstate, length(s)))
         else
             push!(x0, s)
+            push!(x_nominal, var.nominal === nothing ? 1.0 : var.nominal)
             # push!(x0, ustrip(s))
             # @show name, s  
             push!(diffstates, is_diffstate)
         end
     end
     # @show x0 size(x0)
+    # @show x_nominal
     # @show diffstates
     #=
     println("State vector allocation:")
@@ -380,7 +403,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     if logComputations
         push!(unpack, :(
           if !$proceed[1]; 
-            println("Press enter to continue, q to stop, p to proceed: "); l = readline(STDIN); if l != "" && l[1] == 'q'; error("quit") elseif l != "" && l[1] == 'p'; $proceed[1] = true end
+            println("Press enter to continue, q to stop, p to proceed: "); l = readline(stdin); if l != "" && l[1] == 'q'; error("quit") elseif l != "" && l[1] == 'p'; $proceed[1] = true end
         end))
         push!(unpack, :(if !$proceed[1]; println("\nUnpack:") end))
     end
@@ -399,10 +422,14 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
         end      
         i += prod(get_dims(var))        
         if logComputations
+            push!(unpack, :(if !$proceed[1]; @show typeof($name), typeof($der_name) end))        
             push!(unpack, :(if !$proceed[1]; @show $name, $der_name end))
         end
+
         push!(initials, :($name = $(quot(get_start(var)))))
-        # push!(initials, :(@show $name) )
+        if logComputations
+            push!(initials, :(@show typeof($name) $name) )
+        end
         # push!(initials, :($der_name = 0 * $(quot(get_start(var))) / SIUnits.Second) )
         push!(initials, :($der_name = 0 * $(quot(get_start(var))) ))
     end
@@ -500,7 +527,9 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     end
 
     # F = Eval(F_code)
-    F = eval(Module(), F_code)
+    push!(MODULES, Module())
+    index_Module_F = length(MODULES)
+    F = evaluate(MODULES[index_Module_F], F_code)
     #=
       if modeConditions != []
         F_Dict[modeConditions] = (F, initial_eliminated)
@@ -513,7 +542,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     if need_eliminated_f
         eliminated_code = code_eliminated_func(string("eliminated_", model_name_of(instance), "!"),
             unpack, eliminated_computations, vars, x, der_x)
-        eliminated_f = eval(Module(), eliminated_code)
+        eliminated_f = evaluate(MODULES[index_Module_F], eliminated_code)
     else
         eliminated_f = nothing
     end
@@ -524,7 +553,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     end
 
     der_x0 = zeros(size(x0)) # todo: allow other initial guesses for der_x?
-    (F, eliminated_f, x0, der_x0, diffstates, params, states, state_sizes, state_offsets, eliminated_Ts)
+    (F, eliminated_f, x0, der_x0, x_nominal, diffstates, params, states, state_sizes, state_offsets, eliminated_Ts)
 end
 
 # Temporary until we can store it in SimulationModel
@@ -560,21 +589,21 @@ end
 
 function simulate_ida(instance::Instance, t::Vector{Float64},
                       jac::Union{SparseMatrixCSC{Bool,Int},Nothing};# =nothing;
-                      log=false, relTol=1e-4, maxSparsity=0.1,
+                      log=false, relTol=1e-4, hev=1e-8, maxSparsity=0.1,
                       store_eliminated=storeEliminated)
 
     if PrintJSONsolved
         printJSONforSolvedEquations(instance)
     end
-
+    
     initial_bindings = Dict{Symbol,Any}(time_symbol => t[1])
     initial_m = ModiaSimulationModel()
 
     initial_bindings[simulationModel_symbol] = initial_m
-
+    
     prep = prepare_ida(instance, [simulationModel_symbol], initial_bindings, store_eliminated=storeEliminated, need_eliminated_f=storeEliminated)
-    F, eliminated_f, x0, der_x0, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
-
+    F, eliminated_f, x0, der_x0, x_nominal, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
+    
     eliminated_results = Vector[Vector{T}() for T in values(eliminated)]
     # temporary until we can store it in simulationModel
     global global_elim_results = eliminated_results
@@ -606,17 +635,20 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
         end
     end
     # @show xNames
+    getVariableName(model::Any, vcat::ModiaMath.DAE.VariableCategory, vindex::Int) = vcat == ModiaMath.DAE.Category_X ? xNames[vindex] :
+                                                                                    (vcat == ModiaMath.DAE.Category_W ? "w[" * string(vindex) * "]" :
+                                                                                                                        "der(" * xNames[vindex] * ")" )
 
     start = now()
     
     if length(x0) > 0    
         if false
             m = ModiaSimulationModel(model_name_of(instance), F, x0, der_x0, jac;
-                        xw_states=diffstates, maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial,
-                        xNames=xNames)
+                        xw_states=diffstates, maxSparsity=maxSparsity, nc=1, hev=hev, nz=initial_m.nz_preInitial,
+                        xNames=xNames, x_nominal=x_nominal)
         else
-            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0;
-                        maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, jac=jac, x_fixed=diffstates)
+            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0, getVariableName; x_nominal=x_nominal,
+                        maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, hev=hev, jac=jac, x_fixed=diffstates)
         end 
 
         if logTiming

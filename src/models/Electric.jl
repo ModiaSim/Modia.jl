@@ -1,14 +1,26 @@
 """
-Modia module with electric component models (inspired from Modelica Standard Library.
+Modia module with electric component models (inspired from Modelica Standard Library).
 
 * Developer: Hilding Elmqvist, Mogram AB  
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 
+The building blocks for electric components are:
+
+- `Pin` - The main connector representing an electrical node with variables `v` and `i`.
+- `OnePort` - Base model for an electric device with two `Pin`s with variables 
+    `v`, `i`, `p`, and `n`.
+
+The following functions define variables with appropriate units:
+
+- `Voltage()` - Electric potential
+- `Current()` - The main flow quantity
+- `Resistance()`
+- `Capacitance()`
+
 """
 module Electric
 
-#using ..Instantiation
 using ..Blocks
 using ..Synchronous: positive
 using Unitful
@@ -19,9 +31,13 @@ export Pin, Ground, OnePort, Resistor, Capacitor, Inductor,
   ConstantVoltage, StepVoltage, SignalVoltage, SineVoltage, IdealOpAmp3Pin, IdealDiode,
   Voltage, Current, Resistance, Capacitance
 
-Voltage(; args...) = Variable(;T=Unitful.V, size=(), start=0.0, args...)
-Current(; args...) = Variable(;T=Unitful.A, size=(), start=0.0, args...)
+"Electric potential, volts"
+Voltage(; args...) = Variable(;T=Unitful.V, size=(), start = 0.0, info = "Voltage", args...)
+"Electric current, amperes"
+Current(; args...) = Variable(;T=Unitful.A, size=(), start = 0.0, info = "Current", args...)
+"Electric resistance, ohms"
 Resistance(; args...) = Variable(;T=Unitful.Ω, size=(), args...)
+"Electric capacitance, farads"
 Capacitance(; args...) = Variable(;T=Unitful.F, size=(), args...)
   
 @model Pin1 begin
@@ -29,13 +45,15 @@ Capacitance(; args...) = Variable(;T=Unitful.F, size=(), args...)
     i = Float(flow=true)
 end 
 
+"An electric node for connections"
 @model Pin begin
-    v = Voltage()
-    i = Current(flow=true)
+    v = Voltage(info = "Potential of the pin")
+    i = Current(info = "Current into the pin", flow = true)
 end 
 
+"Grounded `Pin` with zero voltage"
 @model Ground begin
-    p = Pin()
+    p = Pin(info = "Grounded pin (zero volts)")
     @equations begin
         p.v = 0
     end
@@ -53,11 +71,12 @@ end
     end
 end 
 
+"Base model for an electric device with two `Pin`s"
 @model OnePort begin
-    v = Voltage()
-    i = Current()
-    p = Pin()
-    n = Pin()
+    v = Voltage(info = "Voltage between `p` and `n`")
+    i = Current(info = "Current from `p` to `n`")
+    p = Pin(info = "Positive pin")
+    n = Pin(info = "Negative pin")
     @equations begin
         v = p.v - n.v
         0 = p.i + n.i
@@ -65,12 +84,13 @@ end
     end
 end 
 
-@model Resistor begin # Ideal linear electrical resistor
+"Ideal linear electrical resistor"
+@model Resistor begin
+    R = Parameter(1.0, start = 1.0, info = "Resistance", T = Unitful.Ω)
     @extends OnePort()
     @inherits i, v
-    R = 1 # Parameter(start=1.0) # undefined # Resistance
     @equations begin
-        R * i = v
+        R*i = v
     end
 end
 
@@ -88,15 +108,13 @@ end
     end
 end 
 
-# Setting state=false for v does not work with extends.
+"Ideal linear electric capacitor"
 @model Capacitor begin
-    @extends OnePort(v=Float(start=0.0))
+    C = Parameter(1.0, start = 1.0, info = "Capacitance", T = Unitful.F)
+    @extends OnePort(v = Voltage(start = 0.0))   # Setting state=false for v does not work with extends.
     @inherits i, v
-    # C=Capacitance() # undefined
-    C = undefined
     @equations begin
-        C * der(v) = i
-        # der(v) = i/C
+        C*der(v) = i
     end
 end 
 
@@ -114,18 +132,19 @@ end
     end
 end 
 
+"Ideal linear electric inductor"
 @model Inductor begin
-    # Ideal linear electrical inductor
+    L = Parameter(1.0, start = 1.0, info = "Inductance", T = Unitful.H)
     @extends OnePort()
     @inherits i, v
-    L = Parameter()   # Inductance
     @equations begin 
         L * der(i) = v
     end
 end
 
+"Constant voltage source"
 @model ConstantVoltage begin
-    V = 1u"V"
+    V = Parameter(1.0, start = 1.0, info = "Voltage", T = Unitful.V)
     @extends OnePort()
     @inherits v
     @equations begin
@@ -133,10 +152,11 @@ end
     end
 end
 
+"Step voltage source"
 @model StepVoltage begin
-    V = 1u"V"
-    startTime = 0 * Seconds
-    t = Var(start=0.0)
+    V = Parameter(1.0, start = 1.0, info = "Voltage", T = Unitful.V)
+    startTime = Parameter(0.0, start = 0.0, info = "Start time", T = Unitful.s)
+    t = Var(start = 0.0)
     @extends OnePort()
     @inherits v
     @equations begin
@@ -145,8 +165,8 @@ end
     end
 end
 
+"Generic voltage source using the input signal as source voltage"
 @model SignalVoltage begin
-    # Generic voltage source using the input signal as source voltage
     p = Pin()
     n = Pin()
     v = Float()
@@ -159,7 +179,6 @@ end
 end 
 
 @model VoltageSource begin
-    # Interface for voltage sources
     @extends OnePort()
     @inherits v
     offset = 0 # Voltage offset
@@ -178,6 +197,9 @@ end
     @extends VoltageSource(signalSource=Sine(amplitude=V, freqHz=freqHz, phase=phase))
 end 
 
+"""
+Sinusoidal voltage source
+"""
 @model SineVoltage begin
     # Sine voltage source
     V = Parameter() # Amplitude of sine wave
@@ -190,9 +212,10 @@ end
     # @inherits offset, startTime
 end 
 
-
+"""
+Ideal operational amplifier (norator-nullator pair), but 3 pins
+"""
 @model IdealOpAmp3Pin begin
-    # Ideal operational amplifier (norator-nullator pair), but 3 pins
     in_p = Pin()
     in_n = Pin()
     out = Pin()
@@ -203,10 +226,13 @@ end
     end
 end
 
-@model IdealDiode begin # Ideal diode
+"""
+Ideal diode
+"""
+@model IdealDiode begin
     @extends OnePort()
     @inherits v, i
-    s = Float(start=0.0) # Auxiliary variable for actual position on the ideal diode characteristic
+    s = Float(start=0.0, info = "Auxiliary variable") # For position on the diode characteristic
     #=   
     s = 0: knee point
     s < 0: below knee point, diode conducting

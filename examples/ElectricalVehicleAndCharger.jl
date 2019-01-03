@@ -4,12 +4,18 @@ println("ElectricalVehicleAndCharger: Demonstrates the ability to change models 
 
 using Modia
 using Modia.Electric
-using ModiaMath.plot
+
+using Modia:@equation
+using Modia:addEquation!
+using Modia:deleteEquation!
 
 
-using Modia.@equation
-using Modia.addEquation!
-using Modia.deleteEquation!
+# Desired:
+#   using ModiaMath: plot
+#
+# In order that ModiaMath need not to be defined in the user environment, it is included via Modia:
+using Modia.ModiaMath: plot
+
 
 # -----------------------------------
 
@@ -76,14 +82,16 @@ Bv = 10.0
  # y = Var(size=())
 end
 
-now = 0
+global now = 0
 then = 1*hour
 
-result = simulate(ElectricalVehicleWithCharger, then)
+global result = simulate(ElectricalVehicleWithCharger, then)
 now = then
 Bv = result["ev.B.v"][end]
 
 for i in 1:5
+  global now
+  global result
   println("\nConnecting Electric Vehicle to Charger")   
   #addEquation!(ElectricalVehicleWithCharger, :(connect(ev.p, c.p)))
   #addEquation!(ElectricalVehicleWithCharger, :(connect(ev.n, c.n)))

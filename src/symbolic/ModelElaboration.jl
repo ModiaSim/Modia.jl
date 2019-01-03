@@ -33,12 +33,22 @@ using ..StructuralTransform
 using ..SymbolicTransform
 using ..Utilities
 using ..ModiaLogging
+#= Temporarily removed due to problem with PyPlot
 using PyPlot
+=#
+import ModiaMath
+
 using JSON
 
 @static if VERSION < v"0.7.0-DEV.2005"
 else
     using Printf
+end
+
+@static if VERSION < v"0.7.0-DEV.2005"
+    using Base.Test
+else
+    using Test
 end
 
 export elaborate, prettyPrint, simulateModel, simulate, skewCoords, skew, residue, residue_der, modiaCross, showExpr, transformModel, simulateMultiModeModel, allInstances
@@ -50,6 +60,8 @@ const elaborate = true
 #@show elaborate
 const tearing = false
 #@show tearing
+
+const noResult = Dict{Symbol,AbstractArray{T,1} where T}()
 
 allInstances(s) = return s
 
@@ -230,7 +242,13 @@ function substituteAllInstances(ex, modified_model, class, flat)
     if typeof(ex) == Expr && ex.head == :call && ex.args[1] == allInstances
         all = []
         name = string(ex.args[2].name)
+
+@static if VERSION < v"0.7.0-DEV.2005"
         name = name[rsearchindex(name, ".") + 1:end]
+else
+        name = name[first(something(findlast(".", name), 0:-1)) + 1:end]
+end
+       
         name = Symbol(name)
 
         if !flat
@@ -276,15 +294,33 @@ function simulateModelWithOptions(model, t; options=Dict())
     ModiaLogging.setOptions(opt)  
     StructuralTransform.setOptions(opt)  
     BasicStructuralTransform.setOptions(opt)  
+    Instantiation.setOptions(opt) 
     Execution.setOptions(opt)  
+    if length(keys(opt)) > 0
+        println("Option(s) not found: ", keys(opt))
+    end
   
     log = false
     if haskey(opt, :logSimulation)
         log = opt[:logSimulation]
     end
 
+    relTol = 1e-4
+    if haskey(opt, :relTol)
+        relTol = opt[:relTol]
+    end
+
+    hev = 1e-8
+    if haskey(opt, :hev)
+        hev = opt[:hev]
+    end
+
     if fileStdOut
-        originalSTDOUT = STDOUT
+        @static if VERSION < v"0.7.0-DEV.2005"
+            originalSTDOUT = STDOUT
+        else
+            originalSTDOUT = stdout
+        end
         (outRead, outWrite) = redirect_stdout()
     end  
   
@@ -299,7 +335,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     loglnModia("\nSimulating model: ", model.name)
   
     if PrintOriginalModel 
-        loglnModia("Original model:")
+        loglnModia("ORIGINAL MODEL:")
         showModel(model)
     end
 
@@ -312,7 +348,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     traverseAndSubstituteAllInstances(:(), modified_model, modified_model, false)
 
     if PrintInstantiated 
-        loglnModia("Instantiated model:")
+        loglnModia("INSTANTIATED MODEL:")
         showInstance(modified_model)
         loglnModia()
     end
@@ -367,9 +403,9 @@ function simulateModelWithOptions(model, t; options=Dict())
         if logTiming
             print("Code generation and simulation:         ")
             # @show solved_model t useIncidenceMatrix log
-            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log)
+            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol, hev=hev)
         else
-            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log)
+            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol, hev=hev)
         end
     else
         res = Dict{Symbol,AbstractArray{T,1} where T}()
@@ -389,6 +425,7 @@ function simulateModelWithOptions(model, t; options=Dict())
         println(@sprintf("Total time: %0.3f", (time_ns() - start) * 1E-9), " seconds")
     end
     closeLogModia()
+    @test res != noResult
     return res
 end
 
@@ -434,28 +471,36 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     try
         res = simulateModelWithOptions(mod, t, options=options)
     catch err
+        st = stacktrace(catch_backtrace())
         closeLogModia()
+    
         setTestStatus(false)
         println()
         println("\n----------------------\n")
         println()
             printstyled("Simulation FAILED:", bold=true, color=:red); println()
         if isa(err, ErrorException)
-                  printstyled(err.msg, bold=true, color=:red); println()
+            printstyled(err.msg, bold=true, color=:red); println()
         elseif isa(err, UndefVarError)
-                  printstyled(err, bold=true, color=:red); println()
+            printstyled(err, bold=true, color=:red); println()
             ModiaLogging.increaseLogCategory(:(UndefinedSymbol))      
         else
-                  printstyled(err, bold=true, color=:red); println()
+            printstyled(err, bold=true, color=:red); println()
         end
         println()
         println("\n----------------------\n")
         println()
-        return nothing
+        println("Stack trace: ------------------------------------------------")
+        for l in st
+            println(l)
+        end
+        println("End stack trace: --------------- ----------------------------")
+        @test false
+        return noResult
     end 
-
+    
     final = nothing
-    if res != nothing && observer != "" && haskey(res, observer)
+    if res != nothing && res != noResult && observer != "" && haskey(res, observer)
         obs = res[observer]
         if length(obs) > 0
             final = obs[end]
@@ -464,33 +509,38 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
     
     if final != nothing
         println("final $observer = $final")
-        ok = finalSolution == nothing || typeof(final) == Float64 && Base.isapprox(final, finalSolution, rtol=1.0E-4) || final == finalSolution
-    
+        ok = finalSolution == nothing || typeof(final) == Float64 && Base.isapprox(final, finalSolution, rtol=1.0E-3) || final == finalSolution
+        @test ok
+        
         if !ok
             setTestStatus(false)
             println("final solution $observer = $finalSolution")
-                  printstyled("Simulation NOT OK", bold=true, color=:red); println()
+            printstyled("Simulation NOT OK", bold=true, color=:red); println()
             println()
+#= Replaced PyPlot solution with ModiaMath.plot(..) call
             figure()
             title("Simulation NOT OK in " * string(mod.name))
             plot(res["time"], res[observer])
             grid(true)
             xlabel("time [s]")
             legend([observer],  loc="center right")
+=#
+            ModiaMath.plot(res, observer, heading="Simulation NOT OK in " * string(mod.name))
             false
         else
             ModiaLogging.increaseLogCategory(:(CalculatedResult))   
             setTestStatus(true)
-                  printstyled("Simulation OK", bold=true, color=:green); println()
+            printstyled("Simulation OK", bold=true, color=:green); println()
             println()
             true
         end
     
     else
         setTestStatus(true)
-            printstyled("Simulation RAN", bold=true, color=:green); println()
+        printstyled("Simulation RAN", bold=true, color=:green); println()
         println()
         true  
+        @test true
     end
     res
 end
@@ -502,13 +552,16 @@ end
 Experimental code for multi-mode handling with impulses.
 """
 function simulateMultiModeModel(model, t0, t1; n=1000, m=100, options...)
-    opt = Dict(options)  
-    opt = Dict(options)  
+    opt = Dict(options)   
     ModiaLogging.setDefaultLogName(string(model.name))
     ModiaLogging.setOptions(opt)  
     StructuralTransform.setOptions(opt)  
     BasicStructuralTransform.setOptions(opt)  
+    Instiantiation.setOptions(opt) 
     Execution.setOptions(opt)  
+    if length(keys(opt)) >= 0
+        println("Option(s) not found: ", keys(opt))
+    end
 
     println("\nSimulating model: ", model.name)
     loglnModia("\nSimulating model: ", model.name)

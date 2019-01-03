@@ -31,7 +31,7 @@ end
 export residue, residue_der, hide  # from BasicStructuralTransform to models
 
 global aliasElimination
-const deduceSizes = true
+global deduceSizes
 const log = true
 const extendedLog = false
 const debug = false
@@ -45,6 +45,13 @@ function setOptions(options)
     if haskey(options, :aliasElimination)
         global aliasElimination = options[:aliasElimination]
         @show aliasElimination
+        delete!(options, :aliasElimination)
+    end
+    global deduceSizes = true
+    if haskey(options, :deduceSizes)
+        global deduceSizes = options[:deduceSizes]
+        @show deduceSizes
+        delete!(options, :deduceSizes)
     end
 end
 
@@ -223,6 +230,12 @@ function performAliasElimination!(flat_model, unknowns, params, equations)
 
 end
 
+@static if VERSION < v"0.7.0-DEV.2005"
+    emptyFieldNames = []
+else
+    emptyFieldNames = ()
+end 
+
 # Type and size deduction
 
 """ 
@@ -370,7 +383,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                 findIncidence!(vars, eqsubs)
          
                 # If only one remaining unknown, solve for it.
-                if length(vars) == 1
+                if false # length(vars) == 1 # disable
                     (e, solved) = SymbolicTransform.solve(eqsubs, vars[1])
                     if solved 
                         # println(prettyPrint(e))
@@ -449,7 +462,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                     if !haskey(equSizes, i) || !haskey(equTypes, i)
                         RHS = tryEval(rhs, eq)
                         if RHS != nothing && typeof(RHS) != GetField && typeof(RHS) != Der
-                            if typeof(RHS) == String || typeof(RHS) == Tuple{Array{Float64,2},Array{Float64,2}} # Special case for calling qr function
+                            if typeof(RHS) == String || fieldnames(typeof(RHS)) != emptyFieldNames || typeof(RHS) == Tuple{Array{Float64,2},Array{Float64,2}} # Special case for calling qr function
                                 size_RHS = ()
                             else
                                 size_RHS = size(RHS)
@@ -480,16 +493,15 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                 else
                     LHS = tryEval(lhs, eq)
                     RHS = tryEval(rhs, eq)
-                    # @show eq LHS RHS
                     if LHS != nothing && typeof(LHS) != Der && RHS != nothing && typeof(RHS) != Der
-                        if typeof(RHS) == String || typeof(RHS) != AbstractArray
+                        if typeof(RHS) == String || typeof(RHS) != AbstractArray || fieldnames(typeof(RHS)) != emptyFieldNames
                             size_RHS = ()
                         else
                             size_RHS = size(RHS)
                         end
                      
                         if size(LHS) != size_RHS 
-                            loglnModia("Warning: Not equal size of left and right hand side in equation $eq: $LHS = $RHS")
+                            loglnModia("Warning: Not equal size of left and right hand side in equation $(prettyPrint(eq)): $LHS = $RHS")
                         end
                       
                         e = promote(LHS, RHS)
@@ -560,10 +572,11 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
             if flat_model.variables[v].start == nothing
                 if varTypes[v] == String
                     z = ""
+                    flat_model.variables[v].start = fill(z, varSizes[v])
                 else
                     z = 0.0 # zero(varTypes[v]) # Generalize to handle zero for array types
+                    flat_model.variables[v].start = if varSizes[v] == (); z else fill(z, varSizes[v]) end
                 end
-                flat_model.variables[v].start = fill(z, varSizes[v])
             end
 
         elseif haskey(varSizes, v)
