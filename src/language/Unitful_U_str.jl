@@ -24,25 +24,25 @@ using Unitful
 
 macro U_str(unit)
     ex = Meta.parse(unit)
-    esc(replace_value(ex))
+    esc(replace_value(__module__, ex))
 end
 
 const allowed_funcs = [:*, :/, :^, :sqrt, :√, :+, :-, ://]
-function replace_value(ex::Expr)
+function replace_value(targetmod, ex::Expr)
     if ex.head == :call
         ex.args[1] in allowed_funcs ||
             error("""$(ex.args[1]) is not a valid function call when parsing a unit.
              Only the following functions are allowed: $allowed_funcs""")
         for i=2:length(ex.args)
             if typeof(ex.args[i])==Symbol || typeof(ex.args[i])==Expr
-                ex.args[i]=replace_value(ex.args[i])
+                ex.args[i]=replace_value(targetmod, ex.args[i])
             end
         end
         return ex
     elseif ex.head == :tuple
         for i=1:length(ex.args)
             if typeof(ex.args[i])==Symbol
-                ex.args[i]=replace_value(ex.args[i])
+                ex.args[i]=replace_value(targetmod, ex.args[i])
             else
                 error("only use symbols inside the tuple.")
             end
@@ -53,8 +53,8 @@ function replace_value(ex::Expr)
     end
 end
 
-replace_value(sym::Symbol) = Unitful.replace_value(sym)
+replace_value(targetmod, sym::Symbol) = Unitful.replace_value(targetmod, sym)
 
-replace_value(literal::Number) = literal
+replace_value(targetmod, literal::Number) = literal
 
 end
