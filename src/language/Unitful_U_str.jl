@@ -11,7 +11,7 @@ using Unitful
 using Modia    # Unitful_U_str.jl is included in Modia.jl
 
 const T1_type = u"N*m"    # gives warning
-const T2_type = U"N*m"    # gives no warning
+const T2_type = u"N*m"    # gives no warning
 ```
 """
 module Unitful_U_str

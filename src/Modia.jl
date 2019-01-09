@@ -99,14 +99,6 @@ import Unitful
 end
 
 
-
-# Make string macro U_str available by "using Modia"
-include("language/Unitful_U_str.jl")
-using  .Unitful_U_str
-export @U_str
-
-
-
 # Include all sub-modules of Modia
 include("language/ModiaLogging.jl")
 include("language/Instantiation.jl")
