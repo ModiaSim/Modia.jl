@@ -30,7 +30,7 @@ import Modia.Unitful:
     nm, μm, mm, cm, m, km, inch, ft, mi,
     ac,
     mg, g, kg, A,
-    °Ra, °F, °C, K,
+    Ra, °F, °C, K,
     rad, °,
     ms, s, minute, hr,
     J, A, N, mol, cd, V,
@@ -154,7 +154,8 @@ const Vec3 = SVector{3,Float64}
 
             v4 = [1,2,3]
             v5 = [1,2,3]
-            v6 = 10.0u"V"
+            #v6 = 10.0u"V"
+            v6 = 10.0
         end
     end 
 
@@ -164,7 +165,7 @@ const Vec3 = SVector{3,Float64}
 
 # ----------------------
 
-
+#=
     @model TestVariableUnits1 begin
         # Real3 := Variable{Float64,3}
         # typealias Voltage Variable{Volt}
@@ -203,6 +204,8 @@ const Vec3 = SVector{3,Float64}
     @show result["l"][end]
 
     plot(result, ("v3", "v4", "a"), figure=1)
+
+=#
 
 end
 
