@@ -7,7 +7,7 @@ os:
 julia:
   - 1.0
 #  - 0.7
-  - 0.6
+#  - 0.6
 
 #before_install:
 #  - (sudo apt-get -qq update && sudo apt-get install -y python3 python3-matplotlib)
