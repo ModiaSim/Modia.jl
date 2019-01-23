@@ -397,7 +397,7 @@ function bigTest(G)
   end
 end
 
-const n=10000  # Stack overflow for band and n=100000
+const n=5000  # Stack overflow for band and n=10000
 const nFull=1000
   
 function test()
