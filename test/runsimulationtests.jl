@@ -19,7 +19,11 @@ end
     include("models/TestEquations.jl")
 
     include("models/TestElectrical.jl")
-    include("models/TestFilter.jl")
+    @static if VERSION < v"0.7.0-DEV.2005"
+        # Don't run TestFilter since aliasElimination=true does not work under 0.6
+    else
+        include("models/TestFilter.jl")
+    end
     include("models/TestArrayOfComponents.jl")
     include("models/TestConditionalComponents.jl")
     include("models/TestConditionalEquations.jl")
