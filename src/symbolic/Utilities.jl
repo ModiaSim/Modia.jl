@@ -234,6 +234,7 @@ function checkSizes(VSizes, ESizes)
     end
 
     loglnModia()
+    # Should check that arrays are not empty
     scalarV = sum(length(zeros(v)) for v in VSizes)
     scalarE = sum(length(zeros(e)) for e in ESizes)
     

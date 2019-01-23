@@ -2,7 +2,7 @@
 Modia main module.
 
 * Developers: Hilding Elmqvist, Mogram AB, Toivo Henningsson, Lund and Martin Otter, DLR
-* Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
+* Copyright (c) 2016-2019: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 =#
 
@@ -45,8 +45,8 @@ For more information, see (https://github.com/ModiaSim/Modia.jl/blob/master/READ
 """
 module Modia
 
-const Version = "0.2.3-beta.5"
-const Date = "2019-01-09"
+const Version = "0.2.3-beta.7"
+const Date = "2019-01-23"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")

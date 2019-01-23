@@ -3,7 +3,7 @@ Module for structural transformation of models including alias handling and size
 
 * Developer: Hilding Elmqvist, Mogram AB  
 * First version: July-August 2016
-* Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
+* Copyright (c) 2016-2019: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 """
 module StructuralTransform
@@ -13,7 +13,7 @@ using ..BLTandPantelidesUtilities
 using ..Utilities
 using ..BasicStructuralTransform
 using ..Instantiation
-import ..Instantiation: GetField, This, Der, Symbolic, time_global, get_dims
+import ..Instantiation: GetField, This, Der, Symbolic, time_global, get_dims, parameter
 import ..Execution: get_value, Subs, subs, Variable, split_variables, vars_of, GetField
 using Base.Meta: quot, isexpr
 using DataStructures
@@ -108,11 +108,76 @@ v1 := v2
 v3 = v2 -> 
 =#
 
-function findAliases!(nonAliasEquations, aliases, eq::Expr, unknowns)
+function equivalence(pairs)
+    equ = []
+    for p in pairs
+        for e in equ
+            if intersect(p, e) != []
+                if p[1] in e && p[2] in e
+                    println("Redundant equation: $(p[1]) = $(p[2])")
+                end
+                union!(p, e)
+                setdiff!(e, e)
+            end
+        end
+        push!(equ, p)
+    end
+    equivalenceClasses = []
+    for e in equ
+        if e != []
+            push!(equivalenceClasses, e)
+        end
+    end
+    equivalenceClasses
+end
+
+function findAliases2!(nonAliasEquations, aliases, equations, variables, defined)
+    equivalencePairs = []
+    for eq in equations
+        if !isexpr(eq, :quote)
+            if eq.head in [:(=), :(:=)]
+                e1 = eq.args[1]
+                e2 = eq.args[2]
+                if typeof(e1) == GetField && typeof(e2) == GetField 
+                    push!(equivalencePairs, [e1.name, e2.name])
+                else
+                    push!(nonAliasEquations, eq)
+                end
+            end
+        end
+    end
+    equivalenceClasses = equivalence(equivalencePairs)
+    for equiv in equivalenceClasses
+        nonalias = nothing
+        for v in equiv
+            if typeof(variables[v]) != Variable || variables[v].variability <= parameter
+                nonalias = GetField(This(), v)
+                break
+            end
+        end
+        if nonalias == nothing
+            nonalias = GetField(This(), equiv[1]) # No non-Variable or parameter to define as nonalias, pick first
+        end
+        for v in equiv
+            if v != nonalias.name
+                aliases[GetField(This(), v)] = nonalias
+                if typeof(variables[v]) != Variable || variables[v].variability <= parameter
+                    if "$(variables[v])" != "$(variables[nonalias.name])"
+                        println("Non consistent constraint: $v = $(nonalias.name): $(variables[v]) != $(variables[nonalias.name])")
+                    end
+                end
+            end
+        end
+    end
+end
+        
+
+function findAliases!(nonAliasEquations, aliases, eq::Expr, unknowns, defined)
     if !isexpr(eq, :quote)
         if eq.head in [:(=), :(:=)]
             e1 = eq.args[1]
             e2 = eq.args[2]
+            @show e1 e2
             if typeof(e1) == GetField && typeof(e2) == GetField && haskey(unknowns, e1.name) && haskey(unknowns, e2.name) # && unknowns[e1.name].state && unknowns[e2.name].state
                 # nonAliases = collect(values(aliases))
                 # if ! haskey(aliases, e1) && ! (e1 in nonAliases) && ! haskey(aliases, e2) && ! (e2 in nonAliases)
@@ -121,15 +186,46 @@ function findAliases!(nonAliasEquations, aliases, eq::Expr, unknowns)
                     aliases[e1] = e2
                     unknowns[e2.name].state = unknowns[e1.name].state
                     # @show e2.name, unknowns[e2.name].state
+                    println()
                 elseif !haskey(aliases, e2) && getNonAliasVariable(aliases, e1, unknowns)[1] != e2 && if haskey(unknowns, e1.name); unknowns[e1.name].state else false end
                     aliases[e2] = e1
                     unknowns[e1.name].state = unknowns[e2.name].state
-                    # @show e1.name, unknowns[e1.name].state
-                else
+                    @show e1.name, unknowns[e1.name].state
+                else 
                     println("Circular aliases between: $e1 and $e2")
-                    error("Aborting")
+#                    error("Aborting")
                 end
+            elseif typeof(e1) == GetField && typeof(e2) == GetField && (haskey(unknowns, e1.name) || haskey(unknowns, e2.name))
+                println("One is unknown:")
+                println(eq)
+                if haskey(unknowns, e1.name)
+                    var = e1.name
+                    val = e2.name
+                else
+                    var = e2.name
+                    val = e1.name
+                end
+                @show var
+                @show aliases
+                if haskey(aliases, var)
+                    var = aliases[var]
+                    @show aliases[var]
+                end
+                @show defined
+                if ! haskey(defined, var)
+                    defined[var] = val
+                    @show defined
+                    println("Adding: ", eq)
+                    push!(nonAliasEquations, eq)
+                elseif defined[var] != val
+                    println("Non consistent overdetermined variable:")
+                    println("$var = $val")
+                    println("$var = $defined[var]")
+                else
+                    println("Not added: ", eq)
+                end                
             else
+                println(eq)
                 push!(nonAliasEquations, eq)
             end
         end
@@ -182,11 +278,16 @@ function performAliasElimination!(flat_model, unknowns, params, equations)
     loglnModia("\nALIAS ELIMINATION")
     aliases = AliasSubs()
     nonAliasEquations = []
+    defined = Dict()
 
+    nonAliasEquations = []
+    findAliases2!(nonAliasEquations, aliases, equations, merge(unknowns, params), defined)
+
+#=
     for eq in equations
-        findAliases!(nonAliasEquations, aliases, eq, unknowns)
+        findAliases!(nonAliasEquations, aliases, eq, unknowns, defined)
     end
-
+=#
     loglnModia("\nAlias equations")
     for a in aliases
         loglnModia(prettyfy(a[1]), " = ", prettyfy(a[2]))
@@ -195,7 +296,7 @@ function performAliasElimination!(flat_model, unknowns, params, equations)
     loglnModia("\nAlias definitions")
     for a in aliases
         (nonAlias, state) = getNonAliasVariable(aliases, a[2], unknowns)
-        unknowns[nonAlias.name].state = state
+#        unknowns[nonAlias.name].state = state  # Temporarily
         loglnModia(prettyfy(a[1]), " := ", prettyfy(nonAlias))
     end
         
@@ -248,7 +349,7 @@ Types and sizes can be inferred from the start values provided. An outline of su
   - If only one remaining unknown, solve for it.
   - Check if the equation only has +/- operators and at least one variable has known size and type. If so, copy size and type to the other variables.
   
-Note: This function should be rewritten to ensure conssistency, etc.
+Note: This function should be rewritten to ensure consistency, etc.
 """
 function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
     loglnModia("\nSIZE AND TYPE DEDUCTION")
@@ -350,10 +451,10 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
         try 
             E = eval(e)
         catch err
-            if isa(err, ErrorException) && contains(err.msg, "Unit mismatch")
+            if isa(err, ErrorException) && occursin("Unit mismatch", err.msg)
                 loglnModia("Warning: ", err.msg, 
-            "\n  in expression: ", prettyPrint(e), 
-            "\n  in equation:   ", prettyPrint(eq))            
+                "\n  in expression: ", prettyPrint(e), 
+                "\n  in equation:   ", prettyPrint(eq))            
             end
             E
         end
@@ -463,6 +564,7 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                         RHS = tryEval(rhs, eq)
                         if RHS != nothing && typeof(RHS) != GetField && typeof(RHS) != Der
                             if typeof(RHS) == String || fieldnames(typeof(RHS)) != emptyFieldNames || typeof(RHS) == Tuple{Array{Float64,2},Array{Float64,2}} # Special case for calling qr function
+                            # Using isstructtype(typeof(RHS)) did not work as expected so fieldnames(typeof(RHS)) != emptyFieldNames is used instead
                                 size_RHS = ()
                             else
                                 size_RHS = size(RHS)
@@ -499,20 +601,27 @@ function deduceVariableAndEquationSizes(flat_model, unknowns, params, equations)
                         else
                             size_RHS = size(RHS)
                         end
-                     
-                        if size(LHS) != size_RHS 
+#=
+                        if typeof(LHS) == String || typeof(LHS) != AbstractArray || fieldnames(typeof(LHS)) != emptyFieldNames
+                            size_LHS = ()
+                        else
+                            size_LHS = size(LHS)
+                        end
+=#
+                        size_LHS = size(LHS)
+                        if size_LHS != size_RHS 
                             loglnModia("Warning: Not equal size of left and right hand side in equation $(prettyPrint(eq)): $LHS = $RHS")
                         end
                       
                         e = promote(LHS, RHS)
                         t = typeof(e[1])
                         # loglnModia("ASSERT:  ", typeof(LHS), " == ", typeof(RHS))
-                        loglnModia("SIZE = ", size(LHS), "  \tTYPE = ", t, "  \t", prettyPrint(eq))
-                        equSizes[i] = size(LHS)
+                        loglnModia("SIZE = ", size_LHS, "  \tTYPE = ", t, "  \t", prettyPrint(eq))
+                        equSizes[i] = size_LHS
                         equTypes[i] = t
                         equationSubs[i] = eqsubs
                         #= Fix for call back function
-                        elseif LHS != nothing && typeof(LHS) != Der
+                    elseif LHS != nothing && typeof(LHS) != Der
                         t = typeof(LHS)
                         loglnModia("SIZE = ", size(LHS), "  \tTYPE = ", t, "  \t", prettyPrint(eq))
                         equSizes[i] = size(LHS)

@@ -3,7 +3,7 @@ Modia module for instantiation and flattening of models.
 
 * Original developer: Toivo Henningsson, Lund
 * Developer: Hilding Elmqvist, Mogram AB
-* Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
+* Copyright (c) 2016-2019: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 
 """
@@ -178,6 +178,12 @@ function Base.show(io::IO, v::Variable)
     print(io, "Variable(")
     first = true
     
+    if v.value != nothing
+        if !first; print(io, ", ") end
+        print(io, "value = ", v.value)
+        first = false
+    end
+
     if v.variability != continuous
         if !first; print(io, ", ") end
         print(io, "variability = ", v.variability)
@@ -380,6 +386,21 @@ function recode(ex::Expr)
     head, args = ex.head, ex.args
     if head == :block
         args = collect(filter(ex -> (!is_linenumber(ex)), args))
+#=
+        println("recode:")
+        dump(args)
+
+        rex = Expr(:block)
+        for a in args
+            ra = recode(a)
+            println("ra:")
+            dump(ra)
+            push!(rex.args, ra)
+        end
+        println("rex:")
+        dump(rex)
+        return rex
+=#
         if length(args) == 1;  return recode(args[1]);  end
     elseif head == :.
         return :( $(quot(model_getfield))($(recode(args[1])), $(args[2])) )

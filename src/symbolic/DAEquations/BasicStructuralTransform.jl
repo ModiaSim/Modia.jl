@@ -666,6 +666,8 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
             else
                 emptySet = Set(Any[])
             end
+#            @show coeff keys(coeff) keys(params)
+#            @show intersect(keys(coeff), keys(params))
             if !nonLinear && (intersect(keys(coeff), keys(params)) == emptySet) && !(1 in keys(coeff))
                 push!(coefficients, copy(coeff))
                 push!(orgEquIndex, neq)
