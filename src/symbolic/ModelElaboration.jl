@@ -58,8 +58,6 @@ export checkSimulation
 const useIncidenceMatrix = BasicStructuralTransform.useIncidenceMatrix
 const elaborate = true
 #@show elaborate
-const tearing = false
-#@show tearing
 
 const noResult = Dict{Symbol,AbstractArray{T,1} where T}()
 
@@ -159,24 +157,6 @@ function elaborateModel(flat_model)
             end
         end
     end
-  
-    if tearing
-    # Sort the equations so that assignments comes first - for tearing
-        torn_equations = []
-        for e in solved_model.equations
-            if e.head == :(:=)
-                push!(torn_equations, e)
-            end
-        end
-
-        for e in solved_model.equations
-            if e.head == :(=)
-                push!(torn_equations, e)
-            end
-        end
-
-        solved_model.equations =  torn_equations
-    end    
   
     # solved_model.variables = [solved_model.variables; SymbolicTransform.dummyDerivatives]
 
@@ -296,25 +276,32 @@ function simulateModelWithOptions(model, t; options=Dict())
     BasicStructuralTransform.setOptions(opt)  
     Instantiation.setOptions(opt) 
     Execution.setOptions(opt)  
-    if length(keys(opt)) > 0
-        println("Option(s) not found: ", keys(opt))
-    end
   
-    log = false
+    logSimulation = false
     if haskey(opt, :logSimulation)
-        log = opt[:logSimulation]
+        logSimulation = opt[:logSimulation]
+        @show logSimulation
+        delete!(opt, :logSimulation)
     end
 
     relTol = 1e-4
     if haskey(opt, :relTol)
         relTol = opt[:relTol]
+        @show relTol
+        delete!(opt, :relTol)
     end
 
     hev = 1e-8
     if haskey(opt, :hev)
         hev = opt[:hev]
+        @show hev
+        delete!(opt, :hev)
     end
 
+    if length(keys(opt)) > 0
+        println("Option(s) not found: ", keys(opt))
+    end
+    
     if fileStdOut
         @static if VERSION < v"0.7.0-DEV.2005"
             originalSTDOUT = STDOUT
@@ -402,10 +389,10 @@ function simulateModelWithOptions(model, t; options=Dict())
         # @show incidenceMatrix
         if logTiming
             print("Code generation and simulation:         ")
-            # @show solved_model t useIncidenceMatrix log
-            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol, hev=hev)
+            # @show solved_model t useIncidenceMatrix logSimulation
+            @time res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
         else
-            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=log, relTol=relTol, hev=hev)
+            res = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
         end
     else
         res = Dict{Symbol,AbstractArray{T,1} where T}()

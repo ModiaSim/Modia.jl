@@ -384,6 +384,11 @@ function getCoefficients!(coeff, e)
         # loglnModia("\nExpression: ", prettyPrint(e))
         if nonLinear
             loglnModia("Equation is nonlinear")
+
+            loglnModia("Coefficients:")
+            for v in keys(coeff)
+                loglnModia(coeff[v], " * ", prettyfy(v))
+            end
         else
             loglnModia("Coefficients:")
             for v in keys(coeff)
@@ -621,6 +626,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
   # Build incidence structure as bipartite graph.
     neq = 0
     G = [] # Array{Any}(undef, 0)
+    Gsolvable = []
     coefficients = []
     notLinearVariables = []
     orgEquIndex = []
@@ -656,9 +662,10 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
         end
         push!(G, vertices)
     
-        if removeSingularities
+        if removeSingularities || tearing
             # Find linear equations with integer coefficients without offset.    
             coeff = Dict() 
+            solvable = []
             nonLinear = getCoefficients!(coeff, eq)
            
             @static if VERSION < v"0.7.0-DEV.2005"
@@ -676,6 +683,21 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
                     push!(notLinearVariables, v)
                 end
             end
+            for inc in incidence 
+                if inc in keys(coeff) && coeff[inc] in [1, -1]
+                    index = get(unknowns_indices, inc, 0)
+                    if index == 0
+                        index = findfirst(isequal(inc), deriv)
+                        if index != notFound
+                            index = index + length(unknownsNames)
+                        end
+                    end
+                    if index != notFound 
+                        push!(solvable, index)
+                    end                    
+                end
+            end
+            push!(Gsolvable, sort(solvable))
         end
     end    
 
@@ -1128,38 +1150,54 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
             @time componentsIG = BLT(IG, assignIG)
         else
             componentsIG = BLT(IG, assignIG)
+        end
+       
+        if tearing
+            loglnModia("\nTearing:")
+            
+            equationsIG = [equationsInfix; fill("der(...)", length(Bequ) - length(equations))]
 
-            if tearing
-                tornComponents = []
-                for c in componentsIG
-                    if length(c) == 1
-                        push!(tornComponents, c)
-                    else
-                        es = Array{Int64,1}(c)
-                        vs = invAssign[es]
+            if true # log
+                loglnModia("\nSorted state equations before tearing:")
+                printSortedEquations(equationsIG, unknownsNames, componentsIG, assignIG, Avar, Bequ)
+                loglnModia()
+            end
 
-                        td = TraverseDAG(IG, length(assignIG))
-                        (eSolved, vSolved, eResidue, vTear) = tearEquations!(td, IG, es, vs)
-                        
-                        for e in eSolved
-                            push!(tornComponents, [e])
-                        end
-                        push!(tornComponents, eResidue)
-                          
-                        for i in 1:length(eSolved)
-                            assignIG[vSolved[i]] = eSolved[i]
-                        end
-                        for i in 1:length(eResidue)
-                            assignIG[vTear[i]] = eResidue[i]
-                        end
+            tornComponents = []
+            for c in componentsIG
+                if length(c) == 1
+                    push!(tornComponents, c)
+                else
+                    es = Array{Int64,1}(c)
+                    vs = invAssign[es]
 
-                        (invAssign, unAssignedVariables) = invertAssign(assignIG, length(Bequ)) 
-                        
+                    td = TraverseDAG(IG, length(assignIG))
+                    (eSolved, vSolved, eResidue, vTear) = tearEquations!(td, Gsolvable, es, vs)
+                    
+                    for e in eSolved
+                        push!(tornComponents, [e])
+                    end
+                    
+                    push!(tornComponents, eResidue)
+                      
+                    for i in 1:length(eSolved)
+                        assignIG[vSolved[i]] = eSolved[i]
+                    end
+                    for i in 1:length(eResidue)
+                        # Mark by 0 that the equation can not be solved symbolically even if possible.
+                        assignIG[vTear[i]] = 0 # eResidue[i] 
+                    end
+
+#                   (invAssign, unAssignedVariables) = invertAssign(assignIG, length(Bequ)) 
+                    
+                    if length(c) > length(eResidue)
                         loglnModia("Reduced system of equation size from $(length(c)) to $(length(eResidue))")
+                    else
+                        loglnModia("No reduction of system of equation size $(length(c))")
                     end
                 end
-                componentsIG = tornComponents
             end
+            componentsIG = tornComponents
         end
     end
   
