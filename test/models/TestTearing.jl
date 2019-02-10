@@ -13,7 +13,6 @@ using Modia.ModiaMath: plot
 
 
 # Tearing1 
-# Simulates with tearing=false
 # No tearing is performed since coefficients of the block equations are not 1 or -1.
 @model Tearing1 begin
     x1 = Float(size=())
@@ -29,7 +28,6 @@ result = simulate(Tearing1, 1.0; logTranslation=true, logSimulation=true, tearin
 plot(result, ("x1", "x2", "x3"))
 
 # Tearing1B
-# Simulates with tearing=false
 # 
 @model Tearing1B begin
     x1 = Float(size=())
@@ -63,6 +61,48 @@ plot(result, ("x1", "x2", "x3"))
 end 
 result = simulate(Tearing2, 0.3; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
 plot(result, ("x1", "x2", "x3"))
+
+
+# Tearing3
+# Variables that are explicitely solved due to tearing: x1, x2
+#
+@model Tearing3 begin
+    x1 = Float(size=())
+    x2 = Float(size=())
+    x3 = Float(size=())    
+    x4 = Float(start=1.0)
+@equations begin
+     2.0*sin(x1) + x2 = x3-1.0 - 0.01*sin(x4)
+    -1.4*sin(x1) + 5.0*cos(x2) + (0.02*x3)^3 = 2.0*x4
+     sin(0.1*x4) = abs(x3) - x1
+    der(x4) = -x4
+    end
+end 
+result = simulate(Tearing3, 0.3; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
+plot(result, ("x1", "x2", "x3", "x4"))
+
+
+
+# Tearing4
+# Variables that are explicitely solved due to tearing: x1, x2
+#
+@model Tearing4 begin
+    x1 = Float(size=())
+    x2 = Float(size=())
+    x3 = Float(size=())    
+    x4 = Float(size=())    
+    x5 = Float(start=1.0)
+@equations begin
+     2.0*sin(x1) + x2 = x3-1.0 - 0.01*sin(x4)
+    -1.4*sin(x1) + 5.0*cos(x2) + (0.02*x3)^3 = 2.0*x4
+     sin(0.1*x4) = abs(x3) - x1
+     -2*x4 + 3.0*x1 -3*x2 = 0.0
+    der(x5) = -x5
+    end
+end 
+result = simulate(Tearing4, 0.3; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
+plot(result, ("x1", "x2", "x3", "x4", "x5"))
+
 
 @model TearingCombined begin
     x1 = Float(size=())
