@@ -146,5 +146,34 @@ result = simulate(TearingCombined, 1.0; logTranslation=true, logSimulation=true,
 plot(result, ("x1", "x2", "x3"))
 
 
+
+# Tearing5
+# RemoveAuxiliary should remove equation "2*x1 = 4*x2"
+# Tearing should then eliminate x1 = 2*x2
+#
+# The log shows, that all this works. However, the generated code
+# has a state vector of [x1, x2, x3, x4]. Since tearing can compute x1 from x2,
+# it would be possible that the state vector has only elements [x2,x3,x4].
+# Otherwise, tearing has basically no effect, because the system of equations
+# was not reduced in the generated code.
+@model Tearing5 begin
+    x1 = Float(size=())
+    x2 = Float(size=())
+    x3 = Float(size=())        
+    x4 = Float(start=1.0)
+@equations begin
+     x1 = 2*x2
+   2*x1 = 4*x2
+     x1 + x2 = x3 + x4 
+     3.1*x2 + 1.2*x3 + 1.3*x4 = 0
+    der(x4) = -x4
+    end
+end 
+result = simulate(Tearing5, 0.3; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
+plot(result, ("x1", "x2", "x3", "x4"), figure=5)
+
+
+
+
 end
 
