@@ -173,7 +173,28 @@ result = simulate(Tearing5, 0.3; logTranslation=true, logSimulation=true, tearin
 plot(result, ("x1", "x2", "x3", "x4"), figure=5)
 
 
-
+# Tearing6
+# removeSingularities + Tearing results in an error
+#    attempt to access 5-element Array{Any,1} at index [6]
+# The reason is probably that Gsolvable is not correct
+@model Tearing6 begin
+    C1 = 1e-3
+    C2 = 2e-3
+    u1 = Float(size=(), start=1.0)
+    u2 = Float(size=(), state=false)
+    i1 = Float(size=())        
+    v1 = Float(size=())        
+    v0 = Float(size=())        
+@equations begin
+    C1*der(u1) = i1
+    C2*der(u2) = -i1
+    u1 = v1 - v0
+    u2 = v1 - v0
+    v0 = 0
+    end 
+end 
+result = simulate(Tearing6, 1.0; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
+plot(result, ("u1", "u2", "i1", "v1", "v2"), figure=6)
 
 end
 
