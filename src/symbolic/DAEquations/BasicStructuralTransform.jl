@@ -3,7 +3,7 @@ Module for structural analysis of models.
 
 * Developer: Hilding Elmqvist, Mogram AB  
 * First version: July-August 2016
-* Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
+* Copyright (c) 2016-2019: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
 
 """
@@ -59,6 +59,7 @@ global expandArrayIncidence = false
 removeSingularitiesDefault = true
 global removeSingularities = removeSingularitiesDefault
 global tearing = false
+global automaticStateSelection = false
 const consistencyCheck = true
 global newStateSelection = false
 global logFDAE = false
@@ -93,6 +94,13 @@ function setOptions(options)
         global tearing = options[:tearing]
         @show tearing
         delete!(options, :tearing)
+    end
+
+    global automaticStateSelection = false
+    if haskey(options, :automaticStateSelection)
+        global automaticStateSelection = options[:automaticStateSelection]
+        @show automaticStateSelection
+        delete!(options, :automaticStateSelection)
     end
 
     global expandArrayIncidence = false
@@ -464,7 +472,7 @@ end
 
 # ------------------------------------------------
 
-function handleSingularities(coefficients, notLinearVariables, unknowns_indices, names, states, statesIndices, nonStateVariables, equations, orgEquIndex, Avar, G, ESizes, logTiming)
+function handleSingularities(coefficients, notLinearVariables, unknowns_indices, names, states, statesIndices, nonStateVariables, equations, orgEquIndex, Avar, G, Gsolvable, ESizes, logTiming)
     loglnModia("\nREMOVE SINGULARITIES")
     if log
         @show coefficients notLinearVariables names states
@@ -540,6 +548,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
     # Remove redundant equations and constraint equations
     newEquations = []
     newG = Array{Int,1}[]
+    newGsolvable = Array{Int,1}[]
     newESizes = []
     eqrOrg = orgEquIndex[eqr]
     eqxOrg = orgEquIndex[eqx]
@@ -551,6 +560,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
         if !(i in eqrOrg) & !(i in eqxOrg)
             push!(newEquations, e)
             push!(newG, g)
+            push!(newGsolvable, Gsolvable[i])
             push!(newESizes, ESizes[i])
         else 
             loglnModia("Removed equation: ", prettyPrint(e))
@@ -565,6 +575,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
         equationsUpdated = true
         push!(newEquations, eq)
         push!(newG, [findfirst(isequal(linearVars[i]), names)])
+        push!(newGsolvable, [findfirst(isequal(linearVars[i]), names)])
         push!(newESizes, size(0))
     end
 
@@ -597,6 +608,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
         loglnModia("Added equation: ", prettyPrint(eq))   
         push!(newEquations, eq)
         push!(newG, g)
+        push!(newGsolvable, [])
         push!(newESizes, size(0)) ### Should be generalized
         equationsUpdated = true
     end
@@ -604,6 +616,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
     equations = newEquations
     # G::Array{Array{Int,1},1} = newG
     G = newG
+    Gsolvable = newGsolvable
     ESizes = newESizes
 
     if equationsUpdated
@@ -612,7 +625,7 @@ function handleSingularities(coefficients, notLinearVariables, unknowns_indices,
             loglnModia(prettyPrint(e))
         end
     end
-    return equations, G, ESizes, nonStateVariables
+    return equations, G, Gsolvable, ESizes, nonStateVariables
 end  
 
 
@@ -662,7 +675,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
         end
         push!(G, vertices)
     
-        if removeSingularities || tearing
+        if removeSingularities || tearing || automaticStateSelection
             # Find linear equations with integer coefficients without offset.    
             coeff = Dict() 
             solvable = []
@@ -704,7 +717,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     names = createNames(unknownsNames, Avar)  
     
     if removeSingularities
-        (equations, G, ESizes, nonStateVariables) = handleSingularities(coefficients, notLinearVariables, unknowns_indices, names, states, statesIndices, nonStateVariables, equations, orgEquIndex, Avar, G, ESizes, logTiming)
+        (equations, G, Gsolvable, ESizes, nonStateVariables) = handleSingularities(coefficients, notLinearVariables, unknowns_indices, names, states, statesIndices, nonStateVariables, equations, orgEquIndex, Avar, G, Gsolvable, ESizes, logTiming)
     end
 
     # ------------------------------------------------
@@ -970,12 +983,24 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
 
     # ----------------------------
 
+    assign = []
     if indexReduction 
         reduceDAEIndex() 
     end
     
     loglnModia("\nSTATE SELECTION")
-    IG = copy(G)
+    IG = Array{Array{Int64,1},1}(G)
+    
+    for i in 1:length(IG)-length(Gsolvable)
+        push!(Gsolvable, [])  # This is conservative since highest derivative is not marked as solvable.
+    end
+    
+    if automaticStateSelection 
+        components = Array{Array{Int64,1},1}(BLT(IG, assign))
+        vNames = makeList(unknownsNames, 1:length(assign), Avar) # ::Vector{String}
+        eqGraph = StateSelection.getSortedEquationGraph(IG, Gsolvable, components, assign, Avar, Bequ, vNames; withStabilization=false)
+    end
+    
     if newStateSelection
         # Reduce graph
         newG = copy(IG)
@@ -984,7 +1009,14 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     end
   
     vActive = fill(true, length(Avar))
-    vActive[statesIndices] .= false
+    if ! automaticStateSelection
+        vActive[statesIndices] .= false
+    else
+        vActive[eqGraph.Vx] .= false
+        realStates = [GetField(This(), name) for name in names[eqGraph.Vx]]
+        setRealStates(realStates)
+    end
+    
     if log
         println("\nNot active:")
         for i in 1:length(vActive)

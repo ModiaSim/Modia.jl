@@ -174,9 +174,6 @@ plot(result, ("x1", "x2", "x3", "x4"), figure=5)
 
 
 # Tearing6
-# removeSingularities + Tearing results in an error
-#    attempt to access 5-element Array{Any,1} at index [6]
-# The reason is probably that Gsolvable is not correct
 @model Tearing6 begin
     C1 = 1e-3
     C2 = 2e-3

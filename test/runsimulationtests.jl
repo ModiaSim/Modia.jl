@@ -36,7 +36,8 @@ end
 
     #include("models/TestCoupledInertias.jl")
     #include("models/TestPendulum.jl")
-    #include("models/TestStateSelection.jl")
+    include("models/TestTearing.jl")
+    include("models/TestAutomaticStateSelection.jl")
     #include("models/TestRetranslationOmega.jl")
 
     Modia.ModiaLogging.printTestStatus()

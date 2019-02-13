@@ -6,7 +6,7 @@ global logName = "Modia_log"
 
 # ----------------------------------------------
 
-export openLogModia, logModia, loglnModia, closeLogModia, logFileModia, setOptions, setDefaultLogName, resetTestStatus, setTestStatus, increaseLogCategory, printTestStatus
+export openLogModia, logModia, loglnModia, closeLogModia, logFileModia, setDefaultLogName, resetTestStatus, setTestStatus, increaseLogCategory, printTestStatus
 
 global logTranslation = logTranslationDefault
 

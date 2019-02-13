@@ -16,8 +16,8 @@ else
     using Modia.Test
 end
 
+const logSimulation=false
 
-#= 
 @model TwoConnectedInertias begin
     J1 = 2.0
     J2 = 3.0
@@ -32,7 +32,7 @@ end
         w1 = w2
     end
 end 
-result = simulate(TwoConnectedInertias, 3.0; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=true)
+result = simulate(TwoConnectedInertias, 3.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=false, automaticStateSelection=true)
 plot(result, ("w1", "w2"), figure=1)
 
 
@@ -51,15 +51,9 @@ plot(result, ("w1", "w2"), figure=1)
         w1 = ratio*w2
     end
 end 
-result = simulate(TwoInertiasConnectedViaIdealGear, 3.0; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=true)
+result = simulate(TwoInertiasConnectedViaIdealGear, 3.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=true)
 plot(result, ("w1", "w2"), figure=2)
 
-
-
-# Translation fails if tearing=true (successful with tearing=false)
-# The reason is that "vj in Gsolvable[eq]" in Tearing.jl gives a wrong array access.
-# It might be that the variables removed by RemoveSingularity are not correctly provided in Gsolvable.
-#
 @model ParallelCapacitors1 begin
     C1 = Capacitor(C=1.1, v=Float(start=1.0))
     C2 = Capacitor(C=2.2, v=Float(state=false))
@@ -71,9 +65,8 @@ plot(result, ("w1", "w2"), figure=2)
     end
 end 
 
-result = simulate(ParallelCapacitors1, 1; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=false)
+result = simulate(ParallelCapacitors1, 1; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=false)
 plot(result, ("C1.v", "C2.v"), figure=3)
-
  
 @model ParallelCapacitors2 begin
     C1 = Capacitor(C=1.1, v=Float(start=1.0))
@@ -86,10 +79,8 @@ plot(result, ("C1.v", "C2.v"), figure=3)
     end
 end 
 
-result = simulate(ParallelCapacitors2, 1; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=true)
+result = simulate(ParallelCapacitors2, 1; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=false, automaticStateSelection=true)
 plot(result, ("C1.v", "C2.v"), figure=4)
-
-=#
 
 
 # Simulates with tearing = false and u2.state=false
@@ -110,7 +101,7 @@ plot(result, ("C1.v", "C2.v"), figure=4)
     v0 = 0
     end 
 end 
-result = simulate(ParallelCapacitors2b , 1.0; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false)
+result = simulate(ParallelCapacitors2b , 1.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=false)
 plot(result, ("u1", "u2", "i1", "v1"), figure=6)
 
 

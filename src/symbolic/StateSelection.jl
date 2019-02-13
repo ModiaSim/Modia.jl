@@ -112,9 +112,9 @@ function getConstraintSets(eBLT::Vector{Int}, Eassign::Vector{Int}, Arev::Vector
                 push!(veq, Arev[vc])
             end
       
-            if length(veq) == 0;
-                error("Error should not occur: eBLT equations and vBLT variables have different differentiation orders");
-            end
+        end
+        if length(veq) == 0;
+            error("Error should not occur: eBLT equations and vBLT variables have different differentiation orders");
         end
       
         @static if VERSION < v"0.7.0-DEV.2005"
