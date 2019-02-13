@@ -194,7 +194,7 @@ plot(result, ("x1", "x2", "x3", "x4"), figure=5)
     end 
 end 
 result = simulate(Tearing6, 1.0; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
-plot(result, ("u1", "u2", "i1", "v1", "v2"), figure=6)
+plot(result, ("u1", "u2", "i1", "v1", "v0"), figure=6)
 
 end
 

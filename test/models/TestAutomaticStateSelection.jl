@@ -30,7 +30,7 @@ end
         w1 = w2
     end
 end 
-result = simulate(TwoConnectedInertias, 3.0; logTranslation=true, logSimulation=true)
+result = simulate(TwoConnectedInertias, 3.0; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=true)
 plot(result, ("w1", "w2"), figure=1)
 
 
@@ -49,7 +49,7 @@ plot(result, ("w1", "w2"), figure=1)
         w1 = ratio*w2
     end
 end 
-result = simulate(TwoInertiasConnectedViaIdealGear, 3.0; logTranslation=true, logSimulation=true)
+result = simulate(TwoInertiasConnectedViaIdealGear, 3.0; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=true)
 plot(result, ("w1", "w2"), figure=2)
 
 
@@ -69,13 +69,13 @@ plot(result, ("w1", "w2"), figure=2)
     end
 end 
 
-result = simulate(ParallelCapacitors1, 1; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=true)
+result = simulate(ParallelCapacitors1, 1; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=false)
 plot(result, ("C1.v", "C2.v"), figure=3)
 
  
 @model ParallelCapacitors2 begin
     C1 = Capacitor(C=1.1, v=Float(start=1.0))
-    C2 = Capacitor(C=2.2, v=Float(state=1.0))
+    C2 = Capacitor(C=2.2, v=Float(start=1.0))
     ground = Ground()
     @equations begin
         connect(C1.p, C2.p)
@@ -84,6 +84,6 @@ plot(result, ("C1.v", "C2.v"), figure=3)
     end
 end 
 
-result = simulate(ParallelCapacitors2, 1; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
+result = simulate(ParallelCapacitors2, 1; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false, automaticStateSelection=true)
 plot(result, ("C1.v", "C2.v"), figure=4)
 end
