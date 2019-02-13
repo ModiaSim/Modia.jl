@@ -16,6 +16,8 @@ else
     using Modia.Test
 end
 
+
+#= 
 @model TwoConnectedInertias begin
     J1 = 2.0
     J2 = 3.0
@@ -75,7 +77,7 @@ plot(result, ("C1.v", "C2.v"), figure=3)
  
 @model ParallelCapacitors2 begin
     C1 = Capacitor(C=1.1, v=Float(start=1.0))
-    C2 = Capacitor(C=2.2, v=Float(state=1.0))
+    C2 = Capacitor(C=2.2, v=Float(start=1.0))
     ground = Ground()
     @equations begin
         connect(C1.p, C2.p)
@@ -86,4 +88,30 @@ end
 
 result = simulate(ParallelCapacitors2, 1; logTranslation=true, logSimulation=true, tearing=true, removeSingularities=true)
 plot(result, ("C1.v", "C2.v"), figure=4)
+
+=#
+
+
+# Simulates with tearing = false and u2.state=false
+# Translation error if tearing = true and u2.state=false
+@model ParallelCapacitors2b begin
+    C1 = 1e-3
+    C2 = 2e-3
+    u1 = Float(size=(), start=1.0)
+    u2 = Float(size=(), state=false)
+    i1 = Float(size=())        
+    v1 = Float(size=())        
+    v0 = Float(size=())        
+@equations begin
+    C1*der(u1) = i1
+    C2*der(u2) = -i1
+    u1 = v1 - v0
+    u2 = v1 - v0
+    v0 = 0
+    end 
+end 
+result = simulate(ParallelCapacitors2b , 1.0; logTranslation=true, logSimulation=true, tearing=false, removeSingularities=false)
+plot(result, ("u1", "u2", "i1", "v1"), figure=6)
+
+
 end
