@@ -156,6 +156,9 @@ mutable struct SortedEquationGraph
     Gunknowns::Vector{Vector{Int}}  # Gunknowns[i] is the vector of variables of equation i that are treated as unknowns
     Gsolvable::Vector{Any}          # Gsolvable[i] contains the variables that can be
                                     # solved for equation i (used for tearing)
+                                    # Gsolvable is only needed for the non-differentiated equations 
+                                    # (tearing variables of differentiated equations are automatically decuded from 
+                                    # the non-differentiated equations)
     eConstraintsVec::Vector{Vector{Vector{Int}}}   # ec = eConstraintsVec[i]: constraint sets of BLT block i; 
                                                    #      ec[1]  : lowest derivative equations
                                                    #      ec[end]: highest derivative equations (= BLT block i)
@@ -264,10 +267,10 @@ mutable struct SortedEquationGraph
             end
         end
 
-        if lowerDerivativeEquationsInBLT
-            println("\n... Warning from SortedEquationGraph(..) (in StateSelection.jl):",
-                "\n... BLT blocks with lower derivative equations have been ignored.\n")  
-        end 
+        #if lowerDerivativeEquationsInBLT
+        #    println("\n... Warning from SortedEquationGraph(..) (in StateSelection.jl):",
+        #        "\n... BLT blocks with lower derivative equations have been ignored.\n")  
+        #end 
       
       # Tearing information
         td = TraverseDAG(Gunknowns, length(VNames))
@@ -445,7 +448,8 @@ Return the sorted equation graph with selection of states and dummy states.
 
 # Input arguments
 - `Gorigin`: Gorigin[i] is the vector of variable indices of equation i.
-- `Gsolvable`: Gsolvable[i] is a subset of Gorigin[i] and contains the unknowns that can be explicitly solved for (used for tearing)
+- `Gsolvable`: Gsolvable[i] is a subset of Gorigin[i] and contains the unknowns that can be explicitly solved for (used for tearing).
+   Gsolvable is only needed for the non-differentiated equations (all differentiated equations j can have Gsolvable[j]=[])
 - `BLT`: BLT[i] is the vector of equations belonging to BLT-block i
 - `assign`: ei = assign[vi] is equation ei assigned to variable vi
 - `A`: A-Vector of Pantelides: `A[i] = if der(v[i]) == v[k] then k else 0` where `v[i]` is variable `i`. 
@@ -520,7 +524,8 @@ Constructs all information for the sorted equation graph.
 Input arguments:
 
 - `eqInit`: Initialized data structure instantiated with SortedEquationGraph()
-- `Gsolvable`: Subset of eqInit.Gunknowns that contains the unknowns that can be solved for (used for tearing)
+- `Gsolvable`: Subset of eqInit.Gunknowns that contains the unknowns that can be solved for (used for tearing).
+   Gsolvable is only needed for the non-differentiated equations (all differentiated equations j can have Gsolvable[j]=[])
 
 Output arguments in sortedEquationGraph:
 

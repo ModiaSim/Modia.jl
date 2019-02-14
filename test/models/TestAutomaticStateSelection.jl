@@ -83,8 +83,6 @@ result = simulate(ParallelCapacitors2, 1; logTranslation=true, logSimulation=log
 plot(result, ("C1.v", "C2.v"), figure=4)
 
 
-# Simulates with tearing = false and u2.state=false
-# Translation error if tearing = true and u2.state=false
 @model ParallelCapacitors2b begin
     C1 = 1e-3
     C2 = 2e-3
@@ -104,5 +102,27 @@ end
 result = simulate(ParallelCapacitors2b , 1.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=false)
 plot(result, ("u1", "u2", "i1", "v1"), figure=6)
 
+
+@model TwoInertiasConnectedViaIdealGearWithPositionConstraints begin
+    J1 = 2.0
+    J2 = 3.0
+    ratio = 4.0
+    phi1 = Float(size=(), start=1.0)
+    phi2 = Float(size=(), start=1.0)
+    w1 = Float(size=(), start=1.0)
+    w2 = Float(size=(), start=1.0)
+    tau = Float(size=())
+    t   = Float(size=())
+    @equations begin
+        der(t) = 1.0
+        w1 = der(phi1)
+        w2 = der(phi2)
+        J1*der(w1) = sin(t) - ratio*tau
+        J2*der(w2) = tau
+        phi1 = ratio*phi2
+    end
+end 
+result = simulate(TwoInertiasConnectedViaIdealGearWithPositionConstraints, 3.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=true)
+plot(result, [("phi1", "phi2"), ("w1", "w2")], figure=7)
 
 end

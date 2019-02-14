@@ -148,7 +148,9 @@ vNames:
 
         # First version where all unknowns can be solved for
         println("\n\n... Test two coupled inertias (all unknowns can be solved for)")
-        Gsolvable = Gorigin
+        # Gsolvable = Gorigin
+        Gsolvable = StateSelection.newRaggedIntMatrix(length(Gorigin))
+        Gsolvable[1:6] = Gorigin[1:6]
         eq = getSortedEquationGraph(Gorigin, Gsolvable, BLT, assign, Avar, Bequ, VNames)
         if printSortedEquations
            printSortedEquationGraph(eq)
@@ -157,7 +159,7 @@ vNames:
 
 
         println("\n\n... Test two coupled inertias (only a subset of unknowns can be solved for)")
-        Gsolvable = Any[Any[3,7],Any[1],Any[6,9],Any[4],Any[2,5],Any[1,4],Any[7,9],[8,11],[10,12],[12,11]]
+        Gsolvable = Any[Any[3,7],Any[1],Any[6,9],Any[4],Any[2,5],Any[1,4],Any[],[],[],[]]
         eq = getSortedEquationGraph(Gorigin, Gsolvable, BLT, assign, Avar, Bequ, VNames)
         if printSortedEquations
            printSortedEquationGraph(eq)
@@ -214,7 +216,7 @@ vNames:
    9: (9)
 =#
 
-
+        println("\n\n... Test simple sliding mass model with Tearing")
         assign = [0,0,0,3,5,0,4,0,7,8,0,9]
         A = [6,8,10,0,0,7,0,9,0,0,12,0]
         B = [6,8,0,0,0,7,0,0,0]
@@ -235,6 +237,7 @@ vNames:
      [10,9],
      [12,11]]
 
+    #=
         Gsolvable = [[2],
              [3,8],
              [10,4,5],
@@ -243,6 +246,17 @@ vNames:
              [8],
              [9],
              [10,9],
+             [12]]
+    =#
+
+        Gsolvable = [[2],
+             [3,8],
+             [10,4,5],
+             [],
+             [5],
+             [],
+             [],
+             [],
              [12]]
 
         eq = getSortedEquationGraph(G, Gsolvable, BLT, assign, A, B, VNames)
@@ -359,8 +373,9 @@ vNames:
 
                                            
         println("\n\n... Test Multi-Index DAE WITH tearing")
-        Gsolvable    = copy(G)
-        Gsolvable[8] = fill(0, 0)  # "0 = u8(t) + x8 - sin(x8)" cannot be solved for x8
+        # Gsolvable    = copy(G)
+        # Gsolvable[8] = fill(0, 0)  # "0 = u8(t) + x8 - sin(x8)" cannot be solved for x8
+        Gsolvable[1:7] = G[1:7]   
         eq = getSortedEquationGraph(G, Gsolvable, BLT, assign, A, B, VNames)
         if printSortedEquations
            printSortedEquationGraph(eq)
