@@ -467,7 +467,7 @@ Return the sorted equation graph with selection of states and dummy states.
 - `ider1n1 `: Index vector, such that _residue[1:length(ider0n2)] = _der_x[ider0n2] - _x[ider1n1].
 - `ESorted `: Sorted equations (equations must be generated in the order ESorted[1],[2],..).              
 - `ESolved `: If ESolved[i] > 0 then equation ESorted[i] is explicitly solved for variable ESolved[i].
-              If ESolved[i] == 0, ESorted[i] is a residue equation.
+              If ESolved[i] < 0, abs(ESolved[i]) is the index of the residue, so _residue[ abs(ESolved[i]) ] = residue of equation i.
 - `nc      `: Number of residue constraints, so part that depends on (x,t) but not on der(x); 0 <= nc <= nx
 - `nmue    `: Number of mue variables  
 """
@@ -538,7 +538,7 @@ Output arguments in sortedEquationGraph:
 - `ider1n1 `: Index vector, such that _residue[1:length(ider0n2)] = _der_x[ider0n2] - _x[ider1n1].
 - `ESorted `: Sorted equations (equations must be generated in the order ESorted[1],[2],..).              
 - `ESolved `: If ESolved[i] > 0 then equation ESorted[i] is explicitly solved for variable ESolved[i].
-              If ESolved[i] == 0, ESorted[i] is a residue equation.
+              If ESolved[i] < 0, abs(ESolved[i]) is the index of the residue, so _residue[ abs(ESolved[i]) ] = residue of equation i.
 - `nc      `: Number of residue constraints, so part that depends on (x,t) but not on der(x); 0 <= nc <= nx
 - `nmue    `: Number of mue variables  
 """
