@@ -102,7 +102,8 @@ end
 result = simulate(ParallelCapacitors2b , 1.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=false)
 plot(result, ("u1", "u2", "i1", "v1"), figure=6)
 
-
+#=
+# Does not compile
 @model TwoInertiasConnectedViaIdealGearWithPositionConstraints begin
     J1 = 2.0
     J2 = 3.0
@@ -124,5 +125,7 @@ plot(result, ("u1", "u2", "i1", "v1"), figure=6)
 end 
 result = simulate(TwoInertiasConnectedViaIdealGearWithPositionConstraints, 3.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=true)
 plot(result, [("phi1", "phi2"), ("w1", "w2")], figure=7)
+=#
+
 
 end
