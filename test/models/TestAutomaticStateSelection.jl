@@ -16,8 +16,9 @@ else
     using Modia.Test
 end
 
-const logSimulation=false
+const logSimulation=true
 
+#=
 @model TwoConnectedInertias begin
     J1 = 2.0
     J2 = 3.0
@@ -101,17 +102,17 @@ plot(result, ("C1.v", "C2.v"), figure=4)
 end 
 result = simulate(ParallelCapacitors2b , 1.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=false)
 plot(result, ("u1", "u2", "i1", "v1"), figure=6)
+=#
 
-#=
 # Does not compile
 @model TwoInertiasConnectedViaIdealGearWithPositionConstraints begin
     J1 = 2.0
     J2 = 3.0
     ratio = 4.0
-    phi1 = Float(size=(), start=1.0)
+    phi1 = Float(size=(), start=1.0, fixed=true)
     phi2 = Float(size=(), start=1.0)
-    w1 = Float(size=(), start=1.0)
-    w2 = Float(size=(), start=1.0)
+    w1 = Float(size=(), start=1.0, fixed=true)
+    w2 = Float(size=(), start=1.0, fixed=true)
     tau = Float(size=())
     t   = Float(size=())
     @equations begin
@@ -123,9 +124,9 @@ plot(result, ("u1", "u2", "i1", "v1"), figure=6)
         phi1 = ratio*phi2
     end
 end 
-result = simulate(TwoInertiasConnectedViaIdealGearWithPositionConstraints, 3.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=true)
+result = simulate(TwoInertiasConnectedViaIdealGearWithPositionConstraints, 3.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=false, automaticStateSelection=true)
 plot(result, [("phi1", "phi2"), ("w1", "w2")], figure=7)
-=#
+println("after plot")
 
 
 end

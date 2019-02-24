@@ -589,22 +589,26 @@ function differentiate(e)
                 print("DIFFERENTIATE DERIVATIVE:    "); println(e)
         end
 
-        # @show e.base e.base.name
-        if true
+#        @show e e.base e.base.name realStates
+        state = GetField(This(), Symbol("der_" * string(e.base.name)))
+#        @show state        
+        i = findfirst(isequal(state), realStates)
+#        @show i
+        if i == notFound
             diff = GetField(This(), Symbol("der_der_" * string(e.base.name))) 
+#            @show diff
             if !noUnits 
                 diff = diff / Unitful.s
             end
             dummyDerivatives[Symbol("der_der_" * string(e.base.name))] = nothing
-        elseif e.base.name == Symbol("j.s")   # Hack!!!
-            diff = Der(GetField(This(), Symbol("j.v"))) # GetField(This(), Symbol("j.a")) #
         else
-            diff = Der(e)
+            diff = Der(state)
+            dummyDerivatives[Symbol("der_" * string(e.base.name))] = nothing
         end
         
         # @show e diff
         if logDifferentiateVariable
-                print("  Differentiated derivative: "); println(diff)
+            print("  Differentiated derivative: "); println(diff)
         end
 
     elseif e.head in [:(=), :(:=)] # Equation

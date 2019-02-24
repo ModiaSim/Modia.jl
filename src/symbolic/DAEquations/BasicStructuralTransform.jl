@@ -996,9 +996,18 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     end
     
     if automaticStateSelection 
+		startValues = []
+		fixedFlags = []
+		for (name, var) in unknowns
+			push!(startValues, var.start)
+			push!(fixedFlags, var.fixed)
+		end
+		@show startValues
+		@show fixedFlags
+	
         components = Array{Array{Int64,1},1}(BLT(IG, assign))
         vNames = makeList(unknownsNames, 1:length(assign), Avar) # ::Vector{String}
-        eqGraph = StateSelection.getSortedEquationGraph(IG, Gsolvable, components, assign, Avar, Bequ, vNames; withStabilization=false)
+        eqGraph = StateSelection.getSortedEquationGraph(IG, Gsolvable, components, assign, Avar, Bequ, vNames, withStabilization=false)
     end
     
     if newStateSelection
@@ -1012,8 +1021,32 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     if ! automaticStateSelection
         vActive[statesIndices] .= false
     else
-        vActive[eqGraph.Vx] .= false
-        realStates = [GetField(This(), name) for name in names[eqGraph.Vx]]
+		stateIndices = eqGraph.Vx
+		@show names Avar stateIndices
+		@show Gsolvable
+		for i in 1:length(stateIndices)
+			j = stateIndices[i]
+			if j in Avar # selected state is a derivative
+				# search for corresponding variable
+				alias = 0
+				for ie in 1:length(G)
+				    g = Gsolvable[ie]
+					if j in g && length(g) == 2 && sort(g) == sort(G[ie])
+						alias = if g[1] == j; g[2] else g[1] end
+						break;
+					end
+				end
+				@show alias i
+				stateIndices[i] = alias
+			end
+		end
+		
+		@show stateIndices
+        vActive[stateIndices] .= false
+        stateNames = [replace(replace(string(name), "(" => "_"), ")" => "") for name in names[stateIndices]]
+        @show stateNames
+		@show realStates
+        realStates = [GetField(This(), Symbol(name)) for name in stateNames]
         setRealStates(realStates)
     end
     
