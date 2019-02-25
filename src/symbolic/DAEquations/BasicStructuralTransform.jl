@@ -994,7 +994,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     for i in 1:length(IG)-length(Gsolvable)
         push!(Gsolvable, [])  # This is conservative since highest derivative is not marked as solvable.
     end
-    
+
     if automaticStateSelection 
 		startValues = []
 		fixedFlags = []
@@ -1004,7 +1004,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
 		end
 		@show startValues
 		@show fixedFlags
-	
+	    println(... 2)
         components = Array{Array{Int64,1},1}(BLT(IG, assign))
         vNames = makeList(unknownsNames, 1:length(assign), Avar) # ::Vector{String}
         eqGraph = StateSelection.getSortedEquationGraph(IG, Gsolvable, components, assign, Avar, Bequ, vNames, withStabilization=false)
@@ -1016,17 +1016,17 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
         newAssign = copy(assign)
         # newG = [newG[i] for i in 1:length(newG) if Bequ[i] == 0]
     end
-  
+
     vActive = fill(true, length(Avar))
     if ! automaticStateSelection
         vActive[statesIndices] .= false
     else
-		stateIndices = eqGraph.Vx
+		stateIndices = eqGraph.Vx[ findall(x->x>0, eqGraph.Vx) ]   # Only use Vx indices that are > 0 (= no lambda variables)
 		@show names Avar stateIndices
 		@show Gsolvable
 		for i in 1:length(stateIndices)
 			j = stateIndices[i]
-			if j in Avar # selected state is a derivative
+			if j in Avar  # selected state is a derivative, but not a lambda variable and not an algebraic variable
 				# search for corresponding variable
 				alias = 0
 				for ie in 1:length(G)
@@ -1049,7 +1049,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
         realStates = [GetField(This(), Symbol(name)) for name in stateNames]
         setRealStates(realStates)
     end
-    
+
     if log
         println("\nNot active:")
         for i in 1:length(vActive)
