@@ -1004,7 +1004,6 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
 		end
 		@show startValues
 		@show fixedFlags
-	    println(... 2)
         components = Array{Array{Int64,1},1}(BLT(IG, assign))
         vNames = makeList(unknownsNames, 1:length(assign), Avar) # ::Vector{String}
         eqGraph = StateSelection.getSortedEquationGraph(IG, Gsolvable, components, assign, Avar, Bequ, vNames, withStabilization=false)
