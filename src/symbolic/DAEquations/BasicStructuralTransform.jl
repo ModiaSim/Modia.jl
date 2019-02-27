@@ -54,6 +54,7 @@ export analyzeStructurally, basicTransformStructurally, setOptions
     
 const log = false
 const logIndexReduction = false
+global logTranslation = false
 global useIncidenceMatrix = false
 global expandArrayIncidence = false
 removeSingularitiesDefault = true
@@ -82,6 +83,13 @@ const indexReduction = true
 =#  
 
 function setOptions(options) 
+    global logTranslation = false
+    if haskey(options, :logTranslation)
+        global logTranslation = options[:logTranslation]
+        @show logTranslation
+        delete!(options, :logTranslation)
+    end
+
     global removeSingularities = removeSingularitiesDefault
     if haskey(options, :removeSingularities)
         global removeSingularities = options[:removeSingularities]
