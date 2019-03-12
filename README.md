@@ -28,9 +28,10 @@ The latest released version (0.2.3) is the last one with support for Julia >= 0.
 ```julia
 # Julia >= 0.6:
 julia> Pkg.add("Modia")
+julia> Pkg.add("ModiaMath")
 
 # Julia >= 0.7:
-julia> ]add Modia
+julia> ]add Modia ModiaMath
 ```
 
 Modia uses [PyPlot](https://github.com/JuliaPy/PyPlot.jl) for plotting.
