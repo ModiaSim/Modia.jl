@@ -31,7 +31,7 @@ const allowed_funcs = [:*, :/, :^, :sqrt, :√, :+, :-, ://]
 function replace_value(ex::Expr)
     if ex.head == :call
         ex.args[1] in allowed_funcs ||
-            error("""$(ex.args[1]) is not a valid function call when parsing a unit.
+            ModiaLogging.closeLogModiaAndError("""$(ex.args[1]) is not a valid function call when parsing a unit.
              Only the following functions are allowed: $allowed_funcs""")
         for i=2:length(ex.args)
             if typeof(ex.args[i])==Symbol || typeof(ex.args[i])==Expr
@@ -44,12 +44,12 @@ function replace_value(ex::Expr)
             if typeof(ex.args[i])==Symbol
                 ex.args[i]=replace_value(ex.args[i])
             else
-                error("only use symbols inside the tuple.")
+                ModiaLogging.closeLogModiaAndError("only use symbols inside the tuple.")
             end
         end
         return ex
     else
-        error("Expr head $(ex.head) must equal :call or :tuple")
+        ModiaLogging.closeLogModiaAndError("Expr head $(ex.head) must equal :call or :tuple")
     end
 end
 

@@ -151,7 +151,7 @@ function checkAssign(assign, VSizes, VTypes, ESizes, ETypes, equationsInfix, var
     if assignmentOK
         println("Assignment is OK")
     else
-        # error("Assignment not OK")
+        # ModiaLogging.closeLogModiaAndError("Assignment not OK")
   end
 end
 

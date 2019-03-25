@@ -251,7 +251,7 @@ end
 "Check that a start value (possibly default) exists for the var, or give an error."
 function check_start(var::Variable, name)
     if (var.start === nothing) && (var.typ !== Nothing) && !applicable(zero, var.typ)
-        error("Variable ", name, " has no start value and no default exists for type ", var.typ)
+        ModiaLogging.closeLogModiaAndError("Variable ", name, " has no start value and no default exists for type ", var.typ)
     end
 end
 
@@ -887,14 +887,14 @@ initializer_getfield(x, name::Symbol) = getfield(x, name)
 function initializer_getfield(instance::Instance, name::Symbol)
     if !haskey(instance.variables, name)
         ModiaLogging.increaseLogCategory(:NoFieldDefined)
-        error("No field ", name, " defined in model ", instance.model_name, " (yet)")
+        ModiaLogging.closeLogModiaAndError("No field ", name, " defined in model ", instance.model_name, " (yet)")
     end
     instance.variables[name]
 end
 
 "Give an error message that no initializer has been defined for a varible."
 function no_initializer(inst::Instance, name::Symbol)
-    error("No initializer given for variable $(model_name_of(inst)).$name")
+    ModiaLogging.closeLogModiaAndError("No initializer given for variable $(model_name_of(inst)).$name")
 end
 
 # -------------------------------- instantiate --------------------------------
@@ -906,7 +906,7 @@ as_field_value(insts::Vector{Instantiations}, time::Float64) = Instance[instanti
 
 function add_variable!(instance::Instance, name::Symbol, value)
     if haskey(instance.variables, name)
-        # error("Multiple definitions of $(name) in $(model_name_of(instance))")
+        # ModiaLogging.closeLogModiaAndError("Multiple definitions of $(name) in $(model_name_of(instance))")
         println("Multiple definitions of $(name) in $(model_name_of(instance))")
     end
     instance.variables[name] = value
@@ -945,7 +945,7 @@ function instantiate_equation!(instance::Instance, eq)
     println("Conditional equation:")
     println(prettyPrint(eq)) 
     if length(eq.args) > 3 
-        error("elseif is presently not handled.")
+        ModiaLogging.closeLogModiaAndError("elseif is presently not handled.")
     end
     cond = eq.args[1]
     if typeof(cond) == GetField # only handle name that resolves in the model for now
@@ -961,12 +961,12 @@ function instantiate_equation!(instance::Instance, eq)
               cond_value = cond_value.value
             end
         else
-            error("Too complex expression: $cond")
+            ModiaLogging.closeLogModiaAndError("Too complex expression: $cond")
         end
         if op == !
             cond_value = ! cond_value
         else
-            error("Not handled operator.")
+            ModiaLogging.closeLogModiaAndError("Not handled operator.")
         end
     end
     println("condition = ", cond_value)
@@ -975,7 +975,7 @@ function instantiate_equation!(instance::Instance, eq)
     if eq_index <= length(eq.args)
       branch_eq = eq.args[eq_index]
       if ! (branch_eq.head in [:(=), :block])
-          error("At most one equation is currently allowed in conditional equation.")
+          ModiaLogging.closeLogModiaAndError("At most one equation is currently allowed in conditional equation.")
       end
       
       if branch_eq.head == :(=) 
@@ -1108,7 +1108,7 @@ get_this_fieldname(g::GetField) = (@assert g.base === This(); g.name)
 get_connection_sign(ex::This) = false
 
 function get_connection_sign(ex::GetField)
-    if !isa(ex.base, This); error("Can only connect current model and submodels"); end
+    if !isa(ex.base, This); ModiaLogging.closeLogModiaAndError("Can only connect current model and submodels") end
     true
 end
 
@@ -1125,7 +1125,7 @@ function add_connection!(flat::Flat, prefix::AbstractString, instance::Instance,
     if eq.a.name in keys(vars_of(inst))
         atype = get_connector_type(lookup(instance, eq.a))
     else
-        error("Connector $(eq.a.name) not found in: $eq in model $(instance.model_name)")
+        ModiaLogging.closeLogModiaAndError("Connector $(eq.a.name) not found in: $eq in model $(instance.model_name)")
     end
 
     inst = lookup(instance, eq.b.base)
@@ -1135,7 +1135,7 @@ function add_connection!(flat::Flat, prefix::AbstractString, instance::Instance,
     if eq.b.name in keys(vars_of(inst))
         btype = get_connector_type(lookup(instance, eq.b))
     else
-        error("Connector $(eq.b.name) not found in: $eq in model $(instance.model_name)")
+        ModiaLogging.closeLogModiaAndError("Connector $(eq.b.name) not found in: $eq in model $(instance.model_name)")
     end
 
     if atype != btype

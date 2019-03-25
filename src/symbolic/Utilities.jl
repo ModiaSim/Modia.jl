@@ -103,7 +103,7 @@ function showModel(mod, indent="")
                         # mod.partial = true
                     end
                 else
-                    error("Missing parentheses in extends clause: @extends $(mod.initializers[i].fdef.args[2].args[2].args[2])")
+                    ModiaLogging.closeLogModiaAndError("Missing parentheses in extends clause: @extends $(mod.initializers[i].fdef.args[2].args[2].args[2])")
                 end
             end
         end
@@ -230,7 +230,7 @@ function checkSizes(VSizes, ESizes)
     if length(VSizes) != length(ESizes)
         ModiaLogging.increaseLogCategory(:UnbalancedModel)
         # For TestArray5
-        #    error("The number of unknowns ($(length(VSizes))) is not equal to the number of equations ($(length(ESizes)))")
+        #    ModiaLogging.closeLogModiaAndError("The number of unknowns ($(length(VSizes))) is not equal to the number of equations ($(length(ESizes)))")
     end
 
     loglnModia()
@@ -239,9 +239,10 @@ function checkSizes(VSizes, ESizes)
     scalarE = sum(length(zeros(e)) for e in ESizes)
     
     if scalarV != scalarE  
-        # error("Scalarized system matrix is not square: $scalarE x $scalarV")
+        # ModiaLogging.closeLogModiaAndError("Scalarized system matrix is not square: $scalarE x $scalarV")
         ModiaLogging.closeLogModia()
-        error("The number of scalarized unknowns (= $scalarV) is not equal to the number of scalarized equations (= $scalarE).\n",
+        ModiaLogging.closeLogModiaAndError(
+              "The number of scalarized unknowns (= $scalarV) is not equal to the number of scalarized equations (= $scalarE).\n",
               "If option `simulate(<model>, ...; logTranslation=true)` is set, inspect <user>/ModiaResults/<model>.txt for more info.")
         ok = false
     else
@@ -258,7 +259,7 @@ function checkSizes(VSizes, ESizes)
         ESizeCount = [length([s for s in ESizes if s == d ]) for d in differentESizes]
         @show differentVSizes VSizeCount differentESizes ESizeCount
         ok = false
-        error("The sizes of variables and equations don't match.")
+        ModiaLogging.closeLogModiaAndError("The sizes of variables and equations don't match.")
     end
 end
 

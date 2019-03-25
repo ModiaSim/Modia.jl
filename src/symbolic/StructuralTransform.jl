@@ -193,7 +193,7 @@ function findAliases!(nonAliasEquations, aliases, eq::Expr, unknowns, defined)
                     @show e1.name, unknowns[e1.name].state
                 else 
                     println("Circular aliases between: $e1 and $e2")
-#                    error("Aborting")
+#                    ModiaLogging.closeLogModiaAndError("Aborting")
                 end
             elseif typeof(e1) == GetField && typeof(e2) == GetField && (haskey(unknowns, e1.name) || haskey(unknowns, e2.name))
                 println("One is unknown:")

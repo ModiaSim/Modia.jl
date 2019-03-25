@@ -29,6 +29,8 @@ dummy derivative method). Details are described in the paper:
 """
 module StateSelection
 
+import ..ModiaLogging
+
 # export SortedEquationGraph
 # export getSortedEquationGraph!
 export getSortedEquationGraph
@@ -114,7 +116,7 @@ function getConstraintSets(eBLT::Vector{Int}, Eassign::Vector{Int}, Arev::Vector
       
         end
         if length(veq) == 0;
-            error("Error should not occur: eBLT equations and vBLT variables have different differentiation orders");
+            ModiaLogging.closeLogModiaAndError("Error should not occur: eBLT equations and vBLT variables have different differentiation orders");
         end
       
         @static if VERSION < v"0.7.0-DEV.2005"
@@ -402,7 +404,7 @@ If yes, mark this in eq.EAlgebraic and eq.VAlgebraic
 """
 function determineAlgebraicProperty!(eq::SortedEquationGraph, ec::Vector{Int})
     if length(ec) == 0
-        error("... Internal error in checkAlgebraicProperty!(..) in StateSelection.jl: length(ec) = 0")
+        ModiaLogging.closeLogModiaAndError("... Internal error in checkAlgebraicProperty!(..) in StateSelection.jl: length(ec) = 0")
     end
    
     for eci in ec                  # for all equations in ec
@@ -432,7 +434,7 @@ function deduceHigher(vLower::Vector{Int}, A)
     for i in eachindex(vLower)
         derv = A[ vLower[i] ]
         if derv == 0
-            error("... Internal error in StateSelection.jl: vLower/eLower = ", vLower[i], " has no derivative.")
+            ModiaLogging.closeLogModiaAndError("... Internal error in StateSelection.jl: vLower/eLower = ", vLower[i], " has no derivative.")
         end
         v[i] = derv
     end
@@ -501,12 +503,14 @@ function getSortedEquationGraph(G, Gsolvable, BLT, assign, A, B, VNames; withSta
             end
 
             if length(lambdaVariables) > 0
-                error("\n... Automatic state selection is not possible, because the code generator does not\n",
+                ModiaLogging.closeLogModiaAndError(
+                      "\n... Automatic state selection is not possible, because the code generator does not\n",
                       "    yet support DAE stabilization of higher index systems.\n",
                       "    Number of lambda variables: ", length(lambdaVariables), ", number of mue variables: ", eq.nmue, "\n",
                       "    The following (lambda) variables are the reason: ", lambdaVariables, ".")
             elseif eq.nmue > 0
-                error("\n... Automatic state selection is not possible, because the code generator does not\n",
+                ModiaLogging.closeLogModiaAndError(
+                      "\n... Automatic state selection is not possible, because the code generator does not\n",
                       "    yet support the generation of stabilizing equations.\n",
                       "    Number of lambda variables: ", length(lambdaVariables), ", number of mue variables: ", eq.nmue, "\n",
                       "    The following (state) variables are the reason: ", constraintVariables, ".")      
@@ -522,7 +526,8 @@ function getSortedEquationGraph(G, Gsolvable, BLT, assign, A, B, VNames; withSta
                 vc = eq.Vx[ eq.VxRev[ i ] ]
                 push!(constraintVariables, eq.VNames[ vc ])
             end
-            error("\n... Automatic state selection is not possible, because the code generator does not\n",
+            ModiaLogging.closeLogModiaAndError(
+                  "\n... Automatic state selection is not possible, because the code generator does not\n",
                   "    yet support the generation of stabilizing equations.\n",
                   "    Number of mue variables: ", eq.nmue, "\n",
                   "    The following (state) variables are the reason: ", constraintVariables, ".")      
@@ -563,8 +568,9 @@ Output arguments in sortedEquationGraph:
 """
 function getSortedEquationGraph!(eq::SortedEquationGraph, Gsolvable)
     if !eq.first
-        error("... getSortedEquationGraph(..) of StateSelection.jl is called twice with the same sortedEquationGraph object.\n",
-            "    This is not possible. You need to instanciate SortedEquationGraph once for every getSortedEquationGraph(..) call.")
+        ModiaLogging.closeLogModiaAndError(
+            "... getSortedEquationGraph(..) of StateSelection.jl is called twice with the same sortedEquationGraph object.\n",
+            "    This is not possible. You need to instantiate SortedEquationGraph once for every getSortedEquationGraph(..) call.")
     else
         eq.first = false
     end
@@ -833,10 +839,10 @@ function printSortedEquationGraph(eq::SortedEquationGraph; equations::Bool=true)
    
    # Raise error, if dimensions do not agree
     if length(eq.Vx) + length(eq.Vmue) != length(eq.Er)
-        error("... length(_x) != length(_r)")
+        ModiaLogging.closeLogModiaAndError("... length(_x) != length(_r)")
     end
     if eq.nc > length(eq.Er)
-        error("... nc > length(Er)")
+        ModiaLogging.closeLogModiaAndError("... nc > length(Er)")
     end
    
 end

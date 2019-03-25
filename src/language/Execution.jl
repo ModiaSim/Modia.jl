@@ -86,9 +86,13 @@ const Subs = Dict{Symbolic,Any}
 
 subs(s::Subs, ex, complete::Bool) = get(s, ex, ex)
 function subs(s::Subs, ex::Symbolic, complete::Bool)
-        if haskey(s, ex);  s[ex]
-            elseif complete;   ModiaLogging.increaseLogCategory(:NoSubstitution); error("No substitution provided for: ", ex)
-        else               ex
+    if haskey(s, ex)
+        s[ex]
+    elseif complete
+        ModiaLogging.increaseLogCategory(:NoSubstitution)
+        ModiaLogging.closeLogModiaAndError("No substitution provided for: ", ex)
+    else
+        ex
     end
 end
 
@@ -113,11 +117,13 @@ code_state_read(x::Symbol, k::Int, dims::Int...) = code_reshape(code_state_read(
 
 get_name(g::GetField) = (@assert g.base == This(); g.name)
 
-mark_solved_eq(ex, solved::Bool) = error("Only support = and := equations, got ", ex)
+mark_solved_eq(ex, solved::Bool) = ModiaLogging.closeLogModiaAndError("Only support = and := equations, got ", ex)
 
 function mark_solved_eq(ex::Expr, solved::Bool)
-        if isexpr(ex, [:(=), :(:=)], 2);  Expr(solved ? :(:=) : :(=), ex.args...)
-        else                              error("Only support = and := equations, got ", ex)
+    if isexpr(ex, [:(=), :(:=)], 2)
+        Expr(solved ? :(:=) : :(=), ex.args...)
+    else
+        ModiaLogging.closeLogModiaAndError("Only support = and := equations, got ", ex)
     end
 end
 
@@ -333,7 +339,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
                 end
             end
                         
-            # error("Unsupported equation type: ", eq)
+            # ModiaLogging.closeLogModiaAndError("Unsupported equation type: ", eq)
         end
     end
 
@@ -403,7 +409,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     if logComputations
         push!(unpack, :(
           if !$proceed[1]; 
-            println("Press enter to continue, q to stop, p to proceed: "); l = readline(stdin); if l != "" && l[1] == 'q'; error("quit") elseif l != "" && l[1] == 'p'; $proceed[1] = true end
+            println("Press enter to continue, q to stop, p to proceed: "); l = readline(stdin); if l != "" && l[1] == 'q'; ModiaLogging.closeLogModiaAndError("quit") elseif l != "" && l[1] == 'p'; $proceed[1] = true end
         end))
         push!(unpack, :(if !$proceed[1]; println("\nUnpack:") end))
     end

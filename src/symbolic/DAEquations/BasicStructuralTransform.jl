@@ -636,7 +636,7 @@ end
 const tSizes = Array{Tuple{Int64,Vararg{Int64,N} where N},1}
 
 function analyzeStructurally(equations, params, unknowns_indices, deriv, unknownsNames, Avar, statesIndices, states, nonStateVariables, n, realStates, findIncidence!, VSizes, VTypes, ESizes, ETypes, unknowns, partial)
-  # Build incidence structure as bipartite graph.
+    # Build incidence structure as bipartite graph.
     neq = 0
     G = [] # Array{Any}(undef, 0)
     Gsolvable = []
@@ -837,8 +837,8 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
 
             loglnModia("\nAssigned equations:")
             printAssignedEquations(equationsEG, unknownsNames, 1:length(EG), assignEG, Avar, fill(0, length(EG)))
-            loglnModia()
-            error("Translation of model aborted since model not consistent. See log file.")
+            loglnModia("")
+            ModiaLogging.closeLogModiaAndError("Translation of model aborted since model not consistent. See log file.")
         else
             loglnModia("Consistency check OK")
         end
@@ -1099,7 +1099,8 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
     # Check number of variables
     variableEquationDifference = length(IG) + length(realStates) - length(assignIG)
     if variableEquationDifference != 0
-       error("\nThe number of equations and the number of unknowns/states does not match.",
+       ModiaLogging.closeLogModiaAndError(
+             "\nThe number of equations and the number of unknowns/states does not match.",
              "\n   Number of equations: ", length(IG),
              "\n   Number of variables: ", length(assignIG),
              "\n   Number of continuous states: ", length(realStates),
@@ -1348,7 +1349,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
         @show assignIG
         @show Avar
         @show Bequ
-        error("Translation of model aborted")
+        ModiaLogging.closeLogModiaAndError("Translation of model aborted")
     end
 
     loglnModia("End of structural processing.")

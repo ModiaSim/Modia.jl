@@ -318,7 +318,7 @@ function solve(eq::Expr, x)
                 return eq, true
                 dump(ex)
                 dump(x)
-                error("Should not happen")
+                closeLogModiaAndError("Should not happen")
             end
 
         elseif op in [*, :*, +, :+, -, :-, /, :/]   # ^, :^]
@@ -401,7 +401,7 @@ function solve(eq::Expr, x)
         end
 
         if logSolve println("  Never solved: ", prettyPrint(eq)) end
-        error("Should not happen")
+        closeLogModiaAndError("Should not happen")
         return eq, false
     else
         # println("Should not happen:")
@@ -409,11 +409,11 @@ function solve(eq::Expr, x)
         # dump(eq.args[2])
         # dump(x)
         return eq, false
-        error("Should not happen")  # Check up!!!
+        closeLogModiaAndError("Should not happen")  # Check up!!!
     end
   
     if logSolve println("  Not solved: ", prettyPrint(eq)) end
-    error("Should not happen")
+    closeLogModiaAndError("Should not happen")
     return eq, false
 end
 
@@ -816,7 +816,7 @@ function differentiate(e)
                     if mod == ""
                         println("Derivative function ", string(f_der), " not found.")
                     elseif ! (f_der in names(getfield(Main, Symbol(mod))))
-                        error("Derivative function ", string(f_der), " not found.")
+                        closeLogModiaAndError("Derivative function ", string(f_der), " not found.")
                     else
                         f_der = getfield(getfield(Main, Symbol(mod)), f_der)
                     end
