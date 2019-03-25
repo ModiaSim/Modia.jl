@@ -6,7 +6,7 @@ global logName = "Modia_log"
 
 # ----------------------------------------------
 
-export openLogModia, logModia, loglnModia, closeLogModia, logFileModia, setDefaultLogName, resetTestStatus, setTestStatus, increaseLogCategory, printTestStatus
+export openLogModia, logModia, loglnModia, closeLogModia, closeLogModiaAndError, logFileModia, setDefaultLogName, resetTestStatus, setTestStatus, increaseLogCategory, printTestStatus
 
 global logTranslation = logTranslationDefault
 
@@ -63,6 +63,11 @@ end
 logModia(args...) = if logTranslation; print(logFileModia, args...) else end
 loglnModia(args...) = if logTranslation; println(logFileModia, args...) else end
 closeLogModia() = if logOnFile && logTranslation; close(logFileModia) else end
+
+function closeLogModiaAndError(args...)
+	closeLogModia()
+	error(args...)
+end
 
 global nOK = 0
 global nNOTOK = 0
