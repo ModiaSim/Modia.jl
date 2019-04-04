@@ -73,7 +73,7 @@ end
   end
 end 
 
-result = simulate(SpeedControl, 5.0, storeEliminated=false, logSimulation=false)
+result = simulate(SpeedControl, 5.0, storeEliminated=false, logSimulation=true)
 plot(result, ("v", "fobs"), heading="SpeedControl", figure=15)
 @test result["v"][end] == 98.03921568627446
 
@@ -108,7 +108,7 @@ end
 result = simulate(SpeedControlPI, 5.0, storeEliminated=false, logSimulation=false)
 plot(result, ("v", "fobs"), heading="SpeedControlPI", figure=16)
 @show result["v"][end]
-@test isapprox(result["v"][end], 100.2849917097788; atol=1e-8)
+@test isapprox(result["v"][end], 100.2849917097788; atol=1e-3)
 
 @model ControlledMassBasic begin
   @extends MassWithSpringDamper(k=0) # k=100
