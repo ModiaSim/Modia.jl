@@ -23,7 +23,7 @@ Component models are defined by `@model` macros. Such models contain definition 
 ## Installation
 
 **Modia** is registered in METADATA.jl and can be installed with Pkg.add.
-The latest released version (0.2.4) is the last one with support for Julia >= 0.6. Trunk and later versions support Julia >=1.0.
+Version (0.2.3) is the last one with support for Julia >= 0.6. Trunk and later versions support Julia >=1.0.
 
 ```julia
 # Julia >= 0.6:
