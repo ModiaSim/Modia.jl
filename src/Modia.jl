@@ -45,7 +45,7 @@ For more information, see (https://github.com/ModiaSim/Modia.jl/blob/master/READ
 """
 module Modia
 
-const Version = "0.2.4"
+const Version = "0.3.0"
 const Date = "2019-04-07"
 
 
