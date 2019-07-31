@@ -474,9 +474,12 @@ Return the sorted equation graph with selection of states and dummy states.
 function getSortedEquationGraph(G, Gsolvable, BLT, assign, A, B, VNames; withStabilization::Bool=true)
     eqInit = StateSelection.SortedEquationGraph(G, BLT, assign, A, B, VNames)
     eq = getSortedEquationGraph!(eqInit, Gsolvable)
+    #printSortedEquationGraph(eq; equations=false)
+    #println("\n")
 
     if !withStabilization
         # Check whether lambda and/or mue variables are present
+#=
         lambdaVariables = String[]
         for i in eachindex(eq.Vx)
             vx = eq.Vx[i]
@@ -489,6 +492,8 @@ function getSortedEquationGraph(G, Gsolvable, BLT, assign, A, B, VNames; withSta
 
         if length(lambdaVariables) > 0 || eq.nmue > 0
             # Code generator not prepared to handle DAE stabilization -> Trigger error
+            printSortedEquationGraph(eq; equations=false)
+
             constraintVariables = String[]             
             for i in eq.ider1n1
                 vc = eq.Vx[ eq.VxRev[ i ] ]
@@ -496,17 +501,31 @@ function getSortedEquationGraph(G, Gsolvable, BLT, assign, A, B, VNames; withSta
             end
 
             if length(lambdaVariables) > 0
-                error("... Automatic state selection is not possible, because the code generator does not\n",
+                error("\n... Automatic state selection is not possible, because the code generator does not\n",
                       "    yet support DAE stabilization of higher index systems.\n",
                       "    Number of lambda variables: ", length(lambdaVariables), ", number of mue variables: ", eq.nmue, "\n",
-                      "    The following (lambda) variables are the reason: ", lambdaVariables, "\n",
-                      "    The following (state) variables are the reason: ", constraintVariables, ".")
+                      "    The following (lambda) variables are the reason: ", lambdaVariables, ".")
             elseif eq.nmue > 0
-                error("... Automatic state selection is not possible, because the code generator does not\n",
+                error("\n... Automatic state selection is not possible, because the code generator does not\n",
                       "    yet support the generation of stabilizing equations.\n",
                       "    Number of lambda variables: ", length(lambdaVariables), ", number of mue variables: ", eq.nmue, "\n",
                       "    The following (state) variables are the reason: ", constraintVariables, ".")      
             end
+        end
+=#
+        if eq.nmue > 0
+            # Code generator not prepared to handle DAE stabilization -> Trigger error
+            printSortedEquationGraph(eq; equations=false)
+
+            constraintVariables = String[]             
+            for i in eq.ider1n1
+                vc = eq.Vx[ eq.VxRev[ i ] ]
+                push!(constraintVariables, eq.VNames[ vc ])
+            end
+            error("\n... Automatic state selection is not possible, because the code generator does not\n",
+                  "    yet support the generation of stabilizing equations.\n",
+                  "    Number of mue variables: ", eq.nmue, "\n",
+                  "    The following (state) variables are the reason: ", constraintVariables, ".")      
         end
 
         # Determine differentiated variables in the original equations that are no states (dummy states)
@@ -700,11 +719,12 @@ end
 
 
 """
-    printSortedEquationGraph(eq)
+    printSortedEquationGraph(eq; equations=true)
 
-Print information about the sorted equation graph
+Print information about the sorted equation graph.
+If `equations = false`, the equations are not printed.
 """
-function printSortedEquationGraph(eq::SortedEquationGraph)  
+function printSortedEquationGraph(eq::SortedEquationGraph; equations::Bool=true)  
    # Determine original number of equations (that are not differentiated)
     neqOrig = 0
     i = 0
@@ -786,6 +806,10 @@ function printSortedEquationGraph(eq::SortedEquationGraph)
         print("\n")
     end
    
+    if !equations
+        return
+    end
+
     # Print sorted equations
     println("\n  Sorted equations (length(_r) = ", length(eq.Er), ", nc = ", eq.nc, "):")
     

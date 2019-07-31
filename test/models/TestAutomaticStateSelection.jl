@@ -18,7 +18,7 @@ end
 
 const logSimulation=true
 
-#=
+
 @model TwoConnectedInertias begin
     J1 = 2.0
     J2 = 3.0
@@ -102,7 +102,7 @@ plot(result, ("C1.v", "C2.v"), figure=4)
 end 
 result = simulate(ParallelCapacitors2b , 1.0; logTranslation=true, logSimulation=logSimulation, tearing=true, removeSingularities=true, automaticStateSelection=false)
 plot(result, ("u1", "u2", "i1", "v1"), figure=6)
-=#
+
 
 # Does not compile
 @model TwoInertiasConnectedViaIdealGearWithPositionConstraints begin
