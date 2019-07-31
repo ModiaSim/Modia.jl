@@ -208,6 +208,12 @@ function Base.show(io::IO, v::Variable)
         first = false
     end
     
+    if v.fixed != nothing
+        if !first; print(io, ", ") end
+        print(io, "fixed = ", v.fixed)
+        first = false
+    end
+
     if v.nominal != nothing
         if !first; print(io, ", ") end
         print(io, "nominal = ", v.nominal)

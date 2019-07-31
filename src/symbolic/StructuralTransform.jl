@@ -745,7 +745,7 @@ function transformStructurally(flat_model)
   
     nFlow = 0
     for (n, v) in unknowns
-        if v.flow
+        if v.flow != nothing && v.flow
             nFlow += 1
         end
     end
