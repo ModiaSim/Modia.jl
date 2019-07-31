@@ -528,7 +528,7 @@ differentiate(e::Irrational) = zero
 function differentiate(e)
     if logDifferentiate
         # print("\nDIFFERENTIATE: "); println(prettyPrint(e))
-        # @show typeof(e)
+        # @show e, typeof(e)
     end
     
     if typeof(e) in [Float64, Int64, String, Bool]
@@ -542,7 +542,7 @@ function differentiate(e)
     elseif typeof(e) in [Array{Float64}, Array{Int64}]
         # diff = :($zero*$e) # zero*e
         diff = :($zero) # zero*e
-    elseif e == :time
+    elseif e == time_global || e == :time
         diff = one
     elseif e in timeInvariants
         # println("TIME INVARIANT" )
@@ -557,7 +557,7 @@ function differentiate(e)
             diff = :($zero)
         else
             if logDifferentiateVariable
-                      print("DIFFERENTIATE VARIABLE:    "); println(e)
+                print("DIFFERENTIATE VARIABLE:    "); println(e)
             end
             # println("\nGetField:")
             # @show e
@@ -815,7 +815,7 @@ function differentiate(e)
                     
                     if mod == ""
                         println("Derivative function ", string(f_der), " not found.")
-                    elseif ! (f_der in names(getfield(Main, Symbol(mod))))
+                    elseif false # ! (f_der in names(getfield(Main, Symbol(mod))))
                         error("Derivative function ", string(f_der), " not found.")
                     else
                         f_der = getfield(getfield(Main, Symbol(mod)), f_der)

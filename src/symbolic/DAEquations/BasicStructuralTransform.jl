@@ -1276,7 +1276,7 @@ function analyzeStructurally(equations, params, unknowns_indices, deriv, unknown
         equation_code = nothing
     end
 
-    if newStateSelection || useKinsol && false ## Disable simulation for 0.7
+    if newStateSelection || useKinsol # && false ## Disable simulation for 0.7
         generateCode(newStateSelection, useKinsol, params, realStates, unknownsNames, deriv, equations, componentsIG, assignIG, Avar, Bequ, VSizes, ESizes, invAssign, sortedEquations, equation_code, unknowns)
 
         return nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing
@@ -1511,7 +1511,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
     func *= "  # Set parameters\n"
 
     for (p, v) in params
-        pName = replace(string(p), ".", "_")
+        pName = replace(string(p), "." => "_")
         func *= "  " * pName * " = " * string(v) * "\n"
         if logFDAE
             func *= "  " * "@show $pName" * "\n"
@@ -1523,7 +1523,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         vNames = makeList(unknownsNames, 1:length(assignIG), Avar)
 
         for i in 1:length(sortedEquations.Vx)
-            xName = replace(string(vNames[sortedEquations.Vx[i]]), ".", "_")
+            xName = replace(string(vNames[sortedEquations.Vx[i]]), "." => "_")
             func *= "  $(xName) = _x[$i]\n"
             if logFDAE
                 func *= "  " * "@show $xName" * "\n"
@@ -1532,7 +1532,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
 
         for i in 1:length(sortedEquations.Vderx)
             if sortedEquations.Vderx[i] > 0
-                der_xName = replace(string(vNames[sortedEquations.Vderx[i]]), ".", "_")
+                der_xName = replace(string(vNames[sortedEquations.Vderx[i]]), "." => "_")
                 func *= "  $(der_xName) = _der_x[$i]\n"
                 if logFDAE
                     func *= "  " * "@show $der_xName" * "\n"
@@ -1549,8 +1549,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         # func *= "  " * "println(\"next\")" * "\n"
         for (solution, solved) in equation_code
             pp = prettyPrint(solution)
-            pp = replace(string(pp), "der(", "(der_")
-            pp = replace(string(pp), "der_der_", "der2_")
+            pp = replace(string(pp), "der(" => "(der_")
+            pp = replace(string(pp), "der_der_" => "der2_")
             if logFDAE
                 func *= "  " * "println(\"$pp\")" * "\n"
             end
@@ -1564,10 +1564,12 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
             loglnModia()
         end
 
+        func *= "  time = t0\n"
+        
         func *= "  # Copy state vector and derivative vector to each state and derivative\n"
         for i in 1:length(realStates)
-            xName = replace(string(realStates[i]), ".", "_")
-            xName = replace(xName, "this_", "")
+            xName = replace(string(realStates[i]), "." => "_")
+            xName = replace(xName, "this_" => "")
             derName = "der_" * xName
             func *= "  $(xName) = _x[$i]\n"
             func *= "  $(derName) = _der_x[$i]\n"
@@ -1660,8 +1662,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
                         @show orgIndexVar
                     end
                     vName = variables[orgIndexVar[varIndex]] ### [1]
-                    vName = replace(string(vName), ".", "_")
-                    vName = replace(vName, "this_", "")
+                    vName = replace(string(vName), "." => "_")
+                    vName = replace(vName, "this_" => "")
                     if derOrderVar[varIndex] == 1  ### Fix for higher order needed
                         vName = "der_"*vName
                     elseif derOrderVar[varIndex] == 2  ### Fix for higher order needed
@@ -1671,7 +1673,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
                     if varIndex > 0
 
                         vName = vNames[varIndex]
-                        vName = replace(string(vName), ".", "_")
+                        vName = replace(string(vName), "." => "_")
 
                         if VSizes[varIndex] == ()
                             vIndex += 1
@@ -1718,8 +1720,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
                     # e = :(_res[$globalResidualIndex] = $(e.args[1]) - $(e.args[2]))
                 end
                 pp = prettyPrint(e)
-                pp = replace(string(pp), "der(", "(der_")
-                pp = replace(string(pp), "der_der_", "der2_")
+                pp = replace(string(pp), "der(" => "(der_")
+                pp = replace(string(pp), "der_der_" => "der2_")
 
                 if logFDAE
                     if length(c) > 1
@@ -1751,8 +1753,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
                     #=
                     (orgIndexVar, derOrderVar) = invertDer(Avar)
                     vName = variables[orgIndexVar[varIndex]] ### [1]
-                    vName = replace(string(vName), ".", "_")
-                    vName = replace(vName, "this_", "")
+                    vName = replace(string(vName), "." => "_")
+                    vName = replace(vName, "this_" => "")
                     if derOrderVar[varIndex] == 1  ### Fix for higher order needed
                         vName = "der_"*vName
                     elseif derOrderVar[varIndex] == 2  ### Fix for higher order needed
@@ -1762,7 +1764,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
                     if varIndex > 0
 
                         vName = vNames[varIndex]
-                        vName = replace(string(vName), ".", "_")
+                        vName = replace(string(vName), "." => "_")
 
                         if VSizes[varIndex] == ()
                             vIndex += 1
@@ -1789,8 +1791,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
         func *= "  # Create residual vector for derivatives\n"
 
         for i in 1:length(realStates)
-            xName = replace(string(realStates[i]), ".", "_")
-            xName = replace(xName, "this_", "")
+            xName = replace(string(realStates[i]), "." => "_")
+            xName = replace(xName, "this_" => "")
             derName = "der_" * xName
             globalResidualIndex += 1
             func *= "  " * "_res[$globalResidualIndex] = _der_x[$i] - $derName" * "\n"
@@ -1812,7 +1814,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
     loglnModia(func)
 
     # Allow editing of FDAE
-    if false
+    if true
         open("FDAE.jl", "w") do f
         write(f, func)
       end
@@ -1824,7 +1826,7 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
       end
     end
 
-    FUNC = parse(func)
+    FUNC = Meta.parse(func)
     fdae = eval(FUNC)
 
     if newStateSelection
@@ -1870,7 +1872,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
 
     if length(x0) > 0
         println("\nSimulate")
-        t = linspace(0.0, 50, 1000)
+#        t = linspace(0.0, 50, 1000)
+        t = range(0.0, stop=50.0, length=1000)
         result = ModiaMath.ModiaToModiaMath.simulate(m, t; log=false, tolRel=1E-5)
 
 #= Temporarily removed due to problem with PyPlot

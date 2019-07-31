@@ -45,8 +45,8 @@ For more information, see (https://github.com/ModiaSim/Modia.jl/blob/master/READ
 """
 module Modia
 
-const Version = "0.3.0"
-const Date = "2019-04-07"
+const Version = "0.3.1-dev"
+const Date = "2019-07-31"
 
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")

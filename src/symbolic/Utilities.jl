@@ -164,7 +164,7 @@ function showVariable(v)
             first = false
         end
         
-        if v.flow != nothing
+        if v.flow != nothing && v.flow
             if !first; logModia(", ") end
             logModia("flow = ", v.flow)
             first = false
