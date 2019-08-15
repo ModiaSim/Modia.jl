@@ -315,8 +315,7 @@ function simulateModelWithOptions(model, t; options=Dict())
 
     start = time_ns()
     println("check")
-    @eval SymbolicTransform derAsFunction = false
-
+    setDerAsFunction(true)
     if BasicStructuralTransform.logStatistics
         println("\nSimulating model: ", model.name)
     end
@@ -399,7 +398,7 @@ function simulateModelWithOptions(model, t; options=Dict())
         res = Dict{Symbol,AbstractArray{T,1} where T}()
     end
 
-    @eval SymbolicTransform derAsFunction = false
+    SetDerAsFunction(false)
 
     if fileStdOut
         #  close(outWrite)
