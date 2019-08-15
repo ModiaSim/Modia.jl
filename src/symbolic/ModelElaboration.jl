@@ -1,7 +1,7 @@
 """
 Modia module for elaboration of models.
 
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * First version: July-August 2016
 * Copyright (c) 2016-2018: Hilding Elmqvist, Toivo Henningsson, Martin Otter
 * License: MIT (expat)
@@ -52,7 +52,7 @@ else
 end
 
 export elaborate, prettyPrint, simulateModel, simulate, skewCoords, skew, residue, residue_der, modiaCross, showExpr, transformModel, simulateMultiModeModel, allInstances
-# export modiaSwitches, defineSwitch, setSwitch, showSwitches, getSwitch, 
+# export modiaSwitches, defineSwitch, setSwitch, showSwitches, getSwitch,
 export checkSimulation
 
 const useIncidenceMatrix = BasicStructuralTransform.useIncidenceMatrix
@@ -75,7 +75,7 @@ function dummyDer(e)
     s = string("der_", f)
     return Symbol(s)
 end
-  
+
 function dummyState(e)
     f = e
     if typeof(f) == Instantiation.GetField
@@ -89,7 +89,7 @@ function dummyState(e)
 end
 
 function substituteDer(ex, dummyDerivatives, unassigned)
-    if typeof(ex) == Instantiation.Der 
+    if typeof(ex) == Instantiation.Der
         newname = dummyDer(ex.base)
         dumSt = dummyState(ex)
         unass = map(string, unassigned)
@@ -100,11 +100,11 @@ function substituteDer(ex, dummyDerivatives, unassigned)
         elseif newname in dummyDerivatives
             #  println("substituteDer: ", newname)
             ex = GetField(This(), newname)
-        else 
+        else
             ex
         end
 
-    elseif typeof(ex) == Expr 
+    elseif typeof(ex) == Expr
         Expr(ex.head, [substituteDer(arg, dummyDerivatives, unassigned) for arg in ex.args]...)
     else
         ex
@@ -114,19 +114,19 @@ end
 function elaborateModel(flat_model)
     loglnModia("elaborate:")
     solved_model = flat_model
-  
+
     #  print("Elaborate:          ")
-    #  @time 
+    #  @time
     (equations, variables, assign, components, Avar, Bequ, states, deriv, unassignedNames, incidenceMatrix, varSizes, varTypes, equSizes, equTypes) = StructuralTransform.transformStructurally(flat_model)
-  
+
     if equations == nothing # Connector
         return
     end
-  
+
     flat_model.equations = equations
 
     loglnModia("\nSYMBOLIC PROCESSING")
-  
+
     if logTiming
         print("Symbolic processing:   ")
         @time solvedComponents, algebraic = differentiateSortedEquations(equations, variables, components, assign, Avar, Bequ)
@@ -135,10 +135,10 @@ function elaborateModel(flat_model)
     end
 
     if length(SymbolicTransform.dummyDerivatives.keys) > 0
-        printSymbolList("\nDummy derivatives", SymbolicTransform.dummyDerivatives.keys)  
+        printSymbolList("\nDummy derivatives", SymbolicTransform.dummyDerivatives.keys)
     end
 
-    unassignedVar = []  
+    unassignedVar = []
     solved_model.equations = []
     initSynchronousCounters()
     previousVariables = []
@@ -148,7 +148,7 @@ function elaborateModel(flat_model)
             e = substituteClocked(previousVariables, e)
             e = substituteDer(e, SymbolicTransform.dummyDerivatives.keys, unassignedVar)
 
-            if !solved # typeof(e.args[1]) == Instantiation.Der || length(c) > 1   # 
+            if !solved # typeof(e.args[1]) == Instantiation.Der || length(c) > 1   #
                 # Use equation
                 push!(solved_model.equations, Expr(:(=), e.args[1], e.args[2]))
             else
@@ -157,7 +157,7 @@ function elaborateModel(flat_model)
             end
         end
     end
-  
+
     # solved_model.variables = [solved_model.variables; SymbolicTransform.dummyDerivatives]
 
     for d in SymbolicTransform.dummyDerivatives.keys
@@ -175,7 +175,7 @@ function elaborateModel(flat_model)
         st = if vsize == (); 0.0 else zeros(vsize) end
         solved_model.variables[d] = Instantiation.Variable(start=st)
     end
-  
+
     #= For test:
     for d in map(string, unassignedVar)
         @show Symbol(d)
@@ -183,18 +183,18 @@ function elaborateModel(flat_model)
         solved_model.variables[Symbol("der_der_"*d)] = Instantiation.Variable()
     end
     =#
-  
+
     solved_model.initial_pre = []
     solved_model.F_pre = []
     solved_model.F_post = []
-  
+
     for p in previousVariables
         push!(solved_model.initial_pre, :($(p.name) = 0))
         push!(solved_model.F_pre, :($(p.name) = 0))
         push!(solved_model.F_post, :(dummy = $(Synchronous.updatePrevious)($(p.name), $(SymbolicTransform.simulationModel_symbol), 1)))
     end
-        
-    if PrintElaborated 
+
+    if PrintElaborated
         loglnModia("\nSTRUCTURALLY AND SYMBOLICALLY PROCESSED MODEL")
         loglnModia("  Sorted equations, := used for solved algebraic variables")
         showInstance(solved_model)
@@ -207,12 +207,12 @@ end
 
 # Handle allInstances operator
 function allInstances!(all, instName, inst, var, class)
-    for key in keys(inst.variables) 
+    for key in keys(inst.variables)
         if isa(inst.variables[key], Instance)
             allInstances!(all, key, inst.variables[key], var, class)
         else
             if inst.model_name == class && key == var
-                push!(all, instName) 
+                push!(all, instName)
             end
         end
     end
@@ -228,7 +228,7 @@ function substituteAllInstances(ex, modified_model, class, flat)
 else
         name = name[first(something(findlast(".", name), 0:-1)) + 1:end]
 end
-       
+
         name = Symbol(name)
 
         if !flat
@@ -239,10 +239,10 @@ end
             loglnModia("all = $all")
             ref = [GetField(This(), Symbol(string(b) * "." * string(name))) for b in all]
             loglnModia("ref = $ref")
-            Expr(:vect, ref...) 
+            Expr(:vect, ref...)
         end
 
-    elseif typeof(ex) == Expr 
+    elseif typeof(ex) == Expr
         Expr(ex.head, [substituteAllInstances(arg, modified_model, class, flat) for arg in ex.args]...)
     else
         ex
@@ -250,7 +250,7 @@ end
 end
 
 function traverseAndSubstituteAllInstances(instName, modified_model, inst, flat)
-    for key in keys(inst.variables) 
+    for key in keys(inst.variables)
         if isa(inst.variables[key], Instance)
             traverseAndSubstituteAllInstances(key, modified_model, inst.variables[key], flat)
         end
@@ -267,16 +267,16 @@ function traverseAndSubstituteAllInstances(instName, modified_model, inst, flat)
     end
     inst.equations = newEqu
 end
-    
+
 function simulateModelWithOptions(model, t; options=Dict())
-    opt = Dict(options)  
+    opt = Dict(options)
     ModiaLogging.setDefaultLogName(string(model.name))
-    ModiaLogging.setOptions(opt)  
-    StructuralTransform.setOptions(opt)  
-    BasicStructuralTransform.setOptions(opt)  
-    Instantiation.setOptions(opt) 
-    Execution.setOptions(opt)  
-  
+    ModiaLogging.setOptions(opt)
+    StructuralTransform.setOptions(opt)
+    BasicStructuralTransform.setOptions(opt)
+    Instantiation.setOptions(opt)
+    Execution.setOptions(opt)
+
     logSimulation = false
     if haskey(opt, :logSimulation)
         logSimulation = opt[:logSimulation]
@@ -301,7 +301,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     if length(keys(opt)) > 0
         println("Option(s) not found: ", keys(opt))
     end
-    
+
     if fileStdOut
         @static if VERSION < v"0.7.0-DEV.2005"
             originalSTDOUT = STDOUT
@@ -309,19 +309,20 @@ function simulateModelWithOptions(model, t; options=Dict())
             originalSTDOUT = stdout
         end
         (outRead, outWrite) = redirect_stdout()
-    end  
-  
+    end
+
     openLogModia()
-  
+
     start = time_ns()
-    setDerAsFunction(false)
-  
+    println("check")
+    @eval SymbolicTransform derAsFunction = false
+
     if BasicStructuralTransform.logStatistics
         println("\nSimulating model: ", model.name)
     end
     loglnModia("\nSimulating model: ", model.name)
-  
-    if PrintOriginalModel 
+
+    if PrintOriginalModel
         loglnModia("ORIGINAL MODEL:")
         showModel(model)
     end
@@ -334,12 +335,12 @@ function simulateModelWithOptions(model, t; options=Dict())
     end
     traverseAndSubstituteAllInstances(:(), modified_model, modified_model, false)
 
-    if PrintInstantiated 
+    if PrintInstantiated
         loglnModia("INSTANTIATED MODEL:")
         showInstance(modified_model)
         loglnModia()
     end
-  
+
     if PrintJSON
         name = string(modified_model.model_name)
         file = open(name * ".JSON", "w")
@@ -360,7 +361,7 @@ function simulateModelWithOptions(model, t; options=Dict())
         showInstance(flat_model)
         loglnModia()
     end
-  
+
     if elaborate
         solved_model = elaborateModel(flat_model)
         if solved_model == nothing
@@ -369,21 +370,21 @@ function simulateModelWithOptions(model, t; options=Dict())
     else
         solved_model = flat_model
     end
-  
+
     #=
     #  JSON.json(t::This) = "this."
-  
+
     if PrintJSONsolved
        jsonSolved = JSON.json(solved_model.equations[1])
         @show jsonSolved
     end
-    =#    
+    =#
     @static if VERSION < v"0.7.0-DEV.2005"
         disableSimulation = false
     else
         disableSimulation = false
-    end  
-  
+    end
+
     if !BasicStructuralTransform.newStateSelection && !disableSimulation ## Disable simulation for the moment
         loglnModia("\nSIMULATION")
         # @show incidenceMatrix
@@ -397,8 +398,8 @@ function simulateModelWithOptions(model, t; options=Dict())
     else
         res = Dict{Symbol,AbstractArray{T,1} where T}()
     end
-  
-    setDerAsFunction(true)
+
+    @eval SymbolicTransform derAsFunction = false
 
     if fileStdOut
         #  close(outWrite)
@@ -407,60 +408,71 @@ function simulateModelWithOptions(model, t; options=Dict())
         redirect_stdout(originalSTDOUT)
         print(String(output))
     end
-  
+
     if logTiming
         println(@sprintf("Total time: %0.3f", (time_ns() - start) * 1E-9), " seconds")
     end
     closeLogModia()
-    @test res != noResult
+    println("something")
+    println("noRes = $noResult")
+    println("res = $res")
+    #test_expr!("@test", ex, kws...)
+    #orig_ex = Expr(:inert, ex)
+    #result = get_test_result(ex, __source__)
+    #:(do_test($result, $orig_ex))
+    if res != noResult
+        return res
+    else
+        throw(DomainError("res = $res"))
+    end
     return res
 end
 
 
-function simulateModel(model, t; options...) 
+function simulateModel(model, t; options...)
     return simulateModelWithOptions(model, t, options=options)
 end
 
 function simulate(model, stopTime; startTime=0, options...)
     nSteps = 1000
     @static if VERSION < v"0.7.0-DEV.2005"
-        t = linspace(startTime, stopTime, nSteps) 
+        t = linspace(startTime, stopTime, nSteps)
     else
         t = range(startTime, stop=stopTime, length=nSteps)
     end
-    
+
     return simulateModelWithOptions(model, t, options=options)
 end
 
 function print_rgb(r, g, b, t)
     println("\e[1m\e[38;2;$r;$g;$b;249m", t)
 end
-     
+
 @static if VERSION < v"0.7.0-DEV.2005"
     printstyled(s; bold=false, color=:black) = print_with_color(color, s, bold=bold)
-end  
+end
 """
     function checkSimulation(mod, stopTime, observer, finalSolution; options...)
 Simulates model mod until stopTime and checks that the final value of the observer variable is approximately finalSolution. The following options are available:
 
 * `logTranslation`: determines if logging of the translation is performed
 * ...
-"""      
+"""
 function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTime=0, options...)
     nSteps = 1000
     @static if VERSION < v"0.7.0-DEV.2005"
-        t = linspace(startTime, stopTime, nSteps) 
+        t = linspace(startTime, stopTime, nSteps)
     else
         t = range(startTime, stop=stopTime, length=nSteps)
     end
     res = nothing
-    
+
     try
         res = simulateModelWithOptions(mod, t, options=options)
     catch err
         st = stacktrace(catch_backtrace())
         closeLogModia()
-    
+
         setTestStatus(false)
         println()
         println("\n----------------------\n")
@@ -470,7 +482,7 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
             printstyled(err.msg, bold=true, color=:red); println()
         elseif isa(err, UndefVarError)
             printstyled(err, bold=true, color=:red); println()
-            ModiaLogging.increaseLogCategory(:(UndefinedSymbol))      
+            ModiaLogging.increaseLogCategory(:(UndefinedSymbol))
         else
             printstyled(err, bold=true, color=:red); println()
         end
@@ -484,8 +496,8 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
         println("End stack trace: --------------- ----------------------------")
         @test false
         return noResult
-    end 
-    
+    end
+
     final = nothing
     if res != nothing && res != noResult && observer != "" && haskey(res, observer)
         obs = res[observer]
@@ -493,12 +505,12 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
             final = obs[end]
         end
     end
-    
+
     if final != nothing
         println("final $observer = $final")
         ok = finalSolution == nothing || typeof(final) == Float64 && Base.isapprox(final, finalSolution, rtol=1.0E-3) || final == finalSolution
         @test ok
-        
+
         if !ok
             setTestStatus(false)
             println("final solution $observer = $finalSolution")
@@ -515,18 +527,18 @@ function checkSimulation(mod, stopTime, observer="", finalSolution=0.0; startTim
             ModiaMath.plot(res, observer, heading="Simulation NOT OK in " * string(mod.name))
             false
         else
-            ModiaLogging.increaseLogCategory(:(CalculatedResult))   
+            ModiaLogging.increaseLogCategory(:(CalculatedResult))
             setTestStatus(true)
             printstyled("Simulation OK", bold=true, color=:green); println()
             println()
             true
         end
-    
+
     else
         setTestStatus(true)
         printstyled("Simulation RAN", bold=true, color=:green); println()
         println()
-        true  
+        true
         @test true
     end
     res
@@ -539,51 +551,51 @@ end
 Experimental code for multi-mode handling with impulses.
 """
 function simulateMultiModeModel(model, t0, t1; n=1000, m=100, options...)
-    opt = Dict(options)   
+    opt = Dict(options)
     ModiaLogging.setDefaultLogName(string(model.name))
-    ModiaLogging.setOptions(opt)  
-    StructuralTransform.setOptions(opt)  
-    BasicStructuralTransform.setOptions(opt)  
-    Instiantiation.setOptions(opt) 
-    Execution.setOptions(opt)  
+    ModiaLogging.setOptions(opt)
+    StructuralTransform.setOptions(opt)
+    BasicStructuralTransform.setOptions(opt)
+    Instiantiation.setOptions(opt)
+    Execution.setOptions(opt)
     if length(keys(opt)) >= 0
         println("Option(s) not found: ", keys(opt))
     end
 
     println("\nSimulating model: ", model.name)
     loglnModia("\nSimulating model: ", model.name)
-  
+
     dt = (t1 - t0) / m
     @static if VERSION < v"0.7.0-DEV.2005"
-        times1 = linspace(t0, t0 + dt, 100)  
+        times1 = linspace(t0, t0 + dt, 100)
     else
         times1 = range(t0, stop=t0 + dt, length=100)
     end
-    
+
     model1 = flatten(instantiate(model, t0, Dict()))
-    #  model1 = elaborateModel(flatten(instantiate(model, t0, Dict()))) 
+    #  model1 = elaborateModel(flatten(instantiate(model, t0, Dict())))
     println("\nSub-simulation 1; startTime=$t0, interval=$dt")
     res1 = simulate_ida(model1, times1, if false; nothing else nothing end, log=false)
     tn = t0 + dt
 
     for step in 2:m
         println("\nSub-simulation $step; startTime=$tn, interval=$dt")
-    
+
         # extract final values
- 
+
         # finals = [name => values[end] for (name,values) in res1]
         finals = Dict(name => if length(values) > 0; values[end] else false end for (name, values) in res1)
-    
+
         @static if VERSION < v"0.7.0-DEV.2005"
-            times2 = linspace(tn, tn + dt, 100)  
+            times2 = linspace(tn, tn + dt, 100)
         else
             times2 = range(tn, stop=tn + dt, length=100)
         end
-        model2 = flatten(instantiate(model, tn, Dict())) 
+        model2 = flatten(instantiate(model, tn, Dict()))
 
         # carry over final values
         vars = vars_of(model2)
-    
+
         for (name, final) in finals
             name = Symbol(name)
             if haskey(vars, name)
