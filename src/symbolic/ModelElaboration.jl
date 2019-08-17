@@ -18,6 +18,7 @@ const fileStdOut = false
 # ----------------------------------------------------------------------------
 
 #using Debug
+using Zygote
 using ..Instantiation
 using ..Execution
 using Base.Meta: quot, isexpr
@@ -51,7 +52,7 @@ else
     using Test
 end
 
-export elaborate, prettyPrint, simulateModel, simulate, skewCoords, skew, residue, residue_der, modiaCross, showExpr, transformModel, simulateMultiModeModel, allInstances
+export elaborate, prettyPrint, simulateModel, simulate, simulate_der, skewCoords, skew, residue, residue_der, modiaCross, showExpr, transformModel, simulateMultiModeModel, allInstances
 # export modiaSwitches, defineSwitch, setSwitch, showSwitches, getSwitch,
 export checkSimulation
 
@@ -315,7 +316,7 @@ function simulateModelWithOptions(model, t; options=Dict())
 
     start = time_ns()
     println("check")
-    setDerAsFunction(true)
+    setDerAsFunction(false)
     if BasicStructuralTransform.logStatistics
         println("\nSimulating model: ", model.name)
     end
@@ -398,7 +399,172 @@ function simulateModelWithOptions(model, t; options=Dict())
         res = Dict{Symbol,AbstractArray{T,1} where T}()
     end
 
-    SetDerAsFunction(false)
+    setDerAsFunction(true)
+
+    if fileStdOut
+        #  close(outWrite)
+        output = readavailable(outRead)
+        close(outRead)
+        redirect_stdout(originalSTDOUT)
+        print(String(output))
+    end
+
+    if logTiming
+        println(@sprintf("Total time: %0.3f", (time_ns() - start) * 1E-9), " seconds")
+    end
+    closeLogModia()
+    println("something")
+    println("noRes = $noResult")
+    println("res = $res")
+    #test_expr!("@test", ex, kws...)
+    #orig_ex = Expr(:inert, ex)
+    #result = get_test_result(ex, __source__)
+    #:(do_test($result, $orig_ex))
+    if res != noResult
+        return res
+    else
+        throw(DomainError("res = $res"))
+    end
+    return res
+end
+
+function simulateModelWithOptionsDer(model, t; options=Dict())
+    opt = Dict(options)
+    ModiaLogging.setDefaultLogName(string(model.name))
+    ModiaLogging.setOptions(opt)
+    StructuralTransform.setOptions(opt)
+    BasicStructuralTransform.setOptions(opt)
+    Instantiation.setOptions(opt)
+    Execution.setOptions(opt)
+
+    logSimulation = false
+    if haskey(opt, :logSimulation)
+        logSimulation = opt[:logSimulation]
+        @show logSimulation
+        delete!(opt, :logSimulation)
+    end
+
+    relTol = 1e-4
+    if haskey(opt, :relTol)
+        relTol = opt[:relTol]
+        @show relTol
+        delete!(opt, :relTol)
+    end
+
+    hev = 1e-8
+    if haskey(opt, :hev)
+        hev = opt[:hev]
+        @show hev
+        delete!(opt, :hev)
+    end
+
+    if length(keys(opt)) > 0
+        println("Option(s) not found: ", keys(opt))
+    end
+
+    if fileStdOut
+        @static if VERSION < v"0.7.0-DEV.2005"
+            originalSTDOUT = STDOUT
+        else
+            originalSTDOUT = stdout
+        end
+        (outRead, outWrite) = redirect_stdout()
+    end
+
+    openLogModia()
+
+    start = time_ns()
+    println("check")
+    setDerAsFunction(false)
+    if BasicStructuralTransform.logStatistics
+        println("\nSimulating model: ", model.name)
+    end
+    loglnModia("\nSimulating model: ", model.name)
+
+    if PrintOriginalModel
+        loglnModia("ORIGINAL MODEL:")
+        showModel(model)
+    end
+
+    if logTiming
+        print("Instantiate:           ")
+        @time modified_model = instantiate(model, first(t))
+    else
+        modified_model = instantiate(model, first(t))
+    end
+    traverseAndSubstituteAllInstances(:(), modified_model, modified_model, false)
+
+    if PrintInstantiated
+        loglnModia("INSTANTIATED MODEL:")
+        showInstance(modified_model)
+        loglnModia()
+    end
+
+    if PrintJSON
+        name = string(modified_model.model_name)
+        file = open(name * ".JSON", "w")
+        printJSON(file, modified_model, name, name)
+        close(file)
+    end
+
+    if logTiming
+        print("Flatten:               ")
+        @time flat_model = flatten(modified_model)
+    else
+        flat_model = flatten(modified_model)
+    end
+    traverseAndSubstituteAllInstances(:(), modified_model, flat_model, true)
+
+    if PrintFlattened
+        loglnModia("\nFLATTENED MODEL")
+        showInstance(flat_model)
+        loglnModia()
+    end
+
+    if elaborate
+        solved_model = elaborateModel(flat_model)
+        if solved_model == nothing
+            return nothing
+        end
+    else
+        solved_model = flat_model
+    end
+
+    #=
+    #  JSON.json(t::This) = "this."
+
+    if PrintJSONsolved
+       jsonSolved = JSON.json(solved_model.equations[1])
+        @show jsonSolved
+    end
+    =#
+    @static if VERSION < v"0.7.0-DEV.2005"
+        disableSimulation = false
+    else
+        disableSimulation = false
+    end
+
+    if !BasicStructuralTransform.newStateSelection && !disableSimulation ## Disable simulation for the moment
+        loglnModia("\nSIMULATION")
+        # @show incidenceMatrix
+        res = Array{Pair{AbstractString,Any}, 0}
+        for _t in t
+            sim_der(a) = simulate_ida(solved_model, a, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+                if logTiming
+                    print("Code generation and simulation:         ")
+                    # @show solved_model t useIncidenceMatrix logSimulation
+                    @time res[end+1] = (sim_der'(_t)) #simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+                else
+                    s = (sim_der'(_t))
+                    println(s)
+                    res[end+1] = s#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+                end
+            end
+    else
+        res = Dict{Symbol,AbstractArray{T,1} where T}()
+    end
+
+    setDerAsFunction(true)
 
     if fileStdOut
         #  close(outWrite)
@@ -441,6 +607,17 @@ function simulate(model, stopTime; startTime=0, options...)
     end
 
     return simulateModelWithOptions(model, t, options=options)
+end
+
+function simulate_der(model, stopTime; startTime=0, options...)
+    nSteps = 1000
+    @static if VERSION < v"0.7.0-DEV.2005"
+        t = linspace(startTime, stopTime, nSteps)
+    else
+        t = range(startTime, stop=stopTime, length=nSteps)
+    end
+
+    return simulateModelWithOptionsDer(model, t, options=options)
 end
 
 function print_rgb(r, g, b, t)

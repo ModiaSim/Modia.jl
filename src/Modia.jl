@@ -76,7 +76,7 @@ const ModiaDir = dirname(Base.@__DIR__)
 
 export ModiaDir
 
-export @model, simulateModel, simulate, checkSimulation, simulateMultiModeModel
+export @model, simulateModel, simulate, simulate_der, checkSimulation, simulateMultiModeModel
 export Variable, Float, Boolean, Integ, Str, Parameter, Var, Par, undefined
 export Variability, constant, parameter, discrete, continuous
 export Property, general, symmetric, orthogonal, rotationGroup3D
