@@ -587,6 +587,13 @@ function simulate_ida(instance::Instance, t, args...; kwargs...)
     simulate_ida(instance, collect(Float64, t), args...; kwargs...)
 end
 
+function simulate_ida_der(instance::Instance, t, var, var_val, args...; kwargs...)
+
+    instance.variables[var] = var_val
+    simulate_ida(instance, collect(Float64, t), args...; kwargs...)
+
+end
+
 function simulate_ida(instance::Instance, t::Vector{Float64},
                       jac::Union{SparseMatrixCSC{Bool,Int},Nothing};# =nothing;
                       log=false, relTol=1e-4, hev=1e-8, maxSparsity=0.1,
@@ -688,108 +695,6 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
     results
 end
 
-function simulate_ida_der(instance::Instance, var, var_val, t::Vector{Float64},
-                      jac::Union{SparseMatrixCSC{Bool,Int},Nothing};# =nothing;
-                      log=false, relTol=1e-4, hev=1e-8, maxSparsity=0.1,
-                      store_eliminated=storeEliminated)
-
-    instance.variables[var] = var_val
-
-    if PrintJSONsolved
-        printJSONforSolvedEquations(instance)
-    end
-
-    initial_bindings = Dict{Symbol,Any}(time_symbol => t[1])
-    initial_m = ModiaSimulationModel()
-
-    initial_bindings[simulationModel_symbol] = initial_m
-
-    prep = prepare_ida(instance, [simulationModel_symbol], initial_bindings, store_eliminated=storeEliminated, need_eliminated_f=storeEliminated)
-    F, eliminated_f, x0, der_x0, x_nominal, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
-
-    eliminated_results = Vector[Vector{T}() for T in values(eliminated)]
-    # temporary until we can store it in simulationModel
-    global global_elim_results = eliminated_results
-
-    if callF || handleImpulses || showJacobian
-        callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0, diffstates, instance)
-    end
-
-    xNames = fill("[]", length(x0))
-    ii = 0
-
-    for (name, var) in states
-        ii += 1
-        name = string(name)
-        xNames[state_offsets[ii]] = name
-
-        if state_sizes[ii] > 1
-            dims = get_dims(var)
-            dimsArray = collect(dims)
-
-            if length(dimsArray) == 1
-                for j in 1:dimsArray[1]
-                    xNames[state_offsets[ii] + j - 1] = name * "[" * string(j) * "]"
-                end
-            else
-                xNames[state_offsets[ii]] = name * "[]"
-                xNames[state_offsets[ii] + state_sizes[ii] - 1] = string(collect(dimsArray))
-            end
-        end
-    end
-    # @show xNames
-    getVariableName(model::Any, vcat::ModiaMath.DAE.VariableCategory, vindex::Int) = vcat == ModiaMath.DAE.Category_X ? xNames[vindex] :
-                                                                                    (vcat == ModiaMath.DAE.Category_W ? "w[" * string(vindex) * "]" :
-                                                                                                                        "der(" * xNames[vindex] * ")" )
-
-    start = now()
-
-    if length(x0) > 0
-        if false
-            m = ModiaSimulationModel(model_name_of(instance), F, x0, der_x0, jac;
-                        xw_states=diffstates, maxSparsity=maxSparsity, nc=1, hev=hev, nz=initial_m.nz_preInitial,
-                        xNames=xNames, x_nominal=x_nominal)
-        else
-            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0, getVariableName; x_nominal=x_nominal,
-                        maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, hev=hev, jac=jac, x_fixed=diffstates)
-        end
-
-        if logTiming
-            print("\n  ModiaMath:           ")
-            @time ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
-            # @show now()-start
-            if logTiming
-                print("  ModiaMath:           ")
-                @time ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
-                # @show now()-start
-            end
-        else
-            ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
-        end
-
-        (t_res, x_res, der_x_res) = ModiaMath.ModiaToModiaMath.getRawResult(m)
-        # @show now()-start
-    else
-        t_res = t
-        x_res = t
-        der_x_res = t
-    end
-
-    results = extract_results_ida(x_res, der_x_res, states, state_offsets, params)
-    # @show keys(results)
-    # @show now()-start
-    if store_eliminated
-        Base.invokelatest(eliminated_f, results, t_res, x_res, der_x_res)
-        # @show now()-start
-    else
-        for (name, result) in zip(keys(eliminated), eliminated_results)
-            results[string(name)] = result
-        end
-        # @show now()-start
-    end
-    results["time"] = t_res
-    results
-end
 
 # -----------------------------
 
