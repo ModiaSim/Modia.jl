@@ -428,7 +428,7 @@ function simulateModelWithOptions(model, t; options=Dict())
     return res
 end
 
-function simulateModelWithOptionsDer(model, t; options=Dict())
+function simulateModelWithOptionsDer(model, t, var, var_val; options=Dict())
     opt = Dict(options)
     ModiaLogging.setDefaultLogName(string(model.name))
     ModiaLogging.setOptions(opt)
@@ -547,18 +547,17 @@ function simulateModelWithOptionsDer(model, t; options=Dict())
     if !BasicStructuralTransform.newStateSelection && !disableSimulation ## Disable simulation for the moment
         loglnModia("\nSIMULATION")
         # @show incidenceMatrix
-        res = Array{Pair{AbstractString,Any}, 0}
-        for _t in t
-            sim_der(a) = simulate_ida(solved_model, a, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
-                if logTiming
-                    print("Code generation and simulation:         ")
-                    # @show solved_model t useIncidenceMatrix logSimulation
-                    @time res[end+1] = (sim_der'(_t)) #simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
-                else
-                    s = (sim_der'(_t))
-                    println(s)
-                    res[end+1] = s#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
-                end
+        println("model = ", solved_model.variables[var])
+        sim_der(a) = simulate_ida_der(solved_model, var, a, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+
+          if logTiming
+                print("Code generation and simulation:         ")
+                # @show solved_model t useIncidenceMatrix logSimulation
+                @time res = (sim_der'(var_val)) #simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+            else
+                s = (sim_der'(var_val))
+                println(s)
+                res = s#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
             end
     else
         res = Dict{Symbol,AbstractArray{T,1} where T}()
@@ -609,7 +608,7 @@ function simulate(model, stopTime; startTime=0, options...)
     return simulateModelWithOptions(model, t, options=options)
 end
 
-function simulate_der(model, stopTime; startTime=0, options...)
+function simulate_der(model, stopTime, var, var_val; startTime=0, options...)
     nSteps = 1000
     @static if VERSION < v"0.7.0-DEV.2005"
         t = linspace(startTime, stopTime, nSteps)
@@ -617,7 +616,7 @@ function simulate_der(model, stopTime; startTime=0, options...)
         t = range(startTime, stop=stopTime, length=nSteps)
     end
 
-    return simulateModelWithOptionsDer(model, t, options=options)
+    return simulateModelWithOptionsDer(model, t, var, var_val, options=options)
 end
 
 function print_rgb(r, g, b, t)

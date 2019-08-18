@@ -9,7 +9,7 @@ Modia module for executing a model including code generation and calling DAE sol
 """
 module Execution
 
-export simulate_ida
+export simulate_ida, simulate_ida_der
 export setOptions
 
 using Base.Meta: quot, isexpr
@@ -31,7 +31,7 @@ import ModiaMath #0.7
 using Unitful
 using ..ModiaLogging
 
-const PrintJSONsolved = false 
+const PrintJSONsolved = false
 const showCode = false        # Show the code for initialization and residual calculations
 const logComputations = false # Insert logging of variable values in the code
 const callF = false
@@ -44,7 +44,7 @@ global logTiming               # Show timing for each major task, simulate twice
 global storeEliminated
 global handleImpulses
 
-function setOptions(options) 
+function setOptions(options)
     global storeEliminated = true
     if haskey(options, :storeEliminated)
         global storeEliminated = options[:storeEliminated]
@@ -74,7 +74,7 @@ function split_variables(src::VariableDict)
     for (name, var) in src
         if !isa(var, Instance) && (!isa(var, Variable) || var.variability <= parameter)
             params[name] = var
-        else                                                   
+        else
             vars[name] = var
         end
     end
@@ -151,7 +151,7 @@ function code_eliminated_func(fname, unpack, eliminated_computations, vars, x::S
         # if T != Any || T != Float64; T = Any; end  # Hack to handle units
         if typeof(T) <: Unitful.Unitlike; T = Float64; end # To handle units
         # @show T, string(var)
-        
+
         if !isempty(dims);  T = Array{T,length(dims)};  end
 
         @static if VERSION < v"0.7.0-DEV.2005"
@@ -163,7 +163,7 @@ function code_eliminated_func(fname, unpack, eliminated_computations, vars, x::S
     end
     # @show eliminated_computations
     # @show push_eliminated
-    
+
     eliminated_code = quote
         function $(fname)($results, $ts, $xs, $der_xs)
             $(alloc_eliminated...)
@@ -208,7 +208,7 @@ function substituteExpr(ex, equations, s)
                     ex = eq.args[2]
                     break
                 end
-            end            
+            end
         end
     end
     cond = subs(s, ex, true)
@@ -229,8 +229,8 @@ end
     const letArgs = 1
 else
     const letArgs = 2
-end      
-      
+end
+
 function prepare_ida(instance::Instance, first_F_args, initial_bindings::AbstractDict{Symbol,Any}; store_eliminated=false, need_eliminated_f=false)
     proceed = zeros(Bool, 1)
     global F_Dict
@@ -332,7 +332,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
                     end
                 end
             end
-                        
+
             # error("Unsupported equation type: ", eq)
         end
     end
@@ -349,13 +349,13 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
         if isa(s, AbstractArray)
             append!(x0, vec(s))
             append!(x_nominal, vec(var.nominal === nothing ? fill(1.0, var.size) : var.nominal))
-            # @show name, vec(s)            
+            # @show name, vec(s)
             append!(diffstates, fill(is_diffstate, length(s)))
         else
             push!(x0, s)
             push!(x_nominal, var.nominal === nothing ? 1.0 : var.nominal)
             # push!(x0, ustrip(s))
-            # @show name, s  
+            # @show name, s
             push!(diffstates, is_diffstate)
         end
     end
@@ -375,7 +375,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
           println()
         end
     end
-    =#    
+    =#
 
     # Create mapping between states and state vector
     state_sizes = [prod(get_dims(var)) for var in values(states)]
@@ -394,7 +394,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     end
 
     loglnModia("statesize = ", state_size)
-    
+
     # if ! haskey(F_Dict, modeConditions)
 
     @gensym x der_x r
@@ -402,27 +402,27 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
 
     if logComputations
         push!(unpack, :(
-          if !$proceed[1]; 
+          if !$proceed[1];
             println("Press enter to continue, q to stop, p to proceed: "); l = readline(stdin); if l != "" && l[1] == 'q'; error("quit") elseif l != "" && l[1] == 'p'; $proceed[1] = true end
         end))
         push!(unpack, :(if !$proceed[1]; println("\nUnpack:") end))
     end
-      
+
     # println("State vector allocation:")
-    initials = [] 
+    initials = []
     i = 1
     for ((name, var), offset) in zip(states, state_offsets)
         der_name = der_name_of(name)
-          
+
         if true # diffstates[i]  # Wonder about reason???
             push!(unpack, :(global $name = $(code_state_read(x, offset, get_dims(var)...))))
             push!(unpack, :($der_name = $(code_state_read(der_x, offset, get_dims(var)...))))
         else
             push!(unpack, :(global $name = $(code_state_read(der_x, offset, get_dims(var)...))))
-        end      
-        i += prod(get_dims(var))        
+        end
+        i += prod(get_dims(var))
         if logComputations
-            push!(unpack, :(if !$proceed[1]; @show typeof($name), typeof($der_name) end))        
+            push!(unpack, :(if !$proceed[1]; @show typeof($name), typeof($der_name) end))
             push!(unpack, :(if !$proceed[1]; @show $name, $der_name end))
         end
 
@@ -453,22 +453,22 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
         println("\nINITIALIZATION CODE")
         @show initial_ex
     end
-    
+
     initial_residuals, initial_eliminated = eval(initial_ex)
     residual_dims = [size(res) for res in initial_residuals]
     # @show residual_dims
     residual_sizes = [prod(dims) for dims in residual_dims]
     # @show residual_sizes
-    
+
     if residual_sizes != Any[]
         residual_size = sum(residual_sizes)
     else
         residual_size = 0
     end
-    
+
     loglnModia("residual_size = ", residual_size)
     @assert state_size == residual_size
-      
+
     residual_offsets = cumsum(vcat([1], residual_sizes[1:end - 1]))
     # @show residual_offsets
 
@@ -520,7 +520,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
             $(F_code)
         end
     end
-      
+
     if showCode
         println("\nFUNCTION F CODE")
         @show F_code
@@ -537,7 +537,7 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
     else
       (F, initial_eliminated) = F_Dict[modeConditions]
     end
-    =#   
+    =#
 
     if need_eliminated_f
         eliminated_code = code_eliminated_func(string("eliminated_", model_name_of(instance), "!"),
@@ -595,15 +595,15 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
     if PrintJSONsolved
         printJSONforSolvedEquations(instance)
     end
-    
+
     initial_bindings = Dict{Symbol,Any}(time_symbol => t[1])
     initial_m = ModiaSimulationModel()
 
     initial_bindings[simulationModel_symbol] = initial_m
-    
+
     prep = prepare_ida(instance, [simulationModel_symbol], initial_bindings, store_eliminated=storeEliminated, need_eliminated_f=storeEliminated)
     F, eliminated_f, x0, der_x0, x_nominal, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
-    
+
     eliminated_results = Vector[Vector{T}() for T in values(eliminated)]
     # temporary until we can store it in simulationModel
     global global_elim_results = eliminated_results
@@ -611,8 +611,8 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
     if callF || handleImpulses || showJacobian
         callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0, diffstates, instance)
     end
-    
-    xNames = fill("[]", length(x0))    
+
+    xNames = fill("[]", length(x0))
     ii = 0
 
     for (name, var) in states
@@ -626,7 +626,7 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
 
             if length(dimsArray) == 1
                 for j in 1:dimsArray[1]
-                    xNames[state_offsets[ii] + j - 1] = name * "[" * string(j) * "]"          
+                    xNames[state_offsets[ii] + j - 1] = name * "[" * string(j) * "]"
                 end
             else
                 xNames[state_offsets[ii]] = name * "[]"
@@ -640,8 +640,8 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
                                                                                                                         "der(" * xNames[vindex] * ")" )
 
     start = now()
-    
-    if length(x0) > 0    
+
+    if length(x0) > 0
         if false
             m = ModiaSimulationModel(model_name_of(instance), F, x0, der_x0, jac;
                         xw_states=diffstates, maxSparsity=maxSparsity, nc=1, hev=hev, nz=initial_m.nz_preInitial,
@@ -649,7 +649,110 @@ function simulate_ida(instance::Instance, t::Vector{Float64},
         else
             m = ModiaSimulationModel(string(model_name_of(instance)), F, x0, getVariableName; x_nominal=x_nominal,
                         maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, hev=hev, jac=jac, x_fixed=diffstates)
-        end 
+        end
+
+        if logTiming
+            print("\n  ModiaMath:           ")
+            @time ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
+            # @show now()-start
+            if logTiming
+                print("  ModiaMath:           ")
+                @time ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
+                # @show now()-start
+            end
+        else
+            ModiaMath.ModiaToModiaMath.simulate(m, t; log=log, tolRel=relTol)
+        end
+
+        (t_res, x_res, der_x_res) = ModiaMath.ModiaToModiaMath.getRawResult(m)
+        # @show now()-start
+    else
+        t_res = t
+        x_res = t
+        der_x_res = t
+    end
+
+    results = extract_results_ida(x_res, der_x_res, states, state_offsets, params)
+    # @show keys(results)
+    # @show now()-start
+    if store_eliminated
+        Base.invokelatest(eliminated_f, results, t_res, x_res, der_x_res)
+        # @show now()-start
+    else
+        for (name, result) in zip(keys(eliminated), eliminated_results)
+            results[string(name)] = result
+        end
+        # @show now()-start
+    end
+    results["time"] = t_res
+    results
+end
+
+function simulate_ida_der(instance::Instance, var, var_val, t::Vector{Float64},
+                      jac::Union{SparseMatrixCSC{Bool,Int},Nothing};# =nothing;
+                      log=false, relTol=1e-4, hev=1e-8, maxSparsity=0.1,
+                      store_eliminated=storeEliminated)
+
+    instance.variables[var] = var_val
+
+    if PrintJSONsolved
+        printJSONforSolvedEquations(instance)
+    end
+
+    initial_bindings = Dict{Symbol,Any}(time_symbol => t[1])
+    initial_m = ModiaSimulationModel()
+
+    initial_bindings[simulationModel_symbol] = initial_m
+
+    prep = prepare_ida(instance, [simulationModel_symbol], initial_bindings, store_eliminated=storeEliminated, need_eliminated_f=storeEliminated)
+    F, eliminated_f, x0, der_x0, x_nominal, diffstates, params, states, state_sizes, state_offsets, eliminated = prep
+
+    eliminated_results = Vector[Vector{T}() for T in values(eliminated)]
+    # temporary until we can store it in simulationModel
+    global global_elim_results = eliminated_results
+
+    if callF || handleImpulses || showJacobian
+        callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0, diffstates, instance)
+    end
+
+    xNames = fill("[]", length(x0))
+    ii = 0
+
+    for (name, var) in states
+        ii += 1
+        name = string(name)
+        xNames[state_offsets[ii]] = name
+
+        if state_sizes[ii] > 1
+            dims = get_dims(var)
+            dimsArray = collect(dims)
+
+            if length(dimsArray) == 1
+                for j in 1:dimsArray[1]
+                    xNames[state_offsets[ii] + j - 1] = name * "[" * string(j) * "]"
+                end
+            else
+                xNames[state_offsets[ii]] = name * "[]"
+                xNames[state_offsets[ii] + state_sizes[ii] - 1] = string(collect(dimsArray))
+            end
+        end
+    end
+    # @show xNames
+    getVariableName(model::Any, vcat::ModiaMath.DAE.VariableCategory, vindex::Int) = vcat == ModiaMath.DAE.Category_X ? xNames[vindex] :
+                                                                                    (vcat == ModiaMath.DAE.Category_W ? "w[" * string(vindex) * "]" :
+                                                                                                                        "der(" * xNames[vindex] * ")" )
+
+    start = now()
+
+    if length(x0) > 0
+        if false
+            m = ModiaSimulationModel(model_name_of(instance), F, x0, der_x0, jac;
+                        xw_states=diffstates, maxSparsity=maxSparsity, nc=1, hev=hev, nz=initial_m.nz_preInitial,
+                        xNames=xNames, x_nominal=x_nominal)
+        else
+            m = ModiaSimulationModel(string(model_name_of(instance)), F, x0, getVariableName; x_nominal=x_nominal,
+                        maxSparsity=maxSparsity, nc=1, nz=initial_m.nz_preInitial, hev=hev, jac=jac, x_fixed=diffstates)
+        end
 
         if logTiming
             print("\n  ModiaMath:           ")
@@ -729,7 +832,7 @@ function callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0
                 end
             end
         else
-            independent += 1      
+            independent += 1
         end
     end
 
@@ -753,7 +856,7 @@ function callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0
                     end
                 end
             else
-                independent += 1      
+                independent += 1
             end
         end
     end
@@ -791,11 +894,11 @@ function callResidualFunction(F, callF, handleImpulses, showJacobian, x0, der_x0
 
         params, vars = split_variables(vars_of(instance))
         names = collect(keys(vars))
-        #=    
+        #=
         for i in 1:length(x0)
             if abs(X0[i]-oldx0[i]) > 1E5
                 println("Dirac impulse in variable ", names[i])
-            end        
+            end
         end
         =#
         for i in der_index
