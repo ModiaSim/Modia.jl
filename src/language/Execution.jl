@@ -587,10 +587,11 @@ function simulate_ida(instance::Instance, t, args...; kwargs...)
     simulate_ida(instance, collect(Float64, t), args...; kwargs...)
 end
 
-function simulate_ida_der(instance::Instance, t, var, var_val, args...; kwargs...)
-
+function simulate_ida_der(instance::Instance, var, var_val, t, args...; kwargs...)
+    println(instance.variables[var])
+    println(var_val)
     instance.variables[var] = var_val
-    simulate_ida(instance, collect(Float64, t), args...; kwargs...)
+    simulate_ida(instance,  t, args...; kwargs...)
 
 end
 

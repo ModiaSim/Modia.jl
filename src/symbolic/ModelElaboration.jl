@@ -548,7 +548,7 @@ function simulateModelWithOptionsDer(model, t, var, var_val; options=Dict())
         loglnModia("\nSIMULATION")
         # @show incidenceMatrix
         println("model = ", solved_model.variables[var])
-        sim_der(a) = simulate_ida_der(solved_model, var, a, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+        sim_der(a) = values(simulate_ida_der(solved_model, var, a, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev))
 
           if logTiming
                 print("Code generation and simulation:         ")
