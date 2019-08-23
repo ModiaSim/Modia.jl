@@ -547,17 +547,24 @@ function simulateModelWithOptionsDer(model, t, var, var_val; options=Dict())
     if !BasicStructuralTransform.newStateSelection && !disableSimulation ## Disable simulation for the moment
         loglnModia("\nSIMULATION")
         # @show incidenceMatrix
-        println("model = ", solved_model.variables[var])
-        sim_der(a) = values(simulate_ida_der(solved_model, var, a, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev))
+        println("model = ", typeof(solved_model.variables))
+        for v in solved_model.variables
+            k = String(v[1])
+            sim_der(a) = simulate_ida_der(solved_model, var, a, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)[k]
 
-          if logTiming
-                print("Code generation and simulation:         ")
-                # @show solved_model t useIncidenceMatrix logSimulation
-                @time res = (sim_der'(var_val)) #simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
-            else
-                s = (sim_der'(var_val))
-                println(s)
-                res = s#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+            #g = gradient(Params([t])) do
+             #sim_der(var_val)
+           #end
+
+              if logTiming
+                    print("Code generation and simulation:         ")
+                    # @show solved_model t useIncidenceMatrix logSimulation
+                    @time res = sim_der'(var_val)#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+                else
+                    s = sim_der'(var_val)
+                    println(s)
+                    res = s#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+                end
             end
     else
         res = Dict{Symbol,AbstractArray{T,1} where T}()
