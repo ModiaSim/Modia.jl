@@ -548,22 +548,27 @@ function simulateModelWithOptionsDer(model, t, var, var_val; options=Dict())
         loglnModia("\nSIMULATION")
         # @show incidenceMatrix
         println("model = ", typeof(solved_model.variables))
+        res = Dict{AbstractString,Any}
         for v in solved_model.variables
             k = String(v[1])
-            sim_der(a) = simulate_ida_der(solved_model, var, a, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)[k]
+            t = collect(Float64, t)
+            sim = simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+            println(typeof(sim))
 
-            #g = gradient(Params([t])) do
-             #sim_der(var_val)
-           #end
+            sim_der(a) = simulate_ida_der(solved_model, var, a, k, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+
+            g = gradient(Params(t)) do
+             sim_der(var_val)
+           end
 
               if logTiming
                     print("Code generation and simulation:         ")
                     # @show solved_model t useIncidenceMatrix logSimulation
-                    @time res = sim_der'(var_val)#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+                    @time res[k] = g(t)#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
                 else
-                    s = sim_der'(var_val)
+                    s = g(t)#sim_der'(var_val)
                     println(s)
-                    res = s#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
+                    res[k] = s#simulate_ida(solved_model, t, if useIncidenceMatrix; incidenceMatrix else nothing end, log=logSimulation, relTol=relTol, hev=hev)
                 end
             end
     else

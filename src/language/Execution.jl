@@ -583,13 +583,18 @@ end
 
 # -----------------------------
 
-function simulate_ida(instance::Instance, t, args...; kwargs...)
-    simulate_ida(instance, collect(Float64, t), args...; kwargs...)
-end
+#function simulate_ida(instance::Instance, t, args...; kwargs...)
+#    simulate_ida(instance, collect(Float64, t), args...; kwargs...)
+#end
 
-function simulate_ida_der(instance::Instance, var, var_val, t, args...; kwargs...)
+function simulate_ida_der(instance::Instance, var, var_val, k, t::Vector{Float64},
+                      jac::Union{SparseMatrixCSC{Bool,Int},Nothing};# =nothing;
+                      log=false, relTol=1e-4, hev=1e-8, maxSparsity=0.1,
+                      store_eliminated=storeEliminated)
     instance.variables[var] = var_val
-    simulate_ida(instance,  t, args...; kwargs...)
+    simulate_ida(instance,  t, jac;# =nothing;
+                          log=log, relTol=relTol, hev=hev, maxSparsity=maxSparsity,
+                          store_eliminated=storeEliminated)[k]
 
 end
 
