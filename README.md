@@ -62,6 +62,7 @@ the instructions
 
 ### To simulate a model:
 ```julia
+  using ModiaMath
   result = simulate(FirstOrder, 2);
   @show result["x"][end];
   ModiaMath.plot(result, "x")
