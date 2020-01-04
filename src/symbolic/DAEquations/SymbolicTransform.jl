@@ -806,10 +806,14 @@ function differentiate(e)
                 if arg_der != zero
                     # op does not contain full path to function in Julia 1.3, use typeof()
                     typeofop = string(typeof(op))
-                    # remove typeof(...)
-                    typeofop = split(typeofop, "(")[2]
-                    typeofop = split(typeofop, ")")[1]                    
-                    path = split(typeofop, ".")
+                    if typeofop != "Symbol"
+                        # remove typeof(...)
+                        typeofop = split(typeofop, "(")[2]
+                        typeofop = split(typeofop, ")")[1]     
+                        path = split(typeofop, ".")
+                    else
+                        path = split(string(op), ".")
+                    end
                     if length(path) >= 2
                         mod = path[end-1]
                     else 
