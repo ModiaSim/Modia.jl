@@ -348,7 +348,9 @@ function prepare_ida(instance::Instance, first_F_args, initial_bindings::Abstrac
         s = get_start(var)
         if isa(s, AbstractArray)
             append!(x0, vec(s))
-            append!(x_nominal, vec(var.nominal === nothing ? fill(1.0, var.size) : var.nominal))
+            append!(x_nominal, 
+                vec(var.nominal !== nothing ? var.nominal : var.size !== nothing ?
+                    fill(1.0, var.size) : fill(1.0, length(s))) )
             # @show name, vec(s)            
             append!(diffstates, fill(is_diffstate, length(s)))
         else

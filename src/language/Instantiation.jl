@@ -174,6 +174,12 @@ Variable(;
     Variable(variability, T, size, value, 
     unit, displayUnit, min, max, start, fixed, nominal, info, flow, state, property)
     
+Variable(v; args...) = if typeof(v)==Variable; n=deepcopy(v); @show n; for (k,val) in args n[k]=val end; n else Variable(value=v; args...) end
+
+function Base.size(v::Variable)
+    return size(v.value)
+end
+
 function Base.show(io::IO, v::Variable)
     print(io, "Variable(")
     first = true
@@ -208,7 +214,7 @@ function Base.show(io::IO, v::Variable)
         first = false
     end
     
-    if v.fixed != nothing
+    if v.fixed != false
         if !first; print(io, ", ") end
         print(io, "fixed = ", v.fixed)
         first = false
@@ -250,9 +256,39 @@ function Base.show(io::IO, v::Variable)
         first = false
     end
     
+    if v.info != ""
+        if !first; print(io, ", ") end
+        print(io, "info = ", "\"$(v.info)\"")
+        first = false
+    end
+    
     println(io, ")")
 end
 
+#Base.:+(v1::Variable, v2::Variable) = Variable(value=v1.value+v2.value)
+Base.:+(v1::Variable, v2::Variable) = Variable(value=v1.value+v2.value, 
+  info=if v1.info==nothing && v2.info==nothing; nothing else "("*v1.info*") + ("*v2.info*")" end, 
+  min=if v1.min==nothing || v2.min==nothing; nothing else v1.min+v2.min end, 
+  max=if v1.max==nothing || v2.max==nothing; nothing else v1.max+v2.max end)
+Base.:+(v1, v2::Variable) = Variable(value=v1+v2.value)
+Base.:+(v1::Variable, v2) = Variable(value=v1.value+v2)
+Base.:+(v1::Variable) = Variable(value=+v1.value)
+
+Base.:-(v1::Variable, v2::Variable) = Variable(value=v1.value-v2.value)
+Base.:-(v1, v2::Variable) = Variable(value=v1-v2.value)
+Base.:-(v1::Variable, v2) = Variable(value=v1.value-v2)
+Base.:-(v1::Variable) = Variable(value=-v1.value)
+
+Base.:*(v1::Variable, v2::Variable) = Variable(value=v1.value*v2.value,
+  info=if v1.info==nothing && v2.info==nothing; nothing else "("*v1.info*") * ("*v2.info*")" end, 
+  min=if v1.min==nothing || v2.min==nothing; nothing else min(v1.min*v2.min, v1.max*v2.min, v1.min*v2.max, v1.max*v2.max) end, 
+  max=if v1.max==nothing || v2.max==nothing; nothing else max(v1.min*v2.min, v1.max*v2.min, v1.min*v2.max, v1.max*v2.max) end)
+Base.:*(v1, v2::Variable) = Variable(value=v1*v2.value)
+Base.:*(v1::Variable, v2) = Variable(value=v1.value*v2)
+
+Base.:/(v1::Variable, v2::Variable) = Variable(value=v1.value/v2.value)
+Base.:/(v1, v2::Variable) = Variable(value=v1/v2.value)
+Base.:/(v1::Variable, v2) = Variable(value=v1.value/v2)
 
 "Check that a start value (possibly default) exists for the var, or give an error."
 function check_start(var::Variable, name)

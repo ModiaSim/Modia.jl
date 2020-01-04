@@ -1822,8 +1822,8 @@ function generateCode(newStateSelection, useKinsol, params, realStates, unknowns
 
     if false
         open("FDAE.jl") do f
-        func = readstring(f)
-      end
+            func = read(f, String)
+        end
     end
 
     FUNC = Meta.parse(func)

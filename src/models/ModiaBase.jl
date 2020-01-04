@@ -11,6 +11,7 @@ using .Synchronous: sample, Clock, previous, hold, positive, positiveChange, pos
 Shortcut for `Variable`
 """
 Var(; args...) = Variable(; args...)
+Var(value; args...) = Variable(value=value; args...)
 
 """
 Create a floating-point `Variable`
