@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2021 ModiaSim
+Copyright (c) 2020-2021: Hilding Elmqvist (Mogram) and DLR Institute of System Dynamics and Control
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
