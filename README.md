@@ -16,13 +16,21 @@ The package is currently being registered. During this phase, it is installed as
 (Julia >= 1.5 is required):
 
 ```julia
-julia> ]add https://github.com/ModiaSim/TinyModia.jl#main
+julia> ]add https://github.com/ModiaSim/ModiaBase#main
+        add https://github.com/ModiaSim/ModiaPlot#main
+        add https://github.com/ModiaSim/TinyModia.jl#main
 ```
 
-It is recommended to also add the following packages, in order that all tests and examples can be executed:
+Once registered, installation is done with
 
 ```julia
-julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloMeasurements, Distributions
+julia> ]add TinyModia, ModiaPlot
+```
+
+It is recommended to also add the following packages, in order that all tests and examples can be executed in your standard environment:
+
+```julia
+julia> ]add Unitful, DifferentialEquations, Measurements, MonteCarloMeasurements, Distributions
 ```
 
 ## Main Developers
