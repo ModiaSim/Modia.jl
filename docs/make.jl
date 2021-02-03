@@ -8,7 +8,7 @@ makedocs(
   pages    = [
      "Home"      => "index.md",
 	 "TinyModia" => "TinyModia.md",
-  	 "Functions" => "Functions.md",     
+  	 "Functions" => "Functions.md",
      "Internal"  => "Internal.md"
   ]
 )

@@ -35,6 +35,7 @@ include("SimulateAndPlot.jl")
 
 const drawIncidence = false
 
+const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.7.0"
 const Date = "2021-02-02"
 
