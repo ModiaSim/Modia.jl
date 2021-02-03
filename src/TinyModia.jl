@@ -14,6 +14,7 @@ using Base.Meta: isexpr
 using DataStructures: OrderedDict
 
 using ModiaBase.Symbolic
+using ModiaBase.Simplify
 using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
@@ -324,6 +325,25 @@ function mergeModelStructures(parent::ModelStructure, child::ModelStructure, pre
     push!(parent.equations, prepend(child.equations, prefix)...)
 end
 
+function replaceLinearIntegerEquations(Gint, eInt, GcInt, unknowns, equations)
+    for i = 1:length(Gint)
+        e = Gint[i]
+        if length(e) > 0
+            # Construct equation
+            rhs = 0
+            for j = 1:length(e)
+                v  = e[j]
+                vc = GcInt[i][j]
+                rhs = add(rhs, mult(vc, unknowns[v]))
+            end
+            equ = :(0 = $rhs)
+            equations[eInt[i]] = equ
+        else
+            equations[eInt[i]] = :(0 = 0)
+        end
+    end
+end
+
 function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 
     variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
@@ -393,11 +413,14 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
         end
     end
 
+    replaceLinearIntegerEquations(GCopy[linearEquations], linearEquations, GcInt, unknowns, equations)
+#    printArray(equations, "new equations:", log=log)
+
     reducedEquations = []
-#    @show linearEquations GCopy[linearEquations]
-    for ei in 1:length(GCopy)
-        if length(GCopy[ei]) != 0 # && !(ei in GCopy[linearEquations[ei]])
-            e = equations[ei]
+
+    for ei in 1:length(equations)
+        e = equations[ei]
+        if e != :(0 = 0) 
             push!(reducedEquations, substitute(substitutions, e))
         end
     end
@@ -419,8 +442,8 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
         push!(reducedG, incidence)
     end
 
-    printArray(reducedUnknowns, "unknowns after alias reduction:", log=log)
-    printArray(reducedEquations, "equations after alias reduction:", log=log)
+    printArray(reducedUnknowns, "Unknowns after alias reduction:", log=log)
+    printArray(reducedEquations, "Equations after alias reduction:", log=log)
 
     reducedAvar, reducedStates, reducedDerivatives = setAvar(reducedUnknowns)
     return reducedEquations, reducedUnknowns, reducedAvar, reducedG, reducedStates, vEliminated, vProperty

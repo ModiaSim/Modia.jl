@@ -3,6 +3,7 @@ module TestSingularLRRL
 using TinyModia
 using DifferentialEquations
 using ModiaPlot
+using Unitful
 
 
 SingularLRRL = Model(
@@ -12,7 +13,9 @@ SingularLRRL = Model(
     R1_R = 10,
     R2_R = 20,
 
-    init = Map(R1_p_i = 0.1),
+    init = Map(L2_p_i = 0.1),
+    start = Map(R2_p_i = 0.0, V_n_v = 0.0),
+
     equations =:[
         # Inductor 1
         L1_v = L1_p_v - L1_n_v
@@ -70,11 +73,11 @@ include("../models/Electric.jl")
 setLogMerge(false)
 
 SingularLRRL2 = Model(
-    R1 = Resistor | Map(R=10),
-    R2 = Resistor | Map(R=20, init = Map(v=2)),
-    L1 = Inductor | Map(L=0.1, init = Map(i=nothing)),
-    L2 = Inductor | Map(L=0.2, init = Map(i=nothing)),
-    V = ConstantVoltage | Map(V=10),
+    R1 = Resistor | Map(R=10u"Ω"),
+    R2 = Resistor | Map(R=20u"Ω", start = Map(v=0.0u"V")),
+    L1 = Inductor | Map(L=0.1u"H", init = Map(i=nothing)),
+    L2 = Inductor | Map(L=0.2u"H", start = Map(v=0.0u"V")),
+    V = ConstantVoltage | Map(V=10u"V"),
     connections = :[
         (V.p, L1.p)
         (L1.n, R1.p, R2.p)
@@ -82,35 +85,38 @@ SingularLRRL2 = Model(
         (L2.n, V.n) ]
 )
 
-singularLRRL2 = @instantiateModel(SingularLRRL2)
+#=
+singularLRRL2 = @instantiateModel(SingularLRRL2, log=true, logCode=true, logExecution=true)
 
 simulate!(singularLRRL2, Tsit5(), stopTime = 1.0)
 
 plot(singularLRRL2, [("L1.p.i", "L2.p.i", "R1.p.i", "R2.p.i"), ("L1.v", "L2.v", "R1.v", "R2.v")])
+=#
+
 
 SingularLRRL3 = Model(
-    R1 = Resistor | Map(R=10),
-    R2 = Resistor | Map(R=20), #| Map(init = Map(v=2)),
-    R3 = Resistor | Map(R=30),
-    R4 = Resistor | Map(R=40),
-    L1 = Inductor | Map(L=0.1), # | Map(init = Map(i=nothing)),
-    L2 = Inductor | Map(L=0.2), # | Map(init = Map(i=nothing)),
+    R1 = Resistor | Map(R=1),
+    R2 = Resistor | Map(R=2),
+    R3 = Resistor | Map(R=3),
+    R4 = Resistor | Map(R=4),
+    L1 = Inductor | Map(L=0.1),
+    L2 = Inductor | Map(L=0.2) | Map(init = Map(i=nothing)),
     V = ConstantVoltage | Map(V=10),
-    ground = Ground,
+#    ground = Ground,
     connections = :[
         (V.p, L1.p)
         (L1.n, R1.p, R2.p)
         (R1.n, R2.n, R3.p, R4.p)
         (L2.p, R3.n, R4.n)
-        (L2.n, V.n, ground.p) ]
+        (L2.n, V.n) ] #, ground.p) ]
 )
 
-#=
-singularLRRL3 = @instantiateModel(SingularLRRL3, unitless=true, log=true, logDetails=true)
+
+singularLRRL3 = @instantiateModel(SingularLRRL3, unitless=true, log=true, logDetails=false)
 
 simulate!(singularLRRL3, Tsit5(), stopTime = 1.0)
 
-plot(singularLRRL3, [("L1.p.i", "L2.p.i", "R1.p.i", "R2.p.i"), ("L1.v", "L2.v", "R1.v", "R2.v")])
-=#
+plot(singularLRRL3, [("L1.i", "L2.i", "R1.i", "R2.i", "R3.i", "R4.i"), ("L1.v", "L2.v", "R1.v", "R2.v", "R3.v", "R4.v")])
+
 
 end
