@@ -16,8 +16,8 @@ The package is currently being registered. During this phase, it is installed as
 (Julia >= 1.5 is required):
 
 ```julia
-julia> ]add https://github.com/ModiaSim/ModiaBase#main
-        add https://github.com/ModiaSim/ModiaPlot#main
+julia> ]add ModiaPlot
+        add https://github.com/ModiaSim/ModiaBase.jl#main
         add https://github.com/ModiaSim/TinyModia.jl#main
 ```
 
