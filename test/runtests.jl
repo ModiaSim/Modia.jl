@@ -16,6 +16,8 @@ include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
 
 include("TestSingularLRRL.jl") 
 
+include("TestStateSelection.jl")    
+
 include("../examples/runexamples.jl")    
 
 end
