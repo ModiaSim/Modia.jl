@@ -35,7 +35,7 @@ julia> ]add Unitful, DifferentialEquations, Measurements, MonteCarloMeasurements
 
 ## Main Developers
 
-- Hilding Elmqvist, [Mogram](http://www.mogram.net/).
+- Hilding Elmqvist (Hilding.Elmqvist@Mogram.net), [Mogram](http://www.mogram.net/).
 
 - [Martin Otter](https://rmc.dlr.de/sr/en/staff/martin.otter/),
   [DLR - Institute of System Dynamics and Control](https://www.dlr.de/sr/en).
