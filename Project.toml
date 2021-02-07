@@ -22,5 +22,6 @@ Measurements = "2.5"
 ModiaBase = "0.7.1"
 ModiaPlot = "0.7.0"
 MonteCarloMeasurements = "0.10"
+RuntimeGeneratedFunctions = "0.5.0"
 Unitful = "1.5, 1.4, 1.3"
 
