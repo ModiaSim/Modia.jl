@@ -55,7 +55,8 @@ setLogMerge(false)
 model = @instantiateModel(Filters, logDetails=false, aliasReduction=false)
 
 println("Simulate")
-@time simulate!(model, Tsit5(), stopTime = 50)
+@time simulate!(model, Tsit5(), stopTime = 50, requiredFinalStates = 
+    [9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072])
 plot(model, [("filters_1.R.v", "filters_1.C.v"), ("filters_2.R.v", "filters_2.C.v")])
 
 end

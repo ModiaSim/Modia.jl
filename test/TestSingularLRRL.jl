@@ -64,7 +64,7 @@ SingularLRRL = Model(
 
 singularLRRL = @instantiateModel(SingularLRRL)
 
-simulate!(singularLRRL, Tsit5(), stopTime = 1.0)
+simulate!(singularLRRL, Tsit5(), stopTime = 1.0, requiredFinalStates = [1.4999999937318995])
 
 plot(singularLRRL, [("L1_p_i", "L2_p_i", "R1_p_i", "R2_p_i"), ("L1_v", "L2_v", "R1_v", "R2_v")])
 
@@ -114,7 +114,7 @@ SingularLRRL3 = Model(
 
 singularLRRL3 = @instantiateModel(SingularLRRL3, unitless=true, log=true, logDetails=false)
 
-simulate!(singularLRRL3, Tsit5(), stopTime = 1.0)
+simulate!(singularLRRL3, Tsit5(), stopTime = 1.0, requiredFinalStates = [4.198498632779839])
 
 plot(singularLRRL3, [("L1.i", "L2.i", "R1.i", "R2.i", "R3.i", "R4.i"), ("L1.v", "L2.v", "R1.v", "R2.v", "R3.v", "R4.v")])
 

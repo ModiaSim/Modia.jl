@@ -28,10 +28,8 @@ UnitTest = Model(
 
 model = @instantiateModel(UnitTest)
 
-simulate!(model, Tsit5(), stopTime = 1.0)
+simulate!(model, Tsit5(), stopTime = 1.0, requiredFinalStates = [5514.9625624219525, 2.9999999999999996])
 
 plot(model, ["T", "x", "der(x)", "y", "a", "der(v)"])
-
-@test get_result(model, "x")[end] == 5514.9625624219525u"g"
 
 end

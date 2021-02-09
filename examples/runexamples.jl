@@ -6,6 +6,8 @@ include("SimpleFilters.jl")
 
 include("FilterCircuit.jl")    
 
+include("CauerLowPassFilter.jl")    
+
 include("MotorControl.jl")    
 
 include("ServoSystem.jl")

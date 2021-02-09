@@ -80,7 +80,7 @@ setLogMerge(false)
 
 model = @instantiateModel(TestBandPassFilter, logDetails=false)
 
-simulate!(model, Tsit5(), stopTime = 50)
+simulate!(model, Tsit5(), stopTime = 50, requiredFinalStates = [-0.259682544336794, -0.6065869552436043])
 plot(model, ["u", "y"])
 
 end

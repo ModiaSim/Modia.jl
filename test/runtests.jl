@@ -15,8 +15,6 @@ include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")
 include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")   
 #include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")  # MonteCarlo and Unitful not yet supported
 
-include("TestCauerLowPassFilter.jl")    
-
 include("TestSingularLRRL.jl")  
 
 include("../examples/runexamples.jl")    

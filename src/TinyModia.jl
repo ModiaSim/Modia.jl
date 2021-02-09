@@ -37,8 +37,9 @@ include("SimulateAndPlot.jl")
 const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
+
 const Version = "0.7.0"
-const Date = "2021-02-02"
+const Date = "2021-02-08"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -174,10 +175,10 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
     end
 
     if moreVariables && log
-        printArray(unknowns, "unknowns after index reduction:", log=logDetails)
+        printArray(unknowns, "Unknowns after index reduction:", log=logDetails)
     end
     if moreEquations && log
-        printArray(equations, "equations after index reduction:", log=logDetails)
+        printArray(equations, "Equations after index reduction:", log=logDetails)
     end
 
     HG = Array{Array{Int64,1},1}()
@@ -442,9 +443,6 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
         push!(reducedG, incidence)
     end
 
-    printArray(reducedUnknowns, "Unknowns after alias reduction:", log=log)
-    printArray(reducedEquations, "Equations after alias reduction:", log=log)
-
     reducedAvar, reducedStates, reducedDerivatives = setAvar(reducedUnknowns)
     return reducedEquations, reducedUnknowns, reducedAvar, reducedG, reducedStates, vEliminated, vProperty
 end
@@ -692,7 +690,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
 
         if typeof(model) <: NamedTuple
             if logModel
-                showModel(model)
+                @showModel(model)
             end
             if logTiming
                 println("Flatten")
@@ -719,16 +717,17 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
         unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time])
         Avar, states, derivatives = setAvar(unknowns)
         vActive = [a == 0 for a in Avar]
-
+   
         if log
             println("Number of states:    ", length(states))
             println("Number of unknowns:  ", length(unknowns)-length(states))
             println("Number of equations: ", length(modelStructure.equations))
         end
+        printArray(states, "States:", log=log)
+        printArray(setdiff(unknowns, states), "Uknowns:", log=log)
+        printArray(modelStructure.equations, "Equations:", log=log)
         if logDetails
             @show modelStructure.parameters modelStructure.init modelStructure.start modelStructure.variables modelStructure.flows 
-            printArray(unknowns, "unknowns:")
-            printArray(modelStructure.equations, "equations:")
         end
 
         unknownsWithEliminated = unknowns
@@ -743,6 +742,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
             else
                 equations, unknowns, Avar, G, states, vEliminated, vProperty = performAliasReduction(unknowns, modelStructure.equations, Avar, logDetails, log)
             end
+            printArray(states, "States:", log=log)
+            printArray(setdiff(unknowns, states), "Unknowns after alias reduction:", log=log)
+            printArray(equations, "Equations after alias reduction:", log=log)
         else
             equations = modelStructure.equations
             G = [] # Array{Array{Int64,1},1}()

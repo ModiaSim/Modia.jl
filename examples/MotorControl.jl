@@ -59,7 +59,8 @@ MotorControl = Model(
 
 model = @instantiateModel(MotorControl)
 println("Simulate")
-@time simulate!(model, stopTime=0.1, tolerance=1e-6, log=false)
+@time simulate!(model, stopTime=0.1, tolerance=1e-6, log=false, requiredFinalStates = 
+    [3.487844601078223, 106.82874860310305, 4.616087152802267, 2.014120727821878, 41.98048886114646, 0.018332432934516536, 0.3725930536373392])
 plot(model, [("currentSensor.i", "step.y"), "loadInertia.w"], figure=1)
 
 
@@ -123,7 +124,8 @@ MotorControl2 = Model(
 
 model = @instantiateModel(MotorControl2)
 println("Simulate")
-@time simulate!(model, stopTime=0.1, tolerance=1e-6, log=false)
+@time simulate!(model, stopTime=0.1, tolerance=1e-6, log=false, requiredFinalStates =  
+    [3.487844601078223, 106.82874860310305, 4.616087152802267, 2.014120727821878, 41.98048886114646, 0.018332432934516536, 0.3725930536373392])
 plot(model, [("controlledMotor.currentSensor.i", "step.y"), "loadInertia.w"], figure=1)
 
 

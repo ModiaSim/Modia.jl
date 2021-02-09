@@ -117,7 +117,8 @@ plotVariables = [("ramp.y", "load.w"), "servo.speedError.y", "servo.motor.curren
 
 model = @instantiateModel(TestServo)
 println("Simulate")
-@time simulate!(model, Tsit5(), stopTime=2.0, tolerance=1e-6, log=false)
+@time simulate!(model, Tsit5(), stopTime=2.0, tolerance=1e-6, log=false, requiredFinalStates = 
+    [7.320842067204029, 9.346410309487013, 355.30389168655955, 2.792544498835712, 429.42665751348284, 311.7812493890421, 4.089776248793499, 2.969353608933471])
 plot(model, plotVariables, figure=1)
 
 println("\nModel with uncertainties")

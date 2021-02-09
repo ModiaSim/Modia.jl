@@ -222,7 +222,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
 #                println("subModelStructure")
 #                printModelStructure(subModelStructure, k)
                 mergeModelStructures(modelStructure, subModelStructure, k)
-        elseif typeof(v) <:Array
+        elseif typeof(v) <:Array && length(v) > 0 && typeof(v[1]) <: NamedTuple
             i = 0
             for a in v
                 i += 1
