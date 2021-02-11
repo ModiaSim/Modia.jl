@@ -11,30 +11,22 @@ but can be set to any type `T<:AbstractFloat`, for example
 `Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}`.
 
 ## Installation
-
-The package is currently being registered. During this phase, it is installed as
-(Julia >= 1.5 is required):
-
-```julia
-julia> ]add ModiaPlot, ModiaBase
-        add https://github.com/ModiaSim/TinyModia.jl#main
-```
-
-Once registered, installation is done with
+ 
+The package is registered and is installed with (Julia >= 1.5 is required):
 
 ```julia
-julia> ]add TinyModia, ModiaPlot
+julia> ]add TinyModia
 ```
 
 It is recommended to also add the following packages, in order that all tests and examples can be executed in your standard environment:
 
 ```julia
-julia> ]add Unitful, DifferentialEquations, Measurements, MonteCarloMeasurements, Distributions
+julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloMeasurements, Distributions
 ```
 
 ## Main Developers
 
-- Hilding Elmqvist (Hilding.Elmqvist@Mogram.net), [Mogram](http://www.mogram.net/).
+- [Hilding Elmqvist](mailto:Hilding.Elmqvist@Mogram.net), [Mogram](http://www.mogram.net/).
 
 - [Martin Otter](https://rmc.dlr.de/sr/en/staff/martin.otter/),
   [DLR - Institute of System Dynamics and Control](https://www.dlr.de/sr/en).
