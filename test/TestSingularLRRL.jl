@@ -1,4 +1,4 @@
-module TestSingularLRRL
+lsmodule TestSingularLRRL
 
 using TinyModia
 using DifferentialEquations
@@ -26,21 +26,21 @@ SingularLRRL = Model(
         L2_v = L2_p_v - L2_n_v
         0 = L2_p_i + L2_n_i
         L2_L*der(L2_p_i) = L2_v
-    
+
         # Resistor 1
         R1_v = R1_p_v - R1_n_v
         0 = R1_p_i + R1_n_i
         R1_v = R1_R*R1_p_i
-    
+
         # Resistor 2
         R2_v = R2_p_v - R2_n_v
         0 = R2_p_i + R2_n_i
         R2_v = R2_R*R2_p_i
-        
+
         # Voltage source
         V_v = V_p_v - V_n_v
         0   = V_p_i + V_n_i
-        
+
         # Connect equations
         #   connect(V.p, L1.p)
         #   connect(L1.n, R1.p)
@@ -51,10 +51,10 @@ SingularLRRL = Model(
         V_p_v = L1_p_v
         0 = V_p_i + L1_p_i
         L1_n_v = R1_p_v
-        L1_n_v = R2_p_v                
+        L1_n_v = R2_p_v
         0 = L1_n_i + R1_p_i + R2_p_i
         R1_n_v = L2_p_v
-        R2_n_v = L2_p_v                
+        R2_n_v = L2_p_v
         0 = R1_n_i + R2_n_i + L2_p_i
         L2_n_v = V_n_v
         0 = L2_n_i + V_n_i #+ ground_v_i
@@ -68,7 +68,7 @@ simulate!(singularLRRL, Tsit5(), stopTime = 1.0, requiredFinalStates = [1.499999
 
 plot(singularLRRL, [("L1_p_i", "L2_p_i", "R1_p_i", "R2_p_i"), ("L1_v", "L2_v", "R1_v", "R2_v")])
 
-include("../models/Electric.jl")  
+include("../models/Electric.jl")
 
 setLogMerge(false)
 

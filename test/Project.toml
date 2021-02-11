@@ -2,5 +2,8 @@
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+ModiaBase = "ec7bf1ca-419d-4510-bbab-199861c55244"
+ModiaPlot = "951137b1-a5aa-4c03-8412-295bfee9a204"
 MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
