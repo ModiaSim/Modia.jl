@@ -1,4 +1,4 @@
-lsmodule TestSingularLRRL
+module TestSingularLRRL
 
 using TinyModia
 using DifferentialEquations

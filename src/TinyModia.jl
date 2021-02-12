@@ -495,6 +495,9 @@ function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, 
         return isLinear(equ, var) 
     end
 
+    hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
+                          typeof(value) <: MonteCarloMeasurements.Particles
+                          
     function var_unit(v)
         var = unknowns[v]
         if var in keys(init)
@@ -504,10 +507,13 @@ function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, 
         else
             value = 0.0
         end
+        if hasParticles(value)  # Units not yet support for particles
+            return ""
+        end
         if length(value) == 1
             un = unit(value)
         else
-            un = [unit(v) for v in value]  # unit.(value) does not work for MonteCarloMeasurements
+            un = unit.(value)   # un = [unit(v) for v in value]  # unit.(value) does not work for MonteCarloMeasurements
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
         end
@@ -522,9 +528,6 @@ function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, 
         return unknowns[v_original] in keys(init) 
     end
     
-    hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
-                          typeof(value) <: MonteCarloMeasurements.Particles
-
     function var_length(v_original)
         v = unknowns[v_original]
         if v in keys(init)

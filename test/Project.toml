@@ -7,3 +7,13 @@ ModiaPlot = "951137b1-a5aa-4c03-8412-295bfee9a204"
 MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[compat]
+julia = "1.5, 1.6"
+DifferentialEquations = "6.16"
+Distributions = "0.23"
+Measurements = "2.5"
+ModiaBase = "0.7.1"
+ModiaPlot = "0.7.0"
+MonteCarloMeasurements = "0.10"
+Unitful = "1.5, 1.4, 1.3"
