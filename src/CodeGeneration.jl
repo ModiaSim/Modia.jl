@@ -7,8 +7,9 @@ using  Unitful
 using  Measurements
 import MonteCarloMeasurements
 using  DataStructures: OrderedDict
+using  DataFrames
 
-export SimulationModel, measurementToString
+export SimulationModel, measurementToString, get_lastValue
 
 
 """
@@ -55,7 +56,9 @@ end
     simulationModel = SimulationModel{FloatType}(
             modelName, getDerivatives!, equationInfo, x_startValues,
             parameters, variableNames;
-            vEliminated::Vector{Int}=Int[], vProperty::Vector{Int}=Int[], 
+            v_init::OrderedDict{String,Any}(),
+            vEliminated::Vector{Int}=Int[], 
+            vProperty::Vector{Int}=Int[], 
             var_name::Function = v->nothing)
             
             
@@ -69,8 +72,9 @@ mutable struct SimulationModel{FloatType}
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo 
     linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
-    variables                       # Dictionary of variables and their result indices (negated alias has negativ index)
-    parametersAndConstantVariables  # Dictionary of parameters and constant variables with their values
+    variables::OrderedDict{String,Int}                       # Dictionary of variables and their result indices (negated alias has negativ index)
+    parametersAndConstantVariables::OrderedDict{String,Any}  # Dictionary of parameters and constant variables with their values
+    vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}     # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
     p::AbstractVector               # Parameter values that are copied into the code
     storeResult::Bool
     isInitial::Bool
@@ -81,7 +85,8 @@ mutable struct SimulationModel{FloatType}
   	algorithmType::DataType         # Type of integration algorithm (used in default-heading of plot)
      
     function SimulationModel{FloatType}(modelName, getDerivatives!, equationInfo, x_startValues,
-                                        parameters, variableNames,
+                                        parameters, variableNames;
+                                        vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[], 
                                         vProperty::Vector{Int}   = Int[], 
                                         var_name::Function       = v -> nothing) where {FloatType}
@@ -89,7 +94,7 @@ mutable struct SimulationModel{FloatType}
         # Construct result dictionaries
         variables = OrderedDict{String,Int}()
         parametersAndConstantVariables = OrderedDict{String,Any}( [(string(key),parameters[key]) for key in keys(parameters)] )
-        
+        vSolvedWithInitValuesAndUnit2 = OrderedDict{String,Any}( [(string(key),vSolvedWithInitValuesAndUnit[key]) for key in keys(vSolvedWithInitValuesAndUnit)] )        
             # Store variables
             for (i, name) in enumerate(variableNames)
                 variables[string(name)] = i
@@ -133,7 +138,8 @@ mutable struct SimulationModel{FloatType}
         storeResult     = false
         nGetDerivatives = 0
         
-        new(modelName, getDerivatives!, equationInfo, linearEquations, variables, parametersAndConstantVariables, parameterValues,
+        new(modelName, getDerivatives!, equationInfo, linearEquations, variables, parametersAndConstantVariables, 
+            vSolvedWithInitValuesAndUnit2, parameterValues,
             storeResult, isInitial, nGetDerivatives, x_start, zeros(FloatType,nx), Tuple[])
     end
 end
@@ -175,7 +181,45 @@ end
 
 
 """
-    init!(simulationModel, startTime)
+    get_lastValue(model::SimulationModel, name::String; unit=true)
+    
+Return the last stored value of variable `name` from `model`.
+If `unit=true` return the value with its unit, otherwise with stripped unit.
+
+If `name` is not known or no result values yet available, an info message is printed
+and the function returns `nothing`.
+"""
+function get_lastValue(m::SimulationModel, name::String; unit=true)
+    if haskey(m.variables, name)
+        if length(m.result) == 0
+            @info "get_lastValue(model,\"$name\"): No results yet available."
+            return nothing
+        end
+        
+        resIndex = m.variables[name]
+        negAlias = false
+        if resIndex < 0
+            resIndex = -resIndex
+            negAlias = true
+        end
+        value = m.result[end][resIndex]        
+        if negAlias
+            value = -value
+        end        
+    elseif haskey(m.parametersAndConstantVariables, name)
+        value = eval( m.parametersAndConstantVariables[name] ) 
+    else
+        @info "get_lastValue: $name is not known and is ignored."
+        return nothing;
+    end
+    
+    return unit ? value : ustrip(value)
+end
+
+
+
+"""
+    init!(simulationModel, startTime, tolerance)
     
 
 Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
@@ -184,15 +228,50 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 - Call simulationModel.getDerivatives! once with isInitial = true to 
   compute and store all variables in the result data structure at `startTime`
   and initialize simulationModel.linearEquations.
+- Check whether explicitly solved variables that have init-values defined,
+  have the required value after initialization (-> otherwise error).
 """
-function init!(m::SimulationModel, startTime)::Nothing
+function init!(m::SimulationModel, startTime, tolerance)::Nothing
     empty!(m.result)
     
     # Call getDerivatives once to compute and store all variables and initialize linearEquations
     m.nGetDerivatives = 0
-    m.isInitial = true
+    m.isInitial   = true
+    m.storeResult = true
     m.getDerivatives!(m.der_x, m.x_start, m, startTime)
-    m.isInitial = false
+    m.isInitial   = false
+    m.storeResult = false
+    
+    # Check vSolvedWithInitValuesAndUnit
+    if length(m.vSolvedWithInitValuesAndUnit) > 0
+        names = String[]
+        valuesBeforeInit = Any[]
+        valuesAfterInit  = Any[]
+        
+        for (name, valueBeforeInit) in m.vSolvedWithInitValuesAndUnit
+            valueAfterInit = get_lastValue(m, name)
+            if !isnothing(valueAfterInit) && abs(valueBeforeInit - valueAfterInit) >= max(abs(valueBeforeInit),abs(valueAfterInit),0.01*tolerance)*tolerance
+                push!(names, name)
+                push!(valuesBeforeInit, valueBeforeInit)
+                push!(valuesAfterInit , valueAfterInit)
+            end
+        end
+        
+        if length(names) > 0
+            v_table = DataFrames.DataFrame(name=names, beforeInit=valuesBeforeInit, afterInit=valuesAfterInit)
+            #show(stderr, v_table; allrows=true, allcols=true, summary=false, eltypes=false)
+            #print("\n\n")
+            ioTemp = IOBuffer();
+            show(ioTemp, v_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
+            str = String(take!(ioTemp))
+            close(ioTemp)
+            error("The following variables are explicitly solved for, have init-values defined\n",
+                  "and after initialization the init-values are not respected\n",
+                  "(remove the init-values in the model or change them to start-values):\n",
+                  str)
+        end
+    end
+    
     return nothing
 end
 

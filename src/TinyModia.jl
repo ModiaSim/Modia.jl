@@ -38,8 +38,8 @@ const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
-const Version = "0.7.0"
-const Date = "2021-02-08"
+const Version = "0.7.1-dev"
+const Date = "2021-02-14"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -620,6 +620,18 @@ function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, 
     if logCode
         println("startValues = ", startValues)
     end
+    
+    vSolvedWithInit = equationInfo.vSolvedWithFixedTrue
+    vSolvedWithInitValuesAndUnit = OrderedDict{String,Any}()
+    for name in vSolvedWithInit
+        nameAsSymbol = Symbol(name)
+        if haskey(init, nameAsSymbol)
+            vSolvedWithInitValuesAndUnit[name] = eval( init[nameAsSymbol] )
+        else
+            @warn "Internal issue of TinyModia: $name is assumed to have an init-value, but it is not found."
+        end
+    end
+    
     # Generate code
     if logTiming
         println("Generate code")
@@ -643,10 +655,11 @@ function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, 
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-                
+               
     model = SimulationModel{FloatType}(name, getDerivatives, equationInfo, convertedStartValues,
-                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]), 
-                                         vEliminated, vProperty, (v)->string(unknownsWithEliminated[v]))
+                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
+                                         vSolvedWithInitValuesAndUnit, vEliminated, vProperty, 
+                                         var_name = (v)->string(unknownsWithEliminated[v]))
 
     if logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)

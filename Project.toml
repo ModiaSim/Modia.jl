@@ -1,9 +1,10 @@
 name = "TinyModia"
 uuid = "0169e107-af13-440d-89df-ca21e82123ce"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
-version = "0.7.0"
+version = "0.7.1-dev"
 
 [deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
@@ -16,6 +17,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 julia = "1.5, 1.6"
+DataFrames     = "0.22, 0.21, 0.20, 0.19"
 DataStructures = "0.18, 0.17"
 DifferentialEquations = "6.16"
 Measurements = "2.5"
