@@ -39,7 +39,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.1-dev"
-const Date = "2021-02-14"
+const Date = "2021-02-15"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -624,9 +624,9 @@ function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, 
     vSolvedWithInit = equationInfo.vSolvedWithFixedTrue
     vSolvedWithInitValuesAndUnit = OrderedDict{String,Any}()
     for name in vSolvedWithInit
-        nameAsSymbol = Symbol(name)
-        if haskey(init, nameAsSymbol)
-            vSolvedWithInitValuesAndUnit[name] = eval( init[nameAsSymbol] )
+        nameAsExpr = Meta.parse(name)
+        if haskey(init, nameAsExpr)
+            vSolvedWithInitValuesAndUnit[name] = eval( init[nameAsExpr] )
         else
             @warn "Internal issue of TinyModia: $name is assumed to have an init-value, but it is not found."
         end

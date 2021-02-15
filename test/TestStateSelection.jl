@@ -122,8 +122,6 @@ end
     end  
 
 
-
-#=
     @testset "... Test free flying mass" begin
         FreeFlyingMass = Model(
             m =1.0, 
@@ -133,10 +131,12 @@ end
                 v = der(r)
                 m*der(v) = f]
         )
-        freeFlyingMass = @instantiateModel(FreeFlyingMass, logStateSelection=true)
-        @show freeFlyingMass.equationInfo.linearEquations
-        #checkStateSelection(freeFlyingMass, ["x6"], [(["x5"], [1], 1, 1)])
+        freeFlyingMass = @instantiateModel(FreeFlyingMass)
+        checkStateSelection(freeFlyingMass, ["v", "r"], [])
     end 
+
+
+#=
 
     
     @testset "... Test sliding mass" begin
@@ -218,9 +218,16 @@ Drive = Model(
     connect = :[
         (inertia.flange_b, damper.flange)]
 )
+Drive2 = Drive | Map(damper = Map(init=Map(phi=1.0u"rad")))
 
-drive = @instantiateModel(Drive, logDetails=true, logStateSelection=true)
+drive1 = @instantiateModel(Drive)
+drive2 = @instantiateModel(Drive2)
 
+using DifferentialEquations
+simulate!(drive1, Tsit5(), stopTime = 4.0)
+
+println("Next simulate! should result in an error:\n")
+simulate!(drive2, Tsit5(), stopTime = 4.0)
 
 
 end
