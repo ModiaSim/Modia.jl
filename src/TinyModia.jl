@@ -353,7 +353,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     nonlinearVariables = []
     linearEquations = Vector{Int}()
     nonlinearEquations = []
-    G = [] # Array{Array{Int64,1},1}()
+    G = Vector{Int}[] # Array{Array{Int64,1},1}()
     Gint = Array{Array{Int64,1},1}()
     GcInt = Array{Array{Int64,1},1}()
     for i in 1:length(equations)
@@ -434,7 +434,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     end
 
     reducedVariablesIndices = OrderedDict(key => k for (k, key) in enumerate(reducedUnknowns))
-    reducedG = [] # Array{Array{Int64,1},1}()
+    reducedG = Vector{Int}[] # Array{Array{Int64,1},1}()
     for i in 1:length(reducedEquations)
         e = reducedEquations[i]
         nameIncidence, coefficients, rest, linear = getCoefficients(e)
@@ -763,7 +763,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
             printArray(equations, "Equations after alias reduction:", log=log)
         else
             equations = modelStructure.equations
-            G = [] # Array{Array{Int64,1},1}()
+            G = Vector{Int}[] # Array{Array{Int64,1},1}()
             variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
 
             for i in 1:length(equations)
