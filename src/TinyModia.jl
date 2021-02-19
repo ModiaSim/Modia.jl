@@ -39,7 +39,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.1-dev"
-const Date = "2021-02-15"
+const Date = "2021-02-18"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -448,7 +448,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, start, vEliminated, vProperty, unknownsWithEliminated; 
+function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, vEliminated, vProperty, unknownsWithEliminated; 
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modelStructure
 
@@ -644,7 +644,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, FloatType, init, 
     end
 
     # Compile code
-    generatedFunction = @RuntimeGeneratedFunction(code)  
+    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)  
     
     # If generatedFunction is not packed inside a function, DifferentialEquations.jl crashes
     getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)   
@@ -779,7 +779,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
 
         modStructure = assignAndBLT(equations, unknowns, modelStructure.parameters, Avar, G, states, logDetails, log, logTiming)
 
-        stateSelectionAndCodeGeneration(modStructure, name, FloatType, modelStructure.init, modelStructure.start, vEliminated, vProperty, unknownsWithEliminated; 
+        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, vEliminated, vProperty, unknownsWithEliminated; 
             unitless, logStateSelection, logCode, logExecution, logTiming)
 
     catch e

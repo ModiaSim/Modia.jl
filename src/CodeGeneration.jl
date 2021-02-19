@@ -388,7 +388,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 $(code_der_x...)
                 
                 if _m.storeResult
-                    addToResult!(_m, $(variables...))
+                    TinyModia.addToResult!(_m, $(variables...))
                 end
     
                 return nothing

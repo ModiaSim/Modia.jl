@@ -3,7 +3,10 @@ module TestFirstOrder
 using TinyModia
 using DifferentialEquations
 using ModiaPlot
-
+using Unitful
+using ModiaBase
+using RuntimeGeneratedFunctions
+RuntimeGeneratedFunctions.init(@__MODULE__)
 
 FirstOrder = Model(
     T = 0.2,
@@ -13,7 +16,7 @@ FirstOrder = Model(
                   y = 2*x]
 )
 
-firstOrder = @instantiateModel(FirstOrder)
+firstOrder = @instantiateModel(FirstOrder, logCode=true)
 
 simulate!(firstOrder, Tsit5(), stopTime = 1.0, log=false,
           requiredFinalStates = [0.9952834203188597])
