@@ -128,7 +128,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
         tspan2   = startTime:interval:stopTime	
         tdir     = startTime <= stopTime ? 1 : -1   
         abstol   = 0.1*tolerance
-        problem  = DifferentialEquations.ODEProblem(m.getDerivatives!, m.x_start, tspan, m)
+        problem  = DifferentialEquations.ODEProblem(derivatives!, m.x_start, tspan, m)
         callback = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=tdir)
     
     

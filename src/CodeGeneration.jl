@@ -292,6 +292,18 @@ end
 
 
 """
+    derivatives!(derx, x, m, t)
+    
+DifferentialEquations callback function to get the derivatives.
+"""
+function derivatives!(der_x, x, m, t)::Nothing
+    m.getDerivatives!(der_x, x, m, t)
+    return nothing
+end
+
+
+
+"""
     addToResult!(simulationModel, variableValues...)
     
 Add `variableValues...` to `simulationModel::SimulationModel`.
