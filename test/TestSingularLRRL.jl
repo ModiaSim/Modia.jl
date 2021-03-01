@@ -3,7 +3,6 @@ module TestSingularLRRL
 using TinyModia
 using DifferentialEquations
 using ModiaPlot
-using ModiaBase
 
 SingularLRRL = Model(
     v0   = 10,

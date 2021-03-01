@@ -11,7 +11,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 [compat]
 julia = "1.5, 1.6"
 DifferentialEquations = "6.16"
-Distributions = "0.23"
+Distributions = "0.23, 0.24"
 Measurements = "2.5"
 ModiaBase = "0.7.1"
 ModiaPlot = "0.7.0"

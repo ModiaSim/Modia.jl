@@ -4,7 +4,6 @@ using TinyModia
 using DifferentialEquations
 using ModiaPlot
 using Unitful
-using ModiaBase
 
 TwoInertiasAndIdealGearWithUnits = Model(
     J1 = 0.0025u"kg*m^2",

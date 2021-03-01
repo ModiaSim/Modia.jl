@@ -6,7 +6,6 @@ using ModiaPlot
 using MonteCarloMeasurements
 using Distributions
 using Unitful
-using ModiaBase
 
 
 # The number of particles must be the same as for FloatType

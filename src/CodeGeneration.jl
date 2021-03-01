@@ -394,20 +394,23 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     end
 
     # Generate code of the function  
-    code = :(function $functionName(_der_x, _x, _m, _time)::Nothing
-    
-                _m.nGetDerivatives += 1
-                $code_time
-                $(code_p...)
-                $(code_x...)
-                $(AST...)
-                $(code_der_x...)
-                
-                if _m.storeResult
-                    TinyModia.addToResult!(_m, $(variables...))
-                end
-    
-                return nothing
-            end)        
+    code = quote
+				import ModiaBase
+				function $functionName(_der_x, _x, _m, _time)::Nothing
+		
+					_m.nGetDerivatives += 1
+					$code_time
+					$(code_p...)
+					$(code_x...)
+					$(AST...)
+					$(code_der_x...)
+					
+					if _m.storeResult
+						TinyModia.addToResult!(_m, $(variables...))
+					end
+		
+					return nothing
+				end
+			end
     return code
 end

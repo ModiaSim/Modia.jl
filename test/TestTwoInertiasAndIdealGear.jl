@@ -4,7 +4,6 @@ using TinyModia
 using DifferentialEquations
 using ModiaPlot
 using Unitful
-using ModiaBase
 
 
 TwoInertiasAndIdealGearTooManyInits = Model(

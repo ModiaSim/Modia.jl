@@ -2,8 +2,6 @@ module TestStateSelection
 
 using TinyModia
 using Test
-using ModiaBase
-
 
 function checkStateSelection(model, x_names, linearEquations=[])
     # Check names of the states
