@@ -1,9 +1,9 @@
 module FilterCircuit
 
 using TinyModia
+
 using DifferentialEquations
 using ModiaPlot
-using Unitful
 
 setLogMerge(false)
 

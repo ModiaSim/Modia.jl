@@ -5,6 +5,8 @@ using DifferentialEquations
 using ModiaPlot
 using MonteCarloMeasurements
 using Distributions
+using ModiaBase
+using Unitful
 
 # The number of particles must be the same as for FloatType
 const nparticles = 100

@@ -22,6 +22,7 @@ end
     @testset "... Test FirstOrder" begin
         FirstOrder = Model(
             T = 0.2,
+			init = Map(x=0.3),
             equations = :[
                     u = 1.0
                 der(x) = (u - x)/T
@@ -65,7 +66,7 @@ end
                 4*x4 + 5*x5 = x1 + x2
                     der(x6) = -x5*x6]
         )
-        oDEwithLinearEquations1 = @instantiateModel(ODEwithLinearEquations1)
+        oDEwithLinearEquations1 = @instantiateModel(ODEwithLinearEquations1, unitless=true)
         checkStateSelection(oDEwithLinearEquations1, ["x6"], [(["x5"], [1], 1, 1)])
     end  
 
@@ -83,7 +84,7 @@ end
                 4*x4 + 5*x5 = x1 + x2
                   3*der(x6) = -5*x3 - 2*x4]
         )
-        oDEwithLinearEquations2 = @instantiateModel(ODEwithLinearEquations2)
+        oDEwithLinearEquations2 = @instantiateModel(ODEwithLinearEquations2, unitless=true)
         checkStateSelection(oDEwithLinearEquations2, ["x6"], [(["x5"], [1], 1, 1)])
     end  
 
@@ -111,7 +112,7 @@ end
                 0 = u6 + 2*x6 + x7
                 0 = u7 + 3*x6 + 4*x7]
         )
-        multiIndexDAE = @instantiateModel(MultiIndexDAE)
+        multiIndexDAE = @instantiateModel(MultiIndexDAE, unitless=true)
         #@show multiIndexDAE.equationInfo.linearEquations
         checkStateSelection(multiIndexDAE, ["x2", "x2d"], 
                             [(["x7"], [1], 1, 1), 

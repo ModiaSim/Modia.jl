@@ -238,7 +238,8 @@ function init!(m::SimulationModel, startTime, tolerance)::Nothing
     m.nGetDerivatives = 0
     m.isInitial   = true
     m.storeResult = true
-    m.getDerivatives!(m.der_x, m.x_start, m, startTime)
+#    m.getDerivatives!(m.der_x, m.x_start, m, startTime)
+    Base.invokelatest(m.getDerivatives!, m.der_x, m.x_start, m, startTime)
     m.isInitial   = false
     m.storeResult = false
     
@@ -285,7 +286,9 @@ that is used to store results at communication points.
 function outputs!(x, t, integrator)::Nothing
     m = integrator.p
     m.storeResult = true
-    m.getDerivatives!(m.der_x, x, m, t)
+#    m.getDerivatives!(m.der_x, x, m, t)
+    Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+
     m.storeResult = false
     return nothing
 end
@@ -297,7 +300,8 @@ end
 DifferentialEquations callback function to get the derivatives.
 """
 function derivatives!(der_x, x, m, t)::Nothing
-    m.getDerivatives!(der_x, x, m, t)
+#    m.getDerivatives!(der_x, x, m, t)
+    Base.invokelatest(m.getDerivatives!, der_x, x, m, t)
     return nothing
 end
 

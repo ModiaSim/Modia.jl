@@ -6,6 +6,7 @@ using DifferentialEquations
 using ModiaPlot
 using Measurements
 using Unitful
+using ModiaBase
 
 
 

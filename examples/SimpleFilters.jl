@@ -3,7 +3,6 @@ module SimpleFilters
 using TinyModia
 using DifferentialEquations
 using ModiaPlot
-using Unitful
 
 setLogMerge(false)
 

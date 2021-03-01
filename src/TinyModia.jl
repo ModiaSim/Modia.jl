@@ -8,6 +8,8 @@ Main module of TinyModia.
 """
 module TinyModia
 
+using Reexport
+
 export instantiateModel, @instantiateModel
 
 using Base.Meta: isexpr
@@ -18,11 +20,11 @@ using ModiaBase.Simplify
 using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
-using ModiaBase
+@reexport using ModiaBase
 
-using RuntimeGeneratedFunctions
-RuntimeGeneratedFunctions.init(@__MODULE__)
-using Unitful
+# using RuntimeGeneratedFunctions
+# RuntimeGeneratedFunctions.init(@__MODULE__)
+@reexport using Unitful
 using  Measurements
 import MonteCarloMeasurements
 
@@ -644,10 +646,13 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     end
 
     # Compile code
-    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)  
-    
+
+
+#    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)  
+    getDerivatives = Core.eval(modelModule, code)
+
     # If generatedFunction is not packed inside a function, DifferentialEquations.jl crashes
-    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)   
+#    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)   
     
     # Execute code
     if logExecution
@@ -663,7 +668,9 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
 
     if logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
-        @time getDerivatives(derx, convertedStartValues, model, convert(FloatType, 0.0))
+#        @time getDerivatives(derx, convertedStartValues, model, convert(FloatType, 0.0))
+        Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(FloatType, 0.0))
+    
         @show derx
     end
     return model    

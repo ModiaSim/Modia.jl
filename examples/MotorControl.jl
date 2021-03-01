@@ -9,7 +9,6 @@ include("../models/Rotational.jl")
 using TinyModia
 using DifferentialEquations
 using ModiaPlot
-using Unitful
 using Measurements
 
 export MotorControl2

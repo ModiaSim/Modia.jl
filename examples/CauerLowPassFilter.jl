@@ -1,10 +1,9 @@
 module CauerLowPassFilterModel
 
 using TinyModia
-using Unitful
+
 using DifferentialEquations
 using ModiaPlot
-using Unitful
 
 include("../models/Electric.jl")
 
