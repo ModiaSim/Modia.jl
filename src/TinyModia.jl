@@ -1,7 +1,7 @@
 """
 Main module of TinyModia.
 
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * First version: December 2020
 * License: MIT (expat)
 
@@ -77,7 +77,7 @@ end
 function performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, log=false)
     nUnknowns = length(unknowns) - length(states)
     nEquations = length(equations)
-    
+
     if nEquations > 0 && nUnknowns != nEquations
         println("Not equal number of unknowns ($nUnknowns) and equations ($nEquations).")
         printArray(states, "Potential states:", log=true)
@@ -85,7 +85,7 @@ function performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, 
         printArray(equations, "Equations:", log=true)
         error("Aborting")
     end
-    
+
     ok = nUnknowns == nEquations
 
     # Check consistency
@@ -111,7 +111,7 @@ function performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, 
         printAssignedEquations(equationsEG, unknowns, 1:length(EG), assignEG, Avar, fill(0, length(EG)))
         unassigned = []
         for i in eachindex(assignEG)
-            if assignEG[i] == 0 
+            if assignEG[i] == 0
                 push!(unassigned, unknowns[i])
             end
         end
@@ -135,7 +135,7 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
         @show G length(Avar) vActive
         assign = matching(G, length(Avar), vActive)
         @show assign
-        
+
         println("\nAssigned equations:")
         Bequ = fill(0, length(G))
         printAssignedEquations(equations, unknowns, 1:length(G), assign, Avar, Bequ)
@@ -152,9 +152,9 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
 
     if logTiming
         println("\nIndex reduction (Pantelides)")
-        @time assign, Avar, Bequ = pantelides!(G, length(Avar), Avar) 
+        @time assign, Avar, Bequ = pantelides!(G, length(Avar), Avar)
     else
-        assign, Avar, Bequ = pantelides!(G, length(Avar), Avar) 
+        assign, Avar, Bequ = pantelides!(G, length(Avar), Avar)
     end
     if logDetails
         @show assign Avar Bequ
@@ -164,7 +164,7 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
     unknowns = vcat(unknowns, fill(:x, length(Avar) - length(unknowns)))
     for i in 1:length(Avar)
         if Avar[i] > 0
-            unknowns[Avar[i]] = derivative(unknowns[i], keys(parameters)) 
+            unknowns[Avar[i]] = derivative(unknowns[i], keys(parameters))
         end
     end
 
@@ -172,7 +172,7 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
     equations = vcat(equations, fill(:(a=b), length(Bequ) - length(equations)))
     for i in 1:length(Bequ)
         if Bequ[i] > 0
-            equations[Bequ[i]] = derivative(equations[i], keys(parameters)) 
+            equations[Bequ[i]] = derivative(equations[i], keys(parameters))
         end
     end
 
@@ -200,15 +200,15 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
         @time assign = matching(HG, length(Avar), vActive)
     else
         assign = matching(HG, length(Avar), vActive)
-    end 
-    if logTiming   
+    end
+    if logTiming
         println("BLT")
         @time bltComponents = BLT(HG, assign)
     else
        bltComponents = BLT(HG, assign)
     end
     if logDetails
-        @show HG 
+        @show HG
         @show bltComponents
     end
 
@@ -231,7 +231,7 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
             vs = assignedVar[b]
             td = TearingSetup(HG, length(unknowns))
             (eSolved, vSolved, eResidue, vTear) = tearEquations!(td, (e,v) -> v in HG[e], es, vs)
-            @show vTear eResidue vSolved eSolved 
+            @show vTear eResidue vSolved eSolved
             printArray(unknowns[vTear], "torn variables:", log=logDetails)
             printArray(equations[eResidue], "residue equations:", log=logDetails)
             printArray(unknowns[vSolved], "solved variables:", log=logDetails)
@@ -361,7 +361,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     for i in 1:length(equations)
         e = equations[i]
         nameIncidence, coefficients, rest, linear = getCoefficients(e)
-        incidence = [variablesIndices[n] for n in nameIncidence if n in unknowns] 
+        incidence = [variablesIndices[n] for n in nameIncidence if n in unknowns]
         unique!(incidence)
         push!(G, incidence)
 
@@ -392,7 +392,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
         @show linearEquations vSolveInLinearEquations Gint GcInt
     end
 
-    GCopy = deepcopy(G) 
+    GCopy = deepcopy(G)
     AvarCopy = deepcopy(Avar)
     (vEliminated, vProperty, nvArbitrary, redundantEquations) = simplifyLinearIntegerEquations!(GCopy, linearEquations, GcInt, AvarCopy)
 
@@ -423,7 +423,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 
     for ei in 1:length(equations)
         e = equations[ei]
-        if e != :(0 = 0) 
+        if e != :(0 = 0)
             push!(reducedEquations, substitute(substitutions, e))
         end
     end
@@ -440,7 +440,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     for i in 1:length(reducedEquations)
         e = reducedEquations[i]
         nameIncidence, coefficients, rest, linear = getCoefficients(e)
-        incidence = [reducedVariablesIndices[n] for n in nameIncidence if n in reducedUnknowns] 
+        incidence = [reducedVariablesIndices[n] for n in nameIncidence if n in reducedUnknowns]
         unique!(incidence)
         push!(reducedG, incidence)
     end
@@ -450,7 +450,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, vEliminated, vProperty, unknownsWithEliminated; 
+function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, vEliminated, vProperty, unknownsWithEliminated;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modelStructure
 
@@ -468,7 +468,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
                 solution = :(try $solution; catch e; println("\n\nFailure executing: ", $sol, "\n\n"); rethrow(e) end)
             end
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); println(sprint(showerror,e)); rethrow(e) end)
-    #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red); 
+    #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
         solution = makeDerVar(solution)
@@ -479,7 +479,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
             return solution
         end
     end
-    
+
     function getResidualEquationAST(e, residualName)
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
         resid = makeDerVar(:(ustrip($(eq.args[2]) - $(eq.args[1]))))
@@ -494,12 +494,12 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     function isLinearEquation(e_original, v_original)
         equ = equations[e_original]
         var = unknowns[v_original]
-        return isLinear(equ, var) 
+        return isLinear(equ, var)
     end
 
     hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
                           typeof(value) <: MonteCarloMeasurements.Particles
-                          
+
     function var_unit(v)
         var = unknowns[v]
         if var in keys(init)
@@ -527,9 +527,9 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     end
 
     function var_fixed(v_original)
-        return unknowns[v_original] in keys(init) 
+        return unknowns[v_original] in keys(init)
     end
-    
+
     function var_length(v_original)
         v = unknowns[v_original]
         if v in keys(init)
@@ -544,7 +544,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     function eq_equation(e)
         return replace(replace(string(equations[e]), "\n" => " "), "  " => " ")
     end
-    
+
     # ----------------------------------------------------------------------------
 
     solvedAST = []
@@ -553,12 +553,12 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     stringVariables = [String(Symbol(v)) for v in unknowns]
     allEquations    = equations
     #    @show stringVariables equations G blt assign Avar Bequ Gsolvable
-    
-    
+
+
     stateSelectionFunctions = StateSelectionFunctions(
-        var_name               = v -> stringVariables[v], 
+        var_name               = v -> stringVariables[v],
         var_julia_name         = v -> juliaVariables[v],
-        var_unit               = var_unit, 
+        var_unit               = var_unit,
         var_has_start          = var_has_start,
         var_fixed              = var_fixed,
         var_nominal            = v_original -> NaN,
@@ -569,12 +569,12 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         isLinearEquation       = isLinearEquation,
         getSolvedEquationAST   = getSolvedEquationAST,
         getResidualEquationAST = getResidualEquationAST,
-        showMessage            = (message;severity=0,from="???",details="",variables=Int[],equations=Int[]) -> 
-                                    ModiaBase.showMessage(message, severity, from, details, 
-                                                          stringVariables[variables], 
-                                                          string.(allEquations[equations]))   
+        showMessage            = (message;severity=0,from="???",details="",variables=Int[],equations=Int[]) ->
+                                    ModiaBase.showMessage(message, severity, from, details,
+                                                          stringVariables[variables],
+                                                          string.(allEquations[equations]))
         )
-                 
+
     if length(equations) == 0
         return nothing
     end
@@ -615,14 +615,14 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
             else
                 push!(startValues, value...)
             end
-        else 
+        else
             push!(startValues, 0.0)
         end
     end
     if logCode
         println("startValues = ", startValues)
     end
-    
+
     vSolvedWithInit = equationInfo.vSolvedWithFixedTrue
     vSolvedWithInitValuesAndUnit = OrderedDict{String,Any}()
     for name in vSolvedWithInit
@@ -633,7 +633,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
             @warn "Internal issue of TinyModia: $name is assumed to have an init-value, but it is not found."
         end
     end
-    
+
     # Generate code
     if logTiming
         println("Generate code")
@@ -648,34 +648,34 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     # Compile code
 
 
-#    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)  
+#    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)
     #getDerivatives = Core.eval(modelModule, code)
-	Core.eval(modelModule, code)
-	getDerivatives = modelModule.getDerivatives
+    Core.eval(modelModule, code)
+    getDerivatives = modelModule.getDerivatives
 
     # If generatedFunction is not packed inside a function, DifferentialEquations.jl crashes
-#    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)   
-    
+#    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)
+
     # Execute code
     if logExecution
         println("\nExecute getDerivatives")
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-               
+
     model = SimulationModel{FloatType}(name, getDerivatives, equationInfo, convertedStartValues,
                                          parameters, vcat(:time, [Symbol(u) for u in unknowns]);
-                                         vSolvedWithInitValuesAndUnit, vEliminated, vProperty, 
+                                         vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]))
 
     if logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
 #        @time getDerivatives(derx, convertedStartValues, model, convert(FloatType, 0.0))
         Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(FloatType, 0.0))
-    
+
         @show derx
     end
-    return model    
+    return model
 end
 
 """
@@ -695,7 +695,7 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 * `logCode`: Log the generated code
 * `logExecution`: Log the execution of the generated code (useful for finding unit bugs)
 * `logTiming`: Log timing of different phases
-* `return modelInstance prepared for simulation` 
+* `return modelInstance prepared for simulation`
 """
 macro instantiateModel(model, kwargs...)
     modelName = string(model)
@@ -742,7 +742,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
         unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time])
         Avar, states, derivatives = setAvar(unknowns)
         vActive = [a == 0 for a in Avar]
-   
+
         if log
             println("Number of states:    ", length(states))
             println("Number of unknowns:  ", length(unknowns)-length(states))
@@ -752,7 +752,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
         printArray(setdiff(unknowns, states), "Uknowns:", log=log)
         printArray(modelStructure.equations, "Equations:", log=log)
         if logDetails
-            @show modelStructure.parameters modelStructure.init modelStructure.start modelStructure.variables modelStructure.flows 
+            @show modelStructure.parameters modelStructure.init modelStructure.start modelStructure.variables modelStructure.flows
         end
 
         unknownsWithEliminated = unknowns
@@ -778,7 +778,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
             for i in 1:length(equations)
                 e = equations[i]
                 nameIncidence, coefficients, rest, linear = getCoefficients(e)
-                incidence = [variablesIndices[n] for n in nameIncidence if n in unknowns] 
+                incidence = [variablesIndices[n] for n in nameIncidence if n in unknowns]
                 unique!(incidence)
                 push!(G, incidence)
             end
@@ -788,7 +788,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
 
         modStructure = assignAndBLT(equations, unknowns, modelStructure.parameters, Avar, G, states, logDetails, log, logTiming)
 
-        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, vEliminated, vProperty, unknownsWithEliminated; 
+        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, vEliminated, vProperty, unknownsWithEliminated;
             unitless, logStateSelection, logCode, logExecution, logTiming)
 
     catch e

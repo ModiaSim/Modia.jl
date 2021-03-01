@@ -16,7 +16,7 @@ import DifferentialEquations
 
 """
     convertTimeVariable(t)
-    
+
 The function returns variable `t` in a normalized form:
 
 1. If `t` has a unit, it is transformed to u"s" and the unit is stripped off.
@@ -28,10 +28,10 @@ convertTimeVariable(t) = typeof(t) <: Unitful.AbstractQuantity ? convert(Float64
 
 """
     simulate!(model [, algorithm];
-              tolerance=1e-6, startTime=0.0, stopTime=1.0, interval=NaN, 
+              tolerance=1e-6, startTime=0.0, stopTime=1.0, interval=NaN,
               adaptive=true, log=true, requiredFinalStates=nothing)
 
-Simulate `model::SimulationModel` with `algorithm` 
+Simulate `model::SimulationModel` with `algorithm`
 (= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)).
 If the `algorithm` argument is missing, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
@@ -64,8 +64,8 @@ using  DifferentialEquations
 # Runge-Kutta 5/4 with step-size control
 simulate!(model, DifferentialEquations.Tsit5(), stopTime = 1.0)
 
-    # Plot variables "v1", "v2" in diagram 1, "v3" in diagram 2, both diagrams in figure 3   
-    ModiaPlot.plot(model, [("v1","v2"), "v3"], figure=3) 
+    # Plot variables "v1", "v2" in diagram 1, "v3" in diagram 2, both diagrams in figure 3
+    ModiaPlot.plot(model, [("v1","v2"), "v3"], figure=3)
 
     # Retrieve "time" and "v1" values:
     get_result(model, "time")
@@ -74,7 +74,7 @@ simulate!(model, DifferentialEquations.Tsit5(), stopTime = 1.0)
 # Runge-Kutta 4 with fixed step size
 simulate!(model, DifferentialEquations.RK4(), stopTime = 1.0, adaptive=false)
 
-# Switching between Verners Runge-Kutta 6/5 algorithm if non-stiff region and 
+# Switching between Verners Runge-Kutta 6/5 algorithm if non-stiff region and
 # Rosenbrock 4 (= A-stable method) if stiff region with step-size control
 simulate!(model, AutoVern6(Rodas4()), stopTime = 1.0)
 
@@ -89,97 +89,97 @@ simulate!(model, CVODE_BDF(), stopTime = 1.0)
 function simulate!(m::Nothing, args...; kwargs...)
     @info "The call of simulate!(..) is ignored, since the first argument is nothing."
     return
-end  
+end
 function simulate!(m::SimulationModel, algorithm=missing;
                    tolerance=1e-6,
                    startTime=0.0,
                    stopTime=1.0,
                    interval=NaN,
-				   adaptive::Bool=true,
+                   adaptive::Bool=true,
                    log::Bool=false,
                    requiredFinalStates=nothing)
-    try                
+    try
         m.algorithmType = typeof(algorithm)
-        tolerance = convert(Float64, tolerance)    
+        tolerance = convert(Float64, tolerance)
         startTime = convertTimeVariable(startTime)
         stopTime  = convertTimeVariable(stopTime)
         interval  = convertTimeVariable(interval)
         interval  = isnan(interval) ? (stopTime - startTime)/500.0 : interval
-    
+
         # Determine x_start (currently: x_start = 0)
         # println("x_start = ", m.x_start)
-    
+
         # Target type
         FloatType = getFloatType(m)
-        
+
         # Initialize/re-initialize SimulationModel
         if log
-            println("... Simulate model ", m.modelName)        
+            println("... Simulate model ", m.modelName)
             cpuStart::UInt64 = time_ns()
             cpuLast::UInt64  = cpuStart
-            cpuStartIntegration::UInt64 = cpuStart      
+            cpuStartIntegration::UInt64 = cpuStart
             println("      Initialization at time = ", startTime, " s")
-        end    
+        end
         init!(m, startTime, tolerance)
-    
-    
+
+
         # Define problem and callbacks based on algorithm and model type
         tspan    = (startTime, stopTime)
-        tspan2   = startTime:interval:stopTime	
-        tdir     = startTime <= stopTime ? 1 : -1   
+        tspan2   = startTime:interval:stopTime
+        tdir     = startTime <= stopTime ? 1 : -1
         abstol   = 0.1*tolerance
         problem  = DifferentialEquations.ODEProblem(derivatives!, m.x_start, tspan, m)
         callback = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=tdir)
-    
-    
+
+
         # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
         dt = adaptive ? interval/10 : interval    # initial step-size
-            
+
         # Compute solution
         solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, reltol=tolerance, abstol=abstol,
-                                            save_everystep=false, save_start=false, save_end=true, 
+                                            save_everystep=false, save_start=false, save_end=true,
                                             callback=callback, adaptive=adaptive, dt=dt) :
                                         DifferentialEquations.solve(problem, algorithm, reltol=tolerance, abstol=abstol,
-                                            save_everystep=false, save_start=false, save_end=true, 
+                                            save_everystep=false, save_start=false, save_end=true,
                                             callback=callback, adaptive=adaptive, dt=dt)
         if ismissing(algorithm)
             m.algorithmType = typeof(solution.alg)
         end
-        
-        # Terminate simulation      
+
+        # Terminate simulation
         if log
             cpuTimeInitialization = convert(Float64, (cpuStartIntegration - cpuStart) * 1e-9)
             cpuTimeIntegration    = convert(Float64, (time_ns() - cpuStartIntegration) * 1e-9)
             cpuTime               = cpuTimeInitialization + cpuTimeIntegration
-            
+
             println("      Termination at time    = ", solution.t[end], " s")
-            println("        cpuTime         = ", round(cpuTime, sigdigits=3), " s")        
-            #println("        cpuTime         = ", round(cpuTime              , sigdigits=3), " s (init: ", 
-            #                                      round(cpuTimeInitialization, sigdigits=3), " s, integration: ", 
+            println("        cpuTime         = ", round(cpuTime, sigdigits=3), " s")
+            #println("        cpuTime         = ", round(cpuTime              , sigdigits=3), " s (init: ",
+            #                                      round(cpuTimeInitialization, sigdigits=3), " s, integration: ",
             #                                      round(cpuTimeIntegration   , sigdigits=3), " s)")
             println("        algorithm       = ", typeof(solution.alg))
-            println("        FloatType       = ", FloatType)        
+            println("        FloatType       = ", FloatType)
             println("        interval        = ", interval, " s")
             println("        tolerance       = ", tolerance, " (relative tolerance)")
             println("        nEquations      = ", length(m.x_start))
             println("        nResults        = ", length(m.result))
             println("        nAcceptedSteps  = ", solution.destats.naccept)
-            println("        nRejectedSteps  = ", solution.destats.nreject)        
+            println("        nRejectedSteps  = ", solution.destats.nreject)
             println("        nGetDerivatives = ", m.nGetDerivatives, " (number of getDerivatives! calls)")
-            println("        nf              = ", solution.destats.nf, " (number of getDerivatives! calls from integrator)")        
+            println("        nf              = ", solution.destats.nf, " (number of getDerivatives! calls from integrator)")
             println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
-            println("        nErrTestFails   = ", solution.destats.nreject)       
-        end                                           
-    
-        finalStates = solution[:,end] 
-        
+            println("        nErrTestFails   = ", solution.destats.nreject)
+        end
+
+        finalStates = solution[:,end]
+
         if !isnothing(requiredFinalStates)
             if length(finalStates) != length(requiredFinalStates)
                 success = false
             else
                 success = finalStates == requiredFinalStates || isapprox(finalStates, requiredFinalStates, rtol=1e-3)
             end
-            
+
             if success
                 @test success
             else
@@ -191,9 +191,9 @@ function simulate!(m::SimulationModel, algorithm=missing;
                     printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
                 end
                 @test finalStates == requiredFinalStates  #|| isapprox(finalStates, requiredFinalStates, rtol=1e-3)
-            end        
+            end
         end
-        
+
         return solution
 
     catch e
@@ -212,14 +212,14 @@ end
 #---------------------------------------------------------------------
 #        Provide ModiaPlot result access functions for SimulationModel
 #---------------------------------------------------------------------
-    
-ModiaPlot.hasSignal(m::SimulationModel, name) = 
+
+ModiaPlot.hasSignal(m::SimulationModel, name) =
     haskey(m.variables, name) || haskey(m.parametersAndConstantVariables, name)
 
-ModiaPlot.getNames(m::SimulationModel) = 
+ModiaPlot.getNames(m::SimulationModel) =
     append!(collect( keys(m.parametersAndConstantVariables) ),
-            collect( keys(m.variables) ) ) 
-                                     
+            collect( keys(m.variables) ) )
+
 function ModiaPlot.getRawSignal(m::SimulationModel, name)
     if haskey(m.variables, name)
         resIndex = m.variables[name]
@@ -228,14 +228,14 @@ function ModiaPlot.getRawSignal(m::SimulationModel, name)
             resIndex = -resIndex
             negAlias = true
         end
-        value  = m.result[1][resIndex]        
+        value  = m.result[1][resIndex]
         signal = Vector{typeof(value)}(undef, length(m.result))
         for (i, value_i) in enumerate(m.result)
             signal[i] = value_i[resIndex]
         end
         if negAlias
             signal = -signal
-        end        
+        end
         return (false, signal)
     else
         return (true, eval( m.parametersAndConstantVariables[name] ) )
@@ -254,22 +254,22 @@ get_leaveName(pathName::String) =
         j = findlast('.', pathName);
         typeof(j) == Nothing || j >= length(pathName) ? pathName : pathName[j+1:end]
     end
-    
-    
+
+
 function ModiaPlot.getDefaultHeading(m::SimulationModel)
     FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
-    
+
     algorithmName = string(m.algorithmType)
     i1 = findfirst("CompositeAlgorithm", algorithmName)
     if !isnothing(i1)
         i2 = findfirst("Vern" , algorithmName)
         i3 = findfirst("Rodas", algorithmName)
-        success = false        
+        success = false
         if !isnothing(i2) && !isnothing(i3)
             i2b = findnext(',', algorithmName, i2[1])
             i3b = findnext('{', algorithmName, i3[1])
             if !isnothing(i2b) && !isnothing(i3b)
-                algorithmName = algorithmName[i2[1]:i2b[1]-1] * "(" * algorithmName[i3[1]:i3b[1]-1] * "())"  
+                algorithmName = algorithmName[i2[1]:i2b[1]-1] * "(" * algorithmName[i3[1]:i3b[1]-1] * "())"
                 success = true
             end
         end
@@ -286,8 +286,8 @@ function ModiaPlot.getDefaultHeading(m::SimulationModel)
             algorithmName = algorithmName[i1+1:end]
         end
     end
-    
-    
+
+
     if FloatType == "Float64"
         heading = m.modelName * " (" * algorithmName * ")"
     else
@@ -330,12 +330,12 @@ PyPlot.legend()
 """
 function get_result(m::SimulationModel, name::String; unit=true)
     #(xsig, xsigLegend, ysig, ysigLegend, yIsConstant) = ModiaPlot.getPlotSignal(m, "time", name)
-    
+
     (isConstant, ysig) = ModiaPlot.getRawSignal(m, name)
-    
+
     ysig = unit ? ysig : ustrip.(ysig)
-    
-    
+
+
     #=
     if yIsConstant
         if ndims(ysig) == 1
@@ -345,7 +345,7 @@ function get_result(m::SimulationModel, name::String; unit=true)
         end
     end
     =#
-    
-    
+
+
     return ysig
 end

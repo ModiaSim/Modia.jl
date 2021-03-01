@@ -8,10 +8,10 @@ function checkStateSelection(model, x_names, linearEquations=[])
     for (i, state_i) in enumerate(model.equationInfo.x_info)
         @test state_i.x_name == x_names[i]
     end
-    
+
     # Check linear equation systems
     if length(linearEquations) > 0
-        @test model.equationInfo.linearEquations == linearEquations 
+        @test model.equationInfo.linearEquations == linearEquations
     end
 end
 
@@ -21,7 +21,7 @@ end
     @testset "... Test FirstOrder" begin
         FirstOrder = Model(
             T = 0.2,
-			init = Map(x=0.3),
+            init = Map(x=0.3),
             equations = :[
                     u = 1.0
                 der(x) = (u - x)/T
@@ -30,12 +30,12 @@ end
         firstOrder = @instantiateModel(FirstOrder)
         checkStateSelection(firstOrder, ["x"])
     end
-    
+
 
     @testset "... Test TwoCoupledInertias" begin
         TwoCoupledInertias = Model(
             J1_J = 1,
-            J2_J = 1,            
+            J2_J = 1,
             start = Map(J1_phi=1.0, J1_w = 0.0, J2_phi=0.0, J2_w=0.0),
             equations = :[
                 J1_w = der(J1_phi)
@@ -54,26 +54,26 @@ end
 
     @testset "... Test ODE with linear equations 1" begin
         ODEwithLinearEquations1 = Model(
-            p1=4, 
-            p2=2,            
+            p1=4,
+            p2=2,
             start = Map(x6=1.0),
             equations = :[
                          x1 = sin(time)
                       p2*x2 = p1*x1
-                2*x3 + 4*x4 = x1 
+                2*x3 + 4*x4 = x1
                     x3 + x5 = 2*x2
                 4*x4 + 5*x5 = x1 + x2
                     der(x6) = -x5*x6]
         )
         oDEwithLinearEquations1 = @instantiateModel(ODEwithLinearEquations1, unitless=true)
         checkStateSelection(oDEwithLinearEquations1, ["x6"], [(["x5"], [1], 1, 1)])
-    end  
+    end
 
 
     @testset "... Test ODE with linear equations 2" begin
         ODEwithLinearEquations2 = Model(
-            p1=4, 
-            p2=2,            
+            p1=4,
+            p2=2,
             start = Map(x6=1.0),
             equations = :[
                         x1 = sin(time)
@@ -85,7 +85,7 @@ end
         )
         oDEwithLinearEquations2 = @instantiateModel(ODEwithLinearEquations2, unitless=true)
         checkStateSelection(oDEwithLinearEquations2, ["x6"], [(["x5"], [1], 1, 1)])
-    end  
+    end
 
 
     @testset "... Test Multi-index DAE" begin
@@ -97,7 +97,7 @@ end
                 u4 = sin(4*time)
                 u5 = sin(5*time)
                 u6 = sin(6*time)
-                u7 = sin(7*time)               
+                u7 = sin(7*time)
                 0 = u1 + x1 - x2
                 0 = u2 + x1 + x2 - x3 + der(x6)
                 0 = u3 + x1 + der(x3) - x4
@@ -113,18 +113,18 @@ end
         )
         multiIndexDAE = @instantiateModel(MultiIndexDAE, unitless=true)
         #@show multiIndexDAE.equationInfo.linearEquations
-        checkStateSelection(multiIndexDAE, ["x2", "x2d"], 
-                            [(["x7"], [1], 1, 1), 
-                             (["der(x7)"], [1], 1, 1), 
-                             (["der(der(x7))"], [1], 1, 1), 
-                             (["der(der(der(x7)))"], [1], 1, 1), 
+        checkStateSelection(multiIndexDAE, ["x2", "x2d"],
+                            [(["x7"], [1], 1, 1),
+                             (["der(x7)"], [1], 1, 1),
+                             (["der(der(x7))"], [1], 1, 1),
+                             (["der(der(der(x7)))"], [1], 1, 1),
                              (["der(x2d)"], [1], 1, 1)])
-    end  
+    end
 
 
     @testset "... Test free flying mass" begin
         FreeFlyingMass = Model(
-            m =1.0, 
+            m =1.0,
             f=[1.0,2.0,3.0],
             init = Map(r=[0.1, 0.2, 0.3], v=[-0.1, -0.2, -0.3]),
             equations = :[
@@ -133,18 +133,18 @@ end
         )
         freeFlyingMass = @instantiateModel(FreeFlyingMass)
         checkStateSelection(freeFlyingMass, ["v", "r"], [])
-    end 
+    end
 
 
 #=
 
-    
+
     @testset "... Test sliding mass" begin
         SlidingMass = Model(
-            m = 1.0, 
-            c = 1e4, 
-            d = 10.0, 
-            g = 9.81, 
+            m = 1.0,
+            c = 1e4,
+            d = 10.0,
+            g = 9.81,
             n = [1.0, 1.0, 1.0],
             init = Map(s=1.0),
             equations = :[
@@ -157,9 +157,9 @@ end
         slidingMass = @instantiateModel(SlidingMass, logStateSelection=true)
         @show slidingMass.equationInfo.linearEquations
         #checkStateSelection(slidingMass, ["x6"], [(["x5"], [1], 1, 1)])
-    end 
+    end
 =#
-    
+
 end
 
 
@@ -175,7 +175,7 @@ Gear = Model(
     fixed    = Fixed,
     spring   = Spring | Map(c=5.84e5u"N*m/rad"),
     damper1  = Damper | Map(d=500.0u"N*m*s/rad"),
-    damper2  = Damper | Map(d=100.0u"N*m*s/rad"), 
+    damper2  = Damper | Map(d=100.0u"N*m*s/rad"),
 
     connect = :[
         (flange_a     , gear.flange_a)
@@ -212,7 +212,7 @@ AbsoluteDamper = Model(
 
 Drive = Model(
     inertia = Inertia,
-    damper  = AbsoluteDamper,   
+    damper  = AbsoluteDamper,
     equations = :[
         inertia.flange_a.tau = 0u"N*m"],
     connect = :[

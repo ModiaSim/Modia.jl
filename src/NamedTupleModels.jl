@@ -1,7 +1,7 @@
 #=
 Handles models defined as named tuples.
 
-* Developer: Hilding Elmqvist, Mogram AB  
+* Developer: Hilding Elmqvist, Mogram AB
 * First version: January 2021
 * License: MIT (expat)
 
@@ -34,7 +34,7 @@ macro showModel(model)
     return esc(mod)
 end
 
-global logMerge = false 
+global logMerge = false
 
 function setLogMerge(val)
     global logMerge
@@ -48,7 +48,7 @@ function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
             if k in keys(mergedModels) && ! (:_redeclare in keys(v))
                 if logMerge; print("In $k: ") end
                 m = mergeModels(mergedModels[k], v, k)
-                mergedModels[k] = m 
+                mergedModels[k] = m
             elseif :_redeclare in keys(v)
                 if logMerge; println("Redeclaring: $k = $v") end
                 mergedModels[k] = v
@@ -108,7 +108,7 @@ function convertConnections!(connections, model, modelName, logging=false)
     for i in 1:length(connections)
         c = connections[i]
 
-        if c.head == :tuple 
+        if c.head == :tuple
             connected = c.args
 
             potential1 = nothing
