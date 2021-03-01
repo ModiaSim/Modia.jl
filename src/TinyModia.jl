@@ -20,7 +20,7 @@ using ModiaBase.Simplify
 using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
-@reexport using ModiaBase
+using ModiaBase
 
 # using RuntimeGeneratedFunctions
 # RuntimeGeneratedFunctions.init(@__MODULE__)
