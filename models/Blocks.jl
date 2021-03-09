@@ -84,6 +84,25 @@ Ramp = SignalSource | Model(
                                                     height)) ]
 )
 
+
+# Linear state space system
+StateSpace = Model(   
+    A = fill(0.0,0,0),
+    B = fill(0.0,0,0),   
+    C = fill(0.0,0,0), 
+    D = fill(0.0,0,0),
+    inputs  = :[u], 
+    outputs = :[y],
+    init = Map(x = zeros(0)),
+    equations = :[
+        der(x) = A*x + B*u
+             y = C*x + D*u
+    ]
+)
+
+
+
+
 # -------------------------------------------------------
 
 #=

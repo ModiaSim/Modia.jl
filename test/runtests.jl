@@ -18,6 +18,8 @@ using Test
     #include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")  # MonteCarlo and Unitful not yet supported
     
     include("TestSingularLRRL.jl")  
+
+    include("TestStateSpace.jl")  
     
     include("../examples/runexamples.jl")    
 
