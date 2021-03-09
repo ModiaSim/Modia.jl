@@ -20,6 +20,7 @@ using Test
     include("TestSingularLRRL.jl")  
 
     include("TestStateSpace.jl")  
+    include("TestHeatTransfer.jl")  
     
     include("../examples/runexamples.jl")    
 
