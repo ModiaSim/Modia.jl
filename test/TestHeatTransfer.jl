@@ -25,7 +25,7 @@ plot(simpleRod, ("fixedT.port.T", "C.T"), figure=1)
 HeatedRod = Model(
     fixedT     = FixedTemperature | Map(T = 493.15u"K"),
     fixedQflow = FixedHeatFlow, 
-    rod = InsulatedRod,
+    rod = InsulatedRod | Map(init = Map(T = fill(293.15u"K", 5))),
     connect = :[
         (fixedT.port, rod.port_a),
         (rod.port_b , fixedQflow.port)

@@ -61,9 +61,9 @@ InsulatedRod = Model(
     T_start = 293.15u"K",         # Initial temperature
     port_a  = HeatPort,           # Heat port on left side
     port_b  = HeatPort,           # Heat port on right side
-    n       = 5,                  # Number of internal nodes (= number of states)
-    init    = Map(T = fill(293.15u"K", 5)),  # should be "fill(T_start,n)"
+    init    = Map(T = fill(293.15u"K", 1)),  # Initial temperature and number of nodes
     equations = :[
+        n   = length(T)
         dx  = L/n
         Ce  = c*rho*A*dx
         k   = lambda*A/Ce
