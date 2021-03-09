@@ -58,7 +58,6 @@ InsulatedRod = Model(
     rho     = 7500.0u"kg/m^3",    # Density of rod material
     lambda  = 74.0u"W/(m*K)",     # Thermal conductivity of rod material
     c       = 450.0u"J/(kg*K)",   # Specific heat capacity of rod material
-    T_start = 293.15u"K",         # Initial temperature
     port_a  = HeatPort,           # Heat port on left side
     port_b  = HeatPort,           # Heat port on right side
     init    = Map(T = fill(293.15u"K", 1)),  # Initial temperature and number of nodes
