@@ -6,7 +6,7 @@ Handles models defined as named tuples.
 * License: MIT (expat)
 
 =#
-export mergeModels, Redeclare, showModel, @showModel, Model, Map, setLogMerge
+export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, Model, Map, setLogMerge
 
 using Base.Meta: isexpr
 using DataStructures: OrderedDict
@@ -85,6 +85,22 @@ Base.:∪(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
 Base.:|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
 
 Redeclare = ( _redeclare = true, )
+
+recursiveMerge(x, ::Nothing) = x
+recursiveMerge(x, y) = y
+recursiveMerge(x::Expr, y::Expr) = begin dump(x); dump(y); Expr(x.head, x.args..., y.args...) end
+recursiveMerge(x::Expr, y::Tuple) = begin x = copy(x); xargs = x.args; xargs[y[2]] = y[3]; Expr(x.head, xargs...) end
+
+function recursiveMerge(nt1::NamedTuple, nt2::NamedTuple)
+    all_keys = union(keys(nt1), keys(nt2))
+    gen = Base.Generator(all_keys) do key
+        v1 = get(nt1, key, nothing)
+        v2 = get(nt2, key, nothing)
+        key => recursiveMerge(v1, v2)
+    end
+    return Map(; gen...)
+end
+
 
 function unpackPath(path, sequence)
     if typeof(path) == Symbol

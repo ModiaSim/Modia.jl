@@ -42,7 +42,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.1-dev"
-const Date = "2021-03-01"
+const Date = "2021-03-09"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -323,7 +323,7 @@ prependDict(dict, prefix) = OrderedDict([prepend(k, prefix) => prepend(v, prefix
 function mergeModelStructures(parent::ModelStructure, child::ModelStructure, prefix)
     merge!(parent.parameters, prependDict(child.parameters, prefix))
     if length(keys(child.parameters)) > 0
-#        @show parent.mappedParameters prefix typeof(prefix) child.mappedParameters child.parameters # (;prefix => (;child.parameters...))
+#        @show parent.mappedParameters prefix typeof(prefix) child.mappedParameters child.parameters 
         parent.mappedParameters = merge(parent.mappedParameters, (;prefix => (;child.mappedParameters...)) )
 #        @show parent.mappedParameters
     end

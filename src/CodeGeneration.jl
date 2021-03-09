@@ -395,7 +395,6 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     # Generate code of the function
     code = quote
-                import ModiaBase
                 function $functionName(_der_x, _x, _m, _time)::Nothing
 
                     _m.nGetDerivatives += 1

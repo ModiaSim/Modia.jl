@@ -25,25 +25,6 @@ The function returns variable `t` in a normalized form:
 convertTimeVariable(t) = typeof(t) <: Unitful.AbstractQuantity ? convert(Float64, ustrip(uconvert(u"s", t))) : convert(Float64, t)
 
 
-# TODO: This code will be moved.
-Map(;kwargs...) = (;kwargs...)
-
-recursiveMerge(x, ::Nothing) = x
-recursiveMerge(x, y) = y
-recursiveMerge(x::Expr, y::Expr) = begin dump(x); dump(y); Expr(x.head, x.args..., y.args...) end
-recursiveMerge(x::Expr, y::Tuple) = begin x = copy(x); xargs = x.args; xargs[y[2]] = y[3]; Expr(x.head, xargs...) end
-
-function recursiveMerge(nt1::NamedTuple, nt2::NamedTuple)
-    all_keys = union(keys(nt1), keys(nt2))
-    gen = Base.Generator(all_keys) do key
-        v1 = get(nt1, key, nothing)
-        v2 = get(nt2, key, nothing)
-        key => recursiveMerge(v1, v2)
-    end
-    return Map(; gen...)
-end
-
-
 """
     simulate!(model [, algorithm];
               tolerance=1e-6, startTime=0.0, stopTime=1.0, interval=NaN,
