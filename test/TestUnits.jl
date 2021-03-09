@@ -30,6 +30,7 @@ model = @instantiateModel(UnitTest)
 
 simulate!(model, Tsit5(), stopTime = 1.0, requiredFinalStates = [5514.9625624219525, 2.9999999999999996])
 
-plot(model, ["T", "x", "der(x)", "y", "a", "der(v)"])
+#plot(model, ["T", "x", "der(x)", "y", "a", "der(v)"])
+plot(model, ["x", "der(x)", "y", "a", "der(v)"])
 
 end

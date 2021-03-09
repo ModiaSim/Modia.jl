@@ -11,7 +11,7 @@ export mergeModels, Redeclare, showModel, @showModel, Model, Map, setLogMerge
 using Base.Meta: isexpr
 using DataStructures: OrderedDict
 using Unitful
-using ModiaBase.Symbolic: removeBlock
+using ModiaBase.Symbolic: removeBlock, prepend
 
 
 function showModel(m, level=0)
@@ -199,7 +199,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
 
         elseif k == :init
             for (x,x0) in zip(keys(v), v)
-                if unitless
+                if unitless && typeof(x0) != Expr
                     x0 = ustrip(x0)
                 end
                 modelStructure.init[x] = x0
@@ -211,11 +211,12 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                 end
                 modelStructure.start[s] = s0
             end
-        elseif typeof(v) in [Int64, Float64] || typeof(v) <: Unitful.Quantity
+        elseif typeof(v) in [Int64, Float64] || typeof(v) <: Unitful.Quantity || typeof(v) in [Array{Float64,1}, Array{Float64,2}]
             if unitless
                 v = ustrip(v)
             end
             modelStructure.parameters[k] = v
+            modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => v)
         elseif typeof(v) <: NamedTuple # instantiate
                 subModelStructure = ModelStructure()
                 flattenModelTuple!(v, subModelStructure, k; unitless, log)
@@ -228,9 +229,10 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                 i += 1
                 subModelStructure = ModelStructure()
                 flattenModelTuple!(a, subModelStructure, k; unitless, log)
-                mergeModelStructures(modelStructure, subModelStructure, Symbol(string(k)*"_"*string(i)))
+                mergeModelStructures(modelStructure, subModelStructure, Symbol(string(k)*"_"*string(i)) )
             end
-        elseif isexpr(v, :vect) || isexpr(v, :vcat)
+        elseif isexpr(v, :vect) || isexpr(v, :vcat) || isexpr(v, :hcat)
+            arrayEquation = false
             for e in v.args
                 if isexpr(e, :(=))
                     if unitless
@@ -239,8 +241,13 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                     push!(modelStructure.equations, removeBlock(e))
                 elseif isexpr(e, :tuple)
                     push!(connections, e)
+                else
+                    arrayEquation = true
                 end
             end
+            if arrayEquation
+                push!(modelStructure.equations, removeBlock(:($k = $(prepend(v, :up)))))
+            end                    
         elseif isexpr(v, :(=)) # Single equation
             if unitless
                 v = removeUnits(v)
@@ -250,7 +257,8 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
             if unitless
                 v = removeUnits(v)
             end
-            push!(modelStructure.equations, :($k = $v))
+            push!(modelStructure.equations, :($k = $(prepend(v, :up))))
+#            @show modelStructure.equations
         end
     end
 #    printModelStructure(modelStructure, "flattened")

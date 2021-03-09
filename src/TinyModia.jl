@@ -21,6 +21,7 @@ using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
 using ModiaBase
+export ModiaBase
 
 # using RuntimeGeneratedFunctions
 # RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -268,8 +269,9 @@ function setAvar(unknowns)
     return Avar, states, derivatives
 end
 
-struct ModelStructure
+mutable struct ModelStructure
     parameters::OrderedDict{Any,Any}
+    mappedParameters::NamedTuple
     init::OrderedDict{Any,Any}
     start::OrderedDict{Any,Any}
     variables::OrderedDict{Any,Any}
@@ -281,7 +283,7 @@ struct ModelStructure
     equations::Array{Expr,1}
 end
 
-ModelStructure() = ModelStructure(OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[])
+ModelStructure() = ModelStructure(OrderedDict(), (;), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[])
 
 function printDict(label, d)
     if length(d) > 0
@@ -301,6 +303,7 @@ function printModelStructure(m; label="", log=false)
     if log
         println("ModelStructure ", label)
         printDict("  parameters:  ", m.parameters)
+        println("  mappedParameters:  ", m.mappedParameters)
         printDict("  init:        ", m.init)
         printDict("  start:       ", m.start)
         printDict("  variables:   ", m.variables)
@@ -316,10 +319,22 @@ end
 
 prependDict(dict, prefix) = OrderedDict([prepend(k, prefix) => prepend(v, prefix) for (k,v) in dict])
 
+
 function mergeModelStructures(parent::ModelStructure, child::ModelStructure, prefix)
     merge!(parent.parameters, prependDict(child.parameters, prefix))
+    if length(keys(child.parameters)) > 0
+#        @show parent.mappedParameters prefix typeof(prefix) child.mappedParameters child.parameters # (;prefix => (;child.parameters...))
+        parent.mappedParameters = merge(parent.mappedParameters, (;prefix => (;child.mappedParameters...)) )
+#        @show parent.mappedParameters
+    end
     merge!(parent.init, prependDict(child.init, prefix))
+    if length(keys(child.init)) > 0
+#        parent.mappedParameters = merge(parent.mappedParameters, (;prefix => (;child.init...)) )
+    end
     merge!(parent.start, prependDict(child.start, prefix))
+    if length(keys(child.start)) > 0
+#        parent.mappedParameters = merge(parent.mappedParameters, (;prefix => (;child.start...)) )
+    end
     merge!(parent.variables, prependDict(child.variables, prefix))
     merge!(parent.flows, prependDict(child.flows, prefix))
     merge!(parent.inputs, prependDict(child.inputs, prefix))
@@ -450,7 +465,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, vEliminated, vProperty, unknownsWithEliminated;
+function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modelStructure
 
@@ -471,7 +486,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
-        solution = makeDerVar(solution)
+        solution = makeDerVar(solution, keys(parameters))
         if logExecution
             var = string(unknowns[v])
             return :($solution; println($var, " = ", upreferred.($(solution.args[1]))))
@@ -482,7 +497,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
 
     function getResidualEquationAST(e, residualName)
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
-        resid = makeDerVar(:(ustrip($(eq.args[2]) - $(eq.args[1]))))
+        resid = makeDerVar(:(ustrip($(eq.args[2]) - $(eq.args[1]))), keys(parameters))
         residual = :($residualName = $resid)
         if false #logExecution
             return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
@@ -504,6 +519,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         var = unknowns[v]
         if var in keys(init)
             value = eval(init[var])
+#            value = 0.0
         elseif var in keys(start)
             value = eval(start[var])
         else
@@ -534,6 +550,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         v = unknowns[v_original]
         if v in keys(init)
             value = eval(init[v])
+#            value = 0.0
             len = hasParticles(value) ? 1 : length(value)
         else
             len = 1
@@ -601,8 +618,11 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
 
     startValues = []
     for v in selectedStates
+        v = Meta.parse(string(v))
         if v in keys(init)
             value = eval(init[v])
+#            value = [0.0 0.0]  # TODO: Fix
+#            @show value
             if hasParticles(value)
                 push!(startValues, value)
             else
@@ -637,9 +657,11 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     # Generate code
     if logTiming
         println("Generate code")
-        @time code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+#        @time code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
     else
-        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         showCodeWithoutComments(code)
@@ -662,9 +684,10 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-
+#    @show parameters mappedParameters
     model = SimulationModel{FloatType}(name, getDerivatives, equationInfo, convertedStartValues,
-                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
+#                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
+                                         OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]))
 
@@ -748,11 +771,12 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
             println("Number of unknowns:  ", length(unknowns)-length(states))
             println("Number of equations: ", length(modelStructure.equations))
         end
+        printArray(modelStructure.parameters, "Parameters:", log=log)
         printArray(states, "States:", log=log)
-        printArray(setdiff(unknowns, states), "Uknowns:", log=log)
+        printArray(setdiff(unknowns, states), "Unknowns:", log=log)
         printArray(modelStructure.equations, "Equations:", log=log)
         if logDetails
-            @show modelStructure.parameters modelStructure.init modelStructure.start modelStructure.variables modelStructure.flows
+            @show modelStructure.parameters modelStructure.mappedParameters modelStructure.init modelStructure.start modelStructure.variables modelStructure.flows
         end
 
         unknownsWithEliminated = unknowns
@@ -788,7 +812,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
 
         modStructure = assignAndBLT(equations, unknowns, modelStructure.parameters, Avar, G, states, logDetails, log, logTiming)
 
-        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, vEliminated, vProperty, unknownsWithEliminated;
+        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
             unitless, logStateSelection, logCode, logExecution, logTiming)
 
     catch e

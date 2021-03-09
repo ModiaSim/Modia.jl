@@ -24,6 +24,13 @@ Filter = Model(
     ]
 )
 
+model = @instantiateModel(Filter, log=true, aliasReduction=false, logCode=true)
+@time simulate!(model, Tsit5(), stopTime = 10) 
+plot(model, [("R.v", "C.v")])
+
+@time simulate!(model, Tsit5(), stopTime = 10, merge = Map(R = Map(R = 5u"Ω")) ) 
+plot(model, [("R.v", "C.v")])
+
 Filter2 = Model(
     r = 1.0u"Ω",
     c = 1.0u"F",
@@ -52,10 +59,10 @@ println("Build")
 
 setLogMerge(false)
 
-model = @instantiateModel(Filters, logDetails=false, aliasReduction=false)
+model = @instantiateModel(Filters, log=false, aliasReduction=false, logCode=false)
 
 println("Simulate")
-@time simulate!(model, Tsit5(), stopTime = 50, requiredFinalStates = 
+@time simulate!(model, Tsit5(), stopTime = 10, requiredFinalStates = 
     [9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072, 9.999999294887072])
 plot(model, [("filters_1.R.v", "filters_1.C.v"), ("filters_2.R.v", "filters_2.C.v")])
 
