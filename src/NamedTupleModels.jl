@@ -227,7 +227,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                     s0 = ustrip(s0)
                 end
                 modelStructure.start[s] = s0
-                modelStructure.mappedParameters = (;modelStructure.mappedParameters...,  => s0)
+                modelStructure.mappedParameters = (;modelStructure.mappedParameters...,  s => s0)
             end
         elseif typeof(v) in [Int64, Float64] || typeof(v) <: Unitful.Quantity || typeof(v) in [Array{Float64,1}, Array{Float64,2}]
             if unitless
