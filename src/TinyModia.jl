@@ -329,11 +329,12 @@ function mergeModelStructures(parent::ModelStructure, child::ModelStructure, pre
     end
     merge!(parent.init, prependDict(child.init, prefix))
     if length(keys(child.init)) > 0
-#        parent.mappedParameters = merge(parent.mappedParameters, (;prefix => (;child.init...)) )
+#        @show parent.mappedParameters prefix child.init 
+        parent.mappedParameters = recursiveMerge(parent.mappedParameters, (;prefix => (;child.mappedParameters...)) )
     end
     merge!(parent.start, prependDict(child.start, prefix))
     if length(keys(child.start)) > 0
-#        parent.mappedParameters = merge(parent.mappedParameters, (;prefix => (;child.start...)) )
+        parent.mappedParameters = recursiveMerge(parent.mappedParameters, (;prefix => (;child.mappedParameters...)) )
     end
     merge!(parent.variables, prependDict(child.variables, prefix))
     merge!(parent.flows, prependDict(child.flows, prefix))
@@ -664,6 +665,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
     end
     if logCode
+        @show mappedParameters
         showCodeWithoutComments(code)
     end
 
@@ -684,7 +686,6 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-#    @show parameters mappedParameters
     model = SimulationModel{FloatType}(name, getDerivatives, equationInfo, convertedStartValues,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
