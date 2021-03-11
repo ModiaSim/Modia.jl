@@ -6,7 +6,7 @@ Handles models defined as named tuples.
 * License: MIT (expat)
 
 =#
-export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, Model, Map, setLogMerge
+export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, Model, Map, Par, setLogMerge
 
 using Base.Meta: isexpr
 using DataStructures: OrderedDict
@@ -80,6 +80,8 @@ end
 Model(; kwargs...) = (; kwargs...)
 
 Map(; kwargs...) = (; kwargs...) # OrderedDict{Symbol,Any}(kwargs)
+
+Par(; kwargs...) = Map(; class = :Par, kwargs...)
 
 Base.:∪(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
 Base.:|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
@@ -229,8 +231,10 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                 modelStructure.start[s] = s0
                 modelStructure.mappedParameters = (;modelStructure.mappedParameters...,  s => s0)
             end
-        elseif typeof(v) in [Int64, Float64] || typeof(v) <: Unitful.Quantity || typeof(v) in [Array{Float64,1}, Array{Float64,2}]
-            if unitless
+        elseif typeof(v) in [Int64, Float64] || typeof(v) <: Unitful.Quantity || 
+                typeof(v) in [Array{Int64,1}, Array{Int64,2}, Array{Float64,1}, Array{Float64,2}] || 
+				typeof(v) <: NamedTuple && :class in keys(v) && v.class == :Par
+            if unitless && !(typeof(v) <: NamedTuple)
                 v = ustrip(v)
             end
             modelStructure.parameters[k] = v
@@ -275,7 +279,8 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
             if unitless
                 v = removeUnits(v)
             end
-            push!(modelStructure.equations, :($k = $(prepend(v, :up))))
+#            push!(modelStructure.equations, :($k = $(prepend(v, :up))))
+            push!(modelStructure.equations, :($k = $v))
 #            @show modelStructure.equations
         end
     end
