@@ -7,7 +7,7 @@ Handles models defined as named tuples.
 
 =#
 export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, Model, Map, Par, Var, setLogMerge,
-    constant, parameter, input, output, potential, flow, interval
+    constant, parameter, input, output, potential, flow, interval, @info_str
 
 using Base.Meta: isexpr
 using DataStructures: OrderedDict
@@ -98,6 +98,10 @@ potential = Var(potential = true)
 flow = Var(flow = true)
 
 interval(min, max) = Var(min=min, max=max)
+
+macro info_str(text)
+    Var(info=text)
+end
 
 Base.:|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n) # TODO: Chane to updated recursiveMerge
 Base.:|(m, n) = if !(typeof(n) <: NamedTuple); recursiveMerge(m, (; value=n)) else recursiveMerge(n, (value=m,)) end

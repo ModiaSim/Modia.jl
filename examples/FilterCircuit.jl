@@ -72,7 +72,7 @@ println("Build array of filters")
 
 setLogMerge(false)
 
-model = @instantiateModel(Filters, log=false, aliasReduction=true, logCode=false, logTiming=true)
+model = @instantiateModel(Filters, log=false, aliasReduction=true, logCode=false)
 
 println("Simulate")
 @time simulate!(model, Tsit5(), stopTime = 10, requiredFinalStates = 

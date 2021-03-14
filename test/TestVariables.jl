@@ -11,11 +11,11 @@ using Test
 v1 = input | output | flow | Var(min=0, nominal=10, init=5)
 @test v1 == (class = :Var, input = true, output = true, flow = true, min = 0, nominal = 10, init = 5)
 
-v2 = parameter | 5
-@test v2 == (class = :Var, parameter = true, value = 5)
+v2 = parameter | 5 | Var(info="v2 info")
+@test v2 == (class = :Var, parameter = true, value = 5, info = "v2 info")
 
-v3 = 10 | parameter
-@test v3 == (class = :Var, parameter = true, value = 10)
+v3 = "string value" | parameter | info"v3 info"
+@test v3 == (class = :Var, parameter = true, value = "string value", info = "v3 info")
 
 v4 = parameter | 5.5u"m/s" | Var(min=0)
 @test v4 == (class = :Var, parameter = true, value = 5.5u"m*s^-1", min = 0)
@@ -45,13 +45,15 @@ v11 = v4 | interval(1,10)
 @test v11 == (class = :Var, parameter = true, value = 5.5u"m*s^-1", min = 1, max = 10)
 
 TestVar1 = Model(
-    p = parameter | -1 | Var(info="A parameter"),
+    p = parameter | -1 | info"A parameter",
+    s = parameter | "string value" | info"A string parameter",
     x = Var(init=0.1),
     y = Var(start=0.1), # Not used
     equations = :[
         der(x) = p*x+1
     ]
 )
+@showModel TestVar1
 model = @instantiateModel(TestVar1, log=false, logCode=false)
 simulate!(model, merge=Map(p=-2, x=0.2), requiredFinalStates = [0.4458658866860504]) # x.init is not changed
 plot(model, "x")
