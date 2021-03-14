@@ -110,7 +110,7 @@ SingularLRRL3 = Model(
 )
 
 
-singularLRRL3 = @instantiateModel(SingularLRRL3, unitless=true, log=true, logDetails=false)
+singularLRRL3 = @instantiateModel(SingularLRRL3, unitless=true, log=false, logDetails=false)
 
 simulate!(singularLRRL3, Tsit5(), stopTime = 1.0, requiredFinalStates = [4.198498632779839])
 

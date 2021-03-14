@@ -11,7 +11,8 @@ Modia module with electric component models (inspired from Modelica Standard Lib
 using TinyModia
 using Unitful
 
-Pin = Model( potentials = :[v], flows = :[i] )
+OldPin = Model( potentials = :[v], flows = :[i] )
+Pin = Model( v = potential, i = flow )
 
 OnePort = Model( p = Pin, n = Pin, partialEquations = :[
         v = p.v - n.v

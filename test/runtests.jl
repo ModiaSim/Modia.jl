@@ -4,6 +4,7 @@ using Test
 
 @testset "Test TinyModia with simulation" begin
 
+    include("TestVariables.jl") 
     include("TestFirstOrder.jl")    
     include("TestStateSelection.jl") 
     

@@ -6,7 +6,8 @@ Handles models defined as named tuples.
 * License: MIT (expat)
 
 =#
-export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, Model, Map, Par, setLogMerge
+export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, Model, Map, Par, Var, setLogMerge,
+    constant, parameter, input, output, potential, flow, interval
 
 using Base.Meta: isexpr
 using DataStructures: OrderedDict
@@ -52,7 +53,7 @@ function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
             elseif :_redeclare in keys(v)
                 if logMerge; println("Redeclaring: $k = $v") end
                 mergedModels[k] = v
-            elseif nothing in values(v)  # TODO: Refine
+            elseif nothing in values(v) # TODO: Refine
 
             else
                 if !(:_redeclare in keys(mergedModels))
@@ -74,33 +75,47 @@ function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
             mergedModels[k] = v
         end
     end
+#    delete!(mergedModels, :class)
     return (; mergedModels...) # Transform OrderedDict to named tuple
 end
 
-Model(; kwargs...) = (; kwargs...)
+Model(; kwargs...) = (; class = :Model, kwargs...)
 
-Map(; kwargs...) = (; kwargs...) # OrderedDict{Symbol,Any}(kwargs)
+Map(; kwargs...) = (; class = :Map, kwargs...)
 
 Par(; kwargs...) = Map(; class = :Par, kwargs...)
 
-Base.:∪(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
-Base.:|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
+Var(;kwargs...) = (; class = :Var, kwargs...)
+Var(value; kwargs...) = (; class = :Var, value=value, kwargs...)
 
 Redeclare = ( _redeclare = true, )
 
+constant = Var(constant = true)
+parameter = Var(parameter = true)
+input = Var(input = true)
+output = Var(output = true)
+potential = Var(potential = true)
+flow = Var(flow = true)
+
+interval(min, max) = Var(min=min, max=max)
+
+Base.:|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n) # TODO: Chane to updated recursiveMerge
+Base.:|(m, n) = if !(typeof(n) <: NamedTuple); recursiveMerge(m, (; value=n)) else recursiveMerge(n, (value=m,)) end
+
 recursiveMerge(x, ::Nothing) = x
 recursiveMerge(x, y) = y
-recursiveMerge(x::Expr, y::Expr) = begin dump(x); dump(y); Expr(x.head, x.args..., y.args...) end
+#recursiveMerge(x::Expr, y::Expr) = begin dump(x); dump(y); Expr(x.head, x.args..., y.args...) end
 recursiveMerge(x::Expr, y::Tuple) = begin x = copy(x); xargs = x.args; xargs[y[2]] = y[3]; Expr(x.head, xargs...) end
 
 function recursiveMerge(nt1::NamedTuple, nt2::NamedTuple)
     all_keys = union(keys(nt1), keys(nt2))
+#    all_keys = setdiff(all_keys, [:class])
     gen = Base.Generator(all_keys) do key
         v1 = get(nt1, key, nothing)
         v2 = get(nt2, key, nothing)
         key => recursiveMerge(v1, v2)
     end
-    return Map(; gen...)
+    return (; gen...)
 end
 
 
@@ -114,6 +129,31 @@ function unpackPath(path, sequence)
         unpackPath(path.args[1], sequence)
         push!(sequence, path.args[2:end]...)
     end
+end
+
+function collectConnector(model)
+    potentials = []
+    flows = []
+    for (k,v) in zip(keys(model), model)
+        if typeof(v) <: NamedTuple && :class in keys(v) && v.class == :Var ||
+            typeof(v) <: NamedTuple && :variable in keys(v) && v.variable
+            if :potential in keys(v) && v.potential
+                push!(potentials, k)
+            end
+            if :flow in keys(v) && v.flow
+                push!(flows, k)
+            end
+    #=
+            if :input in keys(v) && v.input
+                push!(inputs, k)
+            end
+            if :output in keys(v) && v.output
+                push!(outputs, k)
+            end
+    =#
+        end
+    end
+    return potentials, flows 
 end
 
 function convertConnections!(connections, model, modelName, logging=false)
@@ -153,7 +193,13 @@ function convertConnections!(connections, model, modelName, logging=false)
                 end
                 if sequence[end] in keys(mod)
                     mod = mod[sequence[end]]
-                    potentials = mod.potentials.args
+                    potentials, flows = collectConnector(mod)
+                    if :potentials in keys(mod)
+                        potentials = vcat(potentials, mod.potentials.args)
+                    end
+                    if :flows in keys(mod)
+                        flows = vcat(flows, mod.flows.args)
+                    end
                     if length(potentials1) > 0 && potentials != potentials1
                         error("Not compatible potential variables: $potentials1 != $potentials, found in connection: $connected")
                     end
@@ -166,7 +212,6 @@ function convertConnections!(connections, model, modelName, logging=false)
                     end
                     potentials1 = potentials
 
-                    flows = mod.flows.args
                     if length(flows1) > 0 && flows != flows1
                         error("Not compatible flow variables: $flows1 != $flows, found in connection: $connected")
                     end
@@ -213,32 +258,59 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
     connections = []
     extendedModel = merge(model, NamedTuple())
     for (k,v) in zip(keys(model), model)
-        if k in [:inputs, :outputs, :potentials, :flows]
+        if k in [:inputs, :outputs, :potentials, :flows, :class]
 
         elseif k == :init
             for (x,x0) in zip(keys(v), v)
-                if unitless && typeof(x0) != Expr
-                    x0 = ustrip(x0)
+                if x != :class
+                    if unitless && typeof(x0) != Expr
+                        x0 = ustrip(x0)
+                    end
+                    modelStructure.init[x] = x0
+                    modelStructure.mappedParameters = (;modelStructure.mappedParameters..., x => x0)
                 end
-                modelStructure.init[x] = x0
-                modelStructure.mappedParameters = (;modelStructure.mappedParameters..., x => x0)
             end
         elseif k == :start
             for (s,s0) in zip(keys(v), v)
-                if unitless
-                    s0 = ustrip(s0)
+                if s != :class
+                    if unitless
+                        s0 = ustrip(s0)
+                    end
+                    modelStructure.start[s] = s0
+                    modelStructure.mappedParameters = (;modelStructure.mappedParameters...,  s => s0)
                 end
-                modelStructure.start[s] = s0
-                modelStructure.mappedParameters = (;modelStructure.mappedParameters...,  s => s0)
             end
         elseif typeof(v) in [Int64, Float64] || typeof(v) <: Unitful.Quantity || 
                 typeof(v) in [Array{Int64,1}, Array{Int64,2}, Array{Float64,1}, Array{Float64,2}] || 
-				typeof(v) <: NamedTuple && :class in keys(v) && v.class == :Par
+				typeof(v) <: NamedTuple && :class in keys(v) && v.class == :Par ||
+				typeof(v) <: NamedTuple && :parameter in keys(v) && v.parameter
             if unitless && !(typeof(v) <: NamedTuple)
                 v = ustrip(v)
             end
+            if typeof(v) <: NamedTuple && :class in keys(v) && v.class == :Par ||
+               typeof(v) <: NamedTuple && :parameter in keys(v) && v.parameter
+               v = v.value
+            end
             modelStructure.parameters[k] = v
             modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => v)
+        elseif typeof(v) <: NamedTuple && :class in keys(v) && v.class == :Var ||
+            typeof(v) <: NamedTuple && :variable in keys(v) && v.variable
+            if :init in keys(v)
+                x0 = v.init
+                if unitless && typeof(x0) != Expr
+                    x0 = ustrip(x0)
+                end
+                modelStructure.init[k] = x0
+                modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => x0)
+            end
+            if :start in keys(v)
+                s0 = v.start
+                if unitless && typeof(x0) != Expr
+                    s0 = ustrip(s0)
+                end
+                modelStructure.start[k] = s0
+                modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => s0)
+            end
         elseif typeof(v) <: NamedTuple # instantiate
                 subModelStructure = ModelStructure()
                 flattenModelTuple!(v, subModelStructure, k; unitless, log)
@@ -285,7 +357,6 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
         end
     end
 #    printModelStructure(modelStructure, "flattened")
-#    @show extendedModel
     connectEquations = convertConnections!(connections, extendedModel, modelName, log)
     push!(modelStructure.equations, connectEquations...)
 end

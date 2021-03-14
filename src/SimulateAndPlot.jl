@@ -122,8 +122,17 @@ function simulate!(m::SimulationModel, algorithm=missing;
         end
 		
 		# Apply updates from merge Map
+        if log
+            parameters = m.p[1]
+            @show parameters
+        end
 		m.p = [recursiveMerge(m.p[1], merge)]
-		
+        if log
+            updatedParameters = m.p[1]
+            @show updatedParameters
+        end
+		# TODO: pick up new init and start values
+
         init!(m, startTime, tolerance)
 
         # Define problem and callbacks based on algorithm and model type

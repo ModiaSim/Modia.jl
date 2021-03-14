@@ -72,7 +72,7 @@ connect = :[
   (V.n, R1.p)  ]
 )
 
-println("Build")
+println("Build array of Cauer low pass filters")
 @time Filters = Model(
     filters = [CauerLowPassOPVWithoutNodes(0.1*i) for i in 1:10]
 )
