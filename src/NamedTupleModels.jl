@@ -14,16 +14,27 @@ using DataStructures: OrderedDict
 using Unitful
 using ModiaBase.Symbolic: removeBlock, prepend
 
+function stringifyDefinition(v)
+    if typeof(v) in [Symbol, Expr]
+        v = removeBlock(v)
+        v = ":(" * string(v) * ")"
+    end
+    return v
+end
 
 function showModel(m, level=0)
-    println("(")
     level += 1
+#    print("  "^(level-1))
+    if typeof(m) <: NamedTuple && haskey(m, :class)
+        print(m.class)
+    end
+    println("(")
     for (k, v) in zip(keys(m), m)
         if typeof(v) <: NamedTuple
             print("  "^level, k, " = ")
             showModel(v, level)
-        else
-            println("  "^level, k, " = ", removeBlock(v), ",")
+        elseif k != :class
+            println("  "^level, k, " = ", stringifyDefinition(v), ",")
         end
     end
     println("  "^(level-1), "),")
@@ -31,7 +42,7 @@ end
 
 macro showModel(model)
     modelName = string(model)
-    mod = :( print($modelName, " = Model"); showModel($model); println() )
+    mod = :( print($modelName, " = "); showModel($model); println() )
     return esc(mod)
 end
 
@@ -57,7 +68,7 @@ function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
 
             else
                 if !(:_redeclare in keys(mergedModels))
-                    if logMerge; println("Adding: $k = $v") end
+                    if logMerge; print("Adding: $k = "); showModel(v, 2) end
                 end
                 mergedModels[k] = v
             end
@@ -68,10 +79,10 @@ function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
             if logMerge
                 if k in keys(mergedModels)
                     if mergedModels[k] != v
-                        println("Changing: $k = $(mergedModels[k]) to $k = $v")
+                        println("Changing: $k = $(stringifyDefinition(mergedModels[k])) to $k = $(stringifyDefinition(v))")
                     end
                 elseif !(:_redeclare in keys(mergedModels))
-                    println("Adding: $k = $v")
+                    println("Adding: $k = $(stringifyDefinition(v))")
                 end
             end
             mergedModels[k] = v

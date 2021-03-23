@@ -27,6 +27,7 @@ Electrical resistor
 `R` - Resistance Ω
 """  
 Resistor = OnePort | Model( R = 1.0u"Ω", equations = :[ R*i = v ] )
+# @showModel(Resistor)
 
 Capacitor = OnePort | Model( C = 1.0u"F", v=Var(init=0.0u"V"), equations = :[ C*der(v) = i ] ) 
 

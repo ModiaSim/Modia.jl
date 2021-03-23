@@ -19,10 +19,11 @@ can be defined as:
 
     SimpleModel = Model(
         T = 0.2,
-        equation = :(T * der(x) + x = 2),
+        x = Var(init=0.5),
+        equation = :[T * der(x) + x = 2],
     )
 ```
-The model consist of a definition of a parameter `T` and one equation. An equation can have a Julia expression on both sides of the equal sign. This model will be symbolically solved for the derivative `der(x)` before simulation, so the following equation will be used for the integration:
+The model consist of a definition of a parameter `T` with default value 0.2, constructor `Var` with an `init` key is used to define the initial condition of the state `x` to 0, and one equation. Equations can have a Julia expression on both sides of the equal sign and are given as a *quoted* array expression `:[ ]` assigned to a unique identifier such as `equation`. The equation will be symbolically solved for the derivative `der(x)` before simulation, so the following equation will be used for the integration:
 
 ```math
 \frac{dx}{dt} = (2 - x) / T
@@ -44,42 +45,43 @@ can be defined as:
 
     LowPassFilter = Model(
         T = 0.2,
-        inputs = :[u],
-        outputs = :[y],
-        init = Map(x=0),
+        u = input,
+        y = output | Var(:x),
+        x = Var(init=0),
         equation = :[T * der(x) + x = u],
-        y = :x,
     )
 ```
-The `init` key defines the initial condition of the state `x` to 0. A constructor `Map` is used. If an equation has just a unique variable in the left hand side, this variable can be used as a key and the corresponding value is the left hand side of the equation given as a quoted expression `y = :x`.
+The symbols `input` and `output` refers to predefined variable constructors to define the input and output variables. If an equation has just a unique variable in the left hand side, `y`, the right hand side can be given as a quoted expression in a Var-constructor `Var(:x)` after the `output` constructor combined with the merge operator, `|`, see below.
 
 ## 2.2 Merging models
 
-It is possible to combine models by merging. If we want to change the model to become a high passfilter, an alternative output equation
+It is possible to combine models by merging. If we want to change the model to become a highpass filter, an alternative output equation
 
 ```math
 y = -x + u
 ```
 
-is defined in an anonymous Model `Model( y = :(-x + u) )`. The merging can in this case be made with the Julia `merge` function:
+is defined in an anonymous model `Model( y = :(-x + u) )`. This anonymous model is merged with `LowPassFilter` using the merge operator `|`:
 
 ```julia
-HighPassFilter = merge(LowPassFilter, Model( y = :(-x + u) ) )
+HighPassFilter = LowPassFilter | Model( y = :(-x + u) )
 ```
 
-In general, also recursive merging is desired and TinyModia provides a `mergeModels` function for that (see appendix 2). This function can also be invoked as a binary operator `|` (also used for merge in Python). Note, that the order of the arguments/operands are important.
+The merging implies that the `output` property of `y` is kept, but the binding expression is changed from `:x` to `:(-x + u)`.
+
+In general, recursive merging is desired and TinyModia provides a `mergeModels` function for that (see appendix 2). This function is invoked as a binary operator `|` (also used for merge in Python). Note, that the order of the arguments/operands are important.
 
 Generalizing the block to have two outputs for both low and high pass filtering would be done as follows:
 
 ```julia
 LowAndHighPassFilter = LowPassFilter | Model(
-        outputs = :[low, high],
         y = nothing,
-        low = :x,
-        high = :(-x + u)
+        low = output | Var(:x),
+        high = output | Var(:(-x + u)),
     )
 ```
 The equation for `y` is removed by "assigning" `nothing` and two variables are defined and declared as outputs.
+
 Model `LowAndHighPassFilter` represents the following equations:
 
 ```math
@@ -94,10 +96,17 @@ x(t_0) &= 0
 By turning on logging of merging `setLogMerge(true)`, the translator gives the log:
 
 ```julia
-Changing: outputs = [y] to outputs = [low, high]
+Adding: value = :(x)
+Adding: value = :(-x + u)
 Deleting: y
-Adding: low = x
-Adding: high = -x + u
+Adding: low = Var(
+      output = true,
+      value = :(x),
+    ),
+Adding: high = Var(
+      output = true,
+      value = :(-x + u),
+    ),
 ```
 
 The resulting model is pretty printed by calling `@showModel(LowAndHighPassFilter)`:
@@ -105,14 +114,21 @@ The resulting model is pretty printed by calling `@showModel(LowAndHighPassFilte
 ```julia
 LowAndHighPassFilter = Model(
   T = 0.2,
-  inputs = [u],
-  outputs = [low, high],
-  init = (
-    x = 0,
+  u = Var(
+    input = true,
   ),
-  equations = [T * der(x) + x = u],
-  low = x,
-  high = -x + u,
+  x = Var(
+    init = 0.0 V,
+  ),
+  equations = :([T * der(x) + x = u]),
+  low = Var(
+    output = true,
+    value = :(x),
+  ),
+  high = Var(
+    output = true,
+    value = :(-x + u),
+  ),
 ),
 ```
 
@@ -122,13 +138,12 @@ In order to test such an input/output block, an input needs to be defined. This 
 using Unitful
 
 TestLowAndHighPassFilter = LowAndHighPassFilter | Model(
-        w = :((time+1u"s")*u"1/s/s"),
-        u = :(sin(w*time)*u"V"),
-        init = Map(x=0.2u"V")
+        u = :(sin( (time+1u"s")*u"1/s/s" * time)*u"V"),
+        x = Var(init=0.2u"V")
     )
 ```
 
-`time` is a reserved name for the independent variable. It has unit `s` for seconds. The Julia package [Unitful](https://painterqubits.github.io/Unitful.jl/stable/) provides a means for defining units and managing unit inference. Definition of units is done with a string macro `u"..."`. In this case, the input signal was given unit Volt. The state x must then also have consistent unit, i.e. Volt. If the model equations contain systems of simultaneous equations, then approximate guess values, optionally with units, must be given `start`: `start = Map(i=0.0u"A")`.
+`time` is a reserved name for the independent variable. It has unit `s` for seconds. The Julia package [Unitful](https://painterqubits.github.io/Unitful.jl/stable/) provides a means for defining units and managing unit inference. Definition of units is done with a string macro `u"..."`. In this case, the input signal was given unit Volt. The state x must then also have consistent unit, i.e. Volt. If the model equations contain systems of simultaneous equations, then approximate guess values, optionally with units, must be given `start`: `i = Var(start=0.0u"A")`.
 
 ## 2.3 Hierarchical modeling
 
@@ -143,14 +158,14 @@ TwoFilters = (
 
 Note, that the previous definitions of HighPassFilter and LowPassFilter was used instead of making the defintions inline.
 
-A band pass filter is a series connection of a high pass filter and a low pass filter and is described below:
+A band pass filter is a series connection of a high pass filter and a low pass filter and can be described as:
 
 ```julia
 BandPassFilter = (
-    inputs = :[u],
-    outputs = :[y],
-    high = HighPassFilter | Map(T=0.5),
-    low = LowPassFilter | Map(T=2.0),
+    u = input,
+    y = output,
+    high = HighPassFilter | Map(T=0.5, x=Var(init=0.1u"V")),
+    low = LowPassFilter | Map(x=Var(init=0.2u"V")),
     equations = :[
         high.u = u,
         low.u = high.y,
@@ -164,7 +179,7 @@ The input and output for the BandPassFilter when using the same input definition
 
 ![Band Pass Filter Plot](../resources/images/BandPassFilterPlot.png)
 
-The above examples are available in file SimpleFilters.jl.
+The above examples are available in file `SimpleFilters.jl`.
 
 ## 2.4 Physically oriented modeling
 
@@ -172,11 +187,12 @@ Sofar, only signal flow modeling has been used, i.e. input/output blocks coupled
 
 ### 2.4.1 Connectors
 
-Models which contain any flow variable, i.e. included in the list `flows`, are considered connectors. Connectors must have equal number of flow and potential variables, i.e. included in the list `potentials`, and have matching array sizes. Connectors may not have any equations. An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.
+Models which contain any flow variable, i.e. a variable having an attribute `flow=true`, are considered connectors. Connectors must have equal number of flow and potential variables, i.e. variables having an attribute `potential=true`, and have matching array sizes. Connectors may not have any equations. An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.
 
 ```julia
-Pin = Model( potentials = :[v], flows = :[i] )
+Pin = Model( v = potential, i = flow )
 ```
+`potential` is a shorthand for `Var(potential=true)` and similarly for `flow`.
 
 ### 2.4.2 Components
 
@@ -207,7 +223,7 @@ Electrical components such as resistors, capacitors and inductors are categorize
 OnePort = Model(
     p = Pin,
     n = Pin,
-    equations = :[
+    partialEquations = :[
         0 = p.i + n.i
         v = p.v - n.v
         i = p.i ] )
@@ -218,9 +234,9 @@ Having such a OnePort definition makes it convenient to define electrical compon
 ```julia
 Resistor = OnePort | Model( R = 1.0u"Ω", equation = :[ R*i = v ], )
 
-Capacitor = OnePort | Model( C = 1.0u"F", init=Map(v=0.0u"V"), equation = :[ C*der(v) = i ] )
+Capacitor = OnePort | Model( C = 1.0u"F", v=Map(init=0.0u"V"), equation = :[ C*der(v) = i ] )
 
-Inductor = OnePort | Model( L = 1.0u"H", init=Map(i=0.0u"A"), equation = :[ L*der(i) = v ] )
+Inductor = OnePort | Model( L = 1.0u"H", i=Map(init=0.0u"A"), equation = :[ L*der(i) = v ] )
 
 ConstantVoltage = OnePort | Model( V = 1.0u"V", equation = :[ v = V ] )
 ```
@@ -228,17 +244,25 @@ The merged `Resistor` is shown below:
 
 ```julia
 Resistor = Model(
-  p = (
-    potentials = [v],
-    flows = [i],
+  p = Model(
+    v = Var(
+      potential = true,
+    ),
+    i = Var(
+      flow = true,
+    ),
   ),
-  n = (
-    potentials = [v],
-    flows = [i],
+  n = Model(
+    v = Var(
+      potential = true,
+    ),
+    i = Var(
+      flow = true,
+    ),
   ),
-  equations = [v = p.v - n.v; 0 = p.i + n.i; i = p.i],
+  partialEquations = :([v = p.v - n.v; 0 = p.i + n.i; i = p.i]),
   R = 1.0 Ω,
-  equation = [R * i = v],
+  equations = :([R * i = v]),
 ),
 ```
 
@@ -288,25 +312,25 @@ The connect tuples are translated to:
 
 ```julia
   V.p.v = R.p.v
-  V.p.i + R.p.i = 0
+  0 = V.p.i + R.p.i
   R.n.v = C.p.v
-  R.n.i + C.p.i = 0
+  0 = R.n.i + C.p.i
   C.n.v = V.n.v
-  C.n.i + V.n.i = 0
+  0 = C.n.i + V.n.i  
 ```
 
 ### 2.4.6 Parameter propagation
 
-Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters intoduced on a high level down in the hierarchy. The following Filter model defines three parameters, `r`, `c` and `v`. The `r` parameter is used to set the resistance of the resistor R: `Map(R=:(up.r))`. A special notation `up.` is used to denote that `r` should not be searched within the resistor, but in the enclosing model, i.e. Filter.
+Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters intoduced on a high level down in the hierarchy. The following Filter model defines three parameters, `r`, `c` and `v`. The `r` parameter is used to set the resistance of the resistor R: `Map(R=:r)`. 
 
 ```julia
-Filter = Model(
-    r = 1.0u"Ω",
+Filter2 = Model(
+    r = 2.0u"Ω",
     c = 1.0u"F",
-    v = 1.0u"V",
-    R = Resistor | Map(R=:(up.r)),
-    C = Capacitor | Map(C=:(up.c)),
-    V = ConstantVoltage | Map(V=:(up.v)),
+    v = 10u"V",
+    R = Resistor | Map(R=:r),
+    C = Capacitor | Map(C=:c),
+    V = ConstantVoltage | Map(V=:v),
     connect = :[
       (V.p, R.p)
       (R.n, C.p)
@@ -331,7 +355,7 @@ VoltageDividerAndFilter = TwoFilters | Map(f1 = Map(C = Redeclare | Resistor | M
 
 By using `Redeclare`, a new model based on a Resistor is used for `C` and the usual merge semantics with the previously defined model of `C` is not used.
 
-The above examples are available in file FilterCircuit.jl.
+The above examples are available in file `FilterCircuit.jl`.
 
 # 3 Simulation
 

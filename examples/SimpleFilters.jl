@@ -4,15 +4,13 @@ using TinyModia
 using DifferentialEquations
 using ModiaPlot
 
-setLogMerge(false)
-
 SimpleModel = Model(
     T = 0.2,
-    equation = :(T * der(x) + x = 2),
-    x = Var(init=0.5)
+    x = Var(init=0.5),
+    equation = :[T * der(x) + x = 2]
 )
 
-#@showModel(SimpleModel)
+# @showModel(SimpleModel)
 
 model = @instantiateModel(SimpleModel)
 simulate!(model, Tsit5(), stopTime = 5, requiredFinalStates = [1.9999996962023168])
@@ -34,11 +32,15 @@ HighPassFilter = LowPassFilter | Model(
 
 # @showModel(HighPassFilter)
 
+# setLogMerge(true)
+
 LowAndHighPassFilter = LowPassFilter | Model(
     y = nothing,
     low = output | Var(:x),
     high = output | Var(:(-x + u)),
 )
+
+setLogMerge(false)
 
 # @showModel(LowAndHighPassFilter)
 
