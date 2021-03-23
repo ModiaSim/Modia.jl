@@ -1,4 +1,4 @@
-module MotorControlModule
+module MotorControl
 
 println("\nMotorControl: Demonstrating the ability to simulate hierarchical mixed domain models")
 
@@ -13,11 +13,11 @@ using Measurements
 
 export MotorControl2
 
-MotorControl = Model(
+MotorControl1 = Model(
     step = Step | Map(height=4.7*u"A", offset=0u"A"),
     feedback = Feedback,
-    PI = PI | Map(T=0.005u"s", k=30, init = Map(x=0.0u"A")),
-    firstOrder = FirstOrder | Map(k=1u"V/A", T=0.001u"s", init = Map(x=0.0u"V")),
+    PI = PI | Map(T=0.005u"s", k=30, x = Var(init=0.0u"A")),
+    firstOrder = FirstOrder | Map(k=1u"V/A", T=0.001u"s", x = Var(init=0.0u"V")),
 
     signalVoltage = SignalVoltage,
     resistor = Resistor | Map(R=13.8u"Ω"),
@@ -56,7 +56,7 @@ MotorControl = Model(
       (tload.flange, loadInertia.flange_b) ]
 )
 
-model = @instantiateModel(MotorControl)
+model = @instantiateModel(MotorControl1, log=false)
 println("Simulate")
 @time simulate!(model, stopTime=0.1, tolerance=1e-6, log=false, requiredFinalStates = 
     [3.487844601078223, 106.82874860310305, 4.616087152802267, 2.014120727821878, 41.98048886114646, 0.018332432934516536, 0.3725930536373392])
@@ -66,10 +66,10 @@ plot(model, [("currentSensor.i", "step.y"), "loadInertia.w"], figure=1)
 # Hierarchical model
 
 ControlledMotor = Model(
-  inputs = :[refCurrent],
+  refCurrent = input,
   feedback = Feedback,
-  PI = PI | Map(T=0.005u"s", k=30, init = Map(x=0.0u"A")),
-  firstOrder = FirstOrder | Map(k=1u"V/A", T=0.001u"s", init = Map(x=0.0u"V")),
+  PI = PI | Map(T=0.005u"s", k=30, x = Var(init=0.0u"A")),
+  firstOrder = FirstOrder | Map(k=1u"V/A", T=0.001u"s", x = Var(init=0.0u"V")),
 
   signalVoltage = SignalVoltage,
   resistor = Resistor | Map(R=13.8u"Ω"),

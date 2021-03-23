@@ -9,9 +9,8 @@ License: MIT (expat)
 using TinyModia
 using Unitful
 
-HeatPort = Model( potentials = :[T],        # Absolute temperature
-                  flows      = :[Q_flow] )  # Heat flow into the component
-
+HeatPort = Model( T = potential,   # Absolute temperature
+                  Q_flow = flow )  # Heat flow into the component
 
 FixedTemperature = Model(
     T    = 293.15u"K",
@@ -30,7 +29,7 @@ FixedHeatFlow = Model(
 HeatCapacitor = Model(
     C = 1.0u"J/K",
     port = HeatPort,
-    init = Map(T = 293.15u"K"),
+    T = Var(init = 293.15u"K"),
     equations = :[T = port.T,
                   der(T) = port.Q_flow/C]
 )
@@ -60,7 +59,7 @@ InsulatedRod = Model(
     c       = 450.0u"J/(kg*K)",   # Specific heat capacity of rod material
     port_a  = HeatPort,           # Heat port on left side
     port_b  = HeatPort,           # Heat port on right side
-    init    = Map(T = fill(293.15u"K", 1)),  # Initial temperature and number of nodes
+    T       = Map(init = fill(293.15u"K", 1)),  # Initial temperature and number of nodes
     equations = :[
         n   = length(T)
         dx  = L/n

@@ -23,7 +23,7 @@ SecondOrder1 = Model(
                            B = :([0; w^2]),
                            C = :([k 0]),
                            D = :(zeros(1,1)),
-                        init = Map(x = zeros(2)) ),
+                        x = Var(init = zeros(2)) ),
     equations = :[sys.u = 1.0]
 )
 
@@ -41,7 +41,7 @@ SecondOrder2 = Model(
                               B = [0; 400.0],
                               C = [2.0 0],
                               D = zeros(1,1),
-                           init = Map(x = zeros(2))),
+                           x = Var(init = zeros(2))),
     equations = :[sys.u = 1.0]
 )
 

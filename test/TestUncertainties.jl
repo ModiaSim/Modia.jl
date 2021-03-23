@@ -10,8 +10,8 @@ TestModel = Model(
     T = 0.2 ± 0.02, # Cannot convert a particle distribution to a float if not all particles are the same.
     u0 = 10 ± 1, # Cannot convert a particle distribution to a float if not all particles are the same.
     k = 1 ± 0.1,
-    init = Map(x = 5 ± 0.5,
-        v = 1 ± 0.1),
+    x = Var(init = 5 ± 0.5),
+    v = Var(init = 1 ± 0.1),
 
     m = 10 ± 1,
     F = 20 ± 2,

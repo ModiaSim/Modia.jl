@@ -42,7 +42,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.1-dev"
-const Date = "2021-03-09"
+const Date = "2021-03-23"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -75,16 +75,16 @@ function printArray(array, heading; order=1:length(array), log=false, number=tru
     end
 end
 
-function performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, log=false)
+function performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log=false)
     nUnknowns = length(unknowns) - length(states)
     nEquations = length(equations)
 
     if nEquations > 0 && nUnknowns != nEquations
-        println("Not equal number of unknowns ($nUnknowns) and equations ($nEquations).")
+        printstyled("The number of unknowns ($nUnknowns) and equations ($nEquations) is not equal!\n", bold=true, color=:red)
+        printArray(parameters, "Parameters:", log=true)
         printArray(states, "Potential states:", log=true)
         printArray(setdiff(unknowns,states), "Unknowns:", log=true)
         printArray(equations, "Equations:", log=true)
-        error("Aborting")
     end
 
     ok = nUnknowns == nEquations
@@ -95,7 +95,17 @@ function performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, 
 #        @assert all(assignEG .> 0) "  The DAE is structurally singular\n  $assignEG."
     assigned = [a > 0 for a in assignEG]
     if ! (all(assigned)) || ! ok
-        println("  The DAE is structurally SINGULAR.")
+        if nUnknowns > nEquations
+            missingEquations = nUnknowns - nEquations
+            printstyled("\nThe DAE has no unique solution, because $missingEquations equation(s) missing!\n", bold=true, color=:red)
+        elseif nEquations > nUnknowns
+            tooManyEquations = nEquations - nUnknowns
+            printstyled("\nThe DAE has no unique solution, because $tooManyEquations equation(s) too many\n", bold=true, color=:red)
+        else
+            printstyled("\nThe DAE has no unique solution, because it is structurally inconsistent\n" *
+                        "  (the number of equations is identical to the number of unknowns)\n", bold=true, color=:red)
+        end 
+        
         singular = true
         hequ = []
         # Create dummy equations for printing: integrate(x, der(x)) = 0
@@ -117,7 +127,15 @@ function performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, 
             end
         end
         printArray(unassigned, "Not assigned variables after consistency check:", log=true)
-        error("Aborting")
+        if nUnknowns > nEquations
+            missingEquations = nUnknowns - nEquations
+            error("Aborting, because $missingEquations equation(s) missing!")
+        elseif nEquations > nUnknowns
+            tooManyEquations = nEquations - nUnknowns
+            error("Aborting, because $tooManyEquations equation(s) too many!")   
+        else
+            error("Aborting, because DAE is structurally inconsistent")
+        end                
     elseif log
         println("  The DAE is structurally nonsingular.")
     end
@@ -146,9 +164,9 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
 
     if logTiming
         println("\nCheck consistency of equations by matching extended equation set")
-        @time performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, log)
+        @time performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log)
     else
-        performConsistencyCheck(G, Avar, vActive, unknowns, states, equations, log)
+        performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log)
     end
 
     if logTiming
@@ -173,7 +191,13 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
     equations = vcat(equations, fill(:(a=b), length(Bequ) - length(equations)))
     for i in 1:length(Bequ)
         if Bequ[i] > 0
+            if log
+                println("Differentiating: ", equations[i])
+            end
             equations[Bequ[i]] = derivative(equations[i], keys(parameters))
+            if log
+                println("  Differentiated equation: ", equations[Bequ[i]])
+            end
         end
     end
 
@@ -513,11 +537,19 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         return isLinear(equ, var)
     end
 
+    function isSolvableEquation(e_original, v_original)
+        equ = equations[e_original]
+        var = unknowns[v_original]
+        (solution, solved) = solveEquation(equ, var)
+        return solved
+    end
+
     hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
                           typeof(value) <: MonteCarloMeasurements.Particles
 
     function var_unit(v)
         var = unknowns[v]
+#        @show var init[var]
         if var in keys(init)
             value = eval(init[var])
 #            value = 0.0
@@ -583,7 +615,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         var_unbounded          = v_original -> false,
         var_length             = var_length,
         equation               = eq_equation,
-        isSolvableEquation     = (e_original, v_original) -> v_original in Gsolvable[e_original],  # TODO: Refine
+        isSolvableEquation     = isSolvableEquation,
         isLinearEquation       = isLinearEquation,
         getSolvedEquationAST   = getSolvedEquationAST,
         getResidualEquationAST = getResidualEquationAST,
@@ -723,17 +755,17 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 """
 macro instantiateModel(model, kwargs...)
     modelName = string(model)
-    code = :( instantiateModel($model; modelName=$modelName, modelModule=@__MODULE__, $(kwargs...) ) )
+    code = :( instantiateModel($model; modelName=$modelName, modelModule=@__MODULE__, source=@__FILE__, $(kwargs...) ) )
     return esc(code)
 end
 
 """
 See documentation of macro @instatiateModel
 """
-function instantiateModel(model; modelName="", modelModule=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
+function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
     try
-        println("\nInstantiating model $modelName")
+        println("\nInstantiating model $modelModule.$modelName")
 
         modelStructure = ModelStructure()
 
@@ -773,7 +805,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
             println("Number of equations: ", length(modelStructure.equations))
         end
         printArray(modelStructure.parameters, "Parameters:", log=log)
-        printArray(states, "States:", log=log)
+        printArray(states, "Potential states:", log=log)
         printArray(setdiff(unknowns, states), "Unknowns:", log=log)
         printArray(modelStructure.equations, "Equations:", log=log)
         if logDetails
@@ -819,9 +851,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, FloatType = 
     catch e
         if isa(e, ErrorException)
             println()
-            print("Model error: ")
-            println(e.msg)
-            println("Aborting instantiateModel")
+            printstyled("Model error: ", bold=true, color=:red)  
+            printstyled(e.msg, "\n", bold=true, color=:red) 
+            printstyled("Aborting instantiateModel for $modelName in $modelModule\n", bold=true, color=:red)             
             println()
 #            Base.rethrow()
         else

@@ -11,7 +11,9 @@ TwoInertiasAndIdealGearWithUnits = Model(
     r  = 105,
     tau_max = 1u"N*m",
 
-    start = Map(phi2 = 0.5u"rad", w2 = 0.0u"rad/s", tau2 = 0u"N*m"), 
+    phi2 = Var(start = 0.5u"rad"), 
+    w2   = Var(start = 0.0u"rad/s"),
+    tau2 = Var(start = 0u"N*m"), 
     
     equations = :[
         tau = if time < 1u"s"; tau_max elseif time < 2u"s"; 0u"N*m" elseif time < 3u"s"; -tau_max else 0u"N*m" end,

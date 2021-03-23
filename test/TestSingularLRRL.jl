@@ -11,8 +11,9 @@ SingularLRRL = Model(
     R1_R = 10,
     R2_R = 20,
 
-    init = Map(L2_p_i = 0.1),
-    start = Map(R2_p_i = 0.0, V_n_v = 0.0),
+    L2_p_i = Var(init = 0.1),
+    R2_p_i = Var(start = 0.0), 
+    V_n_v = Var(start = 0.0),
 
     equations =:[
         # Inductor 1
@@ -73,7 +74,7 @@ setLogMerge(false)
 SingularLRRL2 = Model(
     R1 = Resistor | Map(R=10u"Ω"),
     R2 = Resistor | Map(R=20u"Ω", start = Map(v=0.0u"V")),
-    L1 = Inductor | Map(L=0.1u"H", init = Map(i=nothing)),
+    L1 = Inductor | Map(L=0.1u"H", i = Var(init=nothing)),
     L2 = Inductor | Map(L=0.2u"H", start = Map(v=0.0u"V")),
     V = ConstantVoltage | Map(V=10u"V"),
     connections = :[
@@ -98,7 +99,7 @@ SingularLRRL3 = Model(
     R3 = Resistor | Map(R=3),
     R4 = Resistor | Map(R=4),
     L1 = Inductor | Map(L=0.1),
-    L2 = Inductor | Map(L=0.2) | Map(init = Map(i=nothing)),
+    L2 = Inductor | Map(L=0.2, i = Var(init=nothing)),
     V = ConstantVoltage | Map(V=10),
 #    ground = Ground,
     connections = :[

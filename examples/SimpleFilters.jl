@@ -9,44 +9,49 @@ setLogMerge(false)
 SimpleModel = Model(
     T = 0.2,
     equation = :(T * der(x) + x = 2),
+    x = Var(init=0.5)
 )
 
-# @showModel(SimpleModel)
+#@showModel(SimpleModel)
+
+model = @instantiateModel(SimpleModel)
+simulate!(model, Tsit5(), stopTime = 5, requiredFinalStates = [1.9999996962023168])
+plot(model, ["x"])
 
 LowPassFilter = Model(
     T = 0.2,
-    inputs = :[u],
-    outputs = :[y],
-    init = Map(x=0),
+    u = input,
+    y = output | Var(:x),
+    x = Var(init=0.0u"V"),
     equations = :[T * der(x) + x = u],
-    y = :x,
 )
 
 # @showModel(LowPassFilter)
 
-HighPassFilter = merge(LowPassFilter, Model(
-        y = :(-x + u),
+HighPassFilter = LowPassFilter | Model(
+        y = Var(:(-x + u)),
     )
-)
 
 # @showModel(HighPassFilter)
 
 LowAndHighPassFilter = LowPassFilter | Model(
-    outputs = :[low, high],
     y = nothing,
-    low = :x,
-    high = :(-x + u),
+    low = output | Var(:x),
+    high = output | Var(:(-x + u)),
 )
 
 # @showModel(LowAndHighPassFilter)
 
-TestLowPassFilter = LowAndHighPassFilter | Model(
-    w = :((time+1u"s")*u"1/s/s"),
-    u = :(sin(w*time)*u"V"),
-    init = Map(x=0.2u"V")
+TestLowAndHighPassFilter = LowAndHighPassFilter | Model(
+    u = :(sin( (time+1u"s")*u"1/s/s" * time)*u"V"),
+    x = Var(init=0.2u"V")
 )
 
-# @showModel(TestLowPassFilter)
+# @showModel(TestLowAndHighPassFilter)
+
+model = @instantiateModel(TestLowAndHighPassFilter, log=false, logCode=false)
+simulate!(model, Tsit5(), stopTime = 5, requiredFinalStates = [-0.22633046061014014])
+plot(model, ["low", "high"])
 
 TwoFilters = Model(
     high = HighPassFilter,
@@ -56,10 +61,10 @@ TwoFilters = Model(
 # @showModel(TwoFilters)
 
 BandPassFilter = Model(
-    inputs = :[u],
-    outputs = :[y],
-    high = HighPassFilter | Map(T=0.5, init=Map(x=0.1u"V")),
-    low = LowPassFilter | Map(init=Map(x=0.2u"V")),
+    u = input,
+    y = output,
+    high = HighPassFilter | Map(T=0.5, x=Var(init=0.1u"V")),
+    low = LowPassFilter | Map(x=Var(init=0.2u"V")),
     equations = :[
         high.u = u,
         low.u = high.y,
@@ -69,8 +74,7 @@ BandPassFilter = Model(
 # @showModel(BandPassFilter)
 
 TestBandPassFilter = BandPassFilter | Model(
-    w = :((0.05*time+1u"s")*u"1/s/s"),
-    u = :(sin(w*time)*u"V"),
+    u = :(sin( (0.05*time+1u"s")*u"1/s/s" * time)*u"V"),
 )
 
 # @showModel(TestBandPassFilter)
@@ -78,8 +82,7 @@ TestBandPassFilter = BandPassFilter | Model(
 setLogMerge(false)
 
 model = @instantiateModel(TestBandPassFilter, logDetails=false)
-
-simulate!(model, Tsit5(), stopTime = 50, requiredFinalStates = [-0.259682544336794, -0.6065869552436043])
+simulate!(model, Tsit5(), stopTime = 50, requiredFinalStates = [-0.25968254453053435, -0.6065869606784539])
 plot(model, ["u", "y"])
 
 end

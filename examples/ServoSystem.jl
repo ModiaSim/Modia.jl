@@ -33,7 +33,7 @@ Gear = Model(
 
 
 ControlledMotor = Model(
-  inputs = :[refCurrent],
+  refCurrent = input,
   flange = Flange,
   feedback      = Feedback,
   PI            = PI | Map(k=30, T=1.0u"s"),
@@ -65,8 +65,9 @@ ControlledMotor = Model(
 
 
 SpeedController = Model(
-    inputs   = :[refSpeed, motorSpeed],
-    outputs  = :[refCurrent],
+    refSpeed = input, 
+    motorSpeed = input,
+    refCurrent = output,
     gain     = Gain | Map(k=105.0),
     PI       = PI | Map(T=1.0u"s", k=1.0),
     feedback = Feedback,
@@ -81,7 +82,7 @@ SpeedController = Model(
 
 
 Servo = Model(
-    inputs          = :[refSpeed],
+    refSpeed        = input,
     flange_b        = Flange,
     speedController = SpeedController | Map(ks=1.0, Ts=1.0u"s", ratio=105.0),
     motor           = ControlledMotor | Map(km=30.0, Tm=0.005u"s"),

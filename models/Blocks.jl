@@ -16,8 +16,8 @@ using Unitful
 
 # Single-Input-Single-Output continuous control block
 SISO = Model(
-    inputs = :[u], 
-    outputs = :[y]
+    u = input, 
+    y = output
 )
 
 # Gain
@@ -31,7 +31,7 @@ Gain = SISO | Model(
 FirstOrder = SISO | Model(
     k = 1.0,
     T = 1.0*u"s",
-    init = Map(x=0.0),
+    x = Var(init=0.0),
     equations = :[
         der(x) = (k * u - x) / T
         y = x ]
@@ -39,9 +39,9 @@ FirstOrder = SISO | Model(
 
 # Output difference between commanded and feedback input
 Feedback = Model(
-    inputs = :[u1,    # "Input 1",
-               u2 ],  # "Input 2"
-    outputs = :[y], # "Output signal"
+    u1 = input | info"Input 1",
+    u2 = input | info"Input 2",
+    y = output | info"Output signal",
     equations = :[
         y = u1 - u2 ]
 ) 
@@ -50,7 +50,7 @@ Feedback = Model(
 PI = SISO | Model(
     k = 1.0, # (info = "Gain")
     T = 1.0u"s", # (min = 1E-10, info = "Time Constant (T>0 required)")
-    init = Map(x=0.0),
+    x = Var(init=0.0),
     equations = :[
         der(x) = u / T
         y = k * (x + u) ]
@@ -58,7 +58,7 @@ PI = SISO | Model(
 
 # Single-Output continuous control block
 SO = Model(
-    outputs = :[y] 
+    y = output 
 )
 
 # Base class for a continuous signal source
@@ -91,9 +91,9 @@ StateSpace = Model(
     B = fill(0.0,0,0),   
     C = fill(0.0,0,0), 
     D = fill(0.0,0,0),
-    inputs  = :[u], 
-    outputs = :[y],
-    init = Map(x = zeros(0)),
+    u = input, 
+    y = output,
+    x = Var(init = zeros(0)),
     equations = :[
         der(x) = A*x + B*u
              y = C*x + D*u

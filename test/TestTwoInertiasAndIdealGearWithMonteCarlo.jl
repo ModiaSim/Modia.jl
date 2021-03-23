@@ -16,7 +16,8 @@ TwoInertiasAndIdealGearWithMonteCarlo = Model(
     J2 = uniform(50, 170),
     r  = 105,
     tau_max = 1,
-    init = Map(phi2 = uniform(0.5,0.55), w2 = 0.0),
+    phi2 = Var(init = uniform(0.5,0.55)), 
+    w2 = Var(init = 0.0),
     equations = :[
         tau = if time < 1u"s"; tau_max elseif time < 2u"s"; 0 elseif time < 3u"s"; -tau_max else 0 end,
         

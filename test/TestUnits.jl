@@ -15,8 +15,8 @@ UnitTest = Model(
     m = 10u"kg",
     F = 20u"N",
 
-    init = Map(x = 5500.0u"g",
-        v = 1u"m/s"),
+    x = Var(init = 5500.0u"g"),
+    v = Var(init = 1u"m/s"),
     equations = :[
         T*der(x) + x = u0
         y = x

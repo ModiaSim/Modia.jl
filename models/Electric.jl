@@ -11,7 +11,6 @@ Modia module with electric component models (inspired from Modelica Standard Lib
 using TinyModia
 using Unitful
 
-OldPin = Model( potentials = :[v], flows = :[i] )
 Pin = Model( v = potential, i = flow )
 
 OnePort = Model( p = Pin, n = Pin, partialEquations = :[
@@ -29,9 +28,9 @@ Electrical resistor
 """  
 Resistor = OnePort | Model( R = 1.0u"Ω", equations = :[ R*i = v ] )
 
-Capacitor = OnePort | Model( C = 1.0u"F", init=Map(v=0.0u"V"), equations = :[ C*der(v) = i ] ) 
+Capacitor = OnePort | Model( C = 1.0u"F", v=Var(init=0.0u"V"), equations = :[ C*der(v) = i ] ) 
 
-Inductor = OnePort | Model( L = 1.0u"H", init=Map(i=0.0u"A"), equations = :[ L*der(i) = v ] )
+Inductor = OnePort | Model( L = 1.0u"H", i=Var(init=0.0u"A"), equations = :[ L*der(i) = v ] )
 
 ConstantVoltage = OnePort | Model( V = 1.0u"V", equations = :[ v = V ] )
 
@@ -50,7 +49,7 @@ IdealOpAmp3Pin = Model(
 
 # Partial generic voltage source using the input signal as source voltage 
 PartialSignalVoltage = Model(
-    inputs = :[v],
+    v = input,
     p = Pin,
     n = Pin
 ) 
@@ -72,7 +71,7 @@ UnitlessSignalVoltage = PartialSignalVoltage | Model(
 
 # Partial sensor to measure the current in a branch
 PartialCurrentSensor = Model(
-    outputs = :[i],
+    i = output,
     p = Pin, # (info = "Positive pin")
     n = Pin, # (info = "Negative pin")
 )

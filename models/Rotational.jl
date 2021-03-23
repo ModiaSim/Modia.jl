@@ -15,8 +15,8 @@ using Unitful
 
 # Connector for 1D rotational systems
 Flange = Model(
-    potentials = :[phi],
-    flows = :[tau]
+    phi = potential,
+    tau = flow
 )
 
 # Flange fixed in housing at a given angle
@@ -39,7 +39,8 @@ Inertia = Model(
     flange_a = Flange, # (info = "Left flange of shaft")
     flange_b = Flange, # (info = "Right flange of shaft")
     J = 1.0u"kg*m^2", # (0, min=0, info = "Moment of inertia") #, T = u"kg*m^2")    
-    init = Map(phi=0.0u"rad", w=0.0u"rad/s"),
+    phi = Var(init=0.0u"rad"), 
+    w = Var(init=0.0u"rad/s"),
     equations = :[
         phi = flange_a.phi
         phi = flange_b.phi
@@ -122,7 +123,7 @@ IdealGear_withSupport = Model(
 
 # Partial input signal acting as external torque on a flange
 PartialTorque = Model(
-    inputs = :[tau],
+    tau = input,
     flange = Flange
 )
 
@@ -155,7 +156,7 @@ Damper = PartialCompliantWithRelativeStates | Model(
 Damper = Model(
     flange_a = Flange,
     flange_b = Flange,
-    start    = Map(phi_rel=0.0u"rad"),
+    phi_rel  = Var(start=0.0u"rad"),
     d        = 1.0u"N*m*s/rad", # (info = "Damping constant"),
     equation = :[
         phi_rel      = flange_b.phi - flange_a.phi
@@ -174,8 +175,8 @@ PartialAbsoluteSensor = Model(
 )
 
 # Ideal sensor to measure the absolute flange angular velocity
-SpeedSensor         = PartialAbsoluteSensor | Model(outputs = :[w], equations = :[w = der(flange.phi)])
-UnitlessSpeedSensor = PartialAbsoluteSensor | Model(outputs = :[w], equations = :[w = der(flange.phi)*u"s/rad"])
+SpeedSensor         = PartialAbsoluteSensor | Model(w = output, equations = :[w = der(flange.phi)])
+UnitlessSpeedSensor = PartialAbsoluteSensor | Model(w = output, equations = :[w = der(flange.phi)*u"s/rad"])
 
 
 #end

@@ -1,7 +1,7 @@
 module TestVariables
 
 using TinyModia
-using  ModiaPlot
+using ModiaPlot
 using Measurements
 using StaticArrays
 using Test
@@ -53,7 +53,7 @@ TestVar1 = Model(
         der(x) = p*x+1
     ]
 )
-@showModel TestVar1
+#@showModel TestVar1
 model = @instantiateModel(TestVar1, log=false, logCode=false)
 simulate!(model, merge=Map(p=-2, x=0.2), requiredFinalStates = [0.4458658866860504]) # x.init is not changed
 plot(model, "x")

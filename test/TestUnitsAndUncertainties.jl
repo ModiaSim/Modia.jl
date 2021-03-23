@@ -1,4 +1,4 @@
-module TestUnits
+module TestUnitsAndUncertainites
 
 using TinyModia
 using DifferentialEquations
@@ -13,8 +13,9 @@ TestModel = Model(
     m = (10 ± 1)u"kg",
     F = (20 ± 2)u"N",
 
-    init = Map(x = (5.5 ± 0.55)u"kg",
-        v = (1 ± 0.1)u"m/s", r = 1u"m/s"), 
+    x = Var(init = (5.5 ± 0.55)u"kg"),
+    v = Var(init = (1 ± 0.1)u"m/s"), 
+    r = Var(init = 1u"m/s"), 
     equations = :[
     T*der(x) + x = u0
     y = x

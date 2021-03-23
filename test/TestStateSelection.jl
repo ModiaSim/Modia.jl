@@ -21,7 +21,7 @@ end
     @testset "... Test FirstOrder" begin
         FirstOrder = Model(
             T = 0.2,
-            init = Map(x=0.3),
+            x = Var(init=0.3),
             equations = :[
                     u = 1.0
                 der(x) = (u - x)/T
@@ -36,7 +36,10 @@ end
         TwoCoupledInertias = Model(
             J1_J = 1,
             J2_J = 1,
-            start = Map(J1_phi=1.0, J1_w = 0.0, J2_phi=0.0, J2_w=0.0),
+            J1_phi = Var(start=1.0), 
+            J1_w   = Var(start=0.0), 
+            J2_phi = Var(start=0.0), 
+            J2_w   = Var(start=0.0),
             equations = :[
                 J1_w = der(J1_phi)
                 J1_J * der(J1_w) = J1_tau
@@ -56,7 +59,7 @@ end
         ODEwithLinearEquations1 = Model(
             p1=4,
             p2=2,
-            start = Map(x6=1.0),
+            x6 = Var(start=1.0),
             equations = :[
                          x1 = sin(time)
                       p2*x2 = p1*x1
@@ -74,7 +77,7 @@ end
         ODEwithLinearEquations2 = Model(
             p1=4,
             p2=2,
-            start = Map(x6=1.0),
+            x6 = Var(start=1.0),
             equations = :[
                         x1 = sin(time)
                      p2*x2 = p1*x1
@@ -126,7 +129,8 @@ end
         FreeFlyingMass = Model(
             m =1.0,
             f=[1.0,2.0,3.0],
-            init = Map(r=[0.1, 0.2, 0.3], v=[-0.1, -0.2, -0.3]),
+            r = Var(init=[0.1, 0.2, 0.3]), 
+            v = Var(init=[-0.1, -0.2, -0.3]),
             equations = :[
                 v = der(r)
                 m*der(v) = f]
@@ -146,7 +150,7 @@ end
             d = 10.0,
             g = 9.81,
             n = [1.0, 1.0, 1.0],
-            init = Map(s=1.0),
+            s = Var(init=1.0),
             equations = :[
                 r = n*s
                 v = der(r)
@@ -202,7 +206,7 @@ Drive = Model(
 AbsoluteDamper = Model(
     flange = Flange,
     d = 1.0u"N*m*s/rad", # (info = "Damping constant"),
-    init = Map(phi=0.0u"rad"),
+    phi = Var(init=0.0u"rad"),
     equation = :[
         phi = flange.phi
         w   = der(phi)
@@ -218,7 +222,7 @@ Drive = Model(
     connect = :[
         (inertia.flange_b, damper.flange)]
 )
-Drive2 = Drive | Map(damper = Map(init=Map(phi=1.0u"rad")))
+Drive2 = Drive | Map(damper = Map(phi=Var(init=1.0u"rad")))
 
 drive1 = @instantiateModel(Drive)
 drive2 = @instantiateModel(Drive2)
