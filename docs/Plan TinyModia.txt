@@ -1,0 +1,95 @@
+TinyModia plan
+2021-03-23
+
++ means done
+
+- investigate and increase performance
+- enable code coverage
+
+Hilding:
+- refine merge 
+	- handle Model and Map differently, handle concatenations of equation arrays)
+- simplify and unify NamedTupleModel.jl
+	- The current logic is too complex
+	- improve diagnostics
+- more test examples with arrays
+	- check planar MBS library
+	- diagnostics for solving and differentiating matrix equations
+- if v is unknown, don't consider v.u unknown 
+- introduce special separate object notation
+- propagate media
+- figure out the right way to handle Model and Map 
+	- check performance and where it is allocated for struct+named tuple
+	- multiple dispatch on data?
+- balancing of models
+	- heuristic for mispellt names
+- set flow to zero for unconnected connectors
+- conditional components
+
+Martin:
+- Adapt plotting, so that parameters are again plotted.
+
+- model LinearStateSpace (working with arrays; A,B,C,D can be changed in simulate!)
+- model LinearDescriptorSystem (working with arrays; E,A,B,C,D can be changed in simulate!)
+
+- interface to Modia3D
+
+- SimulationModel(..., x_startValues, parameters, ...) should be probably adapted to only pass one data structure that 
+	contains parameter values, start values and init values - as values (not as Expr) - and store them in m.p.
+	Within init!(..), the x_start values are extracted from m.p (the names of the x-states are stored in m.equationInfo) 
+	and stored in m.x_start that is provided to the integrators. This automatically also handles then start/init values given via simulate!(..., merge,...).
+- Change m.p[1] -> m.p (so not an Any vector anymore, but a NamedTuple and adapt code generation.
+
+- Adapt docu of "simulate!(..)" by adding merge argument.
+
+- Support of events
+	- correct storage of discrete variables
+
+- investigate automatic relative states
+
+- nonlinear systems of equations (pendulum in Cartesian coordinates)
+
+- improve alias elimination algorithm 
+	- performance measurements
+	- partitioning of bipartite graph
+
+-----------------------------------------------------------------------------------
+
+Ideas:
+- means of handling final, each
+	R = Final(1.0u"Ω")
+	each 5.5: fill(5.5)
+- how to change array element
+	equations = Replace(1, :( R*i = v ) )
+- how to merge units between value, min, max, nominal, init, start, Map
+	- check for consistency of those with unit
+	- make min, max, etc available for checking
+- provide notation for array of components with connections and conditional components using named tuples
+- provide mechanism to store and restore expressions in JSON format
+
+
+Future:
+- Too many initial conditions: Only provide warning/error if not consistent to initialization.
+- when to expand arrays for structural analysis
+  - how to know size of equations	
+	- always have a variable or very simple array literal in RHS or LHS
+	- fine for block library
+
+- separate translation
+  - reenable variable allocation in structs
+  - introduce f1, f2, f3
+	
+- linear coefficients (TwoResistors) ???
+- remove redundant equations ???
+  - take zero into account
+- handle ifthenelse and > and < ???
+
+
+------------------------------------------- Modelica translator -------------------------------------
+
+- update and make the Modelica to Modia translator available
+
+- change to latest version of MSL
+
+- reenable translation of media functions
+- translate fluid library
