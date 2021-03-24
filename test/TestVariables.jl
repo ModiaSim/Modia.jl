@@ -55,7 +55,7 @@ TestVar1 = Model(
 )
 #@showModel TestVar1
 model = @instantiateModel(TestVar1, log=false, logCode=false)
-simulate!(model, merge=Map(p=-2, x=0.2), requiredFinalStates = [0.4458658866860504]) # x.init is not changed
+simulate!(model, merge=Map(p=-2, x=0.2), requiredFinalStates = [0.4593994150057028]) # x.init is not changed
 plot(model, "x")
 
 end

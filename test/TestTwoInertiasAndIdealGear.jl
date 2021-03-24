@@ -41,6 +41,7 @@ println("Next simulate! should result in an error:\n")
 simulate!(twoInertiasAndIdealGearTooManyInits, Tsit5(), stopTime = 4.0, log=true)
 
 simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0, log=false,
+          logParameters=true, logStates=true,
           requiredFinalStates=[1.5628074713622309, -6.878080753044174e-5])
           
 plot(twoInertiasAndIdealGear, ["phi2", "w2"])

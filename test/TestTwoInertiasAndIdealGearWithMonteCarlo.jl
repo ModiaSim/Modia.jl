@@ -38,7 +38,8 @@ TwoInertiasAndIdealGearWithMonteCarlo = Model(
 twoInertiasAndIdealGearWithMonteCarlo = @instantiateModel(TwoInertiasAndIdealGearWithMonteCarlo,
                                                           FloatType = StaticParticles{Float64,nparticles})
 
-simulate!(twoInertiasAndIdealGearWithMonteCarlo, Tsit5(), stopTime = 4.0)
+simulate!(twoInertiasAndIdealGearWithMonteCarlo, Tsit5(), stopTime = 4.0,
+          logParameters=true, logStates=true)
           
 plot(twoInertiasAndIdealGearWithMonteCarlo, ["phi2", "w2"],
      MonteCarloAsArea=false)

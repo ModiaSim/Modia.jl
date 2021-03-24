@@ -26,9 +26,10 @@ convertTimeVariable(t) = typeof(t) <: Unitful.AbstractQuantity ? convert(Float64
 
 
 """
-    simulate!(model [, algorithm];
-              tolerance=1e-6, startTime=0.0, stopTime=1.0, interval=NaN,
-              adaptive=true, log=true, requiredFinalStates=nothing)
+    simulate!(model [, algorithm]; merge = nothing,
+              tolerance = 1e-6, startTime = 0.0, stopTime = 1.0, interval = NaN,
+              adaptive = true, log = true, logParameters = true, logStates = true,
+              requiredFinalStates = nothing)
 
 Simulate `model::SimulationModel` with `algorithm`
 (= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)).
@@ -41,6 +42,8 @@ can be retrieved with [`get_result`](@ref).
 
 # Optional Arguments
 
+- `merge`: Define parameters and init/start values that shall be merged with the previous values
+           stored in `model`, before simulation is started.  
 - `tolerance`: Relative tolerance.
 - `startTime`: Start time. If value is without unit, it is assumed to have unit [s].
 - `stopTime`: Stop time. If value is without unit, it is assumed to have unit [s].
@@ -50,6 +53,8 @@ can be retrieved with [`get_result`](@ref).
 - `adaptive`: = true, if the `algorithm` should use step-size control (if available).
               = false, if the `algorithm` should use a fixed step-size of `interval` (if available).
 - `log`: = true, to log the simulation.
+- `logParameters`: = true, to log the parameter and init/start values
+- `logStates` : = true, to log the states, its init/start values and its units.
 - `requiredFinalStates`: is not `nothing`: Check whether the ODE state vector at the final time instant with `@test`
               is in agreement to vector `requiredFinalStates` with respect to some tolerance. If this is not the case, print the
               final state vector (so that it can be included with copy-and-paste in the simulate!(..) call).
@@ -57,32 +62,53 @@ can be retrieved with [`get_result`](@ref).
 # Examples
 
 ```julia
-import ModiaPlot
-using  DifferentialEquations
+using ModiaPlot
+using DifferentialEquations
 
-# Runge-Kutta 5/4 with step-size control
-simulate!(model, DifferentialEquations.Tsit5(), stopTime = 1.0)
+# Define model
+inputSignal(t) = sin(t)
 
-    # Plot variables "v1", "v2" in diagram 1, "v3" in diagram 2, both diagrams in figure 3
-    ModiaPlot.plot(model, [("v1","v2"), "v3"], figure=3)
+FirstOrder = Model(
+    T = 0.2,
+    x = Var(init=0.3),
+    equations = :[u = inputSignal(time/u"s"),
+                  T * der(x) + x = u,
+                  y = 2*x]
+)
 
-    # Retrieve "time" and "v1" values:
-    get_result(model, "time")
-    get_result(model, "v1")
+# Modify parameters and initial values of model
+FirstOrder2 = FirstOrder | Map(T = 0.4, x = Var(init=0.6))
 
-# Runge-Kutta 4 with fixed step size
-simulate!(model, DifferentialEquations.RK4(), stopTime = 1.0, adaptive=false)
+# Instantiate model
+firstOrder = @instantiateModel(FirstOrder2, logCode=true)
 
-# Switching between Verners Runge-Kutta 6/5 algorithm if non-stiff region and
+
+# Simulate with automatically selected algorithm and 
+# modified parameter and initial values
+simulate!(firstOrder, stopTime = 1.0, merge = Map(T = 0.6, x = 0.9), logParameters=true)
+
+# Plot variables "x", "u" in diagram 1, "der(x)" in diagram 2, both diagrams in figure 3
+plot(firstOrder, [("x","u"), "der(x)"], figure=3)
+
+# Retrieve "time" and "u" values:
+get_result(firstOrder, "time")
+get_result(firstOrder, "u")
+    
+    
+# Simulate with Runge-Kutta 5/4 with step-size control
+simulate!(firstOrder, Tsit5(), stopTime = 1.0)
+
+# Simulate with Runge-Kutta 4 with fixed step size
+simulate!(firstOrder, RK4(), stopTime = 1.0, adaptive=false)
+
+# Simulate with algorithm that switches between 
+# Verners Runge-Kutta 6/5 algorithm if non-stiff region and
 # Rosenbrock 4 (= A-stable method) if stiff region with step-size control
-simulate!(model, AutoVern6(Rodas4()), stopTime = 1.0)
+simulate!(firstOrder, AutoVern6(Rodas4()), stopTime = 1.0)
 
-# Automatically selected algorithm
-simulate!(model, stopTime = 1.0)
-
-# Sundials CVODE (BDF method with variable order 1-5) with step-size control
+# Simulate with Sundials CVODE (BDF method with variable order 1-5) with step-size control
 using Sundials
-simulate!(model, CVODE_BDF(), stopTime = 1.0)
+simulate!(firstOrder, CVODE_BDF(), stopTime = 1.0)
 ```
 """
 function simulate!(m::Nothing, args...; kwargs...)
@@ -90,13 +116,15 @@ function simulate!(m::Nothing, args...; kwargs...)
     return
 end
 function simulate!(m::SimulationModel, algorithm=missing;
-                   tolerance=1e-6,
-                   startTime=0.0,
-                   stopTime=1.0,
-                   interval=NaN,
-                   adaptive::Bool=true,
-                   log::Bool=false,
-                   requiredFinalStates=nothing, 
+                   tolerance = 1e-6,
+                   startTime = 0.0,
+                   stopTime  = 1.0,
+                   interval  = NaN,
+                   adaptive::Bool      = true,
+                   log::Bool           = false,
+                   logParameters::Bool = false,
+                   logStates::Bool     = false,
+                   requiredFinalStates = nothing, 
                    merge=nothing)
     try
         m.algorithmType = typeof(algorithm)
@@ -106,34 +134,17 @@ function simulate!(m::SimulationModel, algorithm=missing;
         interval  = convertTimeVariable(interval)
         interval  = isnan(interval) ? (stopTime - startTime)/500.0 : interval
 
-        # Determine x_start (currently: x_start = 0)
-        # println("x_start = ", m.x_start)
-
         # Target type
         FloatType = getFloatType(m)
 
         # Initialize/re-initialize SimulationModel
-        if log
+        if log || logParameters || logStates
             println("... Simulate model ", m.modelName)
-            cpuStart::UInt64 = time_ns()
-            cpuLast::UInt64  = cpuStart
-            cpuStartIntegration::UInt64 = cpuStart
-            println("      Initialization at time = ", startTime, " s")
         end
-		
-		# Apply updates from merge Map
-        if log
-            parameters = m.p[1]
-            @show parameters
-        end
-		m.p = [recursiveMerge(m.p[1], merge)]
-        if log
-            updatedParameters = m.p[1]
-            @show updatedParameters
-        end
-		# TODO: pick up new init and start values
-
-        init!(m, startTime, tolerance)
+        cpuStart::UInt64 = time_ns()
+        cpuLast::UInt64  = cpuStart
+        cpuStartIntegration::UInt64 = cpuStart
+        init!(m, startTime, tolerance, merge, log, logParameters, logStates)
 
         # Define problem and callbacks based on algorithm and model type
         tspan    = (startTime, stopTime)
@@ -164,7 +175,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
             cpuTimeIntegration    = convert(Float64, (time_ns() - cpuStartIntegration) * 1e-9)
             cpuTime               = cpuTimeInitialization + cpuTimeIntegration
 
-            println("      Termination at time    = ", solution.t[end], " s")
+            println("      Termination at time = ", solution.t[end], " s")
             println("        cpuTime         = ", round(cpuTime, sigdigits=3), " s")
             #println("        cpuTime         = ", round(cpuTime              , sigdigits=3), " s (init: ",
             #                                      round(cpuTimeInitialization, sigdigits=3), " s, integration: ",
@@ -213,6 +224,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
             printstyled("\nError from simulate!:\n", color=:red)
             printstyled(e.msg, "\n\n", color=:red)
             printstyled("Aborting simulate!\n\n", color=:red)
+            empty!(m.result)
         else
             Base.rethrow()
         end
@@ -226,11 +238,16 @@ end
 #---------------------------------------------------------------------
 
 ModiaPlot.hasSignal(m::SimulationModel, name) =
-    haskey(m.variables, name) || haskey(m.parametersAndConstantVariables, name)
+    haskey(m.variables, name) || 
+    name in m.zeroVariables ||
+    !ismissing(get_value(m.p[1], name))
 
-ModiaPlot.getNames(m::SimulationModel) =
-    append!(collect( keys(m.parametersAndConstantVariables) ),
-            collect( keys(m.variables) ) )
+function ModiaPlot.getNames(m::SimulationModel)
+    names = get_names(m.p[1])
+    append!(names, collect(m.zeroVariables))
+    append!(names, collect( keys(m.variables) ) )
+    return sort(names)
+end
 
 function ModiaPlot.getRawSignal(m::SimulationModel, name)
     if haskey(m.variables, name)
@@ -249,8 +266,16 @@ function ModiaPlot.getRawSignal(m::SimulationModel, name)
             signal = -signal
         end
         return (false, signal)
+        
+    elseif name in m.zeroVariables
+        return (true, 0.0)
+
     else
-        return (true, eval( m.parametersAndConstantVariables[name] ) )
+        value = get_value(m.p[1], name)
+        if ismissing(value)
+            error("ModiaPlot.getRawSignal: ", name, " not in result of model ", m.modelName)
+        end
+        return (true, value)
     end
 end
 

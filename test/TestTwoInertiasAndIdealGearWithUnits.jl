@@ -36,6 +36,7 @@ twoInertiasAndIdealGearWithUnits = @instantiateModel(TwoInertiasAndIdealGearWith
 
 
 simulate!(twoInertiasAndIdealGearWithUnits, Tsit5(), stopTime = 4.0, 
+          logParameters=true, logStates=true,
           requiredFinalStates=[1.5628074713622309, -6.878080753044174e-5])
           
 plot(twoInertiasAndIdealGearWithUnits, ["phi2", "w2", "der(w2)"])

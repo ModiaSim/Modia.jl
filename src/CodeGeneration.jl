@@ -6,7 +6,7 @@ using  ModiaBase
 using  Unitful
 using  Measurements
 import MonteCarloMeasurements
-using  DataStructures: OrderedDict
+using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
 
 export SimulationModel, measurementToString, get_lastValue
@@ -72,17 +72,20 @@ mutable struct SimulationModel{FloatType}
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
     linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
-    variables::OrderedDict{String,Int}                       # Dictionary of variables and their result indices (negated alias has negativ index)
-    parametersAndConstantVariables::OrderedDict{String,Any}  # Dictionary of parameters and constant variables with their values
-    vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}     # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
-    p::AbstractVector               # Parameter values that are copied into the code
+    variables::OrderedDict{String,Int}      # Dictionary of variables and their result indices (negated alias has negativ index)
+    zeroVariables::OrderedSet{String}       # Set of variables that are identically to zero
+    vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
+    p::AbstractVector                       # Parameter and init/start values 
+                                            # (parameter values are used in getDerivatives!,
+                                            #  init/start values are extracted and stored in x_start)                                     
+    separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects    
     storeResult::Bool
     isInitial::Bool
-    nGetDerivatives::Int            # Number of getDerivatives! calls
+    nGetDerivatives::Int                    # Number of getDerivatives! calls
     x_start::Vector{FloatType}
     der_x::Vector{FloatType}
     result::Vector{Tuple}
-    algorithmType::DataType         # Type of integration algorithm (used in default-heading of plot)
+    algorithmType::DataType                  # Type of integration algorithm (used in default-heading of plot)
 
     function SimulationModel{FloatType}(modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameters, variableNames;
@@ -93,7 +96,7 @@ mutable struct SimulationModel{FloatType}
 
         # Construct result dictionaries
         variables = OrderedDict{String,Int}()
-        parametersAndConstantVariables = OrderedDict{String,Any}( [(string(key),parameters[key]) for key in keys(parameters)] )
+        zeroVariables = OrderedSet{String}()
         vSolvedWithInitValuesAndUnit2 = OrderedDict{String,Any}( [(string(key),vSolvedWithInitValuesAndUnit[key]) for key in keys(vSolvedWithInitValuesAndUnit)] )
             # Store variables
             for (i, name) in enumerate(variableNames)
@@ -104,7 +107,7 @@ mutable struct SimulationModel{FloatType}
             for v in vEliminated
                 name = var_name(v)
                 if ModiaBase.isZero(vProperty, v)
-                    parametersAndConstantVariables[name] = 0.0
+                    push!(zeroVariables, name)
                 elseif ModiaBase.isAlias(vProperty, v)
                     name2 = var_name( ModiaBase.alias(vProperty, v) )
                     variables[name] = variables[name2]
@@ -123,24 +126,19 @@ mutable struct SimulationModel{FloatType}
             push!(linearEquations, ModiaBase.LinearEquations{FloatType}(leq...))
         end
 
-        # Set startIndex in x_info and compute nx
-        startIndex = 1
-        for xi_info in equationInfo.x_info
-            xi_info.startIndex = startIndex
-            startIndex += xi_info.length
-        end
-        nx = startIndex - 1
-        equationInfo.nx = nx
-        @assert(nx == length(x_startValues))
-        x_start = deepcopy(x_startValues)
-
+        # Construct dictionary for separate objects
+        separateObjects = OrderedDict{Int,Any}()
+                
+        # Initialize execution flags
         isInitial       = true
         storeResult     = false
         nGetDerivatives = 0
 
-        new(modelName, getDerivatives!, equationInfo, linearEquations, variables, parametersAndConstantVariables,
+
+        new(modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameterValues,
-            storeResult, isInitial, nGetDerivatives, x_start, zeros(FloatType,nx), Tuple[])
+            separateObjects, storeResult, isInitial, nGetDerivatives, 
+            zeros(FloatType,0), zeros(FloatType,0), Tuple[])
     end
 end
 
@@ -154,28 +152,90 @@ Return the floating point type with which `simulationModel` is parameterized
 getFloatType(m::SimulationModel{FloatType}) where {FloatType} = FloatType
 
 
-function get_states!(equationInfo::ModiaBase.EquationInfo,
-                     states::Vector{FloatType},
-                     x_names::Vector{Symbol},
-                     x_startValues::AbstractVector)::Nothing where {FloatType}
-    states .= 0
-    x_info = equationInfo.x_info
+"""
+    hasParticles(value)
+    
+Return true, if `value` is of type `MonteCarloMeasurements.StaticParticles` or
+`MonteCarloMeasurements.Particles`.
+"""
+hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
+                      typeof(value) <: MonteCarloMeasurements.Particles
+                          
+                          
+"""
+    get_value(obj::NamedTuple, name::String)
+    
+Return the value identified by `name` from the potentially hierarchically 
+`NamedTuple obj`. If `name` is not in `obj`, the function returns `missing`.
 
- #=
-    for xi_info in equationInfo.x_info
-        if xi_info.x_name != ""
-            (component, key) = ModiaBase.get_modelValuesAndName(modelValues, xi_info.x_name)
-            if !isdefined(component,key)
-                error("From ModiaBase:\nState ", key, " in component ", typeof(component), " has no value.")
-            end
-            value = ustrip( getfield(component,key) )
-            istart = xi_info.startIndex
-            for i = 1:xi_info.length
-                states[istart+i-1] = value[i]
-            end
+# Examples
+```julia
+s1 = (a = 1, b = 2, c = 3)
+s2 = (v1 = s1, v2 = (d = 4, e = 5))
+s3 = (v3 = s2, v4 = s1)
+
+@show get_value(s3, "v3.v1.b")   # returns 2
+@show get_value(s3, "v3.v2.e")   # returns 5
+@show get_value(s3, "v3.v1.e")   # returns missing
+```
+"""
+function get_value(obj::NamedTuple, name::String)
+    if length(name) == 0 || length(obj) == 0
+        return missing
+    end
+    j = findnext('.', name, 1)
+    if isnothing(j)
+        key = Symbol(name)
+        return haskey(obj,key) ? obj[key] : missing
+    elseif j == 1
+        return missing
+    else
+        key = Symbol(name[1:j-1])
+        if haskey(obj,key) && typeof(obj[key]) <: NamedTuple && length(name) > j
+            get_value(obj[key], name[j+1:end])
+        else
+            return missing
         end
     end
-=#
+end
+
+
+"""
+    appendName(path::String, name::Symbol)
+   
+Return `path` appended with `.` and `string(name)`.
+"""
+appendName(path, key) = path == "" ? string(key) : path * "." * string(key)
+
+
+"""
+    get_names(obj::NamedTuple)
+    
+Return `Vector{String}` containing all the names present in `obj`
+
+# Examples
+```julia
+s1 = (a = 1, b = 2, c = 3)
+s2 = (v1 = s1, v2 = (d = 4, e = 5))
+s3 = (v3 = s2, v4 = s1)
+
+@show get_names(s3)
+```
+"""
+function get_names(obj::NamedTuple)
+    names = String[]
+    get_names!(obj, names, "")
+    return names
+end
+function get_names!(obj::NamedTuple, names::Vector{String}, path::String)::Nothing
+    for (key,value) in zip(keys(obj), obj)
+        name = appendName(path, key)
+        if typeof(value) <: NamedTuple
+            get_names!(value, names, name)
+        else
+            push!(names, name)
+        end
+    end
     return nothing
 end
 
@@ -206,35 +266,127 @@ function get_lastValue(m::SimulationModel, name::String; unit=true)
         if negAlias
             value = -value
         end
-    elseif haskey(m.parametersAndConstantVariables, name)
-        value = eval( m.parametersAndConstantVariables[name] )
+    elseif name in m.zeroVariables
+        # Unit missing (needs to be fixed)
+        value = 0.0
     else
-        @info "get_lastValue: $name is not known and is ignored."
-        return nothing;
+        value = get_value(m.p[1], name)
+        if ismissing(value)
+            @info "get_lastValue: $name is not known and is ignored."
+            return nothing;
+        end
     end
 
     return unit ? value : ustrip(value)
 end
 
 
+get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.startIndex:xe_info.startIndex + xe_info.length-1]
+
+function set_xe!(x, xe_info, value)::Nothing
+    if xe_info.length == 1 
+        x[xe_info.startIndex] = value
+    else
+        x[xe_info.startIndex:xe_info.startIndex + xe_info.length-1] = value
+    end
+    return nothing
+end
+
 
 """
-    init!(simulationModel, startTime, tolerance)
+    init!(simulationModel, startTime, tolerance, merge, log, logParameters, logStates)
 
 
 Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 
-- Empty result data structure
+- Empty result data structure.
+
+- Merge parameter and init/start values into simulationModel.
+
+- Construct x_start.
+
 - Call simulationModel.getDerivatives! once with isInitial = true to
   compute and store all variables in the result data structure at `startTime`
   and initialize simulationModel.linearEquations.
+
 - Check whether explicitly solved variables that have init-values defined,
   have the required value after initialization (-> otherwise error).
 """
-function init!(m::SimulationModel, startTime, tolerance)::Nothing
+function init!(m::SimulationModel, startTime, tolerance, merge, 
+               log::Bool, logParameters::Bool, logStates::Bool)::Nothing
     empty!(m.result)
 
-    # Call getDerivatives once to compute and store all variables and initialize linearEquations
+	# Apply updates from merge Map and log parameters
+    if isnothing(merge)
+        if logParameters
+            parameters = m.p[1]
+            @showModel parameters
+        end
+    else
+        m.p = [recursiveMerge(m.p[1], merge)]
+        if logParameters
+            updatedParameters = m.p[1]
+            @showModel updatedParameters
+        end
+    end
+	
+    # Re-initialize dictionary of separate objects
+    empty!(m.separateObjects)
+
+    # Update startIndex, length in x_info and determine x_start
+    FloatType = getFloatType(m)
+    x_start = []
+    startIndex = 1
+    for xe_info in m.equationInfo.x_info
+        xe_info.startIndex = startIndex
+        
+        # Determine init/start value in m.p[1]
+        xe_value = get_value(m.p[1], xe_info.x_name)
+        if ismissing(xe_value)
+            error("Missing start/init value ", xe_info.x_name)
+        end
+        if hasParticles(xe_value)
+            len = 1
+            push!(x_start, xe_value)
+        else
+            len = length(xe_value)
+            push!(x_start, xe_value...)
+        end 
+        if len != xe_info.length
+            error("Length of ", xe_info.x_name, " shall be changed from ",
+                  xe_info.length, " to $len\n",
+                  "This is currently not support in TinyModia.")
+        end        
+        startIndex += xe_info.length
+    end
+    nx = startIndex - 1
+    m.equationInfo.nx = nx
+    
+    # Temporarily remove units from x_start
+    # (TODO: should first transform to the var_unit units and then remove)    
+    converted_x_start = convert(Vector{FloatType}, [ustrip(v) for v in x_start])  # ustrip.(x_start) does not work for MonteCarloMeasurements
+    m.x_start = deepcopy(converted_x_start)
+
+    if logStates
+        # List init/start values
+        x_table = DataFrames.DataFrame(name=String[], init=Any[], unit=String[], nominal=Float64[])   
+        for xe_info in m.equationInfo.x_info
+            xe_init = get_xe(m.x_start, xe_info)
+            if hasParticles(xe_init)
+                xe_init = string(minimum(xe_init)) * " .. " * string(maximum(xe_init))
+            end
+            push!(x_table, (xe_info.x_name, xe_init, xe_info.unit, xe_info.nominal))
+        end
+        show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
+        println("\n")
+    end
+    
+    m.der_x = zeros(FloatType, nx)
+        
+    # Initialize model, linearEquations and compute and store all variables at the initial time
+    if log
+        println("      Initialization at time = ", startTime, " s")  
+    end        
     m.nGetDerivatives = 0
     m.isInitial   = true
     m.storeResult = true
@@ -242,7 +394,6 @@ function init!(m::SimulationModel, startTime, tolerance)::Nothing
     Base.invokelatest(m.getDerivatives!, m.der_x, m.x_start, m, startTime)
     m.isInitial   = false
     m.storeResult = false
-
     # Check vSolvedWithInitValuesAndUnit
     if length(m.vSolvedWithInitValuesAndUnit) > 0
         names = String[]
@@ -272,7 +423,6 @@ function init!(m::SimulationModel, startTime, tolerance)::Nothing
                   str)
         end
     end
-
     return nothing
 end
 
@@ -317,6 +467,8 @@ function addToResult!(m::SimulationModel, variableValues...)::Nothing
     push!(m.result, variableValues)
     return nothing
 end
+
+
 
 
 """
@@ -396,8 +548,8 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing
-
                     _m.nGetDerivatives += 1
+                    simulationModel = _m
                     $code_time
                     $(code_p...)
                     $(code_x...)

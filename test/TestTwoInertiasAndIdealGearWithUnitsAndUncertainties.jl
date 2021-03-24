@@ -38,7 +38,7 @@ TwoInertiasAndIdealGear = Model(
 
 twoInertiasAndIdealGear = @instantiateModel(TwoInertiasAndIdealGear, FloatType = Measurement{Float64})
 
-simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0)
+simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0, logParameters=true, logStates=true)
 
 plot(twoInertiasAndIdealGear, ["phi2", "w2", "der(w2)"])
 

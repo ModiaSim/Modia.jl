@@ -5,8 +5,10 @@ using Test
 @testset "Test TinyModia with simulation" begin
 
     include("TestVariables.jl") 
-    include("TestFirstOrder.jl")    
+    include("TestFirstOrder.jl") 
+    include("TestFirstOrder2.jl")        
     include("TestStateSelection.jl") 
+    include("TestFilterCircuit.jl")     
     
     include("TestUnits.jl")  
     include("TestUncertainties.jl")
