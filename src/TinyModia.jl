@@ -561,7 +561,8 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         if hasParticles(value)  # Units not yet support for particles
             return ""
         end
-        if length(value) == 1
+        # if length(value) == 1
+        if ! (typeof(value) <: Array)        
             un = unit(value)
         else
             un = unit.(value)   # un = [unit(v) for v in value]  # unit.(value) does not work for MonteCarloMeasurements
