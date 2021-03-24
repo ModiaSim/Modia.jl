@@ -720,7 +720,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-    model = SimulationModel{FloatType}(name, getDerivatives, equationInfo, convertedStartValues,
+    model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
