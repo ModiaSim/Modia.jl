@@ -30,6 +30,7 @@ using  Measurements
 import MonteCarloMeasurements
 
 include("NamedTupleModels.jl")
+include("PropagateAndInstantiate.jl")
 include("CodeGeneration.jl")
 include("SimulateAndPlot.jl")
 
