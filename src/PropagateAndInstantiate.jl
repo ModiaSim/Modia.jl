@@ -79,7 +79,7 @@ constructor `XXX`. Return the NamedTuple, where every NamedTuple with a `_constr
 is replaced by the instantiated object (and `class, _constructor` removed in the
 returned NamedTuple).
 """
-function instantiateDependentObjects(model, environment=[], path="")
+function instantiateDependentObjects(modelModule, model, environment=[], path="")
     #println("\ninstantiateTypes of $path:", model)
     current = OrderedDict()
     constructor = nothing
@@ -94,7 +94,7 @@ function instantiateDependentObjects(model, environment=[], path="")
         elseif k == :class
             nothing;            
         elseif typeof(v) <: NamedTuple    
-            current[k] = instantiateDependentObjects(v, vcat(environment, [current]), appendKey(path, k))     
+            current[k] = instantiateDependentObjects(modelModule, v, vcat(environment, [current]), appendKey(path, k))     
         elseif typeof(v) == Symbol
             current[k] = subst(v, vcat(environment, [current]))
         elseif Base.Meta.isexpr(v, :.) # v1.v2     
@@ -115,7 +115,7 @@ function instantiateDependentObjects(model, environment=[], path="")
         return (; current...)
     else
         #println("... constructor = $constructor, path = $path")
-        return eval( :($constructor(; path = $path, $current...))) 
+        return Core.eval(modelModule, :($constructor(; path = $path, $current...))) 
     end
 end
 

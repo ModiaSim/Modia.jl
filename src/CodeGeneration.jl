@@ -68,6 +68,7 @@ end
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
 mutable struct SimulationModel{FloatType}
+    modelModule
     modelName::String
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
@@ -87,7 +88,7 @@ mutable struct SimulationModel{FloatType}
     result::Vector{Tuple}
     algorithmType::DataType                  # Type of integration algorithm (used in default-heading of plot)
 
-    function SimulationModel{FloatType}(modelName, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameters, variableNames;
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
@@ -135,7 +136,7 @@ mutable struct SimulationModel{FloatType}
         nGetDerivatives = 0
 
 
-        new(modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
+        new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameterValues,
             separateObjects, storeResult, isInitial, nGetDerivatives, 
             zeros(FloatType,0), zeros(FloatType,0), Tuple[])
