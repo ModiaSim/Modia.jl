@@ -237,11 +237,26 @@ end
 #        Provide ModiaPlot result access functions for SimulationModel
 #---------------------------------------------------------------------
 
+"""
+    ModiaPlot.hasSignal(model::SimulationModel, name::String)
+    
+Return true if parameter or time-varying variable `name` (for example `a.b.c`)
+is defined in the TinyModia SimulationModel (generated with [`TinyModia.@instantiateModel`](@ref)
+that can be accessed and can be used for plotting.
+"""
 ModiaPlot.hasSignal(m::SimulationModel, name) =
     haskey(m.variables, name) || 
     name in m.zeroVariables ||
     !ismissing(get_value(m.p[1], name))
 
+
+"""
+    ModiaPlot.getNames(model::SimulationModel)
+    
+Return the variable names (parameters, time-varying variables) of a TinyModia SimulationModel
+(generated with [`TinyModia.@instantiateModel`](@ref) that can be accessed
+and can be used for plotting.
+"""
 function ModiaPlot.getNames(m::SimulationModel)
     names = get_names(m.p[1])
     append!(names, collect(m.zeroVariables))

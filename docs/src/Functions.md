@@ -16,5 +16,21 @@ instantiateModel
 
 ```@docs
 simulate!
-get_result
 ```
+
+## Inquiries
+
+```@docs
+get_result
+get_lastValue
+```
+
+```@meta
+CurrentModule = ModiaPlot
+```
+
+```@docs
+hasSignal
+getNames
+```
+

@@ -403,11 +403,21 @@ stored inside the `filter` object and can be plotted with `ModiaPlot.plot`.
     using ModiaPlot
 
     filter = @instantiateModel(Filter)
-    simulate!(filter, Tsit5(), stopTime=10.0)
+    simulate!(filter, Tsit5(), stopTime=10.0, merge=Map(T=0.5, x=0.8))
     plot(filter, ["y", "x"], figure=1)
 ```
 
 Integrator `DifferentialEquations.Tsit5` is an adaptive Runge-Kutta method of order 5/4.
+
+Parameters and init/start values can be changed with the `merge` keyword.
+The effect is the same, as if the filter would have been instantiated with:
+
+```julia
+    filter = @instantiateModel(Filter | Map(T=0.5, x=Var(init=0.8))
+```
+
+Note, with the `merge` keyword in simulate!, init/start values are directly
+given as a value (`x = 0.8`) and are not defined with `Var(..)`. 
 
 For more information, see the documentation of [`simulate!`](@ref) and the documentation of the
 [ModiaPlot](https://modiasim.github.io/ModiaPlot.jl/stable/) package.
@@ -415,7 +425,37 @@ For more information, see the documentation of [`simulate!`](@ref) and the docum
 
 # Appendix
 
-## 1 Named tuples and quoted expressions
+## 1 Var definition
+
+The following attributes of a variable can be set with constructor `Var(..)`. 
+In column 1 the default value is shown and in column 2 the short hand notation
+that can be used in a `|` (mergeModel) command:
+
+| Default                   | Shorthand with merge        |  Description                                       |
+|:--------------------------|:----------------------------|:---------------------------------------------------|
+| constant = false          | constant (= true)           | If true, value cannot be changed                   |
+| parameter = false         | parameter (= true)          | If true, value is fixed during simulation          |
+| input = false             | input (= true)              | If true, input signal                              |
+| output = false            | output (= true)             | If true, output signal                             |
+| potential = false         | potential (= true)          | If true, potential variable                        |
+| flow = false              | flow (= true)               | If true, flow variable                             |
+| init = nothing            |                             | Initial value of ODE state (defines unit and size) |
+| start = nothing           |                             | Start value of variable (defines unit and size)    |
+| min = -Inf, max=Inf       | interval(min, max)          | Allowed variable value range                       |
+| info = ""                 | info"..."                   | Description                                        |
+
+Example:
+
+```julia
+v1 = Var(output = true, min = 0.0, max = 1.0,
+         start = zeros(3)u"N*m", info = "An output variable")
+         
+# Short hand definition of the v1
+v2 = output | interval(0.0,1.0) | Var(start = zeros(3)u"N*m") | info"An output variable"
+```
+ 
+
+## 2 Named tuples and quoted expressions
 
 The fundamental mechanism for defining models in TinyModia are named tuples which is a list of key/value pairs enclosed in parentheses:
 
@@ -443,7 +483,7 @@ julia> merge(S, T)
 
 If a key already exists `q` in the first named tuple, it's value is overwritten otherwise it's added, `r`. Such a merge semantics allows for unification of parameter modifications and inheritance as will be demonstrated below.
 
-## 2 Mergemodel algorithm
+## 3 Mergemodel algorithm
 
 The `mergeModel` algorithm is defined as follows (without logging):
 
