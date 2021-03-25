@@ -428,21 +428,23 @@ For more information, see the documentation of [`simulate!`](@ref) and the docum
 ## 1 Var definition
 
 The following attributes of a variable can be set with constructor `Var(..)`. 
-In column 1 the default value is shown and in column 2 the short hand notation
+In column 1 the keys are shown. The default is that none of the keys are defined
+(meaning value = `nothing`). In column 2 the short hand notation is shown
 that can be used in a `|` (mergeModel) command:
 
-| Default                   | Shorthand with merge        |  Description                                       |
-|:--------------------------|:----------------------------|:---------------------------------------------------|
-| constant = false          | constant (= true)           | If true, value cannot be changed                   |
-| parameter = false         | parameter (= true)          | If true, value is fixed during simulation          |
-| input = false             | input (= true)              | If true, input signal                              |
-| output = false            | output (= true)             | If true, output signal                             |
-| potential = false         | potential (= true)          | If true, potential variable                        |
-| flow = false              | flow (= true)               | If true, flow variable                             |
-| init = nothing            |                             | Initial value of ODE state (defines unit and size) |
-| start = nothing           |                             | Start value of variable (defines unit and size)    |
-| min = -Inf, max=Inf       | interval(min, max)          | Allowed variable value range                       |
-| info = ""                 | info"..."                   | Description                                        |
+
+| Default   | Shorthand with merge        |  Description                                       |
+|:--------- |:----------------------------|:---------------------------------------------------|
+| constant  | constant (= true)           | If true, value cannot be changed                   |
+| parameter | parameter (= true)          | If true, value is fixed during simulation          |
+| input     | input (= true)              | If true, input signal                              |
+| output    | output (= true)             | If true, output signal                             |
+| potential | potential (= true)          | If true, potential variable                        |
+| flow      | flow (= true)               | If true, flow variable                             |
+| init      |                             | Initial value of ODE state (defines unit and size) |
+| start     |                             | Start value of variable (defines unit and size)    |
+| min, max  | interval(min, max)          | Allowed variable value range                       |
+| info      | info"..."                   | Description                                        |
 
 Example:
 
