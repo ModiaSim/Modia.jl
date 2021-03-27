@@ -357,6 +357,71 @@ By using `Redeclare`, a new model based on a Resistor is used for `C` and the us
 
 The above examples are available in file `FilterCircuit.jl`.
 
+
+## 2.5 Models with function calls
+
+The differential equation
+
+```math
+T \cdot \frac{dy}{dt} + y = u(t)
+```
+
+with `u(t)` a function call can be defined as
+
+```julia
+FirstOrder1 = Model(
+    T = 0.2,
+    u = 1.0,  # Default input signal is a parameter
+    y = Var(init=0.3),
+    equations = :[T * der(y) + y = u]
+)
+```
+
+The default parameter definition `u` can be changed to any type of function call,
+for example:
+
+```math
+u = sin(5t)
+```
+
+is defined as 
+
+```
+FirstOrder2 = FirstOrder1 | Map( u = :(sin(5*time/1u"s")) )
+```
+
+Also interpolation in a table can be used:
+
+```julia
+using Interpolations
+
+table = CubicSplineInterpolation(0:0.5:2.0, [0.0, 0.7, 2.0, 1.8, 1.2])
+FirstOrder3 = FirstOrder1 | Map(u = :(table(time/1.0u"s")))
+```
+
+Note, TinyModia has currently the restriction, that a function
+cannot return more as one variable and that a function cannot modify
+one of its arguments (since TinyModia has no information which variable
+is the unknown):
+
+```
+equations = :[
+    (y1, y1) = fc1(u1,u2)      # Error: Two return arguments
+    fc2!(u,y)                  # Error: Not known that fc2! computes y
+    println("This is a test")  # Fine
+```
+
+The first issue can be fixed by rewriting the function call:
+
+```
+equations = :[
+    v  = fc1(u1,u2)
+    y1 = v[1]
+    y2 = v[2]
+]
+```
+
+
 # 3 Simulation
 
 A particular model needs to be instantiated and simulated.

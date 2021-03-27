@@ -1,4 +1,4 @@
-using Documenter, TinyModia
+using Documenter, TinyModia, ModiaPlot
 
 makedocs(
   #modules  = [TinyModia],
