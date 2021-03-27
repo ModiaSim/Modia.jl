@@ -132,7 +132,9 @@ LowAndHighPassFilter = Model(
 ),
 ```
 
-In order to test such an input/output block, an input needs to be defined. This can be made by adding an equation for `u`. Assume we want `u` to be sinousoidial with an increasing frequency:
+## 2.3 Function calls
+
+In order to test an input/output block as defined in the previous section, an input needs to be defined. This can be made by adding an equation for `u`. Assume we want `u` to be sinousoidial with an increasing frequency:
 
 ```julia
 using Unitful
@@ -143,9 +145,40 @@ TestLowAndHighPassFilter = LowAndHighPassFilter | Model(
     )
 ```
 
-`time` is a reserved name for the independent variable. It has unit `s` for seconds. The Julia package [Unitful](https://painterqubits.github.io/Unitful.jl/stable/) provides a means for defining units and managing unit inference. Definition of units is done with a string macro `u"..."`. In this case, the input signal was given unit Volt. The state x must then also have consistent unit, i.e. Volt. If the model equations contain systems of simultaneous equations, then approximate guess values, optionally with units, must be given `start`: `i = Var(start=0.0u"A")`.
+`time` is a reserved name for the independent variable. It has unit `s` for seconds. The Julia package [Unitful](https://painterqubits.github.io/Unitful.jl/stable/) provides a means for defining units and managing unit inference. Definition of units is done with a string macro `u"..."`. In this case, the input signal was given unit Volt. The state x must then also have consistent unit, that is Volt. If the model equations contain systems of simultaneous equations, then approximate guess values, optionally with units, must be given `start`: `i = Var(start=0.0u"A")`.
 
-## 2.3 Hierarchical modeling
+The input signal can also be defined by interpolation in a table:
+
+```julia
+using Interpolations
+
+table = CubicSplineInterpolation(0:0.5:2.0, [0.0, 0.7, 2.0, 1.8, 1.2])
+TestLowAndHighPassFilter2 = TestLowAndHighPassFilter | Map(u = :(table(time*u"1/s"))*u"V"
+```
+
+A function cannot return more as one variable and a function cannot modify
+one of its arguments (since TinyModia has no information which variable
+is the unknown):
+
+```
+equations = :[
+    (y1, y1) = fc1(u1,u2)      # Error: Two return arguments
+    fc2!(u,y)                  # Error: Not known that fc2! computes y
+    println("This is a test")  # Fine
+```
+
+The first issue can be fixed by rewriting the function call:
+
+```
+equations = :[
+    v  = fc1(u1,u2)
+    y1 = v[1]
+    y2 = v[2]
+]
+```
+
+
+## 2.4 Hierarchical modeling
 
 Sofar, the composition of models have resulted in named tuples with values being numeric values or quoted expressions. Hierarchical models are obtained if the values themself are named tuples. A model with two filters can, for example, be defined as follows:
 
@@ -181,11 +214,11 @@ The input and output for the BandPassFilter when using the same input definition
 
 The above examples are available in file `SimpleFilters.jl`.
 
-## 2.4 Physically oriented modeling
+## 2.5 Physically oriented modeling
 
 Sofar, only signal flow modeling has been used, i.e. input/output blocks coupled with equations between outputs and inputs. For object oriented modeling more high level constructs are neccessary. Coupling is then acausal and involves potentials such as electric potential, positions, pressure, etc. and flows such as electric current, forces and torques and mass flow rate.
 
-### 2.4.1 Connectors
+### 2.5.1 Connectors
 
 Models which contain any flow variable, i.e. a variable having an attribute `flow=true`, are considered connectors. Connectors must have equal number of flow and potential variables, i.e. variables having an attribute `potential=true`, and have matching array sizes. Connectors may not have any equations. An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.
 
@@ -194,7 +227,7 @@ Pin = Model( v = potential, i = flow )
 ```
 `potential` is a shorthand for `Var(potential=true)` and similarly for `flow`.
 
-### 2.4.2 Components
+### 2.5.2 Components
 
 Components are declared in a similar ways as blocks. However, the interfaces between components are defined using connector instances.
 
@@ -213,7 +246,7 @@ Resistor = Model(
     )
 ```
 
-### 2.4.3 Inheritance
+### 2.5.3 Inheritance
 
 Various physical components sometimes share common properties. One mechanism to handle this is to use inheritance. In TinyModia, merging is used.
 
@@ -266,7 +299,7 @@ Resistor = Model(
 ),
 ```
 
-### 2.4.4 Connections
+### 2.5.4 Connections
 
 Connections are described as an array of tuples listing the connectors that are connected:
 ```julia
@@ -286,7 +319,7 @@ Examples
 
 For connectors, all the potentials of the connectors in the same connect tuple are set equal and the sum of all incoming flows to the model are set equal to the sum of the flows into sub-components.
 
-### 2.4.5 Connected models
+### 2.5.5 Connected models
 
 Having the above electrical component models, enables defining a filter
 
@@ -316,12 +349,12 @@ The connect tuples are translated to:
   R.n.v = C.p.v
   0 = R.n.i + C.p.i
   C.n.v = V.n.v
-  0 = C.n.i + V.n.i  
+  0 = C.n.i + V.n.i
 ```
 
-### 2.4.6 Parameter propagation
+### 2.5.6 Parameter propagation
 
-Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters intoduced on a high level down in the hierarchy. The following Filter model defines three parameters, `r`, `c` and `v`. The `r` parameter is used to set the resistance of the resistor R: `Map(R=:r)`. 
+Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters intoduced on a high level down in the hierarchy. The following Filter model defines three parameters, `r`, `c` and `v`. The `r` parameter is used to set the resistance of the resistor R: `Map(R=:r)`.
 
 ```julia
 Filter2 = Model(
@@ -345,7 +378,7 @@ Two separate filters can then be defined with:
 TwoFilters = Model( f1 = Filter | Map( r = 10.0, c = 2.0), f2 = Filter )
 ```
 
-### 2.4.7 Redeclarations
+### 2.5.7 Redeclarations
 
 It is possible to reuse a particular model topology by redeclaring the model of particular components. For example, changing the filter `f1` to a voltage divider by changing C from a Capacitor to a Resistor. A predefined model `Redeclare` is used for this purpose.
 
@@ -357,67 +390,84 @@ By using `Redeclare`, a new model based on a Resistor is used for `C` and the us
 
 The above examples are available in file `FilterCircuit.jl`.
 
+## 2.6 Arrays
 
-## 2.5 Models with function calls
-
-The differential equation
+Model parameters and variables can be arrays. For example a linear state space system with
+$\boldsymbol{x} \in \R^{n_x}, \boldsymbol{u} \in \R^{n_u}, \boldsymbol{y} \in \R^{n_y},
+ \boldsymbol{A} \in \R^{n_x \times n_x}, \boldsymbol{B} \in \R^{n_x \times n_u},
+ \boldsymbol{C} \in \R^{n_y \times n_x}, \boldsymbol{D} \in \R^{n_y \times n_u}$
 
 ```math
-T \cdot \frac{dy}{dt} + y = u(t)
+\begin{aligned}
+\frac{d\boldsymbol{x}}{dt} &= \boldsymbol{A} \cdot \boldsymbol{x} + \boldsymbol{B} \cdot \boldsymbol{u}\\
+            \boldsymbol{y} &= \boldsymbol{C} \cdot \boldsymbol{x} + \boldsymbol{D} \cdot \boldsymbol{u}
+\end{aligned}
 ```
 
-with `u(t)` a function call can be defined as
+can be defined as:
 
 ```julia
-FirstOrder1 = Model(
-    T = 0.2,
-    u = 1.0,  # Default input signal is a parameter
-    y = Var(init=0.3),
-    equations = :[T * der(y) + y = u]
+StateSpace = Model(
+    A = fill(0.0,0,0),
+    B = fill(0.0,0,0),
+    C = fill(0.0,0,0),
+    D = fill(0.0,0,0),
+    u = input,
+    y = output,
+    x = Var(init = zeros(0)),
+    equations = :[
+        der(x) = A*x + B*u
+             y = C*x + D*u
+    ]
 )
 ```
 
-The default parameter definition `u` can be changed to any type of function call,
-for example:
-
-```math
-u = sin(5t)
-```
-
-is defined as 
-
-```
-FirstOrder2 = FirstOrder1 | Map( u = :(sin(5*time/1u"s")) )
-```
-
-Also interpolation in a table can be used:
+and used as:
 
 ```julia
-using Interpolations
+col(args...) = hvcat(1, args...)  # Construct a column matrix from a vector
 
-table = CubicSplineInterpolation(0:0.5:2.0, [0.0, 0.7, 2.0, 1.8, 1.2])
-FirstOrder3 = FirstOrder1 | Map(u = :(table(time/1.0u"s")))
+SecondOrder = Model(
+    w = 20.0,
+    D =  0.1,
+    k =  2.0,
+    sys = StateSpace | Map(A = :([  0        1;
+                                 -w^2  -2*D*w]),
+                           B = :(col([0; w^2])),
+                           C = :([k 0]),
+                           D = :(zeros(1,1)),
+                           x = Var(init = zeros(2)) ),
+    equations = :[sys.u = [1.0]]
+)
+```
+Variables `sys.u` and `sys.y` are vectors with one element each.
+
+Note, `[0; w^2]` is a vector in Julia and not a column matrix
+(see the discussion [here](https://discourse.julialang.org/t/construct-a-2-d-column-array/30617)).
+In order that `B` is defined as column matrix, the function `col(..)` is used.
+
+Array equations remain array equations during symbolic transformation and in the generated code,
+so the code is both compact and efficient. In order that this is reasonably possible, the definition
+of an array cannot be split in different statements:
+
+```julia
+equations = :[             # error, vector x is not defined as one symbol
+    m1*der(x[1]) = 2.0
+    m2*der(x[2]) = 3.0
+]
 ```
 
-Note, TinyModia has currently the restriction, that a function
-cannot return more as one variable and that a function cannot modify
-one of its arguments (since TinyModia has no information which variable
-is the unknown):
+If scalar equations are needed in which arrays are used, then the arrays have
+to be first defined and then elements can be used.
 
-```
+```julia
+v = Var(init=zeros(2)),
 equations = :[
-    (y1, y1) = fc1(u1,u2)      # Error: Two return arguments
-    fc2!(u,y)                  # Error: Not known that fc2! computes y
-    println("This is a test")  # Fine
-```
-
-The first issue can be fixed by rewriting the function call:
-
-```
-equations = :[
-    v  = fc1(u1,u2)
-    y1 = v[1]
-    y2 = v[2]
+    a = der(v)
+    a1 = a[1]
+    a2 = a[2]
+    m1*a1 = 2.0
+    m2*a2 = 3.0
 ]
 ```
 
@@ -435,12 +485,12 @@ A particular model needs to be instantiated and simulated.
     plot(filter, "y", figure=1)
 ```
 
-The `@instantiateModel` macro takes additional arguments: 
+The `@instantiateModel` macro takes additional arguments:
 
 ```julia
     modelInstance = @instantiateModel(model; modelName="", modelModule=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
         log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
-    
+
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
 
 * `model`: model (declarations and equations)
@@ -454,7 +504,7 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 * `logCode`: Log the generated code
 * `logExecution`: Log the execution of the generated code (useful for finding unit bugs)
 * `logTiming`: Log timing of different phases
-* `return modelInstance prepared for simulation` 
+* `return modelInstance prepared for simulation`
 ```
 
 The simulation is performed with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) using the default integrator that this package automatically selects. The simulation result is
@@ -482,7 +532,7 @@ The effect is the same, as if the filter would have been instantiated with:
 ```
 
 Note, with the `merge` keyword in simulate!, init/start values are directly
-given as a value (`x = 0.8`) and are not defined with `Var(..)`. 
+given as a value (`x = 0.8`) and are not defined with `Var(..)`.
 
 For more information, see the documentation of [`simulate!`](@ref) and the documentation of the
 [ModiaPlot](https://modiasim.github.io/ModiaPlot.jl/stable/) package.
@@ -492,7 +542,7 @@ For more information, see the documentation of [`simulate!`](@ref) and the docum
 
 ## 1 Var definition
 
-The following attributes of a variable can be set with constructor `Var(..)`. 
+The following attributes of a variable can be set with constructor `Var(..)`.
 In column 1 the keys are shown. The default is that none of the keys are defined
 (meaning value = `nothing`). In column 2 the short hand notation is shown
 that can be used in a `|` (mergeModel) command:
@@ -516,11 +566,11 @@ Example:
 ```julia
 v1 = Var(output = true, min = 0.0, max = 1.0,
          start = zeros(3)u"N*m", info = "An output variable")
-         
+
 # Short hand definition of the v1
 v2 = output | interval(0.0,1.0) | Var(start = zeros(3)u"N*m") | info"An output variable"
 ```
- 
+
 
 ## 2 Named tuples and quoted expressions
 

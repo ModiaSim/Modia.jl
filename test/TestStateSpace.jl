@@ -22,14 +22,14 @@ SecondOrder1 = Model(
                                  -w^2  -2*D*w]),
                            B = :([0; w^2]),
                            C = :([k 0]),
-                           D = :(zeros(1,1)),
+                           D = :(zeros(1)),
                         x = Var(init = zeros(2)) ),
     equations = :[sys.u = 1.0]
 )
 
 
 secondOrder1 = @instantiateModel(SecondOrder1, unitless=true)
-simulate!(secondOrder1, merge=Map(D=0.3), 
+simulate!(secondOrder1, merge=Map(D=0.3),
           requiredFinalStates = [0.9974089572681231, 0.011808652820321723])
 plot(secondOrder1, [("sys.u", "sys.y"); "sys.x"], figure = 1)
 
