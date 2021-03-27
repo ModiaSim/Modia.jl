@@ -225,7 +225,7 @@ Models which contain any flow variable, i.e. a variable having an attribute `flo
 ```julia
 Pin = Model( v = potential, i = flow )
 ```
-`potential` is a shorthand for `Var(potential=true)` and similarly for `flow`.
+`potential` is a shortcut for `Var(potential=true)` and similarly for `flow`.
 
 ### 2.5.2 Components
 
@@ -540,48 +540,56 @@ For more information, see the documentation of [`simulate!`](@ref) and the docum
 
 # Appendix A
 
-## A.1 Var definition
+## A.1 Var keys
 
 The following attributes of a variable can be set with constructor `Var(..)`.
 In column 1 the keys are shown. The default is that none of the keys are defined
-(meaning value = `nothing`). In column 2 the short hand notation is shown
-that can be used in a `|` (mergeModels) command:
+(meaning `key = nothing`). Most of the keys are also predefined constants as shown
+in column 2 and 3. These constants can be used as shortcuts:
 
-
-| Default   | Shorthand with merge        |  Description                                       |
-|:--------- |:----------------------------|:---------------------------------------------------|
-| parameter | parameter (= true)          | If true, value is fixed during simulation          |
-| input     | input (= true)              | If true, input signal                              |
-| output    | output (= true)             | If true, output signal                             |
-| potential | potential (= true)          | If true, potential variable                        |
-| flow      | flow (= true)               | If true, flow variable                             |
-| init      |                             | Initial value of ODE state (defines unit and size) |
-| start     |                             | Start value of variable (defines unit and size)    |
+| Var key    | ShortCut  | Shortcut value        |  Description                                       |
+|:---------- |:----------|:----------------------|:---------------------------------------------------|
+| parameter  | parameter | Var(parameter = true) | If true, value is fixed during simulation          |
+| input      | input     | Var(input = true)     | If true, input signal                              |
+| output     | output    | Var(output = true)    | If true, output signal                             |
+| potential  | potential | Var(potential = true) | If true, potential variable                        |
+| flow       | flow      | Var(flow = true)      | If true, flow variable                             |
+| init       | --        | --                    | Initial value of ODE state (defines unit and size) |
+| start      | --        | --                    | Start value of variable (defines unit and size)    |
 
 Example:
 
 ```julia
-v1 = Var(output = true, start = zeros(3)u"N*m")
+v = output | Var(start = zeros(3)u"N*m")
 
-# Short hand definition of v1
-v2 = output | Var(start = zeros(3)u"N*m")
+# Same as: v = Var(output = true, start = zeros(3)u"N*m")
 ```
 
-The following variable attributes can also be defined, but have **no effect yet**
-(this is for example useful when defining a model in a model library):
-
-| Default   | Shorthand with merge        |  Description                                       |
-|:--------- |:----------------------------|:---------------------------------------------------|
-| constant  | constant (= true)           | If true, value cannot be changed                   |
-| min, max  | interval(min, max)          | Allowed variable value range                       |
-| info      | info"..."                   | Description                                        |
+An attribute can be removed by using a value of `nothing`. Example:
 
 ```julia
-v1 = Var(output = true, min = 0.0, max = 1.0,
-         start = zeros(3)u"N*m", info = "An output variable")
+System1 = Model(v = input | Var(init = 1.0), ...)
 
-# Short hand definition of v1
-v2 = output | interval(0.0,1.0) | Var(start = zeros(3)u"N*m") | info"An output variable"
+# System2 = Model(v = input, ...)
+System2 = System1 | Map(v = Var(init = nothing), ...)
+```
+
+The following attributes are also defined for constructor `Var`,
+but have **no effect yet**.
+Using `min, max, info` already now, might be useful for model libraries:
+
+| Var Key   | Shortcut          | Shortcut value        |  Description                     |
+|:--------- |:------------------|:----------------------|:---------------------------------|
+| constant  | constant          | Var(constant = true)  | If true, value cannot be changed |
+| min, max  | interval(a,b)     | Var(min = a, max = b) | Allowed variable value range     |
+| info      | info"..."         | Var(info="...")       | Description                      |
+
+Example:
+```julia
+v = output | interval(0.0,1.0) | Var(start = zeros(3)u"N*m") | info"An output variable"
+
+# Same as: v = Var(output = true, min = 0.0, max = 1.0,
+#                  start = zeros(3)u"N*m", info = "An output variable")
 ```
 
 
