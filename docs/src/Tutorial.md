@@ -1,18 +1,25 @@
-# Introduction to TinyModia
+# TinyModia Tutorial
 
-In this chapter an equation and object based language called **TinyModia** is defined that is used to evaluate and demonstrate the basic algorithms.
+## 1 Introduction
 
-## 2.1 Equation oriented TinyModia models
+This tutorial gives an overview of package [TinyModia](https://github.com/ModiaSim/TinyModia.jl)
+to construct component-based and equation-based models with the **TinyModia language**
+on a high level, symbolically transforming these models into ODEs
+(Ordinary Differential Equations in state space form), simulating them and plotting result variables.
 
-To define models, a constructor `Model` taking a comma separated list of name/value pairs is used:
+# 2 Modeling
 
-A simple differential equation
+## 2.1 Equation oriented models
+
+A simple differential equation with $x(t) \in \R$
 
 ```math
-T \cdot \frac{dx}{dt} + x = 2
+T \cdot \frac{dx}{dt} + x = 2; \;\;\; x(t_0) = 0.5
 ```
 
-can be defined as:
+can be defined with a constructor `Model` taking a comma separated
+list of name/value pairs:
+
 
 ```julia
     using TinyModia
@@ -23,7 +30,7 @@ can be defined as:
         equation = :[T * der(x) + x = 2],
     )
 ```
-The model consist of a definition of a parameter `T` with default value 0.2, constructor `Var` with an `init` key is used to define the initial condition of the state `x` to 0, and one equation. Equations can have a Julia expression on both sides of the equal sign and are given as a *quoted* array expression `:[ ]` assigned to a unique identifier such as `equation`. The equation will be symbolically solved for the derivative `der(x)` before simulation, so the following equation will be used for the integration:
+The model consist of a definition of a parameter `T` with default value 0.2, constructor `Var` with an `init` key is used to define the initial condition 0.5 of the state `x`, and one equation. Equations can have a Julia expression on both sides of the equal sign and are given as a *quoted* array expression `:[ ]` assigned to a unique identifier such as `equation`. The equation will be symbolically solved for the derivative `der(x)` before simulation, so the following equation will be used for the integration:
 
 ```math
 \frac{dx}{dt} = (2 - x) / T
@@ -51,7 +58,7 @@ can be defined as:
         equation = :[T * der(x) + x = u],
     )
 ```
-The symbols `input` and `output` refers to predefined variable constructors to define the input and output variables. If an equation has just a unique variable in the left hand side, `y`, the right hand side can be given as a quoted expression in a Var-constructor `Var(:x)` after the `output` constructor combined with the merge operator, `|`, see below.
+The symbols `input` and `output` refer to predefined variable constructors to define the input and output variables. If an equation has just a unique variable in the left hand side, `y`, the right hand side can be given as a quoted expression in a Var-constructor `Var(:x)` after the `output` constructor combined with the merge operator, `|`, see below.
 
 ## 2.2 Merging models
 
@@ -69,7 +76,7 @@ HighPassFilter = LowPassFilter | Model( y = :(-x + u) )
 
 The merging implies that the `output` property of `y` is kept, but the binding expression is changed from `:x` to `:(-x + u)`.
 
-In general, recursive merging is desired and TinyModia provides a `mergeModels` function for that (see appendix 2). This function is invoked as a binary operator `|` (also used for merge in Python). Note, that the order of the arguments/operands are important.
+In general, recursive merging is desired and TinyModia provides a `mergeModels` function for that (see appendix [A.3 MergeModels algorithm](@ref)). This function is invoked as a binary operator `|` (also used for merge in Python). Note, that the order of the arguments/operands are important.
 
 Generalizing the block to have two outputs for both low and high pass filtering would be done as follows:
 
@@ -132,7 +139,7 @@ LowAndHighPassFilter = Model(
 ),
 ```
 
-## 2.3 Function calls
+## 2.3 Functions and tables
 
 In order to test an input/output block as defined in the previous section, an input needs to be defined. This can be made by adding an equation for `u`. Assume we want `u` to be sinousoidial with an increasing frequency:
 
@@ -157,14 +164,14 @@ TestLowAndHighPassFilter2 = TestLowAndHighPassFilter | Map(u = :(table(time*u"1/
 ```
 
 A function cannot return more as one variable and a function cannot modify
-one of its arguments (since TinyModia has no information which variable
-is the unknown):
+one of its arguments:
 
 ```
 equations = :[
     (y1, y1) = fc1(u1,u2)      # Error: Two return arguments
     fc2!(u,y)                  # Error: Not known that fc2! computes y
     println("This is a test")  # Fine
+]
 ```
 
 The first issue can be fixed by rewriting the function call:
@@ -393,7 +400,7 @@ The above examples are available in file `FilterCircuit.jl`.
 ## 2.6 Arrays
 
 Model parameters and variables can be arrays. For example a linear state space system with
-$\boldsymbol{x} \in \R^{n_x}, \boldsymbol{u} \in \R^{n_u}, \boldsymbol{y} \in \R^{n_y},
+$\boldsymbol{x}(t) \in \R^{n_x}, \boldsymbol{u}(t) \in \R^{n_u}, \boldsymbol{y}(t) \in \R^{n_y},
  \boldsymbol{A} \in \R^{n_x \times n_x}, \boldsymbol{B} \in \R^{n_x \times n_u},
  \boldsymbol{C} \in \R^{n_y \times n_x}, \boldsymbol{D} \in \R^{n_y \times n_u}$
 
@@ -451,9 +458,9 @@ so the code is both compact and efficient. In order that this is reasonably poss
 of an array cannot be split in different statements:
 
 ```julia
-equations = :[             # error, vector x is not defined as one symbol
-    m1*der(x[1]) = 2.0
-    m2*der(x[2]) = 3.0
+equations = :[             # error, vector v is not defined as one symbol
+    m1*der(v[1]) = 2.0
+    m2*der(v[2]) = 3.0
 ]
 ```
 
@@ -474,7 +481,7 @@ equations = :[
 
 # 3 Simulation
 
-A particular model needs to be instantiated and simulated.
+A particular model is instantiated, simulated and results plotted with the commands:
 
 ```julia
     using ModiaBase
@@ -485,31 +492,40 @@ A particular model needs to be instantiated and simulated.
     plot(filter, "y", figure=1)
 ```
 
+## 3.1 Instantiating
+
 The `@instantiateModel` macro takes additional arguments:
 
 ```julia
-    modelInstance = @instantiateModel(model; modelName="", modelModule=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
-        log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
-
-Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
-
-* `model`: model (declarations and equations)
-* `FloatType`: Variable type for floating point numbers, for example: Float64, Measurements{Float64}, StaticParticles{Float64,100}, Particles{Float64,2000}
-* `aliasReduction`: Perform alias elimination and remove singularities
-* `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements)
-* `log`: Log the different phases of translation
-* `logModel`: Log the variables and equations of the model
-* `logDetails`: Log internal data during the different phases of translation
-* `logStateSelection`: Log details during state selection
-* `logCode`: Log the generated code
-* `logExecution`: Log the execution of the generated code (useful for finding unit bugs)
-* `logTiming`: Log timing of different phases
-* `return modelInstance prepared for simulation`
+modelInstance = @instantiateModel(model;
+                    FloatType = Float64, aliasReduction=true, unitless=false,
+                    log=false, logModel=false, logDetails=false, logStateSelection=false,
+                    logCode=false, logExecution=false, logTiming=false)
 ```
 
-The simulation is performed with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) using the default integrator that this package automatically selects. The simulation result is
-stored inside the `filter` object and can be plotted with `ModiaPlot.plot`.
+The macro performs structural and symbolic transformations, generates a function for
+calculation of derivatives suitable for use with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
+and returns `modelInstance::SimulationModel` that can be used in other functions,
+for example to simulate or plot results:
 
+* `model`: model (declarations and equations).
+* `FloatType`: Variable type for floating point numbers (see below).
+* `aliasReduction`: Perform alias elimination and remove singularities.
+* `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements).
+* `log`: Log the different phases of translation.
+* `logModel`: Log the variables and equations of the model.
+* `logDetails`: Log internal data during the different phases of translation.
+* `logStateSelection`: Log details during state selection.
+* `logCode`: Log the generated code.
+* `logExecution`: Log the execution of the generated code (useful for finding unit bugs).
+* `logTiming`: Log timing of different phases.
+* `return modelInstance prepared for simulation`
+
+## 3.2 Simulating
+
+The [`simulate!`](@ref) function performs one simulation with
+[DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) using the default integrator
+that this package automatically selects and stores the result in `modelInstance`.
  It is also possible to specify the integrator as second argument of `simulate!`:
 
 ```julia
@@ -522,7 +538,9 @@ stored inside the `filter` object and can be plotted with `ModiaPlot.plot`.
     plot(filter, ["y", "x"], figure=1)
 ```
 
-Integrator `DifferentialEquations.Tsit5` is an adaptive Runge-Kutta method of order 5/4.
+Integrator `DifferentialEquations.Tsit5` is an
+[adaptive Runge-Kutta method of order 5/4 from Tsitouras](https://www.sciencedirect.com/science/article/pii/S0898122111004706).
+There are > 100 ODE integrators provided. For details, see [here](https://docs.sciml.ai/stable/solvers/ode_solve/).
 
 Parameters and init/start values can be changed with the `merge` keyword.
 The effect is the same, as if the filter would have been instantiated with:
@@ -534,17 +552,28 @@ The effect is the same, as if the filter would have been instantiated with:
 Note, with the `merge` keyword in simulate!, init/start values are directly
 given as a value (`x = 0.8`) and are not defined with `Var(..)`.
 
-For more information, see the documentation of [`simulate!`](@ref) and the documentation of the
-[ModiaPlot](https://modiasim.github.io/ModiaPlot.jl/stable/) package.
+Function `simulate!` returns the value that is returned by function
+[DifferentialEquations.solve](https://diffeq.sciml.ai/stable/features/ensemble/#Solving-the-Problem).
+Functions of `DifferentialEquations` that operate on this return argument can therefore also be
+used on the return argument of `simulate!`.
+
+
+## 3.3 Plotting
+
+The [plot](https://modiasim.github.io/ModiaPlot.jl/stable/Functions.html#ModiaPlot.plot) function
+generates a line plot with [GLMakie](https://github.com/JuliaPlots/GLMakie.jl).
+
+A short overview of the most important plot commands is given in section
+section [Plotting](@ref)
 
 
 # Appendix A
 
-## A.1 Var keys
+## A.1 Var constructor
 
-The following attributes of a variable can be set with constructor `Var(..)`.
+The constructor `Var(..)` defines attributes of a variable with key/value pairs.
 In column 1 the keys are shown. The default is that none of the keys are defined
-(meaning `key = nothing`). Most of the keys are also predefined constants as shown
+(meaning `key = nothing`). Most of the keys are also provided as predefined constants as shown
 in column 2 and 3. These constants can be used as shortcuts:
 
 | Var key    | ShortCut  | Shortcut value        |  Description                                       |

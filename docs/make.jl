@@ -7,7 +7,7 @@ makedocs(
   format = Documenter.HTML(prettyurls = false),
   pages    = [
      "Home"      => "index.md",
-	 "Tutorial"  => "Tutorial.md",
+	 "TinyModia Tutorial"  => "Tutorial.md",
   	 "Functions" => "Functions.md",
      "Internal"  => "Internal.md"
   ]
