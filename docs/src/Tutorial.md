@@ -538,19 +538,18 @@ For more information, see the documentation of [`simulate!`](@ref) and the docum
 [ModiaPlot](https://modiasim.github.io/ModiaPlot.jl/stable/) package.
 
 
-# Appendix
+# Appendix A
 
-## 1 Var definition
+## A.1 Var definition
 
 The following attributes of a variable can be set with constructor `Var(..)`.
 In column 1 the keys are shown. The default is that none of the keys are defined
 (meaning value = `nothing`). In column 2 the short hand notation is shown
-that can be used in a `|` (mergeModel) command:
+that can be used in a `|` (mergeModels) command:
 
 
 | Default   | Shorthand with merge        |  Description                                       |
 |:--------- |:----------------------------|:---------------------------------------------------|
-| constant  | constant (= true)           | If true, value cannot be changed                   |
 | parameter | parameter (= true)          | If true, value is fixed during simulation          |
 | input     | input (= true)              | If true, input signal                              |
 | output    | output (= true)             | If true, output signal                             |
@@ -558,21 +557,35 @@ that can be used in a `|` (mergeModel) command:
 | flow      | flow (= true)               | If true, flow variable                             |
 | init      |                             | Initial value of ODE state (defines unit and size) |
 | start     |                             | Start value of variable (defines unit and size)    |
-| min, max  | interval(min, max)          | Allowed variable value range                       |
-| info      | info"..."                   | Description                                        |
 
 Example:
+
+```julia
+v1 = Var(output = true, start = zeros(3)u"N*m")
+
+# Short hand definition of v1
+v2 = output | Var(start = zeros(3)u"N*m")
+```
+
+The following variable attributes can also be defined, but have **no effect yet**
+(this is for example useful when defining a model in a model library):
+
+| Default   | Shorthand with merge        |  Description                                       |
+|:--------- |:----------------------------|:---------------------------------------------------|
+| constant  | constant (= true)           | If true, value cannot be changed                   |
+| min, max  | interval(min, max)          | Allowed variable value range                       |
+| info      | info"..."                   | Description                                        |
 
 ```julia
 v1 = Var(output = true, min = 0.0, max = 1.0,
          start = zeros(3)u"N*m", info = "An output variable")
 
-# Short hand definition of the v1
+# Short hand definition of v1
 v2 = output | interval(0.0,1.0) | Var(start = zeros(3)u"N*m") | info"An output variable"
 ```
 
 
-## 2 Named tuples and quoted expressions
+## A.2 Named tuples and quoted expressions
 
 The fundamental mechanism for defining models in TinyModia are named tuples which is a list of key/value pairs enclosed in parentheses:
 
@@ -600,9 +613,9 @@ julia> merge(S, T)
 
 If a key already exists `q` in the first named tuple, it's value is overwritten otherwise it's added, `r`. Such a merge semantics allows for unification of parameter modifications and inheritance as will be demonstrated below.
 
-## 3 Mergemodel algorithm
+## A.3 MergeModels algorithm
 
-The `mergeModel` algorithm is defined as follows (without logging):
+The `mergeModels` algorithm is defined as follows (without logging):
 
 ```julia
 function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
