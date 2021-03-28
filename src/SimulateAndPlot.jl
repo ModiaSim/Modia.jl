@@ -173,7 +173,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
 
         # Terminate simulation
         finalStates = solution[:,end]
-        terminate!(m, finalStates, solution.t[end])
+        #terminate!(m, finalStates, solution.t[end])
         
         if log
             cpuTimeInitialization = convert(Float64, (cpuStartIntegration - cpuStart) * 1e-9)
@@ -224,7 +224,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
 
     catch e
         if initialized
-            terminate!(m, m.x_start, m.time)
+            #terminate!(m, m.x_start, m.time)
         end
         
         if isa(e, ErrorException)
