@@ -90,6 +90,8 @@ mutable struct SimulationModel{FloatType}
     separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects    
     storeResult::Bool
     isInitial::Bool
+    isTerminal::Bool
+    time::FloatType
     nGetDerivatives::Int                    # Number of getDerivatives! calls
     x_start::Vector{FloatType}
     der_x::Vector{FloatType}
@@ -140,13 +142,14 @@ mutable struct SimulationModel{FloatType}
                 
         # Initialize execution flags
         isInitial       = true
+        isTerminal      = false
         storeResult     = false
         nGetDerivatives = 0
 
 
         new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameterValues,
-            separateObjects, storeResult, isInitial, nGetDerivatives, 
+            separateObjects, storeResult, isInitial, isTerminal, convert(FloatType, 0), nGetDerivatives, 
             zeros(FloatType,0), zeros(FloatType,0), Tuple[])
     end
 end
@@ -438,6 +441,19 @@ end
 
 
 """
+    terminate!(m::SimulationModel, x, time)
+
+Terminate model.
+"""
+function terminate!(m::SimulationModel, x, t)::Nothing
+    m.isTerminal = true
+    Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+    m.isTerminal = false
+    return nothing
+end
+   
+   
+"""
     outputs!(x, t, integrator)
 
 DifferentialEquations FunctionCallingCallback function for `SimulationModel`
@@ -466,7 +482,7 @@ function derivatives!(der_x, x, m, t)::Nothing
 end
 
 
-
+   
 """
     addToResult!(simulationModel, variableValues...)
 
@@ -558,6 +574,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing
+                    _m.time = _time
                     _m.nGetDerivatives += 1
                     simulationModel = _m
                     $code_time

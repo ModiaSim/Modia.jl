@@ -126,6 +126,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
                    logStates::Bool     = false,
                    requiredFinalStates = nothing, 
                    merge=nothing)
+    initialized = false
     try
         m.algorithmType = typeof(algorithm)
         tolerance = convert(Float64, tolerance)
@@ -145,7 +146,8 @@ function simulate!(m::SimulationModel, algorithm=missing;
         cpuLast::UInt64  = cpuStart
         cpuStartIntegration::UInt64 = cpuStart
         init!(m, startTime, tolerance, merge, log, logParameters, logStates)
-
+        initialized = true
+        
         # Define problem and callbacks based on algorithm and model type
         tspan    = (startTime, stopTime)
         tspan2   = startTime:interval:stopTime
@@ -170,6 +172,9 @@ function simulate!(m::SimulationModel, algorithm=missing;
         end
 
         # Terminate simulation
+        finalStates = solution[:,end]
+        terminate!(m, finalStates, solution.t[end])
+        
         if log
             cpuTimeInitialization = convert(Float64, (cpuStartIntegration - cpuStart) * 1e-9)
             cpuTimeIntegration    = convert(Float64, (time_ns() - cpuStartIntegration) * 1e-9)
@@ -193,8 +198,6 @@ function simulate!(m::SimulationModel, algorithm=missing;
             println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
             println("        nErrTestFails   = ", solution.destats.nreject)
         end
-
-        finalStates = solution[:,end]
 
         if !isnothing(requiredFinalStates)
             if length(finalStates) != length(requiredFinalStates)
@@ -220,6 +223,10 @@ function simulate!(m::SimulationModel, algorithm=missing;
         return solution
 
     catch e
+        if initialized
+            terminate!(m, m.x_start, m.time)
+        end
+        
         if isa(e, ErrorException)
             printstyled("\nError from simulate!:\n", color=:red)
             printstyled(e.msg, "\n\n", color=:red)
