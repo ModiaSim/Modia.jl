@@ -397,6 +397,21 @@ By using `Redeclare`, a new model based on a Resistor is used for `C` and the us
 
 The above examples are available in file `FilterCircuit.jl`.
 
+
+### 2.5.8 Drive train example
+
+A larger example that utilizes most of the previously described features of
+TinyModia is available as "$(TinyModia.path)/examples/ServoSystem.jl".
+This is a textual (TinyModia) representation of a Modelica model
+
+![ServoSystem](../resources/images/ServoSystem.png)
+
+and demonstraties how to build up a hierarchical, multi-domain model consisting
+of a servo-system with a load, where the servo-system consists of
+an electric motor with a current and speed controller, as well with a more
+detailed model of a gearbox.
+
+
 ## 2.6 Arrays
 
 Model parameters and variables can be arrays. For example a linear state space system with

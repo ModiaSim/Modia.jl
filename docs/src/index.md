@@ -36,7 +36,7 @@ julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloM
 - `end` in array ranges is supported, for example `v[2:end]`.
 
 - New (small) model library `TinyModia/models/HeatTransfer.jl`.
--
+
 - [TinyModia Tutorial](@ref) improved.
 
 - [Functions](@ref) docu improved.
