@@ -478,6 +478,44 @@ equations = :[
 ]
 ```
 
+## 2.7 Model libraries
+
+TinyModia provides a small set of pre-defined model components in directory
+`$(TinyModia.path)/models`:
+
+- `AllModels.jl` - Include all model libraries
+- `Blocks.jl` - Input/output control blocks
+- `ELectric.jl` - Electric component models
+- `HeatTransfer.jl` - 1D heat transfer component models
+- `Rotational.jl` - 1D rotational, mechanical component models
+
+The circuit of section [2.5.5 Connected models](@ref) can be for example
+constructed with these libraries in the following way:
+
+```julia
+using TinyModia
+
+include("$(TinyModia.path)/models/AllModels.jl")
+
+FilterCircuit = Model(
+    R = Resistor | Map(R=0.5u"Ω"),
+    C = Capacitor | Map(C=2.0u"F", v=Var(init=0.1u"V")),
+    V = ConstantVoltage | Map(V=10.0u"V"),
+    ground = Ground,
+    connect = :[
+      (V.p, R.p)
+      (R.n, C.p)
+      (C.n, V.n, ground.p)
+    ]
+)
+
+filterCircuit = @instantiateModel(FilterCircuit)
+```
+
+It is planned to support a much larger set of predefined model components in the future
+by transforming the [Modelica Standard library](https://github.com/modelica/ModelicaStandardLibrary)
+with its > 1200 model components to TinyModia.
+
 
 # 3 Simulation
 
@@ -566,6 +604,170 @@ generates a line plot with [GLMakie](https://github.com/JuliaPlots/GLMakie.jl).
 A short overview of the most important plot commands is given in section
 section [Plotting](@ref)
 
+
+## 3.4 State selection (DAEs)
+
+TinyModia has a sophisticated symbolic engine to transform high index DAEs
+(Differential Algebraic Equations) automatically to ODEs (Ordinary Differential Equations in
+state space form). During the transformation, equations might be analytically
+differentiated and code might be generated to solve linear equation systems
+numerically during simulation. The current engine **cannot** transform a DAE to ODE form, if the
+**DAE contains nonlinear algebraic equations**. There is an (internal) prototype available to transform
+nearly any DAE system to a special index 1 DAE system that can be solved with standard DAE integrators.
+After a clean-up phase, this engine will be made publicly available at some time in the future.
+Some of the algorithms used in TinyModia are
+described in [Otter and Elmqvist (2017)](https://modelica.org/events/modelica2017/proceedings/html/submissions/ecp17132565_OtterElmqvist.pdf). Some algorithms are not yet published.
+
+Usually, the symbolic engine is only visible to the modeler, when the model has errors,
+or when the number of ODE states is less than the number of DAE states. The latter case
+is discussed in this section.
+
+The following object diagram shows two rotational inertias that are connected
+by an ideal gear. One inertia is actuated with a sinusoidal torque:
+
+![TwoInertiasAndIdealGear](../resources/images/TwoInertiasAndIdealGear.png)
+
+In order to most easily understand the issues, this model
+is provided in a compact, "flattened" form:
+
+```julia
+TwoInertiasAndIdealGearTooManyInits = Model(
+    J1    = 50,
+    J2    = 100,
+    ratio = 2,
+    f     = 3, # Hz
+
+    phi1 = Var(init = 0.0), # Absolute angle of inertia1
+    w1   = Var(init = 0.0), # Absolute angular velocity of inertia1
+    phi2 = Var(init = 0.0), # Absolute angle of inertia2
+    w2   = Var(init = 0.0), # Absolute angular velocity of inertia2
+
+    equations = :[
+        tau = 2.0*sin(2*3.14*f*time/u"s")
+
+        # inertia1
+        w1 = der(phi1)
+        J1*der(w1) = tau - tau1
+
+        # ideal gear
+        phi1 = ratio*phi2
+        ratio*tau1 = tau2
+
+        # inertia2
+        w2 = der(phi2)
+        J2*der(w2) = tau2
+    ]
+)
+
+drive1 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits)
+simulate!(drive1, Tsit5(), stopTime = 1.0, logStates=true)
+plot(drive1, [("phi1", "phi2"), ("w1", "w2")])
+```
+
+The option `logStates=true` results in the following output:
+
+```
+... Simulate model TwoInertiasAndIdealGearTooManyInits
+
+│ # │ state  │ init │ unit │ nominal │
+├───┼────────┼──────┼──────┼─────────┤
+│ 1 │ phi2   │ 0.0  │      │ NaN     │
+│ 2 │ w2     │ 0.0  │      │ NaN     │
+```
+
+This model translates and simulates without problems.
+
+Changing the init-value of `w2` to `1.0` and resimulating:
+
+```julia
+simulate!(drive1, Tsit5(), stopTime = 1.0, logStates=true, merge = Map(w2=1.0))
+```
+
+results in the following error:
+
+```
+... Simulate model TwoInertiasAndIdealGearTooManyInits
+
+│ # │ state │ init │ unit │ nominal │
+├───┼───────┼──────┼──────┼─────────┤
+│ 1 │ phi2  │ 0.0  │      │ NaN     │
+│ 2 │ w2    │ 1.0  │      │ NaN     │
+
+
+Error from simulate!:
+The following variables are explicitly solved for, have init-values defined
+and after initialization the init-values are not respected
+(remove the init-values in the model or change them to start-values):
+
+│ # │ name │ beforeInit │ afterInit │
+├───┼──────┼────────────┼───────────┤
+│ 1 │ w1   │ 0.0        │ 2.0       │
+```
+
+The issue is the following:
+
+Every variable that is used in the `der` operator is a **potential ODE state**.
+When an `init` value is defined for such a variable, then TinyModia either utilizes
+this initial condition (so the variable has this value after initialization), or an
+error is triggered, as in the example above.
+
+The model contains the equation:
+
+```julia
+phi1 = ratio*phi2
+```
+
+So the potential ODE states `phi1` and `phi2` are constrained, and only one of them
+can be selected as ODE state, and the other variable is computed from this equation.
+Since parameter `ratio` can be changed before simulation is started, it can be changed
+also to a value of `ratio = 0`. Therefore, only when `phi2` is selected as ODE state,
+`phi1` can be uniquely computed from this equation. If `phi1` would be selected as ODE state,
+then a division by zero would occur, if `ratio = 0`, since `phi2 = phi1/ratio`. For this
+reason, TinyModia selects `phi2` as ODE state. This means the **`init` value of `phi1`
+has no effect**. This is uncritical, as long as initialization computes this init value
+from the constraint equation above, as done in the example above.
+
+When differentiating the equation above:
+
+```julia
+der(phi1) = ratio*der(phi2)  # differentiated constraint equation
+       w1 = der(phi1)
+       w2 = der(phi2)
+```
+
+it becomes obvious, that there is also a hidden constraint equation for `w1, w2`:
+
+```julia
+w1 = ratio*w2  # hidden constraint equation
+```
+
+Again, TinyModia selects `w2` as ODE state, and ignores the `init` value of `w1`.
+In the second simulation, the `init` value of `w1` (= 0.0) is no longer consistent to the
+init value of `w2` (= 1.0). Therefore, an error occurs.
+
+The remedy is to remove the `init` values of `phi1, w1` from the model:
+
+```julia
+drive2 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits |
+                                Map(phi1 = Var(init=nothing),
+                                    w1   = Var(init=nothing)) )
+simulate!(drive2, Tsit5(), stopTime = 1.0, logStates=true, merge = Map(phi2=0.5))
+```
+
+and simulation is successful!
+
+TinyModia tries to respect `init` values during symbolic transformation.
+In cases as above, this is not possible and the reported issue occurs.
+In some cases, it might not be obvious, why TinyModia selects a particular
+variable as an ODE state. You can get more information by setting
+`logStateSelection=true`:
+
+```julia
+drive1 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits, logStateSelection=true)
+```
+
+
+
 # 4 Floating point types
 
 The types of the floating point numbers in a TinyModia model can be
@@ -575,47 +777,50 @@ parameterized with argument `FloatType` of macro [`@instantiateModel`](@ref):
     filter = @instantiateModel(Filter; FloatType = Float64)
 ```
 
-By default, a floating point number has type `Float64`,
-so computation is performed with a precision of about 16 digits.
+By default, a floating point number has type `Float64`.
+
+!!! warning
+    Using another floating point type requires that
+    a DifferentialEquations.jl integrator is used that is implemented
+    in **native Julia**. An integrator that interfaces an integrator
+    implemented in C (such as `CVODE_BDF()` the popular Sundials BDF method),
+    cannot be used.
 
 
 ## 4.1 Lower and higher precision
-
-In the following example, simulation is performed with a `Float32` floating point type
-used for model and integrator and utilizing a Runge-Kutta integrator of
-order 4 with fixed step size (to test a simulation before it is
-provided for a real-time application on a 32-bit system):
-
-```julia
-    filter = @instantiateModel(Filter, FloatType = Float32)
-    simulate!(filter, RK4(), adaptive=false, stopTime=10.0)
-```
 
 In principal, any floating point type of Julia (so any type that
 is derived from `AbstractFloat`) can be used in the model and
 the integrators. Examples
 
-| Type     | Precision | Package      | Usage |
-|:---------|:----------|:-------------|:--------- |
+| Type     | Precision | Package      | Usage              |
+|:---------|:----------|:-------------|:------------------ |
 | Float32  | 7 digits  | built-in     | Embedded system    |
 | Float64  | 16 digits | built-in     | Offline simulation |
 | Double64 | 30 digits | [DoubleFloats](https://github.com/JuliaMath/DoubleFloats.jl) | High precision needed |
+| BigFloat | arbitrary | [built-in](https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/) | Very high precision needed (very slow) |
 
-Note, `Double64` is a type that is constructed from two Float64 types.
-The execution is much faster as the comparable Julia built-in type
-[BigFloat](https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/#Arbitrary-Precision-Arithmetic-1) when set to 128 bit precision. The `Float32` type might be used to test the execution and numerics of a model that shall later run on an
-embedded system target (currently, there is no automatic way to translate a model to `C`, but this
-will be provided in a future Modia version). The `Double64` type might be used, when simulation
-with `Float64` fails due to numerical reasons (for example the model is very
-sensitive, or equation systems are close to singularity) or when
-very stringent relative tolerances are needed (for example relative tolerance = 1e-15),
-for example in space applications.
+- The `Float32` type might be used to test the execution and numerics of a model
+  that shall later run on an embedded system target
+  (there is no automatic way, yet, to translate a TinyModia model to `C`).
 
-!!! warning
-    Using any floating point type for model and integrator requires that
-    a DifferentialEquations.jl integrator is used that is implemented
-    in **native Julia**. An integrator that interfaces an integrator
-    implemented in C (such as `CVODE_BDF()` the popular Sundials BDF method), cannot be used.
+- `Double64` is a type that is constructed from two Float64 types.
+  The execution is much faster as the comparable Julia built-in type
+  [BigFloat](https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/#Arbitrary-Precision-Arithmetic-1) when set to 128 bit precision.
+  The `Double64` type might be used, when simulation
+  with `Float64` fails due to numerical reasons (for example the model is very
+  sensitive, or equation systems are close to singularity) or when
+  very stringent relative tolerances are needed, for example relative tolerance = 1e-15
+  as needed for some space applications.
+
+In the following example, simulation is performed with a `Float32` floating point type
+used for model and integrator and utilizing a Runge-Kutta integrator of
+order 4 with a fixed step size of 0.01 s:
+
+```julia
+    filter = @instantiateModel(Filter, FloatType = Float32)
+    simulate!(filter, RK4(), adaptive=false, stopTime=10.0, interval=0.01)
+```
 
 
 ## 4.2 Uncertainties
@@ -693,7 +898,7 @@ The area around the nominal value of a variable characterizes the standard devia
 
 The Julia package [MonteCarloMeasurements.jl](https://github.com/baggepinnen/MonteCarloMeasurements.jl)
 provides calculations with particles.
-A value can be defined with a distribution of say 2000 values randomly chosen according to a desired distributionand then all calculations are performed with 2000 values at the same time(corresponds to 2000 simulations that are carried out).
+A value can be defined with a distribution of say 2000 values randomly chosen according to a desired distribution and then all calculations are performed with 2000 values at the same time (corresponds to 2000 simulations that are carried out).
 
 In the example below, a modest form of 100 particles (100 simulations) with Uniform distributions of some
 parameters and init values are defined that correspond roughly to the definition with uncertainties of the
@@ -735,7 +940,8 @@ The simulation result is shown in the next figure:
 Since plot option `MonteCarloAsArea=false` is used, all 100 simulations are
 shown in the plot, together with the mean value of all simulations.
 The default plot behavior is to show the mean value and the area in which
-all simulations are contained.
+all simulations are contained (this is useful, if there are much more simulations,
+because GLMakie crashes when there are too many curves in a diagram).
 
 There are currently a few restrictions, in particular units are not yet supported in the combination
 of TinyModia and MonteCarloMeasurements, so units are not defined in the model above.

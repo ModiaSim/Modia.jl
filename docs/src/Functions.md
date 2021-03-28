@@ -5,7 +5,7 @@ CurrentModule = TinyModia
 ```
 
 
-## Instanciation
+## Instantiation
 
 ```@docs
 @instantiateModel

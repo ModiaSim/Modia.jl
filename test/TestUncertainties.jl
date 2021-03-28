@@ -30,7 +30,7 @@ model = @instantiateModel(TestModel, FloatType = Measurement{Float64})
 simulate!(model, stopTime = 1.0, log=false,
           requiredFinalStates = Measurements.Measurement{Float64}[54.99999999999998 ± 7.08872343937891, 2.999999999999999 ± 0.3])
 
-plot(model, ["T", "x", "der(x)", "y", "a", "der(v)"])
+plot(model, ["T", "x", "der(x)", "y", "a", "der(v)"], figure=1)
 
 
 
@@ -51,8 +51,8 @@ FilterCircuit = Model(
 
 filterCircuit = @instantiateModel(FilterCircuit, FloatType=Measurements.Measurement{Float64})
 simulate!(filterCircuit, Tsit5(), stopTime = 3.0, logParameters = true, logStates = true) 
-plot(filterCircuit, ("V.v", "C.v"))          
-
+plot(filterCircuit, ("V.v", "C.v"), figure=2)          
+   
         
 Pendulum = Model(
    L = (0.8±0.1)u"m",
@@ -69,7 +69,7 @@ Pendulum = Model(
 
 pendulum = @instantiateModel(Pendulum, FloatType=Measurements.Measurement{Float64})
 simulate!(pendulum, Tsit5(), stopTime = 10.0)
-plot(pendulum, "phi")
+plot(pendulum, "phi", figure=4)
         
           
 end

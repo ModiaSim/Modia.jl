@@ -4,7 +4,7 @@ using TinyModia
 
 using DifferentialEquations
 using ModiaPlot
-using  Test
+using Test
 
 setLogMerge(false)
 
@@ -43,6 +43,14 @@ simulate!(filterCircuit, Tsit5(), stopTime = 10, merge = Map(R = Map(R = 5u"Ω")
 end
 
 # Test plotting of variables, zero variables, parameters 
-plot(filterCircuit, [("R.v", "C.v"), ("R.R", "ground.p.i")])
+plot(filterCircuit, [("R.v", "C.v"), ("R.R", "ground.p.i")], figure=1)
+
+
+# Simulate with lower precision
+filterCircuitLow = @instantiateModel(FilterCircuit, FloatType = Float32)
+simulate!(filterCircuitLow, RK4(), adaptive=false, stopTime=10.0, interval=0.01, 
+          merge = Map(R = Map(R = 5u"Ω"), C = Map(v = 3.0u"V")),
+          requiredFinalStates = Float32[7.4248414])
+plot(filterCircuitLow, [("R.v", "C.v"), ("R.R", "ground.p.i")], figure=2)
 
 end

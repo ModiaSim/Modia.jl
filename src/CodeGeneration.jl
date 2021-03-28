@@ -378,7 +378,7 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
 
     if logStates
         # List init/start values
-        x_table = DataFrames.DataFrame(name=String[], init=Any[], unit=String[], nominal=Float64[])   
+        x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[], nominal=Float64[])   
         for xe_info in m.equationInfo.x_info
             xe_init = get_xe(m.x_start, xe_info)
             if hasParticles(xe_init)
@@ -409,8 +409,9 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
         valuesBeforeInit = Any[]
         valuesAfterInit  = Any[]
 
-        for (name, valueBeforeInit) in m.vSolvedWithInitValuesAndUnit
-            valueAfterInit = get_lastValue(m, name)
+        for (name, valueBefore) in m.vSolvedWithInitValuesAndUnit
+            valueAfterInit  = get_lastValue(m, name, unit=false)
+            valueBeforeInit = ustrip.(valueBefore)
             if !isnothing(valueAfterInit) && abs(valueBeforeInit - valueAfterInit) >= max(abs(valueBeforeInit),abs(valueAfterInit),0.01*tolerance)*tolerance
                 push!(names, name)
                 push!(valuesBeforeInit, valueBeforeInit)
