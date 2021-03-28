@@ -401,12 +401,12 @@ The above examples are available in file `FilterCircuit.jl`.
 ### 2.5.8 Drive train example
 
 A larger example that utilizes most of the previously described features of
-TinyModia is available as "$(TinyModia.path)/examples/ServoSystem.jl".
+TinyModia is available as `$(TinyModia.path)/examples/ServoSystem.jl`.
 This is a textual (TinyModia) representation of a Modelica model
 
 ![ServoSystem](../resources/images/ServoSystem.png)
 
-and demonstraties how to build up a hierarchical, multi-domain model consisting
+and demonstrates how to build up a hierarchical, multi-domain model consisting
 of a servo-system with a load, where the servo-system consists of
 an electric motor with a current and speed controller, as well with a more
 detailed model of a gearbox.
@@ -527,9 +527,7 @@ FilterCircuit = Model(
 filterCircuit = @instantiateModel(FilterCircuit)
 ```
 
-It is planned to support a much larger set of predefined model components in the future
-by transforming the [Modelica Standard library](https://github.com/modelica/ModelicaStandardLibrary)
-with its > 1200 model components to TinyModia.
+It is planned to support a much larger set of predefined model components in the future.
 
 
 # 3 Simulation
@@ -766,7 +764,7 @@ The remedy is to remove the `init` values of `phi1, w1` from the model:
 drive2 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits |
                                 Map(phi1 = Var(init=nothing),
                                     w1   = Var(init=nothing)) )
-simulate!(drive2, Tsit5(), stopTime = 1.0, logStates=true, merge = Map(phi2=0.5))
+simulate!(drive2, Tsit5(), stopTime = 1.0, logStates=true, merge = Map(w2=1.0))
 ```
 
 and simulation is successful!
@@ -813,7 +811,7 @@ the integrators. Examples
 | Float32  | 7 digits  | built-in     | Embedded system    |
 | Float64  | 16 digits | built-in     | Offline simulation |
 | Double64 | 30 digits | [DoubleFloats](https://github.com/JuliaMath/DoubleFloats.jl) | High precision needed |
-| BigFloat | arbitrary | [built-in](https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/) | Very high precision needed (very slow) |
+| BigFloat | arbitrary | [built-in](https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/#Arbitrary-Precision-Arithmetic) | Very high precision needed (very slow) |
 
 - The `Float32` type might be used to test the execution and numerics of a model
   that shall later run on an embedded system target
