@@ -9,7 +9,6 @@ using  Test
 import DifferentialEquations
 
 
-
 #---------------------------------------------------------------------
 #                          Simulation
 #---------------------------------------------------------------------
@@ -113,7 +112,7 @@ simulate!(firstOrder, CVODE_BDF(), stopTime = 1.0)
 """
 function simulate!(m::Nothing, args...; kwargs...)
     @info "The call of simulate!(..) is ignored, since the first argument is nothing."
-    return
+    return nothing
 end
 function simulate!(m::SimulationModel, algorithm=missing;
                    tolerance = 1e-6,
@@ -127,7 +126,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
                    requiredFinalStates = nothing, 
                    merge=nothing)
     initialized = false
-    try
+    #try
         m.algorithmType = typeof(algorithm)
         tolerance = convert(Float64, tolerance)
         startTime = convertTimeVariable(startTime)
@@ -145,7 +144,10 @@ function simulate!(m::SimulationModel, algorithm=missing;
         cpuStart::UInt64 = time_ns()
         cpuLast::UInt64  = cpuStart
         cpuStartIntegration::UInt64 = cpuStart
-        init!(m, startTime, tolerance, merge, log, logParameters, logStates)
+        success = init!(m, startTime, tolerance, merge, log, logParameters, logStates)
+        if !success
+            return nothing
+        end
         initialized = true
         
         # Define problem and callbacks based on algorithm and model type
@@ -173,7 +175,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
 
         # Terminate simulation
         finalStates = solution[:,end]
-        #terminate!(m, finalStates, solution.t[end])
+        terminate!(m, finalStates, solution.t[end])
         
         if log
             cpuTimeInitialization = convert(Float64, (cpuStartIntegration - cpuStart) * 1e-9)
@@ -221,10 +223,10 @@ function simulate!(m::SimulationModel, algorithm=missing;
         end
 
         return solution
-
+#=
     catch e
         if initialized
-            #terminate!(m, m.x_start, m.time)
+            terminate!(m, m.x_start, m.time)
         end
         
         if isa(e, ErrorException)
@@ -236,7 +238,9 @@ function simulate!(m::SimulationModel, algorithm=missing;
             Base.rethrow()
         end
     end
+
     return nothing
+=#
 end
 
 

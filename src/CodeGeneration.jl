@@ -306,7 +306,7 @@ end
 
 
 """
-    init!(simulationModel, startTime, tolerance, merge, log, logParameters, logStates)
+    success = init!(simulationModel, startTime, tolerance, merge, log, logParameters, logStates)
 
 
 Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
@@ -323,9 +323,11 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 
 - Check whether explicitly solved variables that have init-values defined,
   have the required value after initialization (-> otherwise error).
+  
+If initialization is successful return true, otherwise false.
 """
 function init!(m::SimulationModel, startTime, tolerance, merge, 
-               log::Bool, logParameters::Bool, logStates::Bool)::Nothing
+               log::Bool, logParameters::Bool, logStates::Bool)::Bool
     empty!(m.result)
 
 	# Apply updates from merge Map and log parameters
@@ -365,9 +367,11 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
             push!(x_start, xe_value...)
         end 
         if len != xe_info.length
-            error("Length of ", xe_info.x_name, " shall be changed from ",
-                  xe_info.length, " to $len\n",
-                  "This is currently not support in TinyModia.")
+            printstyled("Model error: ", bold=true, color=:red)  
+            printstyled("Length of ", xe_info.x_name, " shall be changed from ",
+                        xe_info.length, " to $len\n",
+                        "This is currently not support in TinyModia.", bold=true, color=:red)
+            return false
         end        
         startIndex += xe_info.length
     end
@@ -430,13 +434,15 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
             show(ioTemp, v_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
             str = String(take!(ioTemp))
             close(ioTemp)
-            error("The following variables are explicitly solved for, have init-values defined\n",
-                  "and after initialization the init-values are not respected\n",
-                  "(remove the init-values in the model or change them to start-values):\n",
-                  str)
+            printstyled("Model error: ", bold=true, color=:red)  
+            printstyled("The following variables are explicitly solved for, have init-values defined\n",
+                        "and after initialization the init-values are not respected\n",
+                        "(remove the init-values in the model or change them to start-values):\n",
+                        str, bold=true, color=:red)
+            return false
         end
     end
-    return nothing
+    return true
 end
 
 
