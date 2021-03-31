@@ -21,9 +21,11 @@ julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloM
 
 ## Release Notes
 
-### Version 0.8.0
+### Version 0.7.1
 
-- Variable constructor `Var(...)` introduced. For details see section [A.1 Var constructor](@ref).
+- Variable constructor `Var(...)` introduced. For example:
+  `v = input | Var(init = 1.2u"m")`. 
+  For details see section [A.1 Var constructor](@ref).
 
 - Functions are called in the scope where macro [`@instantiateModel`](@ref) is called.
 
