@@ -23,6 +23,7 @@ using Test
     include("TestSingularLRRL.jl")  
 
     include("TestStateSpace.jl")  
+    include("TestParameter.jl") 
     include("TestHeatTransfer.jl")  
     
     include("../examples/runexamples.jl")    

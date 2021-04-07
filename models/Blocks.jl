@@ -87,10 +87,10 @@ Ramp = SignalSource | Model(
 
 # Linear state space system
 StateSpace = Model(   
-    A = fill(0.0,0,0),
-    B = fill(0.0,0,0),   
-    C = fill(0.0,0,0), 
-    D = fill(0.0,0,0),
+    A = parameter | fill(0.0,0,0),
+    B = parameter | fill(0.0,0,0),   
+    C = parameter | fill(0.0,0,0), 
+    D = parameter | fill(0.0,0,0),
     u = input, 
     y = output,
     x = Var(init = zeros(0)),

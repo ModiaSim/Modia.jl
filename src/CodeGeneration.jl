@@ -56,7 +56,6 @@ end
     simulationModel = SimulationModel{FloatType}(
             modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
             parameters, variableNames;
-            modelModule = nothing,
             vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}(),
             vEliminated::Vector{Int}=Int[],
             vProperty::Vector{Int}=Int[],
@@ -76,7 +75,7 @@ end
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
 mutable struct SimulationModel{FloatType}
-    modelModule
+    modelModule::Module
     modelName::String
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
@@ -84,9 +83,11 @@ mutable struct SimulationModel{FloatType}
     variables::OrderedDict{String,Int}      # Dictionary of variables and their result indices (negated alias has negativ index)
     zeroVariables::OrderedSet{String}       # Set of variables that are identically to zero
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
-    p::AbstractVector                       # Parameter and init/start values 
+    #p::AbstractVector                       # Parameter and init/start values 
                                             # (parameter values are used in getDerivatives!,
-                                            #  init/start values are extracted and stored in x_start)                                     
+                                            #  init/start values are extracted and stored in x_start) 
+    parameterExpressions::NamedTuple
+    parameters::NamedTuple    
     separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects    
     storeResult::Bool
     isInitial::Bool
@@ -103,8 +104,7 @@ mutable struct SimulationModel{FloatType}
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
-                                        var_name::Function       = v -> nothing) where {FloatType}
-
+                                        var_name::Function       = v -> nothing) where {FloatType}       
         # Construct result dictionaries
         variables = OrderedDict{String,Int}()
         zeroVariables = OrderedSet{String}()
@@ -129,7 +129,9 @@ mutable struct SimulationModel{FloatType}
             end
 
         # Construct parameter values that are copied into the code
-        parameterValues = [eval(p) for p in values(parameters)]
+        #parameterValues = [eval(p) for p in values(parameters)]
+        #@show typeof(parameterValues)
+        #@show parameterValues
 
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
@@ -148,7 +150,7 @@ mutable struct SimulationModel{FloatType}
 
 
         new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
-            vSolvedWithInitValuesAndUnit2, parameterValues,
+            vSolvedWithInitValuesAndUnit2, parameters[:_p], NamedTuple(), #parameterValues,
             separateObjects, storeResult, isInitial, isTerminal, convert(FloatType, 0), nGetDerivatives, 
             zeros(FloatType,0), zeros(FloatType,0), Tuple[])
     end
@@ -282,7 +284,7 @@ function get_lastValue(m::SimulationModel, name::String; unit=true)
         # Unit missing (needs to be fixed)
         value = 0.0
     else
-        value = get_value(m.p[1], name)
+        value = get_value(m.parameters, name)
         if ismissing(value)
             @info "get_lastValue: $name is not known and is ignored."
             return nothing;
@@ -306,7 +308,8 @@ end
 
 
 """
-    success = init!(simulationModel, startTime, tolerance, merge, log, logParameters, logStates)
+    success = init!(simulationModel, startTime, tolerance, 
+                    merge, log, logParameters, logStates)
 
 
 Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
@@ -327,21 +330,26 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 If initialization is successful return true, otherwise false.
 """
 function init!(m::SimulationModel, startTime, tolerance, merge, 
-               log::Bool, logParameters::Bool, logStates::Bool)::Bool
+               log::Bool, logParameterExpressions::Bool, 
+               logParameters::Bool, logStates::Bool)::Bool
     empty!(m.result)
 
-	# Apply updates from merge Map and log parameters
-    if isnothing(merge)
-        if logParameters
-            parameters = m.p[1]
-            @showModel parameters
-        end
-    else
-        m.p = [recursiveMerge(m.p[1], merge)]
-        if logParameters
-            updatedParameters = m.p[1]
-            @showModel updatedParameters
-        end
+	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting parameters
+    if !isnothing(merge)
+        m.parameterExpressions = recursiveMerge(m.parameterExpressions, merge)
+        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)
+    elseif length(m.parameters) == 0 && length(m.parameterExpressions) > 0
+        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)         
+    end
+    
+    # Log parameters
+    if logParameterExpressions
+        parameterExpressions = m.parameterExpressions
+        @showModel parameterExpressions
+    end
+    if logParameters
+        parameters = m.parameters
+        @showModel parameters
     end
 	
     # Re-initialize dictionary of separate objects
@@ -354,8 +362,8 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
     for xe_info in m.equationInfo.x_info
         xe_info.startIndex = startIndex
         
-        # Determine init/start value in m.p[1]
-        xe_value = get_value(m.p[1], xe_info.x_name)
+        # Determine init/start value in m.parameters
+        xe_value = get_value(m.parameters, xe_info.x_name)
         if ismissing(xe_value)
             error("Missing start/init value ", xe_info.x_name)
         end
@@ -537,7 +545,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     x_info     = equationInfo.x_info
     code_x     = Expr[]
     code_der_x = Expr[]
-    code_p     = Expr[]
+    #code_p     = Expr[]
 
     if length(x_info) == 1 && x_info[1].x_name == "" && x_info[1].der_x_name == ""
         # Explicitly solved pure algebraic variables. Introduce dummy equation
@@ -566,9 +574,9 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
             end
         end
     end
-    for (i,pi) in enumerate(parameters)
-        push!(code_p, :( $pi = _m.p[$i] ) )
-    end
+    #for (i,pi) in enumerate(parameters)
+    #    push!(code_p, :( $pi = _m.p[$i] ) )
+    #end
 
     timeName = variables[1]
     if hasUnits
@@ -583,8 +591,8 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     _m.time = _time
                     _m.nGetDerivatives += 1
                     simulationModel = _m
+                    _p = _m.parameters
                     $code_time
-                    $(code_p...)
                     $(code_x...)
                     $(AST...)
                     $(code_der_x...)

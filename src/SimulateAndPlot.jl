@@ -119,12 +119,13 @@ function simulate!(m::SimulationModel, algorithm=missing;
                    startTime = 0.0,
                    stopTime  = 1.0,
                    interval  = NaN,
+                   merge     = nothing,
                    adaptive::Bool      = true,
                    log::Bool           = false,
                    logParameters::Bool = false,
                    logStates::Bool     = false,
-                   requiredFinalStates = nothing, 
-                   merge=nothing)
+                   logParameterExpressions::Bool = false,
+                   requiredFinalStates           = nothing)
     initialized = false
     #try
         m.algorithmType = typeof(algorithm)
@@ -144,7 +145,7 @@ function simulate!(m::SimulationModel, algorithm=missing;
         cpuStart::UInt64 = time_ns()
         cpuLast::UInt64  = cpuStart
         cpuStartIntegration::UInt64 = cpuStart
-        success = init!(m, startTime, tolerance, merge, log, logParameters, logStates)
+        success = init!(m, startTime, tolerance, merge, log, logParameterExpressions, logParameters, logStates)
         if !success
             return nothing
         end
@@ -258,7 +259,7 @@ that can be accessed and can be used for plotting.
 ModiaPlot.hasSignal(m::SimulationModel, name) =
     haskey(m.variables, name) || 
     name in m.zeroVariables ||
-    !ismissing(get_value(m.p[1], name))
+    !ismissing(get_value(m.parameters, name))
 
 
 """
@@ -269,7 +270,7 @@ Return the variable names (parameters, time-varying variables) of a TinyModia Si
 and can be used for plotting.
 """
 function ModiaPlot.getNames(m::SimulationModel)
-    names = get_names(m.p[1])
+    names = get_names(m.parameters)
     append!(names, collect(m.zeroVariables))
     append!(names, collect( keys(m.variables) ) )
     return sort(names)
@@ -297,7 +298,7 @@ function ModiaPlot.getRawSignal(m::SimulationModel, name)
         return (true, 0.0)
 
     else
-        value = get_value(m.p[1], name)
+        value = get_value(m.parameters, name)
         if ismissing(value)
             error("ModiaPlot.getRawSignal: ", name, " not in result of model ", m.modelName)
         end
