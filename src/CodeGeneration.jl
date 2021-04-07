@@ -100,7 +100,7 @@ mutable struct SimulationModel{FloatType}
     algorithmType::DataType                  # Type of integration algorithm (used in default-heading of plot)
 
     function SimulationModel{FloatType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
-                                        parameters, variableNames;
+                                        parameterDefinition, variableNames;
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
@@ -132,7 +132,9 @@ mutable struct SimulationModel{FloatType}
         #parameterValues = [eval(p) for p in values(parameters)]
         #@show typeof(parameterValues)
         #@show parameterValues
-
+        parameterExpressions = parameterDefinition[:_p]
+        parameters = propagateEvaluateAndInstantiate(modelModule, parameterExpressions) 
+        
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
         for leq in equationInfo.linearEquations
@@ -150,7 +152,7 @@ mutable struct SimulationModel{FloatType}
 
 
         new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
-            vSolvedWithInitValuesAndUnit2, parameters[:_p], NamedTuple(), #parameterValues,
+            vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, #parameterValues,
             separateObjects, storeResult, isInitial, isTerminal, convert(FloatType, 0), nGetDerivatives, 
             zeros(FloatType,0), zeros(FloatType,0), Tuple[])
     end
@@ -337,9 +339,7 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting parameters
     if !isnothing(merge)
         m.parameterExpressions = recursiveMerge(m.parameterExpressions, merge)
-        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)
-    elseif length(m.parameters) == 0 && length(m.parameterExpressions) > 0
-        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)         
+        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)       
     end
     
     # Log parameters
