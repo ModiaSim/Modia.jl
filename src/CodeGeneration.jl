@@ -457,6 +457,7 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
                         "and after initialization the init-values are not respected\n",
                         "(remove the init-values in the model or change them to start-values):\n",
                         str, bold=true, color=:red)
+            println("\n")
             return false
         end
     end

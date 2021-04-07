@@ -93,6 +93,8 @@ end
 
     @testset "... Test Multi-index DAE" begin
         MultiIndexDAE = Model(
+            x2 = Var(init = 0.0),
+            x2d = Var(init = 0.0),
             equations = :[
                 u1 = sin(1*time)
                 u2 = sin(2*time)
