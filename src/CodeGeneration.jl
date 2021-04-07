@@ -51,7 +51,44 @@ function measurementToString(v::Vector{Measurements.Measurement{FloatType}}) whe
 end
 
 
+function get_x_start!(FloatType, equationInfo, parameters)
+    x_start = []
+    startIndex = 1
+    for xe_info in equationInfo.x_info
+        xe_info.startIndex = startIndex
+        
+        # Determine init/start value in m.parameters
+        xe_value = get_value(parameters, xe_info.x_name)
+        if ismissing(xe_value)
+            error("Missing start/init value ", xe_info.x_name)
+        end
+        if hasParticles(xe_value)
+            len = 1
+            push!(x_start, xe_value)
+        else
+            len = length(xe_value)
+            push!(x_start, xe_value...)
+        end 
+        if len != xe_info.length
+            printstyled("Model error: ", bold=true, color=:red)  
+            printstyled("Length of ", xe_info.x_name, " shall be changed from ",
+                        xe_info.length, " to $len\n",
+                        "This is currently not support in TinyModia.", bold=true, color=:red)
+            return false
+        end        
+        startIndex += xe_info.length
+    end
+    equationInfo.nx = startIndex - 1
+    
+    # Temporarily remove units from x_start
+    # (TODO: should first transform to the var_unit units and then remove)    
+    converted_x_start = convert(Vector{FloatType}, [ustrip(v) for v in x_start])  # ustrip.(x_start) does not work for MonteCarloMeasurements
+    x_start2 = deepcopy(converted_x_start)
+    return x_start2
+end
 
+   
+    
 """
     simulationModel = SimulationModel{FloatType}(
             modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
@@ -135,6 +172,10 @@ mutable struct SimulationModel{FloatType}
         parameterExpressions = parameterDefinition[:_p]
         parameters = propagateEvaluateAndInstantiate(modelModule, parameterExpressions) 
         
+        # Determine x_start
+        x_start = get_x_start!(FloatType, equationInfo, parameters)
+        nx = equationInfo.nx
+        
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
         for leq in equationInfo.linearEquations
@@ -154,7 +195,7 @@ mutable struct SimulationModel{FloatType}
         new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, #parameterValues,
             separateObjects, storeResult, isInitial, isTerminal, convert(FloatType, 0), nGetDerivatives, 
-            zeros(FloatType,0), zeros(FloatType,0), Tuple[])
+            x_start, zeros(FloatType,nx), Tuple[])
     end
 end
 
@@ -299,14 +340,14 @@ end
 
 get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.startIndex:xe_info.startIndex + xe_info.length-1]
 
-function set_xe!(x, xe_info, value)::Nothing
-    if xe_info.length == 1 
-        x[xe_info.startIndex] = value
-    else
-        x[xe_info.startIndex:xe_info.startIndex + xe_info.length-1] = value
-    end
-    return nothing
-end
+#function set_xe!(x, xe_info, value)::Nothing
+#    if xe_info.length == 1 
+#        x[xe_info.startIndex] = value
+#    else
+#        x[xe_info.startIndex:xe_info.startIndex + xe_info.length-1] = value
+#    end
+#    return nothing
+#end
 
 
 """
@@ -337,10 +378,20 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
     empty!(m.result)
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting parameters
+    FloatType = getFloatType(m)      
     if !isnothing(merge)
         m.parameterExpressions = recursiveMerge(m.parameterExpressions, merge)
-        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)       
+        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)  
+      
+        m.x_start = get_x_start!(FloatType, m.equationInfo, m.parameters)
+        nx = m.equationInfo.nx        
+        m.der_x = zeros(FloatType, nx)
+    else
+        m.der_x .= convert(FloatType, 0.0)
     end
+
+    # Re-initialize dictionary of separate objects
+    empty!(m.separateObjects)
     
     # Log parameters
     if logParameterExpressions
@@ -352,45 +403,6 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
         @showModel parameters
     end
 	
-    # Re-initialize dictionary of separate objects
-    empty!(m.separateObjects)
-
-    # Update startIndex, length in x_info and determine x_start
-    FloatType = getFloatType(m)
-    x_start = []
-    startIndex = 1
-    for xe_info in m.equationInfo.x_info
-        xe_info.startIndex = startIndex
-        
-        # Determine init/start value in m.parameters
-        xe_value = get_value(m.parameters, xe_info.x_name)
-        if ismissing(xe_value)
-            error("Missing start/init value ", xe_info.x_name)
-        end
-        if hasParticles(xe_value)
-            len = 1
-            push!(x_start, xe_value)
-        else
-            len = length(xe_value)
-            push!(x_start, xe_value...)
-        end 
-        if len != xe_info.length
-            printstyled("Model error: ", bold=true, color=:red)  
-            printstyled("Length of ", xe_info.x_name, " shall be changed from ",
-                        xe_info.length, " to $len\n",
-                        "This is currently not support in TinyModia.", bold=true, color=:red)
-            return false
-        end        
-        startIndex += xe_info.length
-    end
-    nx = startIndex - 1
-    m.equationInfo.nx = nx
-    
-    # Temporarily remove units from x_start
-    # (TODO: should first transform to the var_unit units and then remove)    
-    converted_x_start = convert(Vector{FloatType}, [ustrip(v) for v in x_start])  # ustrip.(x_start) does not work for MonteCarloMeasurements
-    m.x_start = deepcopy(converted_x_start)
-
     if logStates
         # List init/start values
         x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[], nominal=Float64[])   
@@ -404,9 +416,7 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
         show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
         println("\n")
     end
-    
-    m.der_x = zeros(FloatType, nx)
-        
+
     # Initialize model, linearEquations and compute and store all variables at the initial time
     if log
         println("      Initialization at time = ", startTime, " s")  
