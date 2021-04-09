@@ -22,3 +22,14 @@ getFloatType
 baseType
 measurementToString
 ```
+
+## Inquiries in Model
+
+```@docs
+isInitial
+isTerminal
+isEvent
+isAfterSimulationStart
+computeEventIndicators
+storeResults
+```

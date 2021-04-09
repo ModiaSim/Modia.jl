@@ -63,3 +63,4 @@ CurrentModule = ModiaPlot
 hasSignal
 getNames
 ```
+

@@ -21,6 +21,11 @@ julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloM
 
 ## Release Notes
 
+### Version 0.7.3
+
+- Evaluation and propagation of parameter expressions (also in simulate!(..., merge=Map(...)))
+
+
 ### Version 0.7.2
 
 - Missing dependency of Test package added.

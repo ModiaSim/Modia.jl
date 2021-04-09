@@ -10,6 +10,7 @@ using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
 
 export SimulationModel, measurementToString, get_lastValue
+export positive, negative, change, edge
 
 
 """
@@ -27,6 +28,10 @@ baseType(::Type{T})                                           where {T}         
 baseType(::Type{Measurements.Measurement{T}})                 where {T<:AbstractFloat}   = T
 baseType(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T<:AbstractFloat,N} = T
 baseType(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T<:AbstractFloat,N} = T
+
+Base.floatmax(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T<:AbstractFloat,N} = Base.floatmax(T)
+Base.floatmax(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T<:AbstractFloat,N} = Base.floatmax(T)
+
 
 
 """
@@ -90,7 +95,7 @@ end
    
     
 """
-    simulationModel = SimulationModel{FloatType}(
+    simulationModel = SimulationModel{FloatType,TimeType}(
             modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
             parameters, variableNames;
             vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}(),
@@ -111,12 +116,13 @@ end
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
-mutable struct SimulationModel{FloatType}
+mutable struct SimulationModel{FloatType,TimeType}
     modelModule::Module
     modelName::String
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
     linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
+    eventHandler::EventHandler{FloatType}    
     variables::OrderedDict{String,Int}      # Dictionary of variables and their result indices (negated alias has negativ index)
     zeroVariables::OrderedSet{String}       # Set of variables that are identically to zero
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
@@ -125,23 +131,24 @@ mutable struct SimulationModel{FloatType}
                                             #  init/start values are extracted and stored in x_start) 
     parameterExpressions::NamedTuple
     parameters::NamedTuple    
-    separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects    
+    separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects   
+    isInitial::Bool    
     storeResult::Bool
-    isInitial::Bool
-    isTerminal::Bool
-    time::FloatType
+    time::TimeType
     nGetDerivatives::Int                    # Number of getDerivatives! calls
-    x_start::Vector{FloatType}
-    der_x::Vector{FloatType}
-    result::Vector{Tuple}
-    algorithmType::DataType                  # Type of integration algorithm (used in default-heading of plot)
+    x_start::Vector{FloatType}              # States x before first event iteration (before initialization)
+    x_init::Vector{FloatType}               # States x after initialization (and before integrator is started)
+    der_x::Vector{FloatType}                # Derivatives of states x or x_init 
+    result::Vector{Tuple}                   # Simulation result
+    algorithmType::DataType                 # Type of integration algorithm (used in default-heading of plot)
 
-    function SimulationModel{FloatType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameterDefinition, variableNames;
+                                        nz::Int = 0,
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
-                                        var_name::Function       = v -> nothing) where {FloatType}       
+                                        var_name::Function       = v -> nothing) where {FloatType,TimeType}       
         # Construct result dictionaries
         variables = OrderedDict{String,Int}()
         zeroVariables = OrderedSet{String}()
@@ -186,18 +193,28 @@ mutable struct SimulationModel{FloatType}
         separateObjects = OrderedDict{Int,Any}()
                 
         # Initialize execution flags
-        isInitial       = true
-        isTerminal      = false
-        storeResult     = false
+        eventHandler = EventHandler{FloatType}(nz=nz)
+        eventHandler.initial = true
+        isInitial   = true
+        storeResult = false
         nGetDerivatives = 0
 
-
-        new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, variables, zeroVariables,
+        new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, 
+            eventHandler, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, #parameterValues,
-            separateObjects, storeResult, isInitial, isTerminal, convert(FloatType, 0), nGetDerivatives, 
-            x_start, zeros(FloatType,nx), Tuple[])
+            separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
+            x_start, zeros(FloatType,nx), zeros(FloatType,nx), Tuple[])
     end
 end
+
+# Default constructors
+SimulationModel(           args...; kwargs...)                   = SimulationModel{Float64  ,Float64}(args...; kwargs...)
+SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,Float64}(args...; kwargs...)
+        
+positive(m::SimulationModel, args...; kwargs...) = TinyModia.positive!(m.eventHandler, args...; kwargs...)
+negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHandler, args...; kwargs...)
+change(  m::SimulationModel, args...; kwargs...) = TinyModia.change!(  m.eventHandler, args...; kwargs...)
+edge(    m::SimulationModel, args...; kwargs...) = TinyModia.edge!(    m.eventHandler, args...; kwargs...)
 
 
 """
@@ -206,7 +223,7 @@ end
 Return the floating point type with which `simulationModel` is parameterized
 (for example returns: `Float64, Float32, DoubleFloat, Measurements.Measurement{Float64}`).
 """
-getFloatType(m::SimulationModel{FloatType}) where {FloatType} = FloatType
+getFloatType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = FloatType
 
 
 """
@@ -337,6 +354,86 @@ function get_lastValue(m::SimulationModel, name::String; unit=true)
     return unit ? value : ustrip(value)
 end
 
+function eventIteration!(m::SimulationModel{FloatType,TimeType}, x::Vector{FloatType}, t_event::TimeType)::Nothing where {FloatType,TimeType}
+    eh = m.eventHandler
+
+    # Initialize event iteration
+    initEventIteration!(eh, t_event)
+
+    # Perform event iteration
+	iter_max = 20
+    iter     = 0
+	success  = false
+    eh.event = true
+    while !success && iter <= iter_max
+        iter += 1
+        Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)
+        success = terminateEventIteration!(eh)
+    end
+    eh.event = false        
+
+    if !success
+        error("Maximum number of event iterations (= $iter_max) reached")
+    end
+        
+    return nothing
+end
+
+
+"""
+    isInitial(instantiatedModel)
+
+Return true, if **initialization phase** of simulation.
+"""
+isInitial(m::SimulationModel) = m.eventHandler.initial
+
+
+"""
+    isTerminal(instantiatedModel)
+
+Return true, if **terminal phase** of simulation.
+"""
+isTerminal(m::SimulationModel) = m.eventHandler.terminal
+
+
+"""
+    isEvent(instantiatedModel)
+
+Return true, if **event phase** of simulation (including initialization).
+"""
+isEvent(m::SimulationModel) = m.eventHandler.event
+
+
+"""
+    isAfterSimulationStart(instantiatedModel)
+
+Return true, if **after start of simulation** (returns false during initialization).
+"""
+isAfterSimulationStart(m::SimulationModel) = m.eventHandler.afterSimulationStart
+
+
+"""
+    computeEventIndicators(instantiatedModel)
+
+Return true, if **event indicators (zero crossings) shall be computed**.
+"""
+computeEventIndicators(m::SimulationModel) = m.eventHandler.crossing
+
+
+"""
+    storeResults(instantiatedModel)
+
+Return true, if **results shall be stored**.
+"""
+storeResults(m::SimulationModel) = m.storeResult
+
+
+
+isFirstInitialOfAllSegments(m::SimulationModel) = m.eventHandler.firstInitialOfAllSegments
+isTerminalOfAllSegments(m::SimulationModel)     = m.eventHandler.isTerminalOfAllSegments
+
+
+
 
 get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.startIndex:xe_info.startIndex + xe_info.length-1]
 
@@ -363,7 +460,7 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 
 - Construct x_start.
 
-- Call simulationModel.getDerivatives! once with isInitial = true to
+- Call simulationModel.getDerivatives! once with isInitial(simulationModel) = true to
   compute and store all variables in the result data structure at `startTime`
   and initialize simulationModel.linearEquations.
 
@@ -374,8 +471,13 @@ If initialization is successful return true, otherwise false.
 """
 function init!(m::SimulationModel, startTime, tolerance, merge, 
                log::Bool, logParameterExpressions::Bool, 
-               logParameters::Bool, logStates::Bool)::Bool
+               logParameters::Bool, logStates::Bool, logEvents)::Bool
     empty!(m.result)
+    eh = m.eventHandler
+    reinitEventHandler(eh, logEvents)
+    
+    # Initialize auxiliary arrays for event iteration
+    m.x_init .= 0
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting parameters
     FloatType = getFloatType(m)      
@@ -387,7 +489,7 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
         nx = m.equationInfo.nx        
         m.der_x = zeros(FloatType, nx)
     else
-        m.der_x .= convert(FloatType, 0.0)
+        m.der_x .= 0
     end
 
     # Re-initialize dictionary of separate objects
@@ -420,14 +522,23 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
     # Initialize model, linearEquations and compute and store all variables at the initial time
     if log
         println("      Initialization at time = ", startTime, " s")  
-    end        
+    end  
+ 
+    # Perform initial event iteration 
     m.nGetDerivatives = 0
     m.isInitial   = true
+    eh.initial    = true
     m.storeResult = true
 #    m.getDerivatives!(m.der_x, m.x_start, m, startTime)
-    Base.invokelatest(m.getDerivatives!, m.der_x, m.x_start, m, startTime)
+#    Base.invokelatest(m.getDerivatives!, m.der_x, m.x_start, m, startTime)
+    for i in eachindex(m.x_init)
+        m.x_init[i] = deepcopy(m.x_start[i])
+    end
+    eventIteration!(m, m.x_init, startTime)
+    eh.initial    = false
     m.isInitial   = false
-    m.storeResult = false
+    m.storeResult = false   
+    
     # Check vSolvedWithInitValuesAndUnit
     if length(m.vSolvedWithInitValuesAndUnit) > 0
         names = String[]
@@ -471,9 +582,10 @@ end
 Terminate model.
 """
 function terminate!(m::SimulationModel, x, t)::Nothing
-    m.isTerminal = true
+    eh = m.eventHandler
+    eh.terminal = true
     Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
-    m.isTerminal = false
+    eh.terminal = false
     return nothing
 end
    
@@ -487,9 +599,26 @@ that is used to store results at communication points.
 function outputs!(x, t, integrator)::Nothing
     m = integrator.p
     m.storeResult = true
+#    println("... Store result at time = $t: s = ", x[1], ", v = ", x[2])    
 #    m.getDerivatives!(m.der_x, x, m, t)
     Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
 
+    m.storeResult = false
+    return nothing
+end
+
+
+"""
+    affect_outputs!(integrator)
+
+DifferentialEquations PresetTimeCallback function for `SimulationModel`
+that is used to store results at communication points.
+"""
+function affect_outputs!(integrator)::Nothing
+    m = integrator.p
+    m.storeResult = true
+#    m.getDerivatives!(m.der_x, x, m, t)
+    Base.invokelatest(m.getDerivatives!, m.der_x, integrator.u, m, integrator.t)
     m.storeResult = false
     return nothing
 end
@@ -507,6 +636,66 @@ function derivatives!(der_x, x, m, t)::Nothing
 end
 
 
+"""
+    conditions!(z, x, t, integrator)
+    
+Called by integrator to compute zero crossings
+"""
+function conditions!(z, x, t, integrator)::Nothing
+    m = integrator.p
+    eh = m.eventHandler
+    eh.nZeroCrossings += 1
+    eh.crossing = true
+    Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+    eh.crossing = false
+    for i = 1:eh.nz
+        z[i] = eh.z[i]
+    end 
+    return nothing
+end
+
+
+"""
+    affect!(integrator, event_index)
+    
+Called by integrator when an event is triggered   
+"""
+function affect!(integrator, event_index)::Nothing
+    m  = integrator.p
+    eh = m.eventHandler
+    time = integrator.t
+    
+    # Event iteration   
+    if eh.logEvents
+        println("\n      State event (zero-crossing) at time = ", time, " s")
+    end
+                    
+    # Compute and store outputs before processing the event
+    outputs!(integrator.u, time, integrator)
+
+    # Event iteration 
+    eventIteration!(m, integrator.u, time)
+
+    eh.nStateEvents += 1  
+    if eh.restart == Restart || eh.restart == FullRestart
+        eh.nRestartEvents += 1
+    end
+    if eh.logEvents
+        println("        restart = ", eh.restart)
+    end
+                
+    # Adapt step size    
+    if eh.restart != NoRestart
+        DifferentialEquations.auto_dt_reset!(integrator)
+        DifferentialEquations.set_proposed_dt!(integrator, integrator.dt)
+    end
+    
+    # Compute outputs and store them after the event occurred
+    outputs!(integrator.u, time, integrator)
+    return nothing
+end
+
+
    
 """
     addToResult!(simulationModel, variableValues...)
@@ -518,8 +707,6 @@ function addToResult!(m::SimulationModel, variableValues...)::Nothing
     push!(m.result, variableValues)
     return nothing
 end
-
-
 
 
 """
@@ -601,8 +788,9 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 function $functionName(_der_x, _x, _m, _time)::Nothing
                     _m.time = _time
                     _m.nGetDerivatives += 1
-                    simulationModel = _m
+                    instantiatedModel = _m
                     _p = _m.parameters
+                    _leq_mode  = -1
                     $code_time
                     $(code_x...)
                     $(AST...)

@@ -14,14 +14,14 @@ import DifferentialEquations
 #---------------------------------------------------------------------
 
 """
-    convertTimeVariable(t)
+    convertTimeVariable(FloatType, t)
 
 The function returns variable `t` in a normalized form:
 
 1. If `t` has a unit, it is transformed to u"s" and the unit is stripped off.
-2. `t` is converted to `Float64`.
+2. `t` is converted to `FloatType`.
 """
-convertTimeVariable(t) = typeof(t) <: Unitful.AbstractQuantity ? convert(Float64, ustrip(uconvert(u"s", t))) : convert(Float64, t)
+convertTimeVariable(FloatType, t) = typeof(t) <: Unitful.AbstractQuantity ? convert(FloatType, ustrip(uconvert(u"s", t))) : convert(FloatType, t)
 
 
 """
@@ -114,30 +114,35 @@ function simulate!(m::Nothing, args...; kwargs...)
     @info "The call of simulate!(..) is ignored, since the first argument is nothing."
     return nothing
 end
-function simulate!(m::SimulationModel, algorithm=missing;
+function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
                    tolerance = 1e-6,
                    startTime = 0.0,
                    stopTime  = 1.0,
                    interval  = NaN,
+                   interp_points = 0,
+                   nz = 0,
                    merge     = nothing,
                    adaptive::Bool      = true,
                    log::Bool           = false,
                    logParameters::Bool = false,
                    logStates::Bool     = false,
+                   logEvents::Bool     = false,
                    logParameterExpressions::Bool = false,
-                   requiredFinalStates           = nothing)
-    initialized = false
+                   requiredFinalStates           = nothing) where {FloatType,TimeType}
+    #initialized = false
     #try
+        eh = m.eventHandler
+        if nz > 0
+            eh.nz = nz
+            eh.z  = ones(FloatType,nz)
+            eh.zPositive = fill(false, nz)
+        end
         m.algorithmType = typeof(algorithm)
-        tolerance = convert(Float64, tolerance)
-        startTime = convertTimeVariable(startTime)
-        stopTime  = convertTimeVariable(stopTime)
-        interval  = convertTimeVariable(interval)
-        interval  = isnan(interval) ? (stopTime - startTime)/500.0 : interval
-
-        # Target type
-        FloatType = getFloatType(m)
-
+        startTime2 = convertTimeVariable(TimeType, startTime)
+        stopTime2  = convertTimeVariable(TimeType, stopTime)
+        interval2  = convertTimeVariable(TimeType, interval)
+        interval2  = isnan(interval2) ? (stopTime2 - startTime2)/500.0 : interval2
+        
         # Initialize/re-initialize SimulationModel
         if log || logParameters || logStates
             println("... Simulate model ", m.modelName)
@@ -145,38 +150,54 @@ function simulate!(m::SimulationModel, algorithm=missing;
         cpuStart::UInt64 = time_ns()
         cpuLast::UInt64  = cpuStart
         cpuStartIntegration::UInt64 = cpuStart
-        success = init!(m, startTime, tolerance, merge, log, logParameterExpressions, logParameters, logStates)
+        success = init!(m, startTime2, tolerance, merge, log, logParameterExpressions, logParameters, logStates, logEvents)
         if !success
             return nothing
+        elseif m.eventHandler.restart == Terminate
+            
         end
-        initialized = true
+        #initialized = true
         
-        # Define problem and callbacks based on algorithm and model type
-        tspan    = (startTime, stopTime)
-        tspan2   = startTime:interval:stopTime
-        tdir     = startTime <= stopTime ? 1 : -1
-        abstol   = 0.1*tolerance
-        problem  = DifferentialEquations.ODEProblem(derivatives!, m.x_start, tspan, m)
-        callback = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=tdir)
-
-
-        # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-        dt = adaptive ? interval/10 : interval    # initial step-size
-
-        # Compute solution
-        solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, reltol=tolerance, abstol=abstol,
-                                            save_everystep=false, save_start=false, save_end=true,
-                                            callback=callback, adaptive=adaptive, dt=dt) :
-                                        DifferentialEquations.solve(problem, algorithm, reltol=tolerance, abstol=abstol,
-                                            save_everystep=false, save_start=false, save_end=true,
-                                            callback=callback, adaptive=adaptive, dt=dt)
-        if ismissing(algorithm)
-            m.algorithmType = typeof(solution.alg)
+        if m.eventHandler.restart == Terminate
+            finalStates = m.x_init
+        else
+            # Define problem and callbacks based on algorithm and model type
+            if abs(interval2) < abs(stopTime2-startTime2)
+                tspan2 = (startTime2+interval2):interval2:stopTime2
+            else
+                tspan2 = [stopTime2]
+            end
+           	tspan     = (startTime2, stopTime2)            
+            abstol    = 0.1*tolerance
+            problem   = DifferentialEquations.ODEProblem(derivatives!, m.x_init, tspan, m) 
+            callback1 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)  
+            if eh.nz > 0
+                callback2 = DifferentialEquations.VectorContinuousCallback(conditions!, 
+                                 affect!, eh.nz, interp_points=interp_points)                  
+                callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
+            else
+                callbacks = callback1
+                            #DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=1)
+            end
+    
+            # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
+            dt = adaptive ? interval2/10 : interval2    # initial step-size
+    
+            # Compute solution
+            solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, reltol=tolerance, abstol=abstol,
+                                                save_everystep=false, save_start=false, save_end=true,
+                                                callback=callbacks, adaptive=adaptive, dt=dt) :
+                                            DifferentialEquations.solve(problem, algorithm, reltol=tolerance, abstol=abstol,
+                                                save_everystep=false, save_start=false, save_end=true,
+                                                callback=callbacks, adaptive=adaptive, dt=dt)
+            if ismissing(algorithm)
+                m.algorithmType = typeof(solution.alg)
+            end
+    
+            # Terminate simulation
+            finalStates = solution[:,end]
+            terminate!(m, finalStates, solution.t[end])
         end
-
-        # Terminate simulation
-        finalStates = solution[:,end]
-        terminate!(m, finalStates, solution.t[end])
         
         if log
             cpuTimeInitialization = convert(Float64, (cpuStartIntegration - cpuStart) * 1e-9)
@@ -188,18 +209,22 @@ function simulate!(m::SimulationModel, algorithm=missing;
             #println("        cpuTime         = ", round(cpuTime              , sigdigits=3), " s (init: ",
             #                                      round(cpuTimeInitialization, sigdigits=3), " s, integration: ",
             #                                      round(cpuTimeIntegration   , sigdigits=3), " s)")
-            println("        algorithm       = ", typeof(solution.alg))
+            println("        algorithm       = ", m.algorithmType == Nothing ? Nothing : solution.alg)
             println("        FloatType       = ", FloatType)
-            println("        interval        = ", interval, " s")
+            println("        interval        = ", interval2, " s")
             println("        tolerance       = ", tolerance, " (relative tolerance)")
             println("        nEquations      = ", length(m.x_start))
             println("        nResults        = ", length(m.result))
             println("        nAcceptedSteps  = ", solution.destats.naccept)
             println("        nRejectedSteps  = ", solution.destats.nreject)
-            println("        nGetDerivatives = ", m.nGetDerivatives, " (number of getDerivatives! calls)")
+            println("        nGetDerivatives = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
             println("        nf              = ", solution.destats.nf, " (number of getDerivatives! calls from integrator)")
+            println("        nZeroCrossings  = ", eh.nZeroCrossings, "(number of getDerivatives! calls for zero crossing detection)")
             println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
-            println("        nErrTestFails   = ", solution.destats.nreject)
+            println("        nErrTestFails   = ", solution.destats.nreject)          
+           #println("        nTimeEvents     = ", eh.nTimeEvents)
+            println("        nStateEvents    = ", eh.nStateEvents)
+            println("        nRestartEvents  = ", eh.nRestartEvents)      
         end
 
         if !isnothing(requiredFinalStates)
