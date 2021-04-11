@@ -285,4 +285,3 @@ function edge!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType
     return false
 end
 
-

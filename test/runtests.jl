@@ -25,6 +25,8 @@ using Test
     include("TestStateSpace.jl")  
     include("TestParameter.jl") 
     include("TestHeatTransfer.jl")  
+ 
+    include("TestSimpleStateEvents.jl")  
     
     include("../examples/runexamples.jl")    
 

@@ -10,7 +10,7 @@ using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
 
 export SimulationModel, measurementToString, get_lastValue
-export positive, negative, change, edge
+export positive, negative, change, edge, reinit, pre
 
 
 """
@@ -139,12 +139,14 @@ mutable struct SimulationModel{FloatType,TimeType}
     x_start::Vector{FloatType}              # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}               # States x after initialization (and before integrator is started)
     der_x::Vector{FloatType}                # Derivatives of states x or x_init 
+    pre::Vector{Any}                        # Pre-values
     result::Vector{Tuple}                   # Simulation result
     algorithmType::DataType                 # Type of integration algorithm (used in default-heading of plot)
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameterDefinition, variableNames;
                                         nz::Int = 0,
+                                        pre_startValues = Any[],
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
@@ -198,12 +200,13 @@ mutable struct SimulationModel{FloatType,TimeType}
         isInitial   = true
         storeResult = false
         nGetDerivatives = 0
+        pre = deepcopy(pre_startValues)
 
         new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, 
             eventHandler, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, #parameterValues,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
-            x_start, zeros(FloatType,nx), zeros(FloatType,nx), Tuple[])
+            x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[])
     end
 end
 
@@ -215,6 +218,57 @@ positive(m::SimulationModel, args...; kwargs...) = TinyModia.positive!(m.eventHa
 negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHandler, args...; kwargs...)
 change(  m::SimulationModel, args...; kwargs...) = TinyModia.change!(  m.eventHandler, args...; kwargs...)
 edge(    m::SimulationModel, args...; kwargs...) = TinyModia.edge!(    m.eventHandler, args...; kwargs...)
+pre(     m::SimulationModel, i)                  = m.pre[i]
+
+
+
+"""
+    v_zero = reinit(instantiatedModel, _x, j, v_new, _leqMode; v_threshold=0.01)
+    
+Re-initialize state j with v_new, that is set x[i] = v_new, with i = instantiatedModel.equationInfo.x_info[j].startIndex.
+If v_new <= v_threshold, set x[i] to the floating point number that is closest to zero, so that x[i] > 0 and return
+v_zero = true. Otherwise return v_zero = false.
+
+An error is triggered if the function is not called during an event phase
+or if leqMode >= 0 (which means that reinit is called inside the for-loop
+to solve a linear equation system - this is not yet supported).
+
+# Implementation notes
+
+At the beginning of getDerivatives!(..), assignments of _x to appropriate variables are performed.
+Therefore, setting _x[i] afterwards via reinit, has no immediate effect on this model evaluation.
+With reinit, instantiatedModel.eventHandler.newEventIteration = true is set, to force a new
+event iteration. At the next event iteration, the new value v_new is copied from _x and therefore
+has then an effect.
+"""
+function reinit(m::SimulationModel, x, j, v_new, leqMode; v_threshold=0.01)
+    if leqMode >= 0
+        error("reinit(..) of model ", m.modelaName, " is called when solving a linear equation system (this is not supported)")
+    elseif !isEvent(m)
+        error("reinit(..) of model ", m.modelaName, " is called outside of an event phase (this is not allowed)")
+    end
+   
+    eh = m.eventHandler   
+    eh.restart = max(eh.restart, Restart)
+    eh.newEventIteration = true
+    
+    i = m.equationInfo.x_info[j].startIndex
+    if v_new <= v_threshold
+        x[i] = nextfloat(convert(typeof(v_new), 0))
+        if eh.logEvents
+            println("        State ", m.equationInfo.x_info[j].x_name, " reinitialized to ", x[i], " (reinit returns true)")
+        end  
+        return true
+    else
+        x[i] = v_new
+        if eh.logEvents
+            println("        State ", m.equationInfo.x_info[j].x_name, " reinitialized to ", v_new, " (reinit returns false)")
+        end        
+        return false
+    end
+end
+
+
 
 
 """
@@ -445,6 +499,7 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #    end
 #    return nothing
 #end
+
 
 
 """
@@ -733,11 +788,13 @@ Symbol `functionName` as function name. By `eval(code)` or
 
 # Optional Arguments
 
+- pre:Vector{Symbol}: pre-variable names
+
 - `hasUnits::Bool`: = true, if variables have units. Note, the units of the state vector are defined in equationinfo.
 """
 function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.EquationInfo,
                                   parameters, variables, functionName::Symbol;
-                                  hasUnits=false)
+                                  pre::Vector{Symbol} = Symbol[], hasUnits=false)
 
     # Generate code to copy x to struct and struct to der_x
     x_info     = equationInfo.x_info
@@ -775,6 +832,12 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     #for (i,pi) in enumerate(parameters)
     #    push!(code_p, :( $pi = _m.p[$i] ) )
     #end
+    
+    code_pre = Expr[]
+    for (i, pre_i) in enumerate(pre)
+        pre_name = pre[i]
+        push!(code_pre, :( _m.pre[$i] = $pre_i ))
+    end
 
     timeName = variables[1]
     if hasUnits
@@ -796,6 +859,9 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(AST...)
                     $(code_der_x...)
 
+                    if TinyModia.isEvent(_m)
+                        $(code_pre...)
+                    end
                     if _m.storeResult
                         TinyModia.addToResult!(_m, $(variables...))
                     end

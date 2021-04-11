@@ -798,7 +798,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         unique!(allVariables)
     #    @show allVariables
 
-        unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time, :instantiatedModel, :_leq_mode])
+        unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time, :instantiatedModel, :_leq_mode, :_x])
         Avar, states, derivatives = setAvar(unknowns)
         vActive = [a == 0 for a in Avar]
 
