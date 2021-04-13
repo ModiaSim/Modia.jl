@@ -1,7 +1,7 @@
 # Modia.jl
 
 Modia is **outdated** and should not be used. The package is currently redesigned. 
-For more details, see ModiaSim](https://modiasim.github.io/docs/).
+For more details, see [ModiaSim](https://modiasim.github.io/docs/).
 
 [![Travis](https://travis-ci.org/ModiaSim/Modia.jl.svg?branch=master)](https://travis-ci.org/ModiaSim/Modia.jl)
 [![AppVoyer](https://ci.appveyor.com/api/projects/status/github/ModiaSim/Modia.jl?svg=true)](https://ci.appveyor.com/project/MartinOtter/modia-jl)
