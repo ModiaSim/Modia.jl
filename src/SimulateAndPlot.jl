@@ -170,7 +170,9 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
            	tspan     = (startTime2, stopTime2)            
             abstol    = 0.1*tolerance
             problem   = DifferentialEquations.ODEProblem(derivatives!, m.x_init, tspan, m) 
-
+            if logEvents
+                println("      Number of zero crossing functions = ", eh.nz)
+            end
             if eh.nz > 0
                 # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
                 # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
@@ -222,7 +224,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             println("        nRejectedSteps  = ", solution.destats.nreject)
             println("        nGetDerivatives = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
             println("        nf              = ", solution.destats.nf, " (number of getDerivatives! calls from integrator)")
-            println("        nZeroCrossings  = ", eh.nZeroCrossings, "(number of getDerivatives! calls for zero crossing detection)")
+            println("        nZeroCrossings  = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
             println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
             println("        nErrTestFails   = ", solution.destats.nreject)          
            #println("        nTimeEvents     = ", eh.nTimeEvents)

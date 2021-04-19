@@ -471,11 +471,11 @@ isAfterSimulationStart(m::SimulationModel) = m.eventHandler.afterSimulationStart
 
 
 """
-    computeEventIndicators(instantiatedModel)
+    isZeroCrossing(instantiatedModel)
 
 Return true, if **event indicators (zero crossings) shall be computed**.
 """
-computeEventIndicators(m::SimulationModel) = m.eventHandler.crossing
+isZeroCrossing(m::SimulationModel) = m.eventHandler.crossing
 
 
 """
@@ -486,11 +486,25 @@ Return true, if **results shall be stored**.
 storeResults(m::SimulationModel) = m.storeResult
 
 
-
 isFirstInitialOfAllSegments(m::SimulationModel) = m.eventHandler.firstInitialOfAllSegments
 isTerminalOfAllSegments(m::SimulationModel)     = m.eventHandler.isTerminalOfAllSegments
 
 
+
+"""
+    zStartIndex = addZeroCrossings(instantiatedModel, nz)
+
+Add nz new zero crossing functions and return the start index with respect to 
+instantiatedModel.eventHandler.z.
+"""
+function addZeroCrossings(m::SimulationModel, nz::Int)::Int
+    eh = m.eventHandler
+    zStartIndex = eh.nz + 1
+    eh.nz += nz
+    resize!(eh.z, eh.nz)
+    resize!(eh.zPositive, eh.nz)
+    return zStartIndex
+end
 
 
 get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.startIndex:xe_info.startIndex + xe_info.length-1]
@@ -715,6 +729,7 @@ function conditions!(z, x, t, integrator)::Nothing
     for i = 1:eh.nz
         z[i] = eh.z[i]
     end 
+    #println("... time = ", t, ", z = ", z)
     return nothing
 end
 
