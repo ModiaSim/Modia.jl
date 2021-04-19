@@ -10,6 +10,8 @@ include("CauerLowPassFilter.jl")
 
 include("MotorControl.jl")    
 
+include("Pendulum.jl")   
+
 include("ServoSystem.jl")
 
 end

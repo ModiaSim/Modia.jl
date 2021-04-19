@@ -122,7 +122,7 @@ mutable struct SimulationModel{FloatType,TimeType}
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
     linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
-    eventHandler::EventHandler{FloatType}    
+    eventHandler::EventHandler{FloatType,TimeType}    
     variables::OrderedDict{String,Int}      # Dictionary of variables and their result indices (negated alias has negativ index)
     zeroVariables::OrderedSet{String}       # Set of variables that are identically to zero
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
@@ -141,7 +141,7 @@ mutable struct SimulationModel{FloatType,TimeType}
     der_x::Vector{FloatType}                # Derivatives of states x or x_init 
     pre::Vector{Any}                        # Pre-values
     result::Vector{Tuple}                   # Simulation result
-    algorithmType::DataType                 # Type of integration algorithm (used in default-heading of plot)
+    algorithmType::Union{DataType,Missing}  # Type of integration algorithm (used in default-heading of plot)
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameterDefinition, variableNames;
@@ -179,11 +179,15 @@ mutable struct SimulationModel{FloatType,TimeType}
         #@show typeof(parameterValues)
         #@show parameterValues
         parameterExpressions = parameterDefinition[:_p]
-        parameters = propagateEvaluateAndInstantiate(modelModule, parameterExpressions) 
         
         # Determine x_start
-        x_start = get_x_start!(FloatType, equationInfo, parameters)
+        # (Temporarily, must be called with parameterExpressions, because 
+        #  init-values of Modia3D joints are not present anymore in parameters;
+        #  therefore, init/start-values cannot be used in parameter propagation currently)         
+        x_start = get_x_start!(FloatType, equationInfo, parameterExpressions)
         nx = equationInfo.nx
+
+        parameters = propagateEvaluateAndInstantiate(modelModule, parameterExpressions) 
         
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
@@ -195,7 +199,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         separateObjects = OrderedDict{Int,Any}()
                 
         # Initialize execution flags
-        eventHandler = EventHandler{FloatType}(nz=nz)
+        eventHandler = EventHandler{FloatType,TimeType}(nz=nz)
         eventHandler.initial = true
         isInitial   = true
         storeResult = false
@@ -206,7 +210,7 @@ mutable struct SimulationModel{FloatType,TimeType}
             eventHandler, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, #parameterValues,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
-            x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[])
+            x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[], missing)
     end
 end
 
@@ -538,11 +542,16 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
     FloatType = getFloatType(m)      
     if !isnothing(merge)
         m.parameterExpressions = recursiveMerge(m.parameterExpressions, merge)
-        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)  
-      
-        m.x_start = get_x_start!(FloatType, m.equationInfo, m.parameters)
+        
+        # Determine x_start
+        # (Temporarily, must be called with parameterExpressions, because 
+        #  init-values of Modia3D joints are not present anymore in parameters;
+        #  therefore, init/start-values cannot be used in parameter propagation currently)    
+        m.x_start = get_x_start!(FloatType, m.equationInfo, m.parameterExpressions)
         nx = m.equationInfo.nx        
         m.der_x = zeros(FloatType, nx)
+
+        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)  
     else
         m.der_x .= 0
     end

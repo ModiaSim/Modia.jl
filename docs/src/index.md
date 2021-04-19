@@ -23,7 +23,10 @@ julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloM
 
 ### Version 0.7.3
 
-- Evaluation and propagation of parameter expressions (also in simulate!(..., merge=Map(...)))
+- Evaluation and propagation of parameter expressions (also in simulate!(..., merge=Map(...))).
+  Propagation of start/init values of states is not yet supported.
+
+- State events supported.
 
 
 ### Version 0.7.2

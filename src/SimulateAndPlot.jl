@@ -170,14 +170,17 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
            	tspan     = (startTime2, stopTime2)            
             abstol    = 0.1*tolerance
             problem   = DifferentialEquations.ODEProblem(derivatives!, m.x_init, tspan, m) 
-            callback1 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)  
+
             if eh.nz > 0
+                # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
+                # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
+                # A temporary fix is to use time events at the communication points, but this slows down simulation.
+                callback1 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)  
                 callback2 = DifferentialEquations.VectorContinuousCallback(conditions!, 
                                  affect!, eh.nz, interp_points=interp_points)                  
                 callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
             else
-                callbacks = callback1
-                            #DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=1)
+                callbacks = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=1)
             end
     
             # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
@@ -348,34 +351,37 @@ get_leaveName(pathName::String) =
 function ModiaPlot.getDefaultHeading(m::SimulationModel)
     FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
 
-    algorithmName = string(m.algorithmType)
-    i1 = findfirst("CompositeAlgorithm", algorithmName)
-    if !isnothing(i1)
-        i2 = findfirst("Vern" , algorithmName)
-        i3 = findfirst("Rodas", algorithmName)
-        success = false
-        if !isnothing(i2) && !isnothing(i3)
-            i2b = findnext(',', algorithmName, i2[1])
-            i3b = findnext('{', algorithmName, i3[1])
-            if !isnothing(i2b) && !isnothing(i3b)
-                algorithmName = algorithmName[i2[1]:i2b[1]-1] * "(" * algorithmName[i3[1]:i3b[1]-1] * "())"
-                success = true
+    if ismissing(m.algorithmType)
+        algorithmName = "???"
+    else
+        algorithmName = string(m.algorithmType)
+        i1 = findfirst("CompositeAlgorithm", algorithmName)
+        if !isnothing(i1)
+            i2 = findfirst("Vern" , algorithmName)
+            i3 = findfirst("Rodas", algorithmName)
+            success = false
+            if !isnothing(i2) && !isnothing(i3)
+                i2b = findnext(',', algorithmName, i2[1])
+                i3b = findnext('{', algorithmName, i3[1])
+                if !isnothing(i2b) && !isnothing(i3b)
+                    algorithmName = algorithmName[i2[1]:i2b[1]-1] * "(" * algorithmName[i3[1]:i3b[1]-1] * "())"
+                    success = true
+                end
+            end
+            if !success
+                algorithmName = "CompositeAlgorithm"
+            end
+        else
+            i1 = findfirst('{', algorithmName)
+            if !isnothing(i1)
+                algorithmName = algorithmName[1:i1-1]
+            end
+            i1 = findlast('.', algorithmName)
+            if !isnothing(i1)
+                algorithmName = algorithmName[i1+1:end]
             end
         end
-        if !success
-            algorithmName = "CompositeAlgorithm"
-        end
-    else
-        i1 = findfirst('{', algorithmName)
-        if !isnothing(i1)
-            algorithmName = algorithmName[1:i1-1]
-        end
-        i1 = findlast('.', algorithmName)
-        if !isnothing(i1)
-            algorithmName = algorithmName[i1+1:end]
-        end
     end
-
 
     if FloatType == "Float64"
         heading = m.modelName * " (" * algorithmName * ")"

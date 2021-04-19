@@ -99,7 +99,7 @@ positiveCrossingAsString(positive::Bool) = positive ? " became > 0" : " became <
 negativeCrossingAsString(negative::Bool) = negative ? " became < 0" : " became >= 0"
 
    
-function initEventIteration!(h::EventHandler{FloatType,TimeType}, t)::Nothing where {FloatType,TimeType}
+function initEventIteration!(h::EventHandler{FloatType,TimeType}, t::TimeType)::Nothing where {FloatType,TimeType}
     h.time          = t
     h.restart       = NoRestart
     h.maxTime       = floatmax(TimeType)

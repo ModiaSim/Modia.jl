@@ -60,8 +60,10 @@ Recursively traverse the hierarchical NamedTuple `model` and perform the followi
 - Instantiate dependent objects.
 - Return the evaluated `model` as NamedTuple.
 """
-function propagateEvaluateAndInstantiate(modelModule, model, environment=[], path="")
-    #println("\n!!! instantiate objects of $path: ", model)
+function propagateEvaluateAndInstantiate(modelModule, model, environment=[], path=""; log=false)
+    if log
+        println("\n!!! instantiate objects of $path: ", model)
+    end
     current = OrderedDict()
     
     # Determine, whether the "model" has a ":_constructor" key and handle this specially
@@ -92,7 +94,9 @@ function propagateEvaluateAndInstantiate(modelModule, model, environment=[], pat
     end
     
     for (k,v) in zip(keys(model), model)
-        #println("    ... for (k,v) in ...: $k = $v")
+        if log
+            println("    ... key = $k, value = $v")
+        end
         if k == :_constructor || k == :_path || (k == :class && !isnothing(constructor))
             nothing
             
@@ -105,20 +109,30 @@ function propagateEvaluateAndInstantiate(modelModule, model, environment=[], pat
                 #          or: k = (class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )   
                 #          or: k = (class = :Par, value = :(bar.frame0)) -> k = ref(bar.frame0)
                 subv = subst(v[:value], vcat(environment, [current]), modelModule)
-                #println("    class & value: $k = $subv")
+                if log
+                    println("    class & value: $k = $subv  # before eval")
+                end
                 current[k] = Core.eval(modelModule, subv)
-                #println("                   $k = ", current[k])
+                if log
+                    println("                   $k = ", current[k])
+                end
             else
                 # For example: k = (a = 2.0, b = :(2*Lx))
-                current[k] = propagateEvaluateAndInstantiate(modelModule, v, vcat(environment, [current]), appendKey(path, k))     
+                current[k] = propagateEvaluateAndInstantiate(modelModule, v, vcat(environment, [current]), appendKey(path, k); log=log)     
             end
             
         else
-            #println("    else: typeof(v) = ", typeof(v))
+            if log
+                println("    else: typeof(v) = ", typeof(v))
+            end
             subv = subst(v, vcat(environment, [current]), modelModule)
-            #println("          $k = $subv")
+            if log
+                println("          $k = $subv   # before eval")
+            end
             current[k] = Core.eval(modelModule, subv)
-            #println("          $k = ", current[k])
+            if log
+                println("          $k = ", current[k])
+            end
         end
     end 
     
@@ -130,7 +144,9 @@ function propagateEvaluateAndInstantiate(modelModule, model, environment=[], pat
         else
             obj = Core.eval(modelModule, :($constructor(; $current...)))
         end
-        #println("    +++ $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")    
+        if log
+            println("    +++ $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")    
+        end
         return obj        
     end
 end

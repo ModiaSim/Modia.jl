@@ -500,7 +500,7 @@ TinyModia provides a small set of pre-defined model components in directory
 
 - `AllModels.jl` - Include all model libraries
 - `Blocks.jl` - Input/output control blocks
-- `ELectric.jl` - Electric component models
+- `Electric.jl` - Electric component models
 - `HeatTransfer.jl` - 1D heat transfer component models
 - `Rotational.jl` - 1D rotational, mechanical component models
 
