@@ -137,6 +137,10 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             eh.z  = ones(FloatType,nz)
             eh.zPositive = fill(false, nz)
         end
+        if interp_points == 1
+            # DifferentialEquations.jl crashes
+            interp_points = 2
+        end
         m.algorithmType = typeof(algorithm)
         startTime2 = convertTimeVariable(TimeType, startTime)
         stopTime2  = convertTimeVariable(TimeType, stopTime)
