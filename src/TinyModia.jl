@@ -588,6 +588,9 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
             value = eval(init[v])
 #            value = 0.0
             len = hasParticles(value) ? 1 : length(value)
+        elseif v in keys(start)
+            value = eval(start[v])
+            len = hasParticles(value) ? 1 : length(value)            
         else
             len = 1
         end
