@@ -10,7 +10,6 @@ Pendulum = Model(
    g = 9.81u"m/s^2",
    phi = Var(init = 1.57*u"rad"),
    w   = Var(init = 0u"rad/s"),
-   r   = Var(start=zeros(2)u"m"),
    equations = :[
           w = der(phi)
         0.0 = m*L^2*der(w) + d*w + m*g*L*sin(phi)

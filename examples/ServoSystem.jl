@@ -9,8 +9,6 @@ include("../models/Rotational.jl")
 using TinyModia
 using DifferentialEquations
 using ModiaPlot
-#using Measurements
-using MonteCarloMeasurements
 
 
 setLogMerge(false)
@@ -113,24 +111,37 @@ TestServo = Model(
         (servo.flange_b, load.flange_a) ]
 )
 
-plotVariables = [("ramp.y", "load.w"), "servo.speedError.y", "servo.motor.currentSensor.i"]
+plotVariables = [("ramp.y", "load.w")         "servo.speedError.y";
+                 "servo.gear.spring.phi_rel"  "servo.motor.currentSensor.i"]
 
-model = @instantiateModel(TestServo)
+testServo1 = @instantiateModel(TestServo)
 println("Simulate")
-@time simulate!(model, Tsit5(), stopTime=2.0, tolerance=1e-6, log=false, requiredFinalStates = 
+@time simulate!(testServo1, Tsit5(), stopTime=2.0, tolerance=1e-6, requiredFinalStates = 
     [7.320842067204029, 9.346410309487013, 355.30389168655955, 2.792544498835712, 429.42665751348284, 311.7812493890421, 4.089776248793499, 2.969353608933471])
-plot(model, plotVariables, figure=1)
+plot(testServo1, plotVariables, figure=1)
 
-println("\nModel with uncertainties")
-#TestServoWithUncertainties = TestServo | Map( load = Map(J=(110.0 ± 20)*u"kg*m^2") )
-TestServoWithUncertainties = TestServo | Map( load = Map(J=(110.0 ∓ 20) ) ) # u"kg*m^2") ) #Map( ramp = Map(height=3 ∓ 1))
 
-#model = @instantiateModel(TestServoWithUncertainties , FloatType = Measurement{Float64})
-model = @instantiateModel(TestServoWithUncertainties , FloatType = StaticParticles{Float64,100}, unitless=true, log=false,
-    logCode=false, logExecution=false)
-println("Simulate")
-@time simulate!(model, Tsit5(), stopTime=2.0, tolerance=1e-6, log=false)
-plot(model, plotVariables, figure=2)
+println("\nServo with uncertainties")
+using Measurements
+TestServoWithUncertainties = TestServo | Map(
+    load  = Map(J=(110.0 ± 20)u"kg*m^2"),
+    servo = Map(motor = Map(resistor = Map(R=(13.8±1.0)u"Ω"))))
+testServo2 = @instantiateModel(TestServoWithUncertainties , FloatType = Measurement{Float64})
+@time simulate!(testServo2, Tsit5(), stopTime=2.0, tolerance=1e-6)
+plot(testServo2, plotVariables, figure=2)
+
+println("\nServo with Monte Carlo simulation")
+import MonteCarloMeasurements
+using Distributions
+const nparticles = 100
+uniform(vmin,vmax) = MonteCarloMeasurements.StaticParticles(nparticles,Distributions.Uniform(vmin,vmax))
+
+TestServoWithMonteCarlo = TestServo | Map(
+     load  = Map(J = uniform(50,170)),
+     servo = Map(motor = Map(resistor = Map(R = uniform(12.8,14.8)))))
+testServo3 = @instantiateModel(TestServoWithMonteCarlo, FloatType = MonteCarloMeasurements.StaticParticles{Float64,nparticles}, unitless=true)
+@time simulate!(testServo3, Tsit5(), stopTime=2.0, tolerance=1e-6)
+plot(testServo3, plotVariables, figure=3)
 
 
 end
