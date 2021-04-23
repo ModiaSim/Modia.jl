@@ -1,6 +1,6 @@
 # Modia Documentation
 
-[Modia](https://github.com/ModiaSim/Modiajl) is a Julia package for modeling and simulation of multidomain engineering systems (electrical, 3D mechanical, fluid, etc.) described by differential equations, algebraic equations, and (space-discretized) partial differential equations. It shares many powerful features of the
+[Modia](https://github.com/ModiaSim/Modia.jl) is a Julia package for modeling and simulation of multidomain engineering systems (electrical, 3D mechanical, fluid, etc.) described by differential equations, algebraic equations, and (space-discretized) partial differential equations. It shares many powerful features of the
 [Modelica language](https://www.modelica.org/modelicalanguage), together with new features not available in Modelica.
 A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by "expression = expression" equations. The defined model is symbolically processed (for example, equations might be analytically differentiated)
 From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
