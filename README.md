@@ -13,7 +13,7 @@ The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/Tutorial.html) p
 Modia is a Julia package for modeling and simulation of multidomain engineering systems (electrical, 3D mechanical, fluid, etc.) described by differential equations, algebraic equations, and (space-discretized) partial differential equations. It shares many powerful features of the
 [Modelica language](https://www.modelica.org/modelicalanguage), together with new features not available in Modelica. Simulation is performed with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), units are supported via [Unitful.jl](https://github.com/PainterQubits/Unitful.jl) , uncertainty modeling is performed with [Measurements.jl](https://github.com/JuliaPhysics/Measurements.jl), Monte Carlo simulation is performed with [MonteCarloMeasurements.jl](https://github.com/baggepinnen/MonteCarloMeasurements.jl). 
 
-Plotting is performed with package ModiaPlot as convenient interface to GLMakie.
+Plotting is performed with package [ModiaPlot.jl](https://github.com/ModiaSim/ModiaPlot.jl) as convenient interface to GLMakie.
 
 
 ## Installation
