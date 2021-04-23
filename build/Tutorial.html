@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Modia Tutorial · Modia</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Modia</span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li class="is-active"><a class="tocitem" href="Tutorial.html">Modia Tutorial</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Getting-started"><span>1 Getting started</span></a></li><li class="toplevel"><a class="tocitem" href="#Modeling"><span>2 Modeling</span></a></li><li><a class="tocitem" href="#.1-Equation-oriented-models"><span>2.1 Equation oriented models</span></a></li><li><a class="tocitem" href="#.2-Merging-models"><span>2.2 Merging models</span></a></li><li><a class="tocitem" href="#.3-Functions-and-tables"><span>2.3 Functions and tables</span></a></li><li><a class="tocitem" href="#.4-Hierarchical-modeling"><span>2.4 Hierarchical modeling</span></a></li><li><a class="tocitem" href="#.5-Physically-oriented-modeling"><span>2.5 Physically oriented modeling</span></a></li><li><a class="tocitem" href="#.6-Arrays"><span>2.6 Arrays</span></a></li><li><a class="tocitem" href="#.7-Model-libraries"><span>2.7 Model libraries</span></a></li><li class="toplevel"><a class="tocitem" href="#Simulation"><span>3 Simulation</span></a></li><li><a class="tocitem" href="#.1-Instantiating"><span>3.1 Instantiating</span></a></li><li><a class="tocitem" href="#.2-Simulating"><span>3.2 Simulating</span></a></li><li><a class="tocitem" href="#.3-Plotting"><span>3.3 Plotting</span></a></li><li><a class="tocitem" href="#.4-State-selection-(DAEs)"><span>3.4 State selection (DAEs)</span></a></li><li class="toplevel"><a class="tocitem" href="#Floating-point-types"><span>4 Floating point types</span></a></li><li><a class="tocitem" href="#.1-Lower-and-higher-precision"><span>4.1 Lower and higher precision</span></a></li><li><a class="tocitem" href="#.2-Uncertainties"><span>4.2 Uncertainties</span></a></li><li><a class="tocitem" href="#.3-Monte-Carlo-Simulation"><span>4.3 Monte-Carlo Simulation</span></a></li><li class="toplevel"><a class="tocitem" href="#Appendix-A"><span>Appendix A</span></a></li><li><a class="tocitem" href="#A.1-Var-constructor"><span>A.1 Var constructor</span></a></li><li><a class="tocitem" href="#A.2-Named-tuples-and-quoted-expressions"><span>A.2 Named tuples and quoted expressions</span></a></li><li><a class="tocitem" href="#A.3-MergeModels-algorithm"><span>A.3 MergeModels algorithm</span></a></li></ul></li><li><a class="tocitem" href="Functions.html">Functions</a></li><li><a class="tocitem" href="Internal.html">Internal</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="Tutorial.html">Modia Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Tutorial.html">Modia Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/ModiaSim/Modia.jl/blob/master/docs/src/Tutorial.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Modia-Tutorial"><a class="docs-heading-anchor" href="#Modia-Tutorial">Modia Tutorial</a><a id="Modia-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Modia-Tutorial" title="Permalink"></a></h1><h1 id="Getting-started"><a class="docs-heading-anchor" href="#Getting-started">1 Getting started</a><a id="Getting-started-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-started" title="Permalink"></a></h1><p>This tutorial gives an overview of package <a href="https://github.com/ModiaSim/Modia.jl">Modia</a> to construct component-based and equation-based models with the <strong>Modia language</strong> on a high level, symbolically transforming these models into ODEs (Ordinary Differential Equations in state space form), simulating them and plotting result variables.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>All examples in this tutorial can be executed with <code>include(&quot;$(Modia.path)/examples/Tutorial.jl&quot;)</code></p></div></div><p>A simple differential equation with <span>$x(t) \in \R$</span></p><p class="math-container">\[T \cdot \frac{dx}{dt} + x = 1; \;\;\; x(t_0) = 0.2\]</p><p>can be defined, simulated and plotted with the following commands:</p><pre><code class="language-julia">using Modia, ModiaPlot
+
+# Define model
+SimpleModel = Model(
+    T = 0.4,
+    x = Var(init=0.2),
+    equation = :[T * der(x) + x = 1],
+)
+
+# Transform to ODE form
+simpleModel = @instantiateModel(SimpleModel)
+
+# Simulate with a default integrator of DifferentialEquations
+simulate!(simpleModel, stopTime = 1.2)
+
+# Simulate with a specific integrator (Tsit5) and use a unit for stopTime
+simulate!(simpleModel, Tsit5(), stopTime = 1.2u&quot;s&quot;)
+
+# Produce a line plot with GLMakie
+plot(simpleModel, (&quot;x&quot;, &quot;der(x)&quot;), figure=1)</code></pre><p>A model is defined with a constructor <code>Model</code> taking a comma separated list of name/value pairs. The model consist of a definition of a parameter <code>T</code> with default value 0.2. Constructor <code>Var</code> with an <code>init</code> key is used to define the initial condition 0.2 of the state <code>x</code>, and one equation. Equations can have a Julia expression on both sides of the equal sign and are given as a <em>quoted</em> array expression <code>:[ ]</code> assigned to a unique identifier such as <code>equation</code>.</p><p>Macro <code>@instantiateModel(..)</code>  symbolically processes the model, in particular solves the equation for the derivative <code>der(x)</code>, so the following equation will be used by the integrator:</p><p class="math-container">\[\frac{dx}{dt} = (1 - x) / T\]</p><p>Furthermore, a Julia function is generated and compiled to evaluate this equation. <code>@instantiateModel(..)</code> returns an instance containing all the information needed for the further steps.</p><p>The first <a href="Functions.html#ModiaLang.simulate!"><code>simulate!</code></a> function performs one simulation with an integrator of package <a href="https://github.com/SciML/DifferentialEquations.jl">DifferentialEquations.jl</a>, that this package automatically selects. The second <code>simulate!</code> call defines the integrator as second argument. Integrator <code>Tsit5</code> is an <a href="https://www.sciencedirect.com/science/article/pii/S0898122111004706">adaptive Runge-Kutta method of order 5/4 from Tsitouras</a>. There are &gt; 100 ODE integrators provided. For details, see <a href="https://docs.sciml.ai/stable/solvers/ode_solve/">here</a>. The simulation result is stored inside <code>simpleModel</code>.</p><p>Function call <code>plot(..)</code> (or <code>ModiaPlot.plot(..)</code>) produces a line plot. Variables to be plotted are defined as tuples or arrays of variable names. Tuples are displayed in one diagram. A Vector or matrix of tuples or strings are displayed as vector or matrix of diagrams. The result from the above example is:</p><p><img src="../resources/images/SimpleModel.png" alt="SimpleModel Plot"/></p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p><code>using Modia</code> exports all exported symbols from</p><ul><li><a href="https://github.com/ModiaSim/ModiaLang.jl">ModiaLang.jl</a>,</li><li><a href="https://github.com/SciML/DifferentialEquations.jl">DifferentialEquations.jl</a>, and</li><li><a href="https://github.com/PainterQubits/Unitful.jl">Unitful.jl</a>.</li></ul></div></div><h1 id="Modeling"><a class="docs-heading-anchor" href="#Modeling">2 Modeling</a><a id="Modeling-1"></a><a class="docs-heading-anchor-permalink" href="#Modeling" title="Permalink"></a></h1><h2 id=".1-Equation-oriented-models"><a class="docs-heading-anchor" href="#.1-Equation-oriented-models">2.1 Equation oriented models</a><a id=".1-Equation-oriented-models-1"></a><a class="docs-heading-anchor-permalink" href="#.1-Equation-oriented-models" title="Permalink"></a></h2><p>A low pass filter block with input <code>u</code> and output <code>y</code></p><p class="math-container">\[\begin{aligned}
+T \cdot \frac{dx}{dt} + x &amp;= u\\
+     y &amp;= x \\
+x(t_0) &amp;= 0
+\end{aligned}\]</p><p>can be defined as:</p><pre><code class="language-julia">    using Modia
+
+    LowPassFilter = Model(
+        T = 0.2,
+        u = input,
+        y = output | Var(:x),
+        x = Var(init=0),
+        equation = :[T * der(x) + x = u],
+    )</code></pre><p>The symbols <code>input</code> and <code>output</code> refer to predefined variable constructors to define the input and output variables. If an equation has just a unique variable in the left hand side, <code>y</code>, the right hand side can be given as a quoted expression in a Var-constructor <code>Var(:x)</code> after the <code>output</code> constructor combined with the merge operator, <code>|</code>, see below.</p><h2 id=".2-Merging-models"><a class="docs-heading-anchor" href="#.2-Merging-models">2.2 Merging models</a><a id=".2-Merging-models-1"></a><a class="docs-heading-anchor-permalink" href="#.2-Merging-models" title="Permalink"></a></h2><p>It is possible to combine models by merging. If we want to change the model to become a highpass filter, an alternative output equation</p><p class="math-container">\[y = -x + u\]</p><p>is defined in an anonymous model <code>Model( y = :(-x + u) )</code>. This anonymous model is merged with <code>LowPassFilter</code> using the merge operator <code>|</code>:</p><pre><code class="language-julia">HighPassFilter = LowPassFilter | Model( y = :(-x + u) )</code></pre><p>The merging implies that the <code>output</code> property of <code>y</code> is kept, but the binding expression is changed from <code>:x</code> to <code>:(-x + u)</code>.</p><p>In general, recursive merging is desired and Modia provides a <code>mergeModels</code> function for that (see appendix <a href="Tutorial.html#A.3-MergeModels-algorithm">A.3 MergeModels algorithm</a>). This function is invoked as a binary operator <code>|</code> (also used for merge in Python). Note, that the order of the arguments/operands are important.</p><p>Generalizing the block to have two outputs for both low and high pass filtering would be done as follows:</p><pre><code class="language-julia">LowAndHighPassFilter = LowPassFilter | Model(
+        y = nothing,
+        low = output | Var(:x),
+        high = output | Var(:(-x + u)),
+    )</code></pre><p>The equation for <code>y</code> is removed by &quot;assigning&quot; <code>nothing</code> and two variables are defined and declared as outputs.</p><p>Model <code>LowAndHighPassFilter</code> represents the following equations:</p><p class="math-container">\[\begin{aligned}
+T \cdot \frac{dx}{dt} + x &amp;= u\\
+     low &amp;= x \\
+    high &amp;= -x + u \\
+x(t_0) &amp;= 0
+\end{aligned}\]</p><p>By turning on logging of merging <code>setLogMerge(true)</code>, the translator gives the log:</p><pre><code class="language-julia">Adding: value = :(x)
+Adding: value = :(-x + u)
+Deleting: y
+Adding: low = Var(
+      output = true,
+      value = :(x),
+    ),
+Adding: high = Var(
+      output = true,
+      value = :(-x + u),
+    ),</code></pre><p>The resulting model is pretty printed by calling <code>@showModel LowAndHighPassFilter</code>:</p><pre><code class="language-julia">LowAndHighPassFilter = Model(
+  T = 0.2,
+  u = Var(
+    input = true,
+  ),
+  x = Var(
+    init = 0.0 V,
+  ),
+  equations = :([T * der(x) + x = u]),
+  low = Var(
+    output = true,
+    value = :(x),
+  ),
+  high = Var(
+    output = true,
+    value = :(-x + u),
+  ),
+),</code></pre><h2 id=".3-Functions-and-tables"><a class="docs-heading-anchor" href="#.3-Functions-and-tables">2.3 Functions and tables</a><a id=".3-Functions-and-tables-1"></a><a class="docs-heading-anchor-permalink" href="#.3-Functions-and-tables" title="Permalink"></a></h2><p>In order to test an input/output block as defined in the previous section, an input needs to be defined. This can be made by adding an equation for <code>u</code>. Assume we want <code>u</code> to be sinousoidial with an increasing frequency:</p><pre><code class="language-julia">TestLowAndHighPassFilter = LowAndHighPassFilter | Model(
+        u = :(sin( (time+1u&quot;s&quot;)*u&quot;1/s/s&quot; * time)*u&quot;V&quot;),
+        x = Var(init=0.2u&quot;V&quot;)
+    )</code></pre><p><code>time</code> is a reserved name for the independent variable. It has unit <code>s</code> for seconds. The Julia package <a href="https://painterqubits.github.io/Unitful.jl/stable/">Unitful</a> provides a means for defining units and managing unit inference. It need not be explicitly defined, because its symbols are exported by <code>using Modia</code>. Definition of units is done with a string macro <code>u&quot;...&quot;</code>. In this case, the input signal was given unit Volt. The state x must then also have consistent unit, that is Volt. If the model equations contain systems of simultaneous equations, then approximate guess values, optionally with units, must be given <code>start</code>: <code>i = Var(start=0.0u&quot;A&quot;)</code>.</p><p>The input signal can also be defined by interpolation in a table:</p><pre><code class="language-julia">using Interpolations
+
+table = CubicSplineInterpolation(0:0.5:2.0, [0.0, 0.7, 2.0, 1.8, 1.2])
+TestLowAndHighPassFilter2 = TestLowAndHighPassFilter | Map(u = :(table(time*u&quot;1/s&quot;)*u&quot;V&quot;))</code></pre><p>A function cannot return more as one variable and a function cannot modify one of its arguments:</p><pre><code class="language-none">equations = :[
+    (y1, y1) = fc1(u1,u2)      # Error: Two return arguments
+    fc2!(u,y)                  # Error: Not known that fc2! computes y
+    println(&quot;This is a test&quot;)  # Fine
+]</code></pre><p>The first issue can be fixed by rewriting the function call:</p><pre><code class="language-none">equations = :[
+    v  = fc1(u1,u2)
+    y1 = v[1]
+    y2 = v[2]
+]</code></pre><h2 id=".4-Hierarchical-modeling"><a class="docs-heading-anchor" href="#.4-Hierarchical-modeling">2.4 Hierarchical modeling</a><a id=".4-Hierarchical-modeling-1"></a><a class="docs-heading-anchor-permalink" href="#.4-Hierarchical-modeling" title="Permalink"></a></h2><p>Sofar, the composition of models have resulted in named tuples with values being numeric values or quoted expressions. Hierarchical models are obtained if the values themself are named tuples. A model with two filters can, for example, be defined as follows:</p><pre><code class="language-julia">TwoFilters = (
+    high = HighPassFilter,
+    low = LowPassFilter,
+)</code></pre><p>Note, that the previous definitions of HighPassFilter and LowPassFilter was used instead of making the defintions inline.</p><p>A band pass filter is a series connection of a high pass filter and a low pass filter and can be described as:</p><pre><code class="language-julia">BandPassFilter = (
+    u = input,
+    y = output,
+    high = HighPassFilter | Map(T=0.5, x=Var(init=0.1u&quot;V&quot;)),
+    low = LowPassFilter | Map(x=Var(init=0.2u&quot;V&quot;)),
+    equations = :[
+        high.u = u,
+        low.u = high.y,
+        y = low.y]
+)</code></pre><p>A new input has been defined which is propagated to <code>high.u</code>. The series connection itself is obtained by the equation <code>low.u = high.y</code>. Note, that dot-notation is allowed in equations.</p><p>The input and output for the BandPassFilter when using the same input definition as for the TestLowPassFilter</p><pre><code class="language-julia">TestBandPassFilter = BandPassFilter | Map(
+        u = :(sin( (time+1u&quot;s&quot;)*u&quot;1/s/s&quot; * time)*u&quot;V&quot;)
+    )
+bandPassFilter = @instantiateModel(TestBandPassFilter)
+simulate!(bandPassFilter, Tsit5(), stopTime = 50u&quot;s&quot;)
+plot(bandPassFilter, [&quot;u&quot;, &quot;y&quot;], figure=2)</code></pre><p>is shown below:</p><p><img src="../resources/images/BandPassFilterPlot.png" alt="Band Pass Filter Plot"/></p><p>The above examples are available in file <code>SimpleFilters.jl</code>.</p><h2 id=".5-Physically-oriented-modeling"><a class="docs-heading-anchor" href="#.5-Physically-oriented-modeling">2.5 Physically oriented modeling</a><a id=".5-Physically-oriented-modeling-1"></a><a class="docs-heading-anchor-permalink" href="#.5-Physically-oriented-modeling" title="Permalink"></a></h2><p>Sofar, only signal flow modeling has been used, i.e. input/output blocks coupled with equations between outputs and inputs. For object oriented modeling more high level constructs are neccessary. Coupling is then acausal and involves potentials such as electric potential, positions, pressure, etc. and flows such as electric current, forces and torques and mass flow rate.</p><h3 id=".5.1-Connectors"><a class="docs-heading-anchor" href="#.5.1-Connectors">2.5.1 Connectors</a><a id=".5.1-Connectors-1"></a><a class="docs-heading-anchor-permalink" href="#.5.1-Connectors" title="Permalink"></a></h3><p>Models which contain any flow variable, i.e. a variable having an attribute <code>flow=true</code>, are considered connectors. Connectors must have equal number of flow and potential variables, i.e. variables having an attribute <code>potential=true</code>, and have matching array sizes. Connectors may not have any equations. An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.</p><pre><code class="language-julia">Pin = Model( v = potential, i = flow )</code></pre><p><code>potential</code> is a shortcut for <code>Var(potential=true)</code> and similarly for <code>flow</code>.</p><h3 id=".5.2-Components"><a class="docs-heading-anchor" href="#.5.2-Components">2.5.2 Components</a><a id=".5.2-Components-1"></a><a class="docs-heading-anchor-permalink" href="#.5.2-Components" title="Permalink"></a></h3><p>Components are declared in a similar ways as blocks. However, the interfaces between components are defined using connector instances.</p><p>An electrical resistor can be descibed as follows:</p><pre><code class="language-julia">Resistor = Model(
+    R = 1.0u&quot;Ω&quot;,
+    p = Pin,
+    n = Pin,
+    equations = :[
+        0 = p.i + n.i
+        v = p.v - n.v
+        i = p.i
+        R*i = v ]
+    )</code></pre><h3 id=".5.3-Inheritance"><a class="docs-heading-anchor" href="#.5.3-Inheritance">2.5.3 Inheritance</a><a id=".5.3-Inheritance-1"></a><a class="docs-heading-anchor-permalink" href="#.5.3-Inheritance" title="Permalink"></a></h3><p>Various physical components sometimes share common properties. One mechanism to handle this is to use inheritance. In Modia, <strong>merging</strong> is used.</p><p>Electrical components such as resistors, capacitors and inductors are categorized as oneports which have two pins. Common properties are: constraint on currents at the pins and definitions of voltage over the component and current through the component.</p><pre><code class="language-julia">OnePort = Model(
+    p = Pin,
+    n = Pin,
+    partialEquations = :[
+        0 = p.i + n.i
+        v = p.v - n.v
+        i = p.i ] )</code></pre><p>Having such a OnePort definition makes it convenient to define electrical component models by merging OnePort with specific parameter definitions with default values and equations:</p><pre><code class="language-julia">Resistor = OnePort | Model( R = 1.0u&quot;Ω&quot;, equation = :[ R*i = v ], )
+
+Capacitor = OnePort | Model( C = 1.0u&quot;F&quot;, v=Map(init=0.0u&quot;V&quot;), equation = :[ C*der(v) = i ] )
+
+Inductor = OnePort | Model( L = 1.0u&quot;H&quot;, i=Map(init=0.0u&quot;A&quot;), equation = :[ L*der(i) = v ] )
+
+ConstantVoltage = OnePort | Model( V = 1.0u&quot;V&quot;, equation = :[ v = V ] )</code></pre><p>The merged <code>Resistor</code> is shown below:</p><pre><code class="language-julia">Resistor = Model(
+  p = Model(
+    v = Var(
+      potential = true,
+    ),
+    i = Var(
+      flow = true,
+    ),
+  ),
+  n = Model(
+    v = Var(
+      potential = true,
+    ),
+    i = Var(
+      flow = true,
+    ),
+  ),
+  partialEquations = :([v = p.v - n.v; 0 = p.i + n.i; i = p.i]),
+  R = 1.0 Ω,
+  equations = :([R * i = v]),
+),</code></pre><h3 id=".5.4-Connections"><a class="docs-heading-anchor" href="#.5.4-Connections">2.5.4 Connections</a><a id=".5.4-Connections-1"></a><a class="docs-heading-anchor-permalink" href="#.5.4-Connections" title="Permalink"></a></h3><p>Connections are described as an array of tuples listing the connectors that are connected:</p><pre><code class="language-julia">    ( &lt;connect reference 1&gt;, &lt;connect reference 2&gt;, ... )</code></pre><p>A connect reference has either the form &#39;connect instance name&#39; or &#39;component instance name&#39;.&#39;connect instance name&#39; with &#39;connect instance name&#39; being either a connector instance, input or output variable.</p><p>Examples</p><pre><code class="language-julia">    connect = :[
+      (V.p, R1.p)
+      (R1.n, p)
+      (C1.n, V.n, R2.p)
+      ...
+    ]</code></pre><p>For connectors, all the potentials of the connectors in the same connect tuple are set equal and the sum of all incoming flows to the model are set equal to the sum of the flows into sub-components.</p><h3 id=".5.5-Connected-models"><a class="docs-heading-anchor" href="#.5.5-Connected-models">2.5.5 Connected models</a><a id=".5.5-Connected-models-1"></a><a class="docs-heading-anchor-permalink" href="#.5.5-Connected-models" title="Permalink"></a></h3><p>Having the above electrical component models, enables defining a filter</p><p><img src="../resources/images/Filter.png" alt="Filter Circuit"/></p><p>by instanciating components, setting parameters and defining connections.</p><pre><code class="language-julia">Filter = (
+    R = Resistor | Map(R=0.5u&quot;Ω&quot;),
+    C = Capacitor | Map(C=2.0u&quot;F&quot;),
+    V = ConstantVoltage | Map(V=10.0u&quot;V&quot;),
+    connect = :[
+      (V.p, R.p)
+      (R.n, C.p)
+      (C.n, V.n)
+    ]
+)</code></pre><p>The connect tuples are translated to:</p><pre><code class="language-julia">  V.p.v = R.p.v
+  0 = V.p.i + R.p.i
+  R.n.v = C.p.v
+  0 = R.n.i + C.p.i
+  C.n.v = V.n.v
+  0 = C.n.i + V.n.i</code></pre><h3 id=".5.6-Parameter-propagation"><a class="docs-heading-anchor" href="#.5.6-Parameter-propagation">2.5.6 Parameter propagation</a><a id=".5.6-Parameter-propagation-1"></a><a class="docs-heading-anchor-permalink" href="#.5.6-Parameter-propagation" title="Permalink"></a></h3><p>Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters intoduced on a high level down in the hierarchy. The following Filter model defines three parameters, <code>r</code>, <code>c</code> and <code>v</code>. The <code>r</code> parameter is used to set the resistance of the resistor R: <code>Map(R=:r)</code>.</p><pre><code class="language-julia">Filter2 = Model(
+    r = 2.0u&quot;Ω&quot;,
+    c = 1.0u&quot;F&quot;,
+    v = 10u&quot;V&quot;,
+    R = Resistor | Map(R=:r),
+    C = Capacitor | Map(C=:c),
+    V = ConstantVoltage | Map(V=:v),
+    connect = :[
+      (V.p, R.p)
+      (R.n, C.p)
+      (C.n, V.n)
+    ]
+)</code></pre><p>Two separate filters can then be defined with:</p><pre><code class="language-julia">TwoFilters = Model( f1 = Filter | Map( r = 10.0, c = 2.0), f2 = Filter )</code></pre><h3 id=".5.7-Redeclarations"><a class="docs-heading-anchor" href="#.5.7-Redeclarations">2.5.7 Redeclarations</a><a id=".5.7-Redeclarations-1"></a><a class="docs-heading-anchor-permalink" href="#.5.7-Redeclarations" title="Permalink"></a></h3><p>It is possible to reuse a particular model topology by redeclaring the model of particular components. For example, changing the filter <code>f1</code> to a voltage divider by changing C from a Capacitor to a Resistor. A predefined model <code>Redeclare</code> is used for this purpose.</p><pre><code class="language-julia">VoltageDividerAndFilter = TwoFilters | Map(f1 = Map(C = Redeclare | Resistor | Map(R = 20.0)))</code></pre><p>By using <code>Redeclare</code>, a new model based on a Resistor is used for <code>C</code> and the usual merge semantics with the previously defined model of <code>C</code> is not used.</p><p>The above examples are available in file <code>FilterCircuit.jl</code>.</p><h3 id=".5.8-Drive-train-example"><a class="docs-heading-anchor" href="#.5.8-Drive-train-example">2.5.8 Drive train example</a><a id=".5.8-Drive-train-example-1"></a><a class="docs-heading-anchor-permalink" href="#.5.8-Drive-train-example" title="Permalink"></a></h3><p>A larger example that utilizes most of the previously described features of Modia is available as <code>$(Modia.path)/examples/ServoSystem.jl</code>. This is a textual (Modia) representation of a Modelica model</p><p><img src="../resources/images/ServoSystem.png" alt="ServoSystem"/></p><p>and demonstrates how to build up a hierarchical, multi-domain model consisting of a servo-system with a load, where the servo-system consists of an electric motor with a current and speed controller, as well with a more detailed model of a gearbox.</p><h2 id=".6-Arrays"><a class="docs-heading-anchor" href="#.6-Arrays">2.6 Arrays</a><a id=".6-Arrays-1"></a><a class="docs-heading-anchor-permalink" href="#.6-Arrays" title="Permalink"></a></h2><p>Model parameters and variables can be arrays. For example a linear state space system with <span>$\boldsymbol{x}(t) \in \R^{n_x}, \boldsymbol{u}(t) \in \R^{n_u}, \boldsymbol{y}(t) \in \R^{n_y},  \boldsymbol{A} \in \R^{n_x \times n_x}, \boldsymbol{B} \in \R^{n_x \times n_u},  \boldsymbol{C} \in \R^{n_y \times n_x}, \boldsymbol{D} \in \R^{n_y \times n_u}$</span></p><p class="math-container">\[\begin{aligned}
+\frac{d\boldsymbol{x}}{dt} &amp;= \boldsymbol{A} \cdot \boldsymbol{x} + \boldsymbol{B} \cdot \boldsymbol{u}\\
+            \boldsymbol{y} &amp;= \boldsymbol{C} \cdot \boldsymbol{x} + \boldsymbol{D} \cdot \boldsymbol{u}
+\end{aligned}\]</p><p>can be defined as:</p><pre><code class="language-julia">StateSpace = Model(
+    A = fill(0.0,0,0),
+    B = fill(0.0,0,0),
+    C = fill(0.0,0,0),
+    D = fill(0.0,0,0),
+    u = input,
+    y = output,
+    x = Var(init = zeros(0)),
+    equations = :[
+        der(x) = A*x + B*u
+             y = C*x + D*u
+    ]
+)</code></pre><p>and used as:</p><pre><code class="language-julia">col(args...) = hvcat(1, args...)  # Construct a column matrix from a vector
+
+SecondOrder = Model(
+    w = 20.0,
+    D =  0.1,
+    k =  2.0,
+    sys = StateSpace | Map(A = :([  0        1;
+                                 -w^2  -2*D*w]),
+                           B = :(col([0; w^2])),
+                           C = :([k 0]),
+                           D = :(zeros(1,1)),
+                           x = Var(init = zeros(2)) ),
+    equations = :[sys.u = [1.0]]
+)</code></pre><p>Variables <code>sys.u</code> and <code>sys.y</code> are vectors with one element each.</p><p>Note, <code>[0; w^2]</code> is a vector in Julia and not a column matrix (see the discussion <a href="https://discourse.julialang.org/t/construct-a-2-d-column-array/30617">here</a>). In order that <code>B</code> is defined as column matrix, the function <code>col(..)</code> is used.</p><p>Array equations remain array equations during symbolic transformation and in the generated code, so the code is both compact and efficient. In order that this is reasonably possible, the definition of an array cannot be split in different statements:</p><pre><code class="language-julia">equations = :[             # error, vector v is not defined as one symbol
+    m1*der(v[1]) = 2.0
+    m2*der(v[2]) = 3.0
+]</code></pre><p>If scalar equations are needed in which arrays are used, then the arrays have to be first defined and then elements can be used.</p><pre><code class="language-julia">v = Var(init=zeros(2)),
+equations = :[
+    a = der(v)
+    a1 = a[1]
+    a2 = a[2]
+    m1*a1 = 2.0
+    m2*a2 = 3.0
+]</code></pre><h2 id=".7-Model-libraries"><a class="docs-heading-anchor" href="#.7-Model-libraries">2.7 Model libraries</a><a id=".7-Model-libraries-1"></a><a class="docs-heading-anchor-permalink" href="#.7-Model-libraries" title="Permalink"></a></h2><p>Modia provides a small set of pre-defined model components in directory <code>$(Modia.path)/models</code>:</p><ul><li><code>AllModels.jl</code> - Include all model libraries</li><li><code>Blocks.jl</code> - Input/output control blocks</li><li><code>ELectric.jl</code> - Electric component models</li><li><code>HeatTransfer.jl</code> - 1D heat transfer component models</li><li><code>Rotational.jl</code> - 1D rotational, mechanical component models</li></ul><p>These models are included in package <code>Modia</code>, but are not exported, so must be access with `Modia.xxx&quot;.</p><p>The circuit of section <a href="Tutorial.html#.5.5-Connected-models">2.5.5 Connected models</a> can be for example constructed with these libraries in the following way:</p><pre><code class="language-julia">using Modia, ModiaPlot
+
+FilterCircuit = Model(
+    R = Modia.Resistor  | Map(R=0.5u&quot;Ω&quot;),
+    C = Modia.Capacitor | Map(C=2.0u&quot;F&quot;, v=Var(init=0.1u&quot;V&quot;)),
+    V = Modia.ConstantVoltage | Map(V=10.0u&quot;V&quot;),
+    ground = Modia.Ground,
+    connect = :[
+      (V.p, R.p)
+      (R.n, C.p)
+      (C.n, V.n, ground.p)
+    ]
+)
+
+filterCircuit = @instantiateModel(FilterCircuit)
+simulate!(filterCircuit, Tsit5(), stopTime=10.0)
+plot(filterCircuit, [&quot;C.v&quot;, &quot;C.i&quot;], figure=3)</code></pre><p>It is planned to support a much larger set of predefined model components in the future.</p><h1 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">3 Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h1><p>A particular model is instantiated, simulated and results plotted with the commands:</p><pre><code class="language-julia">    using Modia, ModiaPlot
+
+    filter = @instantiateModel(Filter)
+    simulate!(filter, stopTime=10.0)
+    plot(filter, &quot;y&quot;, figure=1)</code></pre><h2 id=".1-Instantiating"><a class="docs-heading-anchor" href="#.1-Instantiating">3.1 Instantiating</a><a id=".1-Instantiating-1"></a><a class="docs-heading-anchor-permalink" href="#.1-Instantiating" title="Permalink"></a></h2><p>The <code>@instantiateModel</code> macro takes additional arguments:</p><pre><code class="language-julia">modelInstance = @instantiateModel(model;
+                    FloatType = Float64, aliasReduction=true, unitless=false,
+                    log=false, logModel=false, logDetails=false, logStateSelection=false,
+                    logCode=false, logExecution=false, logTiming=false)</code></pre><p>The macro performs structural and symbolic transformations, generates a function for calculation of derivatives suitable for use with <a href="https://github.com/SciML/DifferentialEquations.jl">DifferentialEquations.jl</a> and returns <code>modelInstance::SimulationModel</code> that can be used in other functions, for example to simulate or plot results:</p><ul><li><code>model</code>: model (declarations and equations).</li><li><code>FloatType</code>: Variable type for floating point numbers (see below).</li><li><code>aliasReduction</code>: Perform alias elimination and remove singularities.</li><li><code>unitless</code>: Remove units (useful while debugging models and needed for MonteCarloMeasurements).</li><li><code>log</code>: Log the different phases of translation.</li><li><code>logModel</code>: Log the variables and equations of the model.</li><li><code>logDetails</code>: Log internal data during the different phases of translation.</li><li><code>logStateSelection</code>: Log details during state selection.</li><li><code>logCode</code>: Log the generated code.</li><li><code>logExecution</code>: Log the execution of the generated code (useful for finding unit bugs).</li><li><code>logTiming</code>: Log timing of different phases.</li><li><code>return modelInstance prepared for simulation</code></li></ul><h2 id=".2-Simulating"><a class="docs-heading-anchor" href="#.2-Simulating">3.2 Simulating</a><a id=".2-Simulating-1"></a><a class="docs-heading-anchor-permalink" href="#.2-Simulating" title="Permalink"></a></h2><p>The <a href="Functions.html#ModiaLang.simulate!"><code>simulate!</code></a> function performs one simulation with <a href="https://github.com/SciML/DifferentialEquations.jl">DifferentialEquations.jl</a> using the default integrator that this package automatically selects and stores the result in <code>modelInstance</code>.  It is also possible to specify the integrator as second argument of <code>simulate!</code>:</p><pre><code class="language-julia">    using Modia, ModiaPlot
+
+    filter = @instantiateModel(Filter)
+    simulate!(filter, Tsit5(), stopTime=10.0, merge=Map(T=0.5, x=0.8))
+    plot(filter, [&quot;y&quot;, &quot;x&quot;], figure=1)</code></pre><p>Integrator <code>DifferentialEquations.Tsit5</code> is an <a href="https://www.sciencedirect.com/science/article/pii/S0898122111004706">adaptive Runge-Kutta method of order 5/4 from Tsitouras</a>. There are &gt; 100 ODE integrators provided. For details, see <a href="https://docs.sciml.ai/stable/solvers/ode_solve/">here</a>.</p><p>Parameters and init/start values can be changed with the <code>merge</code> keyword. The effect is the same, as if the filter would have been instantiated with:</p><pre><code class="language-julia">    filter = @instantiateModel(Filter | Map(T=0.5, x=Var(init=0.8))</code></pre><p>Note, with the <code>merge</code> keyword in simulate!, init/start values are directly given as a value (<code>x = 0.8</code>) and are not defined with <code>Var(..)</code>.</p><p>Function <code>simulate!</code> returns the value that is returned by function <a href="https://diffeq.sciml.ai/stable/features/ensemble/#Solving-the-Problem">DifferentialEquations.solve</a>. Functions of <code>DifferentialEquations</code> that operate on this return argument can therefore also be used on the return argument of <code>simulate!</code>.</p><h2 id=".3-Plotting"><a class="docs-heading-anchor" href="#.3-Plotting">3.3 Plotting</a><a id=".3-Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#.3-Plotting" title="Permalink"></a></h2><p>The <a href="https://modiasim.github.io/ModiaPlot.jl/stable/Functions.html#ModiaPlot.plot">plot</a> function generates a line plot with <a href="https://github.com/JuliaPlots/GLMakie.jl">GLMakie</a>.</p><p>A short overview of the most important plot commands is given in section section <a href="Functions.html#Plotting">Plotting</a></p><h2 id=".4-State-selection-(DAEs)"><a class="docs-heading-anchor" href="#.4-State-selection-(DAEs)">3.4 State selection (DAEs)</a><a id=".4-State-selection-(DAEs)-1"></a><a class="docs-heading-anchor-permalink" href="#.4-State-selection-(DAEs)" title="Permalink"></a></h2><p>Modia has a sophisticated symbolic engine to transform high index DAEs (Differential Algebraic Equations) automatically to ODEs (Ordinary Differential Equations in state space form). During the transformation, equations might be analytically differentiated and code might be generated to solve linear equation systems numerically during simulation. The current engine <strong>cannot</strong> transform a DAE to ODE form, if the <strong>DAE contains nonlinear algebraic equations</strong>. There is an (internal) prototype available to transform nearly any DAE system to a special index 1 DAE system that can be solved with standard DAE integrators. After a clean-up phase, this engine will be made publicly available at some time in the future. Some of the algorithms used in Modia are described in <a href="https://modelica.org/events/modelica2017/proceedings/html/submissions/ecp17132565_OtterElmqvist.pdf">Otter and Elmqvist (2017)</a>. Some algorithms are not yet published.</p><p>Usually, the symbolic engine is only visible to the modeler, when the model has errors, or when the number of ODE states is less than the number of DAE states. The latter case is discussed in this section.</p><p>The following object diagram shows two rotational inertias that are connected by an ideal gear. One inertia is actuated with a sinusoidal torque:</p><p><img src="../resources/images/TwoInertiasAndIdealGear.png" alt="TwoInertiasAndIdealGear"/></p><p>In order to most easily understand the issues, this model is provided in a compact, &quot;flattened&quot; form:</p><pre><code class="language-julia">TwoInertiasAndIdealGearTooManyInits = Model(
+    J1    = 50,
+    J2    = 100,
+    ratio = 2,
+    f     = 3, # Hz
+
+    phi1 = Var(init = 0.0), # Absolute angle of inertia1
+    w1   = Var(init = 0.0), # Absolute angular velocity of inertia1
+    phi2 = Var(init = 0.0), # Absolute angle of inertia2
+    w2   = Var(init = 0.0), # Absolute angular velocity of inertia2
+
+    equations = :[
+        tau = 2.0*sin(2*3.14*f*time/u&quot;s&quot;)
+
+        # inertia1
+        w1 = der(phi1)
+        J1*der(w1) = tau - tau1
+
+        # ideal gear
+        phi1 = ratio*phi2
+        ratio*tau1 = tau2
+
+        # inertia2
+        w2 = der(phi2)
+        J2*der(w2) = tau2
+    ]
+)
+
+drive1 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits)
+simulate!(drive1, Tsit5(), stopTime = 1.0, logStates=true)
+plot(drive1, [(&quot;phi1&quot;, &quot;phi2&quot;), (&quot;w1&quot;, &quot;w2&quot;)])</code></pre><p>The option <code>logStates=true</code> results in the following output:</p><pre><code class="language-none">... Simulate model TwoInertiasAndIdealGearTooManyInits
+
+│ # │ state  │ init │ unit │ nominal │
+├───┼────────┼──────┼──────┼─────────┤
+│ 1 │ phi2   │ 0.0  │      │ NaN     │
+│ 2 │ w2     │ 0.0  │      │ NaN     │</code></pre><p>This model translates and simulates without problems.</p><p>Changing the init-value of <code>w2</code> to <code>1.0</code> and resimulating:</p><pre><code class="language-julia">simulate!(drive1, Tsit5(), stopTime = 1.0, logStates=true, merge = Map(w2=1.0))</code></pre><p>results in the following error:</p><pre><code class="language-none">... Simulate model TwoInertiasAndIdealGearTooManyInits
+
+│ # │ state │ init │ unit │ nominal │
+├───┼───────┼──────┼──────┼─────────┤
+│ 1 │ phi2  │ 0.0  │      │ NaN     │
+│ 2 │ w2    │ 1.0  │      │ NaN     │
+
+
+Error from simulate!:
+The following variables are explicitly solved for, have init-values defined
+and after initialization the init-values are not respected
+(remove the init-values in the model or change them to start-values):
+
+│ # │ name │ beforeInit │ afterInit │
+├───┼──────┼────────────┼───────────┤
+│ 1 │ w1   │ 0.0        │ 2.0       │</code></pre><p>The issue is the following:</p><p>Every variable that is used in the <code>der</code> operator is a <strong>potential ODE state</strong>. When an <code>init</code> value is defined for such a variable, then Modia either utilizes this initial condition (so the variable has this value after initialization), or an error is triggered, as in the example above.</p><p>The model contains the equation:</p><pre><code class="language-julia">phi1 = ratio*phi2</code></pre><p>So the potential ODE states <code>phi1</code> and <code>phi2</code> are constrained, and only one of them can be selected as ODE state, and the other variable is computed from this equation. Since parameter <code>ratio</code> can be changed before simulation is started, it can be changed also to a value of <code>ratio = 0</code>. Therefore, only when <code>phi2</code> is selected as ODE state, <code>phi1</code> can be uniquely computed from this equation. If <code>phi1</code> would be selected as ODE state, then a division by zero would occur, if <code>ratio = 0</code>, since <code>phi2 = phi1/ratio</code>. For this reason, Modia selects <code>phi2</code> as ODE state. This means the <strong><code>init</code> value of <code>phi1</code> has no effect</strong>. This is uncritical, as long as initialization computes this init value from the constraint equation above, as done in the example above.</p><p>When differentiating the equation above:</p><pre><code class="language-julia">der(phi1) = ratio*der(phi2)  # differentiated constraint equation
+       w1 = der(phi1)
+       w2 = der(phi2)</code></pre><p>it becomes obvious, that there is also a hidden constraint equation for <code>w1, w2</code>:</p><pre><code class="language-julia">w1 = ratio*w2  # hidden constraint equation</code></pre><p>Again, Modia selects <code>w2</code> as ODE state, and ignores the <code>init</code> value of <code>w1</code>. In the second simulation, the <code>init</code> value of <code>w1</code> (= 0.0) is no longer consistent to the init value of <code>w2</code> (= 1.0). Therefore, an error occurs.</p><p>The remedy is to remove the <code>init</code> values of <code>phi1, w1</code> from the model:</p><pre><code class="language-julia">drive2 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits |
+                                Map(phi1 = Var(init=nothing),
+                                    w1   = Var(init=nothing)) )
+simulate!(drive2, Tsit5(), stopTime = 1.0, logStates=true, merge = Map(w2=1.0))</code></pre><p>and simulation is successful!</p><p>Modia tries to respect <code>init</code> values during symbolic transformation. In cases as above, this is not possible and the reported issue occurs. In some cases, it might not be obvious, why Modia selects a particular variable as an ODE state. You can get more information by setting <code>logStateSelection=true</code>:</p><pre><code class="language-julia">drive1 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits, logStateSelection=true)</code></pre><h1 id="Floating-point-types"><a class="docs-heading-anchor" href="#Floating-point-types">4 Floating point types</a><a id="Floating-point-types-1"></a><a class="docs-heading-anchor-permalink" href="#Floating-point-types" title="Permalink"></a></h1><p>The types of the floating point numbers in a Modia model can be parameterized with argument <code>FloatType</code> of macro <a href="Functions.html#ModiaLang.@instantiateModel"><code>@instantiateModel</code></a>:</p><pre><code class="language-julia">    filter = @instantiateModel(Filter; FloatType = Float64)</code></pre><p>By default, a floating point number has type <code>Float64</code>.</p><div class="admonition is-warning"><header class="admonition-header">Warning</header><div class="admonition-body"><p>Using another floating point type requires that a DifferentialEquations.jl integrator is used that is implemented in <strong>native Julia</strong>. An integrator that interfaces an integrator implemented in C (such as <code>CVODE_BDF()</code> the popular Sundials BDF method), cannot be used.</p></div></div><h2 id=".1-Lower-and-higher-precision"><a class="docs-heading-anchor" href="#.1-Lower-and-higher-precision">4.1 Lower and higher precision</a><a id=".1-Lower-and-higher-precision-1"></a><a class="docs-heading-anchor-permalink" href="#.1-Lower-and-higher-precision" title="Permalink"></a></h2><p>In principal, any floating point type of Julia (so any type that is derived from <code>AbstractFloat</code>) can be used in the model and the integrators. Examples</p><table><tr><th style="text-align: left">Type</th><th style="text-align: left">Precision</th><th style="text-align: left">Package</th><th style="text-align: left">Usage</th></tr><tr><td style="text-align: left">Float32</td><td style="text-align: left">7 digits</td><td style="text-align: left">built-in</td><td style="text-align: left">Embedded system</td></tr><tr><td style="text-align: left">Float64</td><td style="text-align: left">16 digits</td><td style="text-align: left">built-in</td><td style="text-align: left">Offline simulation</td></tr><tr><td style="text-align: left">Double64</td><td style="text-align: left">30 digits</td><td style="text-align: left"><a href="https://github.com/JuliaMath/DoubleFloats.jl">DoubleFloats</a></td><td style="text-align: left">High precision needed</td></tr><tr><td style="text-align: left">BigFloat</td><td style="text-align: left">arbitrary</td><td style="text-align: left"><a href="https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/#Arbitrary-Precision-Arithmetic">built-in</a></td><td style="text-align: left">Very high precision needed (very slow)</td></tr></table><ul><li><p>The <code>Float32</code> type might be used to test the execution and numerics of a model that shall later run on an embedded system target (there is no automatic way, yet, to translate a Modia model to <code>C</code>).</p></li><li><p><code>Double64</code> is a type that is constructed from two Float64 types. The execution is much faster as the comparable Julia built-in type <a href="https://docs.julialang.org/en/v1/manual/integers-and-floating-point-numbers/#Arbitrary-Precision-Arithmetic-1">BigFloat</a> when set to 128 bit precision. The <code>Double64</code> type might be used, when simulation with <code>Float64</code> fails due to numerical reasons (for example the model is very sensitive, or equation systems are close to singularity) or when very stringent relative tolerances are needed, for example relative tolerance = 1e-15 as needed for some space applications.</p></li></ul><p>In the following example, simulation is performed with a <code>Float32</code> floating point type used for model and integrator and utilizing a Runge-Kutta integrator of order 4 with a fixed step size of 0.01 s:</p><pre><code class="language-julia">    filter = @instantiateModel(Filter, FloatType = Float32)
+    simulate!(filter, RK4(), adaptive=false, stopTime=10.0, interval=0.01)</code></pre><h2 id=".2-Uncertainties"><a class="docs-heading-anchor" href="#.2-Uncertainties">4.2 Uncertainties</a><a id=".2-Uncertainties-1"></a><a class="docs-heading-anchor-permalink" href="#.2-Uncertainties" title="Permalink"></a></h2><p>Package <a href="https://github.com/JuliaPhysics/Measurements.jl">Measurements</a> provides a floating point type designed for error propagation. A floating point number is defined with a nominal value and an uncertainty:</p><pre><code class="language-julia">using Measurements
+
+m1 = 2.1 ± 0.4
+m2 = 2*m1           # 4.2 ± 0.8
+m3 = m2 - m1        # 2.1 ± 0.4</code></pre><p>The statement <code>m1 = 2.1 ± 0.4</code> defines that <code>m1</code> has a nominal value of <code>2.1</code> with a <a href="https://en.wikipedia.org/wiki/Standard_deviation">standard deviation</a> of <code>0.4</code>. This means that the probability is about 95 % that the value of <code>m1</code> is in the range <code>1.3 .. 2.9</code>. Package <a href="https://github.com/JuliaPhysics/Measurements.jl">Measurements</a> computes the error propagation with first-order theory (so this is typically an <strong>approximation</strong>) by computing the partial derivatives of all variables with respect to all source error definitions and computing the propagated error with this information. The benefit is that the error bounds are typically reasonably propagated and the computation is reasonably fast. The drawback is that it is an approximation and will be not correct, if the uncertainty is too large and/or the signals change too quickly (for example are discontinuous).</p><p>The following model defines a simple pendulum where a mass point is attached via a rod and a revolute joint to the environment. It is described by the equations</p><p class="math-container">\[\begin{aligned}
+     \frac{d\varphi}{dt} &amp;= \omega \\
+     0 &amp;= m \cdot L^2 \cdot \frac{d\omega}{dt} + d \cdot \omega + m \cdot g \cdot L \cdot sin(\varphi)
+\end{aligned}\]</p><p>where <span>$\varphi$</span> is the rotation angle, <span>$\omega$</span> the angular velocity, <span>$m$</span> the mass, <span>$L$</span> the rod length, <span>$d$</span> a damping constant and <span>$g$</span> the gravity constant. This model can be defined with the commands:</p><pre><code class="language-julia">Pendulum = Model(
+   L = (0.8±0.1)u&quot;m&quot;,
+   m = (1.0±0.1)u&quot;kg&quot;,
+   d = (0.5±0.05)u&quot;N*m*s/rad&quot;,
+   g = 9.81u&quot;m/s^2&quot;,
+   phi = Var(init = (pi/2±0.1)*u&quot;rad&quot;),
+   w   = Var(init = 0u&quot;rad/s&quot;),
+   equations = :[
+          w = der(phi)
+        0.0 = m*L^2*der(w) + d*w + m*g*L*sin(phi)
+   ]
+)
+
+pendulum = @instantiateModel(Pendulum, FloatType=Measurements.Measurement{Float64})
+simulate!(pendulum, Tsit5(), stopTime = 10.0)
+plot(pendulum, &quot;phi&quot;)</code></pre><p>and simulates the pendulum with uncertain parameter and init values and results in the following plot:</p><p><img src="../resources/images/PendulumWithUncertaintities.png" alt="PendulumWithUncertaintities"/></p><p>The area around the nominal value of a variable characterizes the standard deviation.</p><h2 id=".3-Monte-Carlo-Simulation"><a class="docs-heading-anchor" href="#.3-Monte-Carlo-Simulation">4.3 Monte-Carlo Simulation</a><a id=".3-Monte-Carlo-Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#.3-Monte-Carlo-Simulation" title="Permalink"></a></h2><p>The Julia package <a href="https://github.com/baggepinnen/MonteCarloMeasurements.jl">MonteCarloMeasurements.jl</a> provides calculations with particles. A value can be defined with a distribution of say 2000 values randomly chosen according to a desired distribution and then all calculations are performed with 2000 values at the same time (corresponds to 2000 simulations that are carried out).</p><p>In the example below, a modest form of 100 particles (100 simulations) with Uniform distributions of some parameters and init values are defined that correspond roughly to the definition with uncertainties of the previous section (but using uniform instead for normal distributions):</p><pre><code class="language-julia">using Modia
+using DifferentialEquations
+using ModiaPlot
+using MonteCarloMeasurements
+using Distributions
+using Unitful
+
+const nparticles = 100
+uniform(vmin,vmax) = StaticParticles(nparticles,Distributions.Uniform(vmin,vmax))
+
+Pendulum = Model(
+   L = uniform(0.6, 1.0),
+   m = uniform(0.8, 1.2),
+   d = uniform(0.4, 0.6),
+   g = 9.81,
+   phi = Var(init = uniform(pi/2-0.2, pi/2+0.2)),
+   w   = Var(init = 0),
+   equations = :[
+          w = der(phi)
+        0.0 = m*L^2*der(w) + d*w + m*g*L*sin(phi)
+   ]
+)
+
+pendulum = @instantiateModel(Pendulum,FloatType=StaticParticles{Float64,nparticles})
+simulate!(pendulum, Tsit5(), stopTime = 10.0)
+plot(pendulum, &quot;phi&quot;, MonteCarloAsArea=false)</code></pre><p>The simulation result is shown in the next figure:</p><p><img src="../resources/images/PendulumWithMonteCarlo.png" alt="PendulumWithMonteCarlo.png"/></p><p>Since plot option <code>MonteCarloAsArea=false</code> is used, all 100 simulations are shown in the plot, together with the mean value of all simulations. The default plot behavior is to show the mean value and the area in which all simulations are contained (this is useful, if there are much more simulations, because GLMakie crashes when there are too many curves in a diagram).</p><p>There are currently a few restrictions, in particular units are not yet supported in the combination of Modia and MonteCarloMeasurements, so units are not defined in the model above.</p><h1 id="Appendix-A"><a class="docs-heading-anchor" href="#Appendix-A">Appendix A</a><a id="Appendix-A-1"></a><a class="docs-heading-anchor-permalink" href="#Appendix-A" title="Permalink"></a></h1><h2 id="A.1-Var-constructor"><a class="docs-heading-anchor" href="#A.1-Var-constructor">A.1 Var constructor</a><a id="A.1-Var-constructor-1"></a><a class="docs-heading-anchor-permalink" href="#A.1-Var-constructor" title="Permalink"></a></h2><p>The constructor <code>Var(..)</code> defines attributes of a variable with key/value pairs. In column 1 the keys are shown. The default is that none of the keys are defined (meaning <code>key = nothing</code>). Most of the keys are also provided as predefined constants as shown in column 2 and 3. These constants can be used as shortcuts:</p><table><tr><th style="text-align: left">Var key</th><th style="text-align: left">ShortCut</th><th style="text-align: left">Shortcut value</th><th style="text-align: left">Description</th></tr><tr><td style="text-align: left">parameter</td><td style="text-align: left">parameter</td><td style="text-align: left">Var(parameter = true)</td><td style="text-align: left">If true, value is fixed during simulation</td></tr><tr><td style="text-align: left">input</td><td style="text-align: left">input</td><td style="text-align: left">Var(input = true)</td><td style="text-align: left">If true, input signal</td></tr><tr><td style="text-align: left">output</td><td style="text-align: left">output</td><td style="text-align: left">Var(output = true)</td><td style="text-align: left">If true, output signal</td></tr><tr><td style="text-align: left">potential</td><td style="text-align: left">potential</td><td style="text-align: left">Var(potential = true)</td><td style="text-align: left">If true, potential variable</td></tr><tr><td style="text-align: left">flow</td><td style="text-align: left">flow</td><td style="text-align: left">Var(flow = true)</td><td style="text-align: left">If true, flow variable</td></tr><tr><td style="text-align: left">init</td><td style="text-align: left">–</td><td style="text-align: left">–</td><td style="text-align: left">Initial value of ODE state (defines unit and size)</td></tr><tr><td style="text-align: left">start</td><td style="text-align: left">–</td><td style="text-align: left">–</td><td style="text-align: left">Start value of variable (defines unit and size)</td></tr></table><p>Example:</p><pre><code class="language-julia">v = output | Var(start = zeros(3)u&quot;N*m&quot;)
+
+# Same as: v = Var(output = true, start = zeros(3)u&quot;N*m&quot;)</code></pre><p>An attribute can be removed by using a value of <code>nothing</code>. Example:</p><pre><code class="language-julia">System1 = Model(v = input | Var(init = 1.0), ...)
+
+# System2 = Model(v = input, ...)
+System2 = System1 | Map(v = Var(init = nothing), ...)</code></pre><p>The following attributes are also defined for constructor <code>Var</code>, but have <strong>no effect yet</strong>. Using <code>min, max, info</code> already now, might be useful for model libraries:</p><table><tr><th style="text-align: left">Var Key</th><th style="text-align: left">Shortcut</th><th style="text-align: left">Shortcut value</th><th style="text-align: left">Description</th></tr><tr><td style="text-align: left">constant</td><td style="text-align: left">constant</td><td style="text-align: left">Var(constant = true)</td><td style="text-align: left">If true, value cannot be changed</td></tr><tr><td style="text-align: left">min, max</td><td style="text-align: left">interval(a,b)</td><td style="text-align: left">Var(min = a, max = b)</td><td style="text-align: left">Allowed variable value range</td></tr><tr><td style="text-align: left">info</td><td style="text-align: left">info&quot;...&quot;</td><td style="text-align: left">Var(info=&quot;...&quot;)</td><td style="text-align: left">Description</td></tr></table><p>Example:</p><pre><code class="language-julia">v = output | interval(0.0,1.0) | Var(start = zeros(3)u&quot;N*m&quot;) | info&quot;An output variable&quot;
+
+# Same as: v = Var(output = true, min = 0.0, max = 1.0,
+#                  start = zeros(3)u&quot;N*m&quot;, info = &quot;An output variable&quot;)</code></pre><h2 id="A.2-Named-tuples-and-quoted-expressions"><a class="docs-heading-anchor" href="#A.2-Named-tuples-and-quoted-expressions">A.2 Named tuples and quoted expressions</a><a id="A.2-Named-tuples-and-quoted-expressions-1"></a><a class="docs-heading-anchor-permalink" href="#A.2-Named-tuples-and-quoted-expressions" title="Permalink"></a></h2><p>The fundamental mechanism for defining models in Modia are named tuples which is a list of key/value pairs enclosed in parentheses:</p><pre><code class="language-julia">julia&gt; S=(p=5, q=10)
+(p = 5, q = 10)
+
+julia&gt; typeof(S)
+NamedTuple{(:p, :q),Tuple{Int64,Int64}}</code></pre><p>Named tuples are conceptually similar to dictionaries (Dict), but the constructor syntax is simpler. Note that if only one key/value pair is given, a comma must preceed the final parentheses: <code>(p = 5, )</code>. It is also possible to define named tuples using a keyword argument list, i.e. a list starting with a semi-colon: <code>z=(;p=5)</code>.</p><p>The values can also be a quoted expression, i.e. an expression enclosed in <code>:( )</code>, an array of quoted expressions encloded in <code>:[ ]</code> or just a quoted symbol, <code>:x</code>. This mechanism is used to encode equations and expressions of the model which needs to be manipulated before the model can be simulated.</p><p>Julia defines a very useful merge operation between named tuples (and dictionaries):</p><pre><code class="language-julia">julia&gt; T=(q=100, r=200)
+(q = 100, r = 200)
+
+julia&gt; merge(S, T)
+(p = 5, q = 100, r = 200)</code></pre><p>If a key already exists <code>q</code> in the first named tuple, it&#39;s value is overwritten otherwise it&#39;s added, <code>r</code>. Such a merge semantics allows for unification of parameter modifications and inheritance as will be demonstrated below.</p><h2 id="A.3-MergeModels-algorithm"><a class="docs-heading-anchor" href="#A.3-MergeModels-algorithm">A.3 MergeModels algorithm</a><a id="A.3-MergeModels-algorithm-1"></a><a class="docs-heading-anchor-permalink" href="#A.3-MergeModels-algorithm" title="Permalink"></a></h2><p>The <code>mergeModels</code> algorithm is defined as follows (without logging):</p><pre><code class="language-julia">function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
+    mergedModels = OrderedDict{Symbol,Any}(pairs(m1)) # Convert the named tuple m1 to an OrderedDict
+    for (k,v) in collect(pairs(m2))
+        if typeof(v) &lt;: NamedTuple
+            if k in keys(mergedModels) &amp;&amp; ! (:_redeclare in keys(v))
+                mergedModels[k] = mergeModels(mergedModels[k], v, k)
+            else
+                mergedModels[k] = v
+            end
+        elseif v === nothing
+            delete!(mergedModels, k)
+        else
+            mergedModels[k] = v
+        end
+    end
+    return (; mergedModels...) # Transform OrderedDict to named tuple
+end
+
+|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
+
+Redeclare = ( _redeclare = true, )</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Home</a><a class="docs-footer-nextpage" href="Functions.html">Functions »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 23 April 2021 14:37">Friday 23 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
