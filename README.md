@@ -75,7 +75,7 @@ plot(pendulum1, [("phi", "w"); "r"], figure = 1)
 
 The result is the following plot:
 
-![Pendulum-Figure](../resources/images/PendulumFigures.png)
+![Pendulum-Figure](resources/images/PendulumFigures.png)
 
 Normally distributed uncertainty can be added, simulated and plotted
 in the following way:
@@ -96,7 +96,7 @@ plot(pendulum2, [("phi", "w"); "r"], figure = 2)
 
 resulting in the following plot:
 
-![PendulumWithUncertainty](../resources/images/PendulumWithUncertainties.png)
+![PendulumWithUncertainty](resources/images/PendulumWithUncertainties.png)
 
 
 
