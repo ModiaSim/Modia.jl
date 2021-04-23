@@ -1,9 +1,6 @@
 # Modia.jl
 
-
-[![Travis](https://travis-ci.org/ModiaSim/Modia.jl.svg?branch=master)](https://travis-ci.org/ModiaSim/Modia.jl)
-[![AppVoyer](https://ci.appveyor.com/api/projects/status/github/ModiaSim/Modia.jl?svg=true)](https://ci.appveyor.com/project/MartinOtter/modia-jl)
-[![codecov.io](http://codecov.io/github/ModiaSim/Modia.jl/coverage.svg?branch=master)](http://codecov.io/github/ModiaSim/Modia.jl?branch=master)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://modiasim.github.io/Modia.jl/stable/index.html)
 [![The MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/ModiaSim/Modia.jl/blob/master/LICENSE)
 
 Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
@@ -11,7 +8,9 @@ Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
 The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/Tutorial.html) provides an introduction to Modia.
 
 Modia is a Julia package for modeling and simulation of multidomain engineering systems (electrical, 3D mechanical, fluid, etc.) described by differential equations, algebraic equations, and (space-discretized) partial differential equations. It shares many powerful features of the
-[Modelica language](https://www.modelica.org/modelicalanguage), together with new features not available in Modelica. Simulation is performed with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), units are supported via [Unitful.jl](https://github.com/PainterQubits/Unitful.jl) , uncertainty modeling is performed with [Measurements.jl](https://github.com/JuliaPhysics/Measurements.jl), Monte Carlo simulation is performed with [MonteCarloMeasurements.jl](https://github.com/baggepinnen/MonteCarloMeasurements.jl). 
+[Modelica language](https://www.modelica.org/modelicalanguage), together with new features not available in Modelica. 
+
+Simulation is performed with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), units are supported via [Unitful.jl](https://github.com/PainterQubits/Unitful.jl) , uncertainty modeling is performed with [Measurements.jl](https://github.com/JuliaPhysics/Measurements.jl), Monte Carlo simulation is performed with [MonteCarloMeasurements.jl](https://github.com/baggepinnen/MonteCarloMeasurements.jl). 
 
 Plotting is performed with package [ModiaPlot.jl](https://github.com/ModiaSim/ModiaPlot.jl) as convenient interface to GLMakie.
 
