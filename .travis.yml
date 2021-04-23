@@ -5,7 +5,7 @@ os:
 #  - osx
 
 julia:
-  - 1.1
+  - 1.6
 #  - 0.7
 #  - 0.6
 
@@ -15,6 +15,10 @@ notifications:
   email: true
 git:
   depth: 99999999
+
+branches:
+  only:
+    - main
 
 before_install:
 #script:
