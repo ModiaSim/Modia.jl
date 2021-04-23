@@ -33,16 +33,8 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 The following differential equations describes a damped pendulum:
 
-```math
-\begin{aligned}
- \frac{d\varphi}{dt} &= \omega \\
-                   0 &= m \cdot L^2 \cdot \frac{d\omega}{dt} + d \cdot \omega + m \cdot g \cdot L \cdot sin(\varphi) \\
-                   r &= \begin{pmatrix}
-                           L*cos(\varphi) \\
-                          -L*sin(\varphi)
-                        \end{pmatrix}
-\end{aligned}
-```
+![Pendulum-Equations](docs/resources/images/PendulumEquations.png)
+
 
 where ``\varphi`` is the rotation angle, ``\omega`` the angular velocity,
 ``m`` the mass, ``L`` the rod length, ``d`` a damping constant,
