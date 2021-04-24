@@ -36,9 +36,9 @@ The following differential equations describes a damped pendulum:
 ![Pendulum-Equations](docs/resources/images/PendulumEquations.png)
 
 
-where ``\varphi`` is the rotation angle, ``\omega`` the angular velocity,
-``m`` the mass, ``L`` the rod length, ``d`` a damping constant,
-``g`` the gravity constant and ``r`` the vector from the origin of the world system
+where *phi* is the rotation angle, *omega* the angular velocity,
+*m* the mass, *L* the rod length, *d* a damping constant,
+*g* the gravity constant and *r* the vector from the origin of the world system
 to the tip of the pendulum. These equations can be defined, simulated and plotted with:
 
 ```julia
