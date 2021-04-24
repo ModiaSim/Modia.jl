@@ -8,7 +8,7 @@ The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/Tutorial.html) p
 Modia is a Julia package for modeling and simulation of multidomain engineering systems
 described by differential equations, algebraic equations, and (space-discretized) partial differential equations. It shares many powerful features of the [Modelica language](https://www.modelica.org/modelicalanguage), together with features not available in Modelica. 
 
-A user defines a model on a high level with model components (like an electrical resistance, a rotational inertia, a rod with heat transfer, a PI controller etc.) that are physically connected together. A model component is constructed by "expression = expression" equations. The defined model is symbolically transformed to ODE form dx/dt = f(x,t). For example, equations might be analytically differentiated, ODE states selected, linear equation systems numerically solved when evaluating the function. From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations](https://github.com/SciML/DifferentialEquations.jl). Simulation results are plotted with [ModiaPlot](https://github.com/ModiaSim/ModiaPlot.jl), providing a convenient interface to [GLMakie](https://github.com/JuliaPlots/GLMakie.jl) line plots.
+A user defines a model on a high level with model components (like an electrical resistance, a rotational inertia, a rod with heat transfer, a PI controller etc.) that are physically connected together. A model component is constructed by "expression = expression" equations. The defined model is symbolically transformed to ODE form dx/dt = f(x,t). For example, equations might be analytically differentiated, ODE states selected, linear equation systems numerically solved when evaluating the transformed model. From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations](https://github.com/SciML/DifferentialEquations.jl). Simulation results can be plotted with [ModiaPlot](https://github.com/ModiaSim/ModiaPlot.jl), that provides a convenient interface to [GLMakie](https://github.com/JuliaPlots/GLMakie.jl) line plots.
 
 Other packages from the Julia eco-systems that are specially supported:
 
@@ -86,10 +86,19 @@ simulate!(pendulum2, Tsit5(), stopTime = 10.0u"s")
 plot(pendulum2, [("phi", "w"); "r"], figure = 2)
 ```
 
-resulting in the following plot:
+resulting in the following plot where mean values are shown with thick lines
+and standard deviations as area around the mean values.
 
 ![PendulumWithUncertainty](docs/resources/images/PendulumWithUncertainties.png)
 
 
+## Main Developers
+
+- [Hilding Elmqvist](mailto:Hilding.Elmqvist@Mogram.net), [Mogram](http://www.mogram.net/).
+
+- [Martin Otter](https://rmc.dlr.de/sr/en/staff/martin.otter/),
+  [DLR - Institute of System Dynamics and Control](https://www.dlr.de/sr/en).
+
+License: MIT (expat)
 
 
