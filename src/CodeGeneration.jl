@@ -215,9 +215,13 @@ mutable struct SimulationModel{FloatType,TimeType}
 end
 
 # Default constructors
-SimulationModel(           args...; kwargs...)                   = SimulationModel{Float64  ,Float64}(args...; kwargs...)
-SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,Float64}(args...; kwargs...)
-        
+SimulationModel(args...; kwargs...) = SimulationModel{Float64,Float64}(args...; kwargs...)
+  
+SimulationModel{Measurements.Measurement{T}}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.Particles{T,N},T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},T}(args...; kwargs...)
+SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,FloatType}(args...; kwargs...)
+
 positive(m::SimulationModel, args...; kwargs...) = TinyModia.positive!(m.eventHandler, args...; kwargs...)
 negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHandler, args...; kwargs...)
 change(  m::SimulationModel, args...; kwargs...) = TinyModia.change!(  m.eventHandler, args...; kwargs...)
