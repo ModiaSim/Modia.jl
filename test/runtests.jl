@@ -9,6 +9,7 @@ using Test
     include("../examples/MotorControl.jl")          
     include("../examples/Pendulum.jl")    
     include("../examples/ServoSystem.jl")   
+    include("../examples/StateSpace.jl")       
     include("../examples/Tutorial.jl")  
     
 end
