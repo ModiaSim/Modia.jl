@@ -38,7 +38,7 @@ y = -x + u
 is defined in an anonymous model `Model( y = :(-x + u) )`. This anonymous model is merged with `LowPassFilter` using the merge operator `|`:
 
 ```julia
-HighPassFilter = LowPassFilter | Model( y = :(-x + u) )
+HighPassFilter = LowPassFilter | Model( y = Var(:(-x + u) ) )
 ```
 
 The merging implies that the `output` property of `y` is kept, but the binding expression is changed from `:x` to `:(-x + u)`.
@@ -196,7 +196,6 @@ plot(bandPassFilter, ["u", "y"], figure=2)
 
 ![Band Pass Filter Plot](../../resources/images/BandPassFilterPlot.png)
 
-The above examples are available in file `SimpleFilters.jl`.
 
 ## 2.5 Physically oriented modeling
 

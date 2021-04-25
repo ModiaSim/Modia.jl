@@ -43,7 +43,7 @@ LowPassFilter = Model(
    
 # 2.2 Merging models  
 
-HighPassFilter = LowPassFilter | Model( y = :(-x + u) )
+HighPassFilter = LowPassFilter | Model( y = Var(:(-x + u)) )
 
 setLogMerge(true)
 
@@ -76,12 +76,12 @@ TestLowAndHighPassFilter2 = TestLowAndHighPassFilter | Map(u = :(table(time*u"1/
     
 # 2.4 Hierarchical modeling
 
-TwoFilters = (
+TwoFilters = Model(
     high = HighPassFilter,
     low = LowPassFilter,
 )
 
-BandPassFilter = (
+BandPassFilter = Model(
     u = input,
     y = output,
     high = HighPassFilter | Map(T=0.5, x=Var(init=0.1u"V")),
@@ -96,9 +96,9 @@ TestBandPassFilter = BandPassFilter | Map(
         u = :(sin( (time+1u"s")*u"1/s/s" * time)*u"V")
     )
 
-#bandPassFilter = @instantiateModel(TestBandPassFilter)
-#simulate!(bandPassFilter, Tsit5(), stopTime = 50u"s")
-#plot(bandPassFilter, ["u", "y"], figure=2)
+bandPassFilter = @instantiateModel(TestBandPassFilter)
+simulate!(bandPassFilter, Tsit5(), stopTime = 50u"s")
+plot(bandPassFilter, ["u", "y"], figure=2)
 
 
 # 2.5 Physically oriented modeling
