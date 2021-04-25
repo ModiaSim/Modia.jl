@@ -30,10 +30,9 @@ julia> ]add Measurements
 
 ## Release Notes
 
-### Version 0.7.2
+### Version 0.7.0
 
-- Initial version, based on code developed for Modia 0.6, ModiaMath 0.6,
-  and TinyModia 0.7.2.
+- Initial version of new Modia design (based on code developed for Modia 0.6, ModiaMath 0.6, TinyModia 0.7.2).
 
 
 ## Main developers

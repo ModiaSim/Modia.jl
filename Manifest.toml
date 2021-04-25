@@ -598,9 +598,9 @@ version = "1.6.0"
 
 [[Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "1925f6838df247e7853f3f9727dd8a52a78f60f4"
+git-tree-sha1 = "f77a16cb3804f4a74f57e5272a6a4a9a628577cb"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.2"
+version = "0.15.5"
 
 [[LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1180,9 +1180,9 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[StatsBase]]
 deps = ["DataAPI", "DataStructures", "LinearAlgebra", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics"]
-git-tree-sha1 = "4bc58880426274277a066de306ef19ecc22a6863"
+git-tree-sha1 = "4d8ca45223d7a28839e775d73a6f6b6b2ac64fd1"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.33.5"
+version = "0.33.6"
 
 [[StatsFuns]]
 deps = ["LogExpFunctions", "Rmath", "SpecialFunctions"]
@@ -1216,9 +1216,9 @@ version = "0.5.1"
 
 [[StructTypes]]
 deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "ad4558dee74c5d26ab0d0324766b1a3ee6ae777a"
+git-tree-sha1 = "e36adc471280e8b346ea24c5c87ba0571204be7a"
 uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
-version = "1.7.1"
+version = "1.7.2"
 
 [[SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
@@ -1242,15 +1242,15 @@ version = "5.2.0+1"
 
 [[SymbolicUtils]]
 deps = ["AbstractAlgebra", "AbstractTrees", "ChainRulesCore", "Combinatorics", "ConstructionBase", "DataStructures", "IfElse", "LabelledArrays", "LinearAlgebra", "NaNMath", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "TimerOutputs"]
-git-tree-sha1 = "b21d29589b8cc8f10cbd9839996e8ac5846fe361"
+git-tree-sha1 = "e024f71ab5d34fcb7e27740c304b65a64264f48f"
 uuid = "d1185830-fcd6-423d-90d6-eec64667417b"
-version = "0.11.1"
+version = "0.11.2"
 
 [[Symbolics]]
 deps = ["AbstractAlgebra", "DiffRules", "Distributions", "DocStringExtensions", "IfElse", "Latexify", "Libdl", "LinearAlgebra", "MacroTools", "NaNMath", "RecipesBase", "Reexport", "RuntimeGeneratedFunctions", "SciMLBase", "Setfield", "SparseArrays", "SpecialFunctions", "SymbolicUtils", "TreeViews"]
-git-tree-sha1 = "9f11dda9b5546bdbbe4639b323f8bb00a7c14489"
+git-tree-sha1 = "a752ddc52faab2e5d1fe2a35d7ead2496430eb11"
 uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-version = "0.1.22"
+version = "0.1.24"
 
 [[TOML]]
 deps = ["Dates"]
@@ -1326,9 +1326,9 @@ version = "1.7.0"
 
 [[VectorizationBase]]
 deps = ["ArrayInterface", "Hwloc", "IfElse", "Libdl", "LinearAlgebra", "Static"]
-git-tree-sha1 = "4f9b7b3e40da418518e0282e7397fd0ca17a7527"
+git-tree-sha1 = "51afeb432d4d8c446dd87d15af83a54046525839"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
-version = "0.19.28"
+version = "0.19.29"
 
 [[VertexSafeGraphs]]
 deps = ["LightGraphs"]
