@@ -176,7 +176,7 @@ PartialAbsoluteSensor = Model(
 
 # Ideal sensor to measure the absolute flange angular velocity
 AngleSensor         = PartialAbsoluteSensor | Model(phi = output, equations = :[phi = flange.phi])
-UnitlessAngleSensor = PartialAbsoluteSensor | Model(phi = output, equations = :[phi = flange.phi]*u"1/rad")
+UnitlessAngleSensor = PartialAbsoluteSensor | Model(phi = output, equations = :[phi = flange.phi*u"1/rad"])
 
 SpeedSensor         = PartialAbsoluteSensor | Model(w = output, equations = :[w = der(flange.phi)])
 UnitlessSpeedSensor = PartialAbsoluteSensor | Model(w = output, equations = :[w = der(flange.phi)*u"s/rad"])
