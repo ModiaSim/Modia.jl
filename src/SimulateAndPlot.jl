@@ -137,6 +137,10 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             eh.z  = ones(FloatType,nz)
             eh.zPositive = fill(false, nz)
         end
+        if logEvents
+            println("      Number of zero crossing functions = ", eh.nz)
+        end
+            
         if interp_points == 1
             # DifferentialEquations.jl crashes
             interp_points = 2
@@ -146,6 +150,9 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
         stopTime2  = convertTimeVariable(TimeType, stopTime)
         interval2  = convertTimeVariable(TimeType, interval)
         interval2  = isnan(interval2) ? (stopTime2 - startTime2)/500.0 : interval2
+        m.startTime = startTime2
+        m.stopTime  = stopTime2
+        m.interval  = interval2
         
         # Initialize/re-initialize SimulationModel
         if log || logParameters || logStates
@@ -154,7 +161,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
         cpuStart::UInt64 = time_ns()
         cpuLast::UInt64  = cpuStart
         cpuStartIntegration::UInt64 = cpuStart
-        success = init!(m, startTime2, tolerance, merge, log, logParameterExpressions, logParameters, logStates, logEvents)
+        success = init!(m, tolerance, merge, log, logParameterExpressions, logParameters, logStates, logEvents)
         if !success
             return nothing
         elseif m.eventHandler.restart == Terminate
@@ -174,31 +181,33 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
            	tspan     = (startTime2, stopTime2)            
             abstol    = 0.1*tolerance
             problem   = DifferentialEquations.ODEProblem(derivatives!, m.x_init, tspan, m) 
-            if logEvents
-                println("      Number of zero crossing functions = ", eh.nz)
-            end
             if eh.nz > 0
                 # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
                 # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
                 # A temporary fix is to use time events at the communication points, but this slows down simulation.
                 callback1 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)  
-                callback2 = DifferentialEquations.VectorContinuousCallback(conditions!, 
-                                 affect!, eh.nz, interp_points=interp_points)                  
-                callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
+                callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)                     
+                callback3 = DifferentialEquations.VectorContinuousCallback(stateEventCondition!, 
+                                 affectStateEvent!, eh.nz, interp_points=interp_points)                       
+                callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)
             else
-                callbacks = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=1)
+                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=1)
+                callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)  
+                callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
             end
     
             # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
             dt = adaptive ? interval2/10 : interval2    # initial step-size
     
-            # Compute solution
+            # Compute solution 
+            tstops = (m.eventHandler.nextEventTime,)
+            #println("... tstops = ", tstops)
             solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, reltol=tolerance, abstol=abstol,
                                                 save_everystep=false, save_start=false, save_end=true,
-                                                callback=callbacks, adaptive=adaptive, dt=dt) :
+                                                callback=callbacks, adaptive=adaptive, dt=dt, tstops = tstops) :
                                             DifferentialEquations.solve(problem, algorithm, reltol=tolerance, abstol=abstol,
                                                 save_everystep=false, save_start=false, save_end=true,
-                                                callback=callbacks, adaptive=adaptive, dt=dt)
+                                                callback=callbacks, adaptive=adaptive, dt=dt, tstops = tstops)
             if ismissing(algorithm)
                 m.algorithmType = typeof(solution.alg)
             end
@@ -231,7 +240,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             println("        nZeroCrossings  = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
             println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
             println("        nErrTestFails   = ", solution.destats.nreject)          
-           #println("        nTimeEvents     = ", eh.nTimeEvents)
+            println("        nTimeEvents     = ", eh.nTimeEvents)
             println("        nStateEvents    = ", eh.nStateEvents)
             println("        nRestartEvents  = ", eh.nRestartEvents)      
         end
@@ -256,7 +265,6 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
                 @test finalStates == requiredFinalStates  #|| isapprox(finalStates, requiredFinalStates, rtol=1e-3)
             end
         end
-
         return solution
 #=
     catch e

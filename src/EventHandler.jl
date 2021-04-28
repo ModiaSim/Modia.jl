@@ -18,12 +18,19 @@ should be used. Only in special cases, the other flags are useful.
 @enum EventRestart NoRestart Restart FullRestart Terminate
 
 
+const nClock = 100
+const nSample = 100
+const nPrevious = 100
+
 mutable struct EventHandler{FloatType,TimeType}
+    stopTime::TimeType              # stopTime of simulation
+    
     # Logging
     logEvents::Bool                 # = true, if events shall be logged
     nZeroCrossings::Int             # Number of zero crossing calls
     nRestartEvents::Int             # Number of Restart events
     nStateEvents::Int               # Number of state events
+    nTimeEvents::Int                # Number of time events
     
     # Input values for the event functions
     time::TimeType                  # Current simulation time                                
@@ -50,30 +57,39 @@ mutable struct EventHandler{FloatType,TimeType}
     newEventIteration::Bool   # = true, if another event iteration; = false, if no event iteration anymore
     firstEventIteration::Bool # = true, if first iteration at an event.
    
-   # For state events:
+    # For state events:
     nz::Int                 # Number of event indicators
     z::Vector{FloatType}    # Vector of event indicators (zero crossings). If one of z[i] passes
                             # zero, that is beforeEvent(z[i])*z[i] < 0, an event is triggered
                             # (allocated during instanciation according to nz).
     zPositive::Vector{Bool} # = true if z > 0 at the last event instant, otherwise false
-     
+
+    # For clocks (time events):
+    clock::Vector{TimeType}
+    sample::Vector{Any}
+    previous::Vector{Any}
+    nextPrevious::Vector{Any}
+    
     function EventHandler{FloatType,TimeType}(; nz::Int=0, logEvents::Bool=false) where {FloatType,TimeType} 
         @assert(nz >= 0)
-        new(logEvents, 0, 0, 0, convert(TimeType,0), false, false, false, false, false, false, false, floatmax(TimeType), floatmax(TimeType),
-            true, NoRestart, false, false, nz, ones(FloatType,nz), fill(false, nz))
+        new(floatmax(TimeType), logEvents, 0, 0, 0, 0, convert(TimeType,0), false, false, false, false, false, false, false, floatmax(TimeType), floatmax(TimeType),
+            true, NoRestart, false, false, nz, ones(FloatType,nz), fill(false, nz),
+            fill(convert(TimeType,0),nClock), Vector{Any}(undef, nSample), 
+            Vector{Any}(undef, nPrevious), Vector{Any}(undef, nPrevious))              
     end
 end
 
 # Default constructors
-EventHandler(           ; kwargs...)                   = EventHandler{Float64  ,Float64}(; kwargs...)
-EventHandler{FloatType}(; kwargs...) where {FloatType} = EventHandler{FloatType,Float64}(; kwargs...)
+#EventHandler(           ; kwargs...)                   = EventHandler{Float64  ,Float64}(; kwargs...)
+#EventHandler{FloatType}(; kwargs...) where {FloatType} = EventHandler{FloatType,Float64}(; kwargs...)
 
 
-function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, logEvents::Bool)::Nothing where {FloatType,TimeType} 
+function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType} 
     eh.logEvents      = logEvents
     eh.nZeroCrossings = 0
     eh.nRestartEvents = 0
     eh.nStateEvents   = 0  
+    eh.nTimeEvents    = 0
     
     eh.time     = convert(TimeType, 0)
     eh.initial  = false
@@ -83,6 +99,7 @@ function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, logEvents::Boo
     eh.afterSimulationStart = false
     eh.firstInitialOfAllSegments = false
     eh.terminalOfAllSegments     = false 
+    eh.stopTime      = stopTime
     eh.maxTime       = floatmax(TimeType)
     eh.nextEventTime = floatmax(TimeType)
     eh.integrateToEvent = false
@@ -131,6 +148,7 @@ const zEps = 1.e-10
 function setNextEvent!(h::EventHandler{FloatType,TimeType}, nextEventTime::TimeType; 
                        integrateToEvent::Bool=true, 
                        restart::EventRestart=Restart) where {FloatType,TimeType}
+    #println("... setNextEvent!: time = ", h.time, ", nextEventTime = ", nextEventTime, ", restart = ", restart)                   
     if (h.event && nextEventTime > h.time) || (h.initial && nextEventTime >= h.time)
         if integrateToEvent
             h.maxTime = min(h.maxTime, nextEventTime)

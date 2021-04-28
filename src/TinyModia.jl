@@ -33,6 +33,7 @@ include("NamedTupleModels.jl")
 include("EvaluateParameters.jl")
 include("EventHandler.jl")
 include("CodeGeneration.jl")
+include("Synchronous.jl")
 include("SimulateAndPlot.jl")
 
 
@@ -44,7 +45,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-04-09"
+const Date = "2021-04-28"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")

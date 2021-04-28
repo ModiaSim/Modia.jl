@@ -92,7 +92,6 @@ function get_x_start!(FloatType, equationInfo, parameters)
     return x_start2
 end
 
-   
     
 """
     simulationModel = SimulationModel{FloatType,TimeType}(
@@ -122,7 +121,7 @@ mutable struct SimulationModel{FloatType,TimeType}
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
     linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
-    eventHandler::EventHandler{FloatType,TimeType}    
+    eventHandler::EventHandler{FloatType,TimeType}      
     variables::OrderedDict{String,Int}      # Dictionary of variables and their result indices (negated alias has negativ index)
     zeroVariables::OrderedSet{String}       # Set of variables that are identically to zero
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
@@ -142,6 +141,11 @@ mutable struct SimulationModel{FloatType,TimeType}
     pre::Vector{Any}                        # Pre-values
     result::Vector{Tuple}                   # Simulation result
     algorithmType::Union{DataType,Missing}  # Type of integration algorithm (used in default-heading of plot)
+    
+    # Set when simulation is started
+    startTime::TimeType
+    stopTime::TimeType
+    interval::TimeType
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameterDefinition, variableNames;
@@ -546,12 +550,12 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
   
 If initialization is successful return true, otherwise false.
 """
-function init!(m::SimulationModel, startTime, tolerance, merge, 
+function init!(m::SimulationModel, tolerance, merge, 
                log::Bool, logParameterExpressions::Bool, 
                logParameters::Bool, logStates::Bool, logEvents)::Bool
     empty!(m.result)
     eh = m.eventHandler
-    reinitEventHandler(eh, logEvents)
+    reinitEventHandler(eh, m.stopTime, logEvents)
     
     # Initialize auxiliary arrays for event iteration
     m.x_init .= 0
@@ -603,7 +607,7 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
 
     # Initialize model, linearEquations and compute and store all variables at the initial time
     if log
-        println("      Initialization at time = ", startTime, " s")  
+        println("      Initialization at time = ", m.startTime, " s")  
     end  
  
     # Perform initial event iteration 
@@ -616,10 +620,11 @@ function init!(m::SimulationModel, startTime, tolerance, merge,
     for i in eachindex(m.x_init)
         m.x_init[i] = deepcopy(m.x_start[i])
     end
-    eventIteration!(m, m.x_init, startTime)
+    eventIteration!(m, m.x_init, m.startTime)
     eh.initial    = false
     m.isInitial   = false
     m.storeResult = false   
+    eh.afterSimulationStart = true
     
     # Check vSolvedWithInitValuesAndUnit
     if length(m.vSolvedWithInitValuesAndUnit) > 0
@@ -718,48 +723,24 @@ function derivatives!(der_x, x, m, t)::Nothing
 end
 
 
-"""
-    conditions!(z, x, t, integrator)
-    
-Called by integrator to compute zero crossings
-"""
-function conditions!(z, x, t, integrator)::Nothing
-    m = integrator.p
-    eh = m.eventHandler
-    eh.nZeroCrossings += 1
-    eh.crossing = true
-    Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
-    eh.crossing = false
-    for i = 1:eh.nz
-        z[i] = eh.z[i]
-    end 
-    #println("... time = ", t, ", z = ", z)
-    return nothing
-end
-
 
 """
-    affect!(integrator, event_index)
+    affectEvent!(integrator)
     
-Called by integrator when an event is triggered   
+Called when a time or state event is triggered   
 """
-function affect!(integrator, event_index)::Nothing
+function affectEvent!(integrator)::Nothing
     m  = integrator.p
     eh = m.eventHandler
     time = integrator.t
-    
-    # Event iteration   
-    if eh.logEvents
-        println("\n      State event (zero-crossing) at time = ", time, " s")
-    end
-                    
+    #println("... begin affect: time = ", time, ", nextEventTime = ", eh.nextEventTime)
+                        
     # Compute and store outputs before processing the event
     outputs!(integrator.u, time, integrator)
 
     # Event iteration 
     eventIteration!(m, integrator.u, time)
 
-    eh.nStateEvents += 1  
     if eh.restart == Restart || eh.restart == FullRestart
         eh.nRestartEvents += 1
     end
@@ -775,11 +756,97 @@ function affect!(integrator, event_index)::Nothing
     
     # Compute outputs and store them after the event occurred
     outputs!(integrator.u, time, integrator)
+    
+    # Set next time event
+    if abs(eh.nextEventTime - m.stopTime) < 1e-10
+        eh.nextEventTime = m.stopTime
+    end
+    #println("... end affect: time ", time,", nextEventTime = ", eh.nextEventTime)
+    if eh.nextEventTime <= m.stopTime
+        DifferentialEquations.add_tstop!(integrator, eh.nextEventTime) 
+    end
     return nothing
 end
 
 
-   
+
+"""
+    stateEventCondition!(z, x, t, integrator)
+    
+Called by integrator to compute zero crossings
+"""
+function stateEventCondition!(z, x, t, integrator)::Nothing
+    m = integrator.p
+    eh = m.eventHandler
+    eh.nZeroCrossings += 1
+    eh.crossing = true
+    Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+    eh.crossing = false
+    for i = 1:eh.nz
+        z[i] = eh.z[i]
+    end 
+    #println("... time = ", t, ", z = ", z)
+    return nothing
+end
+
+
+"""
+    affectStateEvent!(integrator, event_index)
+    
+Called by integrator when a state event is triggered   
+"""
+function affectStateEvent!(integrator, event_index)::Nothing
+    m  = integrator.p
+    eh = m.eventHandler
+    time = integrator.t
+    
+    # Event iteration   
+    if eh.logEvents
+        println("\n      State event (zero-crossing) at time = ", time, " s")
+    end
+    affectEvent!(integrator)
+    eh.nStateEvents += 1      
+    return nothing
+end
+
+
+"""
+    timeEventCondition!(u, t, integrator)
+    
+Called by integrator to check if a time event occurred
+"""
+function timeEventCondition!(u, t, integrator)::Bool
+    m  = integrator.p
+    eh = m.eventHandler
+    if t >= eh.nextEventTime
+        eh.nextEventTime = m.stopTime
+        return true
+    end
+    return false   
+end
+
+
+"""
+    affectTimeEvent!(integrator)
+    
+Called by integrator when a time event is triggered   
+"""
+function affectTimeEvent!(integrator)::Nothing
+    m  = integrator.p
+    eh = m.eventHandler
+    time = integrator.t
+    
+    # Event iteration   
+    if eh.logEvents
+        println("\n      Time event at time = ", time, " s")
+    end
+    affectEvent!(integrator)
+    eh.nTimeEvents += 1     
+    
+    return nothing
+end
+
+
 """
     addToResult!(simulationModel, variableValues...)
 

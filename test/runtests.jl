@@ -26,8 +26,9 @@ using Test
     include("TestParameter.jl") 
     include("TestHeatTransfer.jl")  
  
-    include("TestSimpleStateEvents.jl")  
-    
+    include("TestSimpleStateEvents.jl") 
+    include("TestSynchronous.jl") 
+     
     include("../examples/runexamples.jl")    
 
 end
