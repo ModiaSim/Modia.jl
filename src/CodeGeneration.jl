@@ -498,6 +498,22 @@ isFirstInitialOfAllSegments(m::SimulationModel) = m.eventHandler.firstInitialOfA
 isTerminalOfAllSegments(m::SimulationModel)     = m.eventHandler.isTerminalOfAllSegments
 
 
+"""
+    setNextEvent!(instantiatedModel, nextEventTime)
+
+At an event instant, set the next time event to `nextEventTime`.
+"""
+setNextEvent!(m::SimulationModel{FloatType,TimeType}, nextEventTime) where {FloatType,TimeType} = 
+        setNextEvent!(m.eventHandler, convert(TimeType,nextEventTime)) 
+
+
+"""
+    tCurrent = getTime(instantiatedModel)
+
+Return current simulation time.
+"""
+getTime(m::SimulationModel) = m.eventHandler.time 
+
 
 """
     zStartIndex = addZeroCrossings(instantiatedModel, nz)
