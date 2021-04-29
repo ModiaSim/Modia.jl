@@ -6,8 +6,8 @@ Handles models defined as named tuples.
 * License: MIT (expat)
 
 =#
-export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, Model, Map, Par, Var, setLogMerge,
-    constant, parameter, input, output, potential, flow, interval, @info_str
+export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, drawModel, Model, Map, Par, Var, setLogMerge,
+    constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define
 
 using Base.Meta: isexpr
 using DataStructures: OrderedDict
@@ -20,6 +20,27 @@ function stringifyDefinition(v)
         v = ":(" * string(v) * ")"
     end
     return v
+end
+
+"Quote an expression; don't quote if the meaning in the AST is the same anyway."
+selquote(x) = x
+selquote(sym::Symbol) = Meta.quot(sym)
+function selquote(ex::Expr)
+    if isexpr(ex, :kw) || isexpr(ex, :call)
+        Expr(ex.head, [ex.args[1], [selquote(e) for e in ex.args[2:end]]...]...) 
+    else
+        Expr(ex.head, [selquote(e) for e in ex.args]...)
+    end
+end
+
+macro define(modelDef)
+    modelName = modelDef.args[1]
+    println(modelName)
+    model = modelDef.args[2]
+    model = selquote(model)
+    dump(model)
+    res = :($modelName = Meta.quot($model))
+    return esc(res)
 end
 
 function showModel(m, level=0)
@@ -53,7 +74,52 @@ function setLogMerge(val)
     logMerge = val
 end
 
+id = 1
+
+function drawModel(name, m, level=0)
+    this = Dict()
+    children = []
+    ports = []
+    edges = []
+    level += 1
+    global id
+    if typeof(m) <: NamedTuple && haskey(m, :class)
+#        print(m.class)
+    end
+    for (k, v) in zip(keys(m), m)
+        if typeof(v) <: NamedTuple && level <= 1
+            child = drawModel(k, v, level)
+            push!(children, child)
+        elseif k in [:class, :equations, :input, :output, :potential, :flow, :info]
+        elseif k == :connect
+            for conn in v.args
+                conn = conn.args
+                source = conn[1]
+                target = conn[2:end]
+                id += 1
+                edge = (; id, sources = [string(source)], targets=[string(target[1])])
+                push!(edges, edge)
+            end
+        elseif level <= 2
+            port = (; id=string(name) * "." * string(k), height=10, width=10)
+            push!(ports, port)
+        end
+    end
+
+    if length(children) > 0 && length(ports) > 0
+        this = (;id=name, height=100, width=100, labels=[(;text=name)], ports, children, edges)
+    elseif length(children) > 0 
+        this = (;id=name, height=100, width=100, labels=[(;text=name)], children, edges)
+    elseif length(ports) > 0 
+        this = (;id=name, height=100, width=100, labels=[(;text=name)], ports)
+    else
+        this = (;id=name, height=100, width=100, labels=[(;text=name)])
+    end
+    return this
+end
+
 function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
+#    println("mergedModels")
     mergedModels = OrderedDict{Symbol,Any}(pairs(m1))
     for (k,v) in collect(pairs(m2))
         if typeof(v) <: NamedTuple
@@ -75,6 +141,13 @@ function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
         elseif v === nothing
             if logMerge; println("Deleting: $k") end
             delete!(mergedModels, k)
+        elseif k in keys(mergedModels) && k == :equations
+            equa = copy(mergedModels[k])
+            push!(equa.args, v.args...)
+            mergedModels[k] = equa
+            if logMerge
+                println("Adding equations: ", v)
+            end
         else
             if logMerge
                 if k in keys(mergedModels)
@@ -94,12 +167,23 @@ end
 
 Model(; kwargs...) = (; class = :Model, kwargs...)
 
-Map(; kwargs...) = (; class = :Map, kwargs...)
+#Map(; kwargs...) = (; class = :Map, kwargs...)
+Map(; kwargs...) = (; kwargs...)
 
 Par(; kwargs...) = Map(; class = :Par, kwargs...)
 
-Var(;kwargs...) = (; class = :Var, kwargs...)
-Var(value; kwargs...) = (; class = :Var, value=value, kwargs...)
+#Var(;kwargs...) = (; class = :Var, kwargs...)
+function Var(values...; kwargs...)
+    res = (; class = :Var, kwargs...) 
+    for v in values
+        res = res | v
+    end
+    res
+end
+
+Integ(;kwargs...) = (; class = :Var, kwargs...)
+
+Boolean(;kwargs...) = (; class = :Var, kwargs...)
 
 Redeclare = ( _redeclare = true, )
 
@@ -117,14 +201,22 @@ macro info_str(text)
 end
 
 Base.:|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n) # TODO: Chane to updated recursiveMerge
-Base.:|(m, n) = if !(typeof(n) <: NamedTuple); recursiveMerge(m, (; value=n)) else recursiveMerge(n, (value=m,)) end
+Base.:|(m, n) = begin if !(typeof(n) <: NamedTuple); recursiveMerge(m, (; value=n)) else recursiveMerge(n, (value=m,)) end end
 
 recursiveMerge(x, ::Nothing) = x
 recursiveMerge(x, y) = y
 #recursiveMerge(x::Expr, y::Expr) = begin dump(x); dump(y); Expr(x.head, x.args..., y.args...) end
 recursiveMerge(x::Expr, y::Tuple) = begin x = copy(x); xargs = x.args; xargs[y[2]] = y[3]; Expr(x.head, xargs...) end
 
+#=
+Base.:|(x::Symbol, y::NamedTuple) = begin
+    :(eval($x) | $y)
+end
+=#
+
 function recursiveMerge(nt1::NamedTuple, nt2::NamedTuple)
+#    println("recursiveMerge")
+#    @show nt1 nt2
     all_keys = union(keys(nt1), keys(nt2))
 #    all_keys = setdiff(all_keys, [:class])
     gen = Base.Generator(all_keys) do key
@@ -132,6 +224,7 @@ function recursiveMerge(nt1::NamedTuple, nt2::NamedTuple)
         v2 = get(nt2, key, nothing)
         key => recursiveMerge(v1, v2)
     end
+#    @show gen
     return (; gen...)
 end
 
@@ -156,40 +249,58 @@ function collectConnector(model)
             typeof(v) <: NamedTuple && :variable in keys(v) && v.variable
             if :potential in keys(v) && v.potential
                 push!(potentials, k)
-            end
-            if :flow in keys(v) && v.flow
+            elseif :flow in keys(v) && v.flow
                 push!(flows, k)
+            else
+                push!(potentials, k)
             end
         end
     end
     return potentials, flows 
 end
 
+function mergeConnections!(connections)
+    for i in 1:length(connections)
+        for j in 1:i-1
+            con1 = connections[i]
+            con2 = connections[j]
+            if length(con1.args) > 0 && length(con2.args) > 0 && length(intersect(Set(con1.args), Set(con2.args))) > 0
+                connections[i] = Expr(:tuple, union(Set(con1.args), Set(con2.args))...)
+                connections[j] = Expr(:tuple) # Empty tuple
+                # if :(OpI.n2) in con1.args || :(OpI.n2) in con2.args # For bug testing
+                #     @show i j con1.args con2.args 
+                #     @show connections[i] connections[j]
+                # end
+            end
+        end
+    end
+end
+
 function convertConnections!(connections, model, modelName, logging=false)
 #    println("\nconvertConnections")
 #    showModel(model)
-#    @show connections
-#    println()
+    mergeConnections!(connections)
+
     connectEquations = []
     alreadyConnected = []
     for i in 1:length(connections)
         c = connections[i]
-
         if c.head == :tuple
             connected = c.args
 
-            potential1 = nothing
             inflow = 0
             outflow = 0
             signalFlow1 = nothing
             connectedOutput = nothing
-            potentials1 = []
+            potentials1 = nothing
+            fullPotentials1 = []
             flows1 = []
             for con in connected
                 if con in alreadyConnected
                     error("Already connected: $con, found in connection: $connected")
                 end
                 push!(alreadyConnected, con)
+#                @show connected con
 
                 sequence = []
                 unpackPath(con, sequence)
@@ -204,8 +315,8 @@ function convertConnections!(connections, model, modelName, logging=false)
 
                 if sequence[end] in keys(mod)
                     mod = mod[sequence[end]]
-
-                    if :input in keys(mod) && mod.input || :output in keys(mod) && mod.output
+#                    @show mod[:class]
+                    if :input in keys(mod) && mod.input || :output in keys(mod) && mod.output || :class in keys(mod) && mod[:class] == :Var
                         signalFlow = con
                         if signalFlow1 !== nothing
                             push!(connectEquations, :($signalFlow1 = $signalFlow))
@@ -218,7 +329,16 @@ function convertConnections!(connections, model, modelName, logging=false)
                             end
                             connectedOutput = con
                         end
+                    elseif mod[:class] == :Var
+#                        println("\nConnect vars: ", connected)
+#                        dump(connected)
+                        if length(fullPotentials1) > 0
+                            push!(connectEquations, :($(fullPotentials1[1]) = $con))
+#                            println(:($(fullPotentials1[1]) = $con))
+                        end
+                        push!(fullPotentials1, con)
                     else
+#                        @show mod typeof(mod)
                         potentials, flows = collectConnector(mod)
                         # Deprecated
                         if :potentials in keys(mod)
@@ -227,18 +347,20 @@ function convertConnections!(connections, model, modelName, logging=false)
                         if :flows in keys(mod)
                             flows = vcat(flows, mod.flows.args)
                         end
-
-                        if length(potentials1) > 0 && potentials != potentials1
+                        if potentials1 != nothing && potentials != potentials1
                             error("Not compatible potential variables: $potentials1 != $potentials, found in connection: $connected")
                         end
-                        for p in potentials
+                        fullPotentials = []
+                        for i in 1:length(potentials)
+                            p = potentials[i]
                             potential = append(con, p)
-                            if potential1 != nothing
-                                push!(connectEquations, :($potential1 = $potential))
+                            push!(fullPotentials, potential)
+                            if potentials1 != nothing
+                                push!(connectEquations, :($(fullPotentials1[i]) = $potential))
                             end
-                            potential1 = potential
                         end
-                        potentials1 = potentials
+                        potentials1 = potentials 
+                        fullPotentials1 = fullPotentials
 
                         if length(flows1) > 0 && flows != flows1
                             error("Not compatible flow variables: $flows1 != $flows, found in connection: $connected")
@@ -285,6 +407,7 @@ function convertConnections!(connections, model, modelName, logging=false)
 end
 
 function flattenModelTuple!(model, modelStructure, modelName; unitless = false, log=false)
+#    @show model
     connections = []
     extendedModel = merge(model, NamedTuple())
     for (k,v) in zip(keys(model), model)
@@ -358,11 +481,17 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                 modelStructure.start[k] = s0
                 modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => s0)
             end
-        elseif typeof(v) <: NamedTuple # instantiate
+        elseif typeof(v) <: NamedTuple # || typeof(v) == Symbol # instantiate
+                if typeof(v) == Symbol
+                    v = eval(eval(v))
+                end
                 subModelStructure = ModelStructure()
                 flattenModelTuple!(v, subModelStructure, k; unitless, log)
-#                println("subModelStructure")
-#                printModelStructure(subModelStructure, k)
+#=
+                println("subModelStructure")
+                @show subModelStructure
+                printModelStructure(subModelStructure, label=k)
+=#
                 mergeModelStructures(modelStructure, subModelStructure, k)
         elseif typeof(v) <:Array && length(v) > 0 && typeof(v[1]) <: NamedTuple # array of instances
             i = 0
@@ -382,6 +511,9 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                     push!(modelStructure.equations, removeBlock(e))
                 elseif isexpr(e, :tuple)
                     push!(connections, e)
+                elseif isexpr(e, :call) && e.args[1] == :connect
+                    con = :( ( $(e.args[2]), $(e.args[3]) ) )
+                    push!(connections, con)
                 else
                     arrayEquation = true
                 end
@@ -403,7 +535,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                 v = removeUnits(v)
             end
             push!(modelStructure.equations, :($k = $(prepend(v, :up))))
-#            push!(modelStructure.equations, :($k = $v))
+#            push!(modelStructure.equations, :($k = $v))  # To fix Modelica_Electrical_Analog_Interfaces_ConditionalHeatPort
 #            @show modelStructure.equations
         end
     end

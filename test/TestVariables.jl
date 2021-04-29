@@ -21,7 +21,7 @@ v4 = parameter | 5.5u"m/s" | Var(min=0)
 @test v4 == (class = :Var, parameter = true, value = 5.5u"m*s^-1", min = 0)
 
 v5 = parameter | Var(5, min=0)
-@test v5 == (class = :Var, parameter = true, value = 5, min = 0)
+@test v5 == (class = :Var, parameter = true, min = 0, value = 5)
 
 Pin = Model( v = potential | Var(nominal=10), i = flow )
 @test Pin == (class = :Model, v = (class = :Var, potential = true, nominal = 10), i = (class = :Var, flow = true,))

@@ -28,6 +28,7 @@ export ModiaBase
 @reexport using Unitful
 using  Measurements
 import MonteCarloMeasurements
+using JSON
 
 include("NamedTupleModels.jl")
 include("EvaluateParameters.jl")
@@ -45,7 +46,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-04-28"
+const Date = "2021-04-29"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -776,10 +777,22 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         modelStructure = ModelStructure()
 
+        if isexpr(model, :quote)
+            model = eval(model) # model defined with macro
+        end
+
         if typeof(model) <: NamedTuple
             if logModel
                 @showModel(model)
             end
+            if false
+                println("drawModel")
+                jsonDiagram = drawModel(modelName, model)
+                println()
+                println("jsonModel")
+                JSON.print(jsonDiagram, 2)
+            end
+
             if logTiming
                 println("Flatten")
                 @time flattenModelTuple!(model, modelStructure, modelName; unitless, log)
@@ -789,6 +802,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             printModelStructure(modelStructure, log=logDetails)
             name = modelName
         else
+            @show model
             error("Invalid model format")
         end
 
