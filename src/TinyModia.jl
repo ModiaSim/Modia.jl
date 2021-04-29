@@ -504,6 +504,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         @assert solved "Equation not solved for $(unknowns[v]): $(equations[e])"
 #        sol = string(solution)
 #        solution = prepend(makeDerivativeVar(solution, components), :m)
+        solution = prepend(solution, nothing)
         if false
     #        solution = :(begin println("Executing: ", $sol); $solution end)
             if sol != equ
@@ -774,6 +775,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
     try
         println("\nInstantiating model $modelModule.$modelName")
+        resetCounters()
 
         modelStructure = ModelStructure()
 

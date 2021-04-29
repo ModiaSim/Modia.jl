@@ -13,7 +13,7 @@ SimpleStateEvents = Model(
     s    = Var(init = 2.0),
     v    = Var(init = 0.0),
     equations = :[
-        sPos = positive(instantiatedModel, 1, s, "s", _leq_mode)
+        sPos = positive(s)
         f = sPos ? 0.0 : fmax
         v = der(s)
         m*der(v) + d*v + k*s = f

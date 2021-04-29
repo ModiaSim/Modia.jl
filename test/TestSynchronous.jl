@@ -25,8 +25,8 @@ SpeedControl = MassWithSpringDamper | Model(
     vd = Var(start=0.0),
     u  = Var(start=0.0),  
     equations2 = :[
-        c  = Clock(0.1, instantiatedModel, 1)
-        vd = sample(v, c, instantiatedModel, 1)    # speed sensor
+        c  = Clock(0.1)
+        vd = sample(v, c)    					   # speed sensor
         u  = K*(vref-vd)                           # P controller for speed
         f  = hold(u)                               # force actuator
     ]
