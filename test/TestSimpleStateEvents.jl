@@ -14,13 +14,13 @@ SimpleStateEvents = Model(
     v    = Var(init = 0.0),
     equations = :[
         sPos = positive(s)
-        f = sPos ? 0.0 : fmax
+        f = if sPos; 0.0 else fmax end   # or: f = sPos ? 0.0 : fmax
         v = der(s)
         m*der(v) + d*v + k*s = f
     ]
 )
 
-model = @instantiateModel(SimpleStateEvents, logCode=true)
+model = @instantiateModel(SimpleStateEvents)
 
 simulate!(model, Tsit5(), stopTime = 10, nz=1, log=true, logEvents=true)   # requiredFinalStates = [-0.3617373025974107]
 

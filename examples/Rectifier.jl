@@ -10,20 +10,20 @@ include("../models/Electric.jl")
 
 
 # Sinusoidal voltage source
-SineVoltage = OnePort | Model( V = 1.0u"V", f = 1.0u"Hz", equations = :[ v = V*sin(2*3.14*f) ] )
+SineVoltage = OnePort | Model( V = 1.0u"V", f = 1.0u"Hz", equations = :[ v = V*sin(2*3.14*f*time) ] )
 
 # Ideal diode
 IdealDiode = OnePort | Model(
         Ron   = 1e-4,
         Goff  = 1e-4,
-        Vknee = 0.0,
         s = Var(start = 0.0),
         equations = :[
-            closed = positive(instantiatedModel, 1, s, "s", _leq_mode)   # closed = s > 0
-            v = s*(closed ? Ron : 1) + Vknee
-            i = s*(closed ? 1   : Goff) + Goff*Vknee
+            closed = positive(s)   # closed = s > 0
+            v = s*(closed ? Ron : 1)
+            i = s*(closed ? 1   : Goff)
         ]
     )
+
 
 Rectifier = Model(
     R = Resistor | Map(R=1.0u"Ω"),
@@ -39,8 +39,8 @@ Rectifier = Model(
     ]
 )
 
-model = @instantiateModel(Rectifier)
-@time simulate!(model, Tsit5(), stopTime = 3, nz = 1) 
+model = @instantiateModel(Rectifier, logCode=true)
+@time simulate!(model, Tsit5(), stopTime = 3, nz = 1)
 plot(model, ("R.v", "D.v", "V.v", "C.v"))
 
 end
