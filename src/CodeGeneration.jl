@@ -8,6 +8,7 @@ using  Measurements
 import MonteCarloMeasurements
 using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
+using  ForwardDiff
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, change, edge, reinit, pre
@@ -32,6 +33,9 @@ baseType(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T<:Abstract
 Base.floatmax(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T<:AbstractFloat,N} = Base.floatmax(T)
 Base.floatmax(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T<:AbstractFloat,N} = Base.floatmax(T)
 
+
+getValue(v) = v
+getValue(v::ForwardDiff.Dual) = v.value
 
 
 """
@@ -960,7 +964,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing
-                    _m.time = _time
+                    _m.time = TinyModia.getValue(_time)
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
                     _p = _m.parameters
