@@ -17,10 +17,11 @@ IdealDiode = OnePort | Model(
         Ron   = 1e-4,
         Goff  = 1e-4,
         s = Var(start = 0.0),
-        equations = :[
+        equations = :[              
             closed = positive(s)   # closed = s > 0
-            v = s*(closed ? Ron : 1)
-            i = s*(closed ? 1   : Goff)
+            #closed = positive(instantiatedModel, 1, s, "s", _leq_mode)
+            v = s*(if closed; Ron else 1    end)
+            i = s*(if closed; 1   else Goff end)
         ]
     )
 
