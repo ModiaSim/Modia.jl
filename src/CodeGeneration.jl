@@ -34,10 +34,6 @@ Base.floatmax(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T<:Abs
 Base.floatmax(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T<:AbstractFloat,N} = Base.floatmax(T)
 
 
-getValue(v) = v
-getValue(v::ForwardDiff.Dual) = v.value
-
-
 """
     str = measurementToString(v)
 

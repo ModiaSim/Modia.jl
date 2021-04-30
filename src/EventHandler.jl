@@ -18,6 +18,11 @@ should be used. Only in special cases, the other flags are useful.
 @enum EventRestart NoRestart Restart FullRestart Terminate
 
 
+
+getValue(v) = v
+getValue(v::ForwardDiff.Dual) = v.value
+
+
 const nClock = 100
 const nSample = 100
 const nPrevious = 100
@@ -167,6 +172,8 @@ function setNextEvent!(h::EventHandler{FloatType,TimeType}, nextEventTime::TimeT
 end
 
 
+positive!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = positive!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
+
 function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     leq_mode = -1
@@ -199,6 +206,8 @@ function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::Float
 end
 
 
+negative!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = negative!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
+
 function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
                    
@@ -229,6 +238,8 @@ function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::Float
     return !h.zPositive[nr]
 end
 
+
+change!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = change!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
 
 function change!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
                  restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
@@ -262,6 +273,8 @@ function change!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatTy
     return false
 end
 
+
+edge!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = edge!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
 
 function edge!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
                restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
