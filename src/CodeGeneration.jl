@@ -769,7 +769,7 @@ function affectEvent!(integrator)::Nothing
     end
                 
     # Adapt step size    
-    if eh.restart != NoRestart
+    if eh.restart != NoRestart && supertype(typeof(integrator.alg)) == DifferentialEquations.OrdinaryDiffEq.OrdinaryDiffEqAdaptiveAlgorithm
         DifferentialEquations.auto_dt_reset!(integrator)
         DifferentialEquations.set_proposed_dt!(integrator, integrator.dt)
     end
