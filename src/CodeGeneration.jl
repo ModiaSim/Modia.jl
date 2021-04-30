@@ -8,7 +8,6 @@ using  Measurements
 import MonteCarloMeasurements
 using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
-using  ForwardDiff
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, change, edge, reinit, pre

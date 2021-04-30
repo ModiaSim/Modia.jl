@@ -18,7 +18,7 @@ should be used. Only in special cases, the other flags are useful.
 @enum EventRestart NoRestart Restart FullRestart Terminate
 
 
-
+using  ForwardDiff
 getValue(v) = v
 getValue(v::ForwardDiff.Dual) = v.value
 
