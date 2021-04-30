@@ -26,16 +26,17 @@ IdealDiode = OnePort | Model(
 
 
 Rectifier = Model(
-    R = Resistor | Map(R=1.0u"Ω"),
+    R1 = Resistor | Map(R=1.0u"Ω"),
+    R2 = Resistor | Map(R=1.0u"Ω"),    
     C = Capacitor | Map(C=1.0u"F", v=Var(init=0.0u"V")),
     D = IdealDiode,
     V = SineVoltage | Map(V=5.0u"V", f=1.5u"Hz"),
     ground = Ground,
     connect = :[
-      (V.p, D.p)
-      (D.n, R.p)
-      (C.p, R.p)
-      (ground.p, R.n, C.n, V.n)
+      (V.p , R1.p)
+      (R1.n, D.p)
+      (D.n , R2.p, C.p)
+      (ground.p, R2.n, C.n, V.n)
     ]
 )
 
