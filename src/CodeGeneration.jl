@@ -516,7 +516,7 @@ setNextEvent!(m::SimulationModel{FloatType,TimeType}, nextEventTime) where {Floa
 
 Return current simulation time.
 """
-getTime(m::SimulationModel) = m.eventHandler.time 
+getTime(m::SimulationModel) = m.time 
 
 
 """
