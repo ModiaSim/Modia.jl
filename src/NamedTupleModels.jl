@@ -481,6 +481,12 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
                 modelStructure.start[k] = s0
                 modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => s0)
             end
+            if :input in keys(v) && v[:input]
+                modelStructure.inputs[k] = v
+            end
+            if :output in keys(v) && v[:output]
+                modelStructure.outputs[k] = v
+            end
         elseif typeof(v) <: NamedTuple # || typeof(v) == Symbol # instantiate
                 if typeof(v) == Symbol
                     v = eval(eval(v))

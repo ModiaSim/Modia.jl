@@ -46,7 +46,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-04-29"
+const Date = "2021-05-02"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -366,8 +366,8 @@ function mergeModelStructures(parent::ModelStructure, child::ModelStructure, pre
     end
     merge!(parent.variables, prependDict(child.variables, prefix))
     merge!(parent.flows, prependDict(child.flows, prefix))
-    merge!(parent.inputs, prependDict(child.inputs, prefix))
-    merge!(parent.outputs, prependDict(child.outputs, prefix))
+#    merge!(parent.inputs, prependDict(child.inputs, prefix))
+#    merge!(parent.outputs, prependDict(child.outputs, prefix))
 
     push!(parent.equations, prepend(child.equations, prefix)...)
 end
@@ -494,7 +494,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
+function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modelStructure
 
@@ -828,11 +828,13 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             println("Number of equations: ", length(modelStructure.equations))
         end
         printArray(modelStructure.parameters, "Parameters:", log=log)
+        printArray(modelStructure.inputs, "Inputs:", log=log)
+        printArray(modelStructure.outputs, "Outputs:", log=log)
         printArray(states, "Potential states:", log=log)
         printArray(setdiff(unknowns, states), "Unknowns:", log=log)
         printArray(modelStructure.equations, "Equations:", log=log)
         if logDetails
-            @show modelStructure.parameters modelStructure.mappedParameters modelStructure.init modelStructure.start modelStructure.variables modelStructure.flows
+            @show modelStructure.parameters modelStructure.mappedParameters modelStructure.init modelStructure.start modelStructure.variables modelStructure.flows modelStructure.inputs modelStructure.outputs
         end
 
         unknownsWithEliminated = unknowns
@@ -868,7 +870,8 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         modStructure = assignAndBLT(equations, unknowns, modelStructure.parameters, Avar, G, states, logDetails, log, logTiming)
 
-        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
+        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
+            vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
             unitless, logStateSelection, logCode, logExecution, logTiming)
 
     catch e
