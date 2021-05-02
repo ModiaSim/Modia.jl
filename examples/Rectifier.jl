@@ -14,14 +14,13 @@ SineVoltage = OnePort | Model( V = 1.0u"V", f = 1.0u"Hz", equations = :[ v = V*s
 
 # Ideal diode
 IdealDiode = OnePort | Model(
-        Ron   = 1e-4,
-        Goff  = 1e-4,
+        Ron   = 1e-4u"Ω",
+        Goff  = 1e-4u"1/Ω",
         s = Var(start = 0.0),
         equations = :[              
             closed = positive(s)   # closed = s > 0
-            #closed = positive(instantiatedModel, 1, s, "s", _leq_mode)
-            v = s*(if closed; Ron else 1    end)
-            i = s*(if closed; 1   else Goff end)
+            v = s*u"V"*(if closed; Ron*u"1/Ω" else 1    end)
+            i = s*u"A"*(if closed; 1   else Goff*u"Ω" end)
         ]
     )
 
@@ -41,7 +40,7 @@ Rectifier = Model(
     ]
 )
 
-model = @instantiateModel(Rectifier, log=true, logCode=true, logStateSelection=true)
+model = @instantiateModel(Rectifier, log=true, logCode=true, logStateSelection=true, unitless=false, logExecution=false)
 @time simulate!(model, Tsit5(), stopTime = 3, nz = 1)
 plot(model, ("R.v", "D.v", "V.v", "C.v"))
 

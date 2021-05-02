@@ -504,7 +504,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         @assert solved "Equation not solved for $(unknowns[v]): $(equations[e])"
 #        sol = string(solution)
 #        solution = prepend(makeDerivativeVar(solution, components), :m)
-        solution = prepend(solution, nothing)
+        solution = substituteForEvents(solution)
         if false
     #        solution = :(begin println("Executing: ", $sol); $solution end)
             if sol != equ
@@ -732,8 +732,8 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
                                          OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]))
-
-    if logExecution
+ 
+    if false # logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
 #        @time getDerivatives(derx, convertedStartValues, model, convert(FloatType, 0.0))
         Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(FloatType, 0.0))
