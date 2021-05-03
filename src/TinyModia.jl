@@ -727,11 +727,13 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
+    nCrossingFunctions, nClocks, nSamples = getEventCounters()
     model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
-                                         var_name = (v)->string(unknownsWithEliminated[v]))
+                                         var_name = (v)->string(unknownsWithEliminated[v]),
+                                         nz=nCrossingFunctions)
  
     if false # logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
@@ -775,7 +777,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
     try
         println("\nInstantiating model $modelModule.$modelName")
-        resetCounters()
+        resetEventCounters()
 
         modelStructure = ModelStructure()
 
@@ -818,7 +820,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         unique!(allVariables)
     #    @show allVariables
 
-        unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time, :instantiatedModel, :_leq_mode, :_x])
+        unknowns = setdiff(allVariables, keys(modelStructure.parameters), keys(modelStructure.inputs), [:time, :instantiatedModel, :_leq_mode, :_x])
         Avar, states, derivatives = setAvar(unknowns)
         vActive = [a == 0 for a in Avar]
 

@@ -41,7 +41,7 @@ Rectifier = Model(
 )
 
 model = @instantiateModel(Rectifier, log=true, logCode=true, logStateSelection=true, unitless=false, logExecution=false)
-@time simulate!(model, Tsit5(), stopTime = 3, nz = 1)
+@time simulate!(model, Tsit5(), stopTime = 3)
 plot(model, ("R.v", "D.v", "V.v", "C.v"))
 
 end
