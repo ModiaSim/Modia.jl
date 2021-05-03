@@ -128,7 +128,8 @@ mutable struct SimulationModel{FloatType,TimeType}
                                             # (parameter values are used in getDerivatives!,
                                             #  init/start values are extracted and stored in x_start) 
     parameterExpressions::NamedTuple
-    parameters::NamedTuple    
+    parameters::NamedTuple   
+    inputs::NamedTuple
     separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects   
     isInitial::Bool    
     storeResult::Bool
@@ -198,6 +199,9 @@ mutable struct SimulationModel{FloatType,TimeType}
             push!(linearEquations, ModiaBase.LinearEquations{FloatType}(leq...))
         end
 
+        # Inputs
+        inputs = NamedTuple()
+        
         # Construct dictionary for separate objects
         separateObjects = OrderedDict{Int,Any}()
                 
@@ -211,7 +215,7 @@ mutable struct SimulationModel{FloatType,TimeType}
 
         new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, 
             eventHandler, variables, zeroVariables,
-            vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, #parameterValues,
+            vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, inputs, #parameterValues,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
             x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[], missing)
     end
@@ -904,7 +908,7 @@ Symbol `functionName` as function name. By `eval(code)` or
 """
 function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.EquationInfo,
                                   parameters, variables, functionName::Symbol;
-                                  pre::Vector{Symbol} = Symbol[], hasUnits=false)
+                                  pre::Vector{Symbol} = Symbol[], hasUnits=false, hasInputs=false)
 
     # Generate code to copy x to struct and struct to der_x
     x_info     = equationInfo.x_info
@@ -955,6 +959,11 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     else
         code_time = :( $timeName = _time )
     end
+    if hasInputs
+        code_inputs = :( _u = _m.inputs )
+    else
+        code_inputs = :()
+    end
 
     # Generate code of the function
     code = quote
@@ -963,6 +972,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
                     _p = _m.parameters
+                    $code_inputs
                     _leq_mode  = -1
                     $code_time
                     $(code_x...)
