@@ -494,9 +494,9 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
+function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
-    (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modelStructure
+    (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
 
     function getSolvedEquationAST(e, v)
         (solution, solved) = solveEquation(equations[e], unknowns[v])
@@ -516,7 +516,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
-        solution = makeDerVar(solution, keys(parameters))
+        solution = makeDerVar(solution, keys(parameters), keys(inputs))
         if logExecution
             var = string(unknowns[v])
             return :($solution; println($var, " = ", upreferred.($(solution.args[1]))))
@@ -527,7 +527,7 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
 
     function getResidualEquationAST(e, residualName)
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
-        resid = makeDerVar(:(ustrip($(eq.args[2]) - $(eq.args[1]))), keys(parameters))
+        resid = makeDerVar(:(ustrip($(eq.args[2]) - $(eq.args[1]))), keys(parameters), keys(inputs))
         residual = :($residualName = $resid)
         if false #logExecution
             return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
@@ -700,10 +700,10 @@ function stateSelectionAndCodeGeneration(modelStructure, name, modelModule, Floa
     if logTiming
         println("Generate code")
 #        @time code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless, hasInputs=true)
     else
 #        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless, hasInputs=true)
     end
     if logCode
         @show mappedParameters
