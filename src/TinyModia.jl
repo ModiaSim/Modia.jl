@@ -36,7 +36,7 @@ include("EventHandler.jl")
 include("CodeGeneration.jl")
 include("Synchronous.jl")
 include("SimulateAndPlot.jl")
-
+include("PathPlanning.jl")
 
 # include("IncidencePlot.jl")
 # using .IncidencePlot
