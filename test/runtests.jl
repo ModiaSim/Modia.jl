@@ -28,7 +28,8 @@ using Test
  
     include("TestSimpleStateEvents.jl") 
     include("TestSynchronous.jl") 
-     
+    include("TestPathPlanning.jl")  
+    
     include("../examples/runexamples.jl")    
 
 end
