@@ -4,14 +4,11 @@
 export PTP_path, pathEndTime, getPosition!, getPosition, getIndex, getPath
 
 using DataStructures
+using Unitful
 
 
 """
-    path = PTP_path(names;
-                    positions = [zeros(size(names,1))'; ones(size(names,1))'],
-                    startTime=0.0,
-                    v_max = ones(size(names,1)),
-                    a_max = ones(size(names,2))))
+    path = PTP_path(names; positions, v_max, a_max, startTime=0.0)
 
 Generate a new path object to move as fast as possible from
 positions[i,:] to positions[i+1,:]. The `positions[i,:]` can be a set of translational
@@ -58,38 +55,39 @@ path = getPath(ptp_path)
 plot(path, ["angle1", "angle2", "angle3"])
 ```
 """
-mutable struct PTP_path
+mutable struct PTP_path{FloatType}
    names::Vector{AbstractString}
-   startTime::Float64
-   v_max::Vector{Float64}
-   a_max::Vector{Float64}
-   positions::Matrix{Float64}
+   startTime::FloatType
+   v_max::Vector{FloatType}
+   a_max::Vector{FloatType}
+   positions::Matrix{FloatType}
 
-   delta::Matrix{Float64}
+   delta::Matrix{FloatType}
    hasPath::Vector{Bool}
-   sd_max::Vector{Float64}
-   sdd_max::Vector{Float64}
-   Ta1::Vector{Float64}
-   Ta2::Vector{Float64}
+   sd_max::Vector{FloatType}
+   sdd_max::Vector{FloatType}
+   Ta1::Vector{FloatType}
+   Ta2::Vector{FloatType}
    noWphase::Vector{Bool}
-   Tv::Vector{Float64}
-   Te::Vector{Float64}
-   Ta1s::Vector{Float64}
-   Ta2s::Vector{Float64}
-   Tvs::Vector{Float64}
-   Tes::Vector{Float64}
-   sd_max2::Vector{Float64}
-   s1::Vector{Float64}
-   s2::Vector{Float64}
-   s3::Vector{Float64}
-   Tend::Float64
-   posTemp::Vector{Float64}   # Temporary storage that can be used by the functions operation on PTP_path
+   Tv::Vector{FloatType}
+   Te::Vector{FloatType}
+   Ta1s::Vector{FloatType}
+   Ta2s::Vector{FloatType}
+   Tvs::Vector{FloatType}
+   Tes::Vector{FloatType}
+   sd_max2::Vector{FloatType}
+   s1::Vector{FloatType}
+   s2::Vector{FloatType}
+   s3::Vector{FloatType}
+   Tend::FloatType
+   posTemp::Vector{FloatType}   # Temporary storage that can be used by the functions operation on PTP_path
 
-   function PTP_path(names::AbstractVector;
-                     positions::Matrix{Float64} = [zeros(size(names,1))'; ones(size(names,1))'],
-                     startTime=0.0,
-                     v_max = ones(size(names,1)),
-                     a_max = ones(size(names,1)))
+   function PTP_path{FloatType}(
+                     names::AbstractVector;
+                     positions::Matrix{FloatType}, 
+                     v_max::Vector{FloatType},
+                     a_max::Vector{FloatType},
+                     startTime::FloatType = convert(FloatType, 0)) where {FloatType}
 
         #@assert(size(positions,1) > 1)
         #@assert(size(positions,2) == Base.length(names))
@@ -99,30 +97,30 @@ mutable struct PTP_path
         npath = size(positions,1) - 1   # number of path points
 
         for i in eachindex(v_max)
-            @assert(v_max[i] > 0.0)
-            @assert(a_max[i] > 0.0)
+            @assert(v_max[i] > convert(FloatType,0))
+            @assert(a_max[i] > convert(FloatType,0))
         end
 
-        delta    = zeros(npath, np)
+        delta    = zeros(FloatType, npath, np)
         hasPath  = fill(false,npath)
-        sd_max   = zeros(npath)
-        sdd_max  = zeros(npath)
-        Ta1      = zeros(npath)
-        Ta2      = zeros(npath)
+        sd_max   = zeros(FloatType,npath)
+        sdd_max  = zeros(FloatType,npath)
+        Ta1      = zeros(FloatType,npath)
+        Ta2      = zeros(FloatType,npath)
         noWphase = fill(false,npath)
-        Tv       = zeros(npath)
-        Te       = zeros(npath)
-        Ta1s     = zeros(npath)
-        Ta2s     = zeros(npath)
-        Tvs      = zeros(npath)
-        Tes      = zeros(npath)
-        sd_max2  = zeros(npath)
-        s1       = zeros(npath)
-        s2       = zeros(npath)
-        s3       = zeros(npath)
-        aux1     = zeros(np)
-        aux2     = zeros(np)
-        small    = 1000*eps()
+        Tv       = zeros(FloatType,npath)
+        Te       = zeros(FloatType,npath)
+        Ta1s     = zeros(FloatType,npath)
+        Ta2s     = zeros(FloatType,npath)
+        Tvs      = zeros(FloatType,npath)
+        Tes      = zeros(FloatType,npath)
+        sd_max2  = zeros(FloatType,npath)
+        s1       = zeros(FloatType,npath)
+        s2       = zeros(FloatType,npath)
+        s3       = zeros(FloatType,npath)
+        aux1     = zeros(FloatType,np)
+        aux2     = zeros(FloatType,np)
+        small    = 1000*eps(FloatType)
 
         for i in 1:npath
             delta[i,:] = positions[i+1,:] - positions[i,:]
@@ -164,10 +162,13 @@ mutable struct PTP_path
         Tend = Tes[end]
 
         new(names, startTime, v_max, a_max, positions, delta,
-            hasPath, sd_max, sdd_max, Ta1, Ta2, noWphase, Tv, Te, Ta1s, Ta2s, Tvs, Tes, sd_max2, s1, s2, s3, Tend, zeros(np))
+            hasPath, sd_max, sdd_max, Ta1, Ta2, noWphase, Tv, Te, Ta1s, Ta2s, Tvs, Tes, sd_max2, s1, s2, s3, Tend, zeros(FloatType,np))
     end
 end
 
+PTP_path(args...; kwargs...) = PTP_path{Float64}(args...; kwargs...)
+
+                     
 
 """
     Tend = pathEndTime(path)
@@ -184,7 +185,7 @@ pathEndTime(path::PTP_path) = path.Tend
 Given a `path::PTP_path` and a time instant `time`, return the actual
 position at time `time` in vector `position`.
 """
-function getPosition!(path::PTP_path, time::Number, position::Vector{Float64})
+function getPosition!(path::PTP_path{FloatType}, time::FloatType, position::Vector{FloatType}) where {FloatType}
     time = ustrip(time)
     @assert(length(position) == size(path.positions,2))
     npath = length(path.hasPath)
@@ -243,27 +244,27 @@ Given a `path::PTP_path` and a time instant `time`, return the actual
 position, velocity and acceleration at time `time` in vectors
 `position, velocity, acceleration`.
 """
-function getPosition!(path::PTP_path, time::Number,
-                      position::Vector{Float64},
-                      velocity::Vector{Float64},
-                      acceleration::Vector{Float64})::Nothing
+function getPosition!(path::PTP_path{FloatType}, time::FloatType,
+                      position::Vector{FloatType},
+                      velocity::Vector{FloatType},
+                      acceleration::Vector{FloatType})::Nothing where {FloatType}
     time = ustrip(time)
     @assert(length(position)     == size(path.positions,2))
     @assert(length(velocity)     == length(position))
     @assert(length(acceleration) == length(acceleration))
     npath = length(path.hasPath)
     np    = length(position)
-    s   = 0.0
-    sd  = 0.0
-    sdd = 0.0
+    s   = convert(FloatType, 0)
+    sd  = convert(FloatType, 0)
+    sdd = convert(FloatType, 0)
 
     # Search correct time interval
     i = 0
     if time <= path.startTime
         i   = 1
-        s   = 0
-        sd  = 0.0
-        sdd = 0.0
+        s   = convert(FloatType, 0)
+        sd  = convert(FloatType, 0)
+        sdd = convert(FloatType, 0)
     else
         while i < npath
             i = i+1
@@ -274,8 +275,8 @@ function getPosition!(path::PTP_path, time::Number,
         if time >= path.Tes[end]
             i   = npath
             s   = path.noWphase[i] ? path.s2[end] : path.s3[end]
-            sd  = 0.0
-            sdd = 0.0
+            sd  = convert(FloatType, 0)
+            sdd = convert(FloatType, 0)
             #println("... time=$time i=$i s=$s qbegin=", path.positions[i,1], ", qdelta = ", path.delta[i,1])
         else
             Tbegin = i==1 ? path.startTime : path.Tes[i-1]
@@ -290,8 +291,8 @@ function getPosition!(path::PTP_path, time::Number,
                     sdd = -path.sdd_max[i]
                 else
                     s   = path.s2[i]
-                    sd  = 0.0
-                    sdd = 0.0
+                    sd  = convert(FloatType, 0)
+                    sdd = convert(FloatType, 0)
                 end
             elseif time < path.Ta2s[i]
                 s   = (path.sdd_max[i]/2)*(time - Tbegin)^2
@@ -300,15 +301,15 @@ function getPosition!(path::PTP_path, time::Number,
             elseif time < path.Tvs[i]
                 s   = path.s1[i] + path.sd_max[i]*(time - path.Ta2s[i])
                 sd  = path.sd_max[i]
-                sdd = 0.0
+                sdd = convert(FloatType, 0)
             elseif time < path.Tes[i]
                 s   = path.s2[i] + path.sd_max[i]*(time - path.Tvs[i]) - (path.sdd_max[i]/2)*(time - path.Tvs[i])^2
                 sd  = path.sd_max[i] - path.sdd_max[i]*(time - path.Tvs[i])
                 sdd = -path.sdd_max[i]
             else
                 s   = path.s3[i]
-                sd  = 0.0
-                sdd = 0.0
+                sd  = convert(FloatType, 0)
+                sdd = convert(FloatType, 0)
             end
         end
     end
@@ -330,7 +331,7 @@ end
 Given a `path::PTP_path`, the `index` of a signal, and a time instant `time`, return the actual
 position at time `time`.
 """
-function getPosition(path::PTP_path, index, time::Number)
+function getPosition(path::PTP_path, index, time)
     getPosition!(path, time, path.posTemp)
     return path.posTemp[index]
 end
@@ -358,9 +359,9 @@ end
 Given a `path::PTP_path`, return a dictionary with the time series
 of the path over `time` up to `tend` for all `ntime` time points.
 """
-function getPath(path::PTP_path; names=path.names, 
-                 ntime=101, tend = 1.1*path.Tend, onlyPositions=false)
-    time = range(0u"s",(tend)u"s",length=ntime)
+function getPath(path::PTP_path{FloatType}; names=path.names, 
+                 ntime=101, tend = 1.1*path.Tend, onlyPositions=false) where {FloatType}
+    time = range(convert(FloatType,0)u"s",convert(FloatType,tend)u"s",length=ntime)
     indices = indexin(names, path.names)
     names2  = deepcopy(names)
     for i in eachindex(indices)
@@ -372,8 +373,8 @@ function getPath(path::PTP_path; names=path.names,
     end
 
     np   = length(indices)
-    q    = zeros(length(time), np)
-    qt   = zeros(length(path.names))
+    q    = zeros(FloatType,length(time), np)
+    qt   = zeros(FloatType,length(path.names))
 
     series = OrderedDict{AbstractString,Any}()
     series["time"] = time
@@ -391,12 +392,12 @@ function getPath(path::PTP_path; names=path.names,
     else
         der_names2  = "der(" .* names2 .* ")"
         der2_names2 = "der2(" .* names2 .* ")"
-        qd   = zeros(length(time), np)
-        qdd  = zeros(length(time), np)
-        qtd  = zeros(length(path.names))
-        qtdd = zeros(length(path.names))
+        qd   = zeros(FloatType,length(time), np)
+        qdd  = zeros(FloatType,length(time), np)
+        qtd  = zeros(FloatType,length(path.names))
+        qtdd = zeros(FloatType,length(path.names))
         for i in eachindex(time)
-            getPosition!(path, time[i], qt, qtd, qtdd)
+            getPosition!(path, ustrip(time[i]), qt, qtd, qtdd)
             q[i,:]   = qt[indices]
             qd[i,:]  = qtd[indices]
             qdd[i,:] = qtdd[indices]
