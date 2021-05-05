@@ -8,7 +8,7 @@ const ptp_path = PTP_path(["angle1", "angle2", "angle3"],
                                        0.5 3.0 4.0;
                                        0.8 1.5 0.3;
                                        0.2 1.5 0.8],
-                          startTime = 0.1,
+                          startTime = (0.1/60)u"minute",
                           v_max = 2*ones(3),
                           a_max = 3*ones(3))
 angles = zeros(3)

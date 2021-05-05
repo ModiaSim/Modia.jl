@@ -87,8 +87,9 @@ mutable struct PTP_path{FloatType}
                      positions::Matrix{FloatType}, 
                      v_max::Vector{FloatType},
                      a_max::Vector{FloatType},
-                     startTime::FloatType = convert(FloatType, 0)) where {FloatType}
-
+                     startTime =0.0) where {FloatType}
+        startTime = convertTimeVariable(FloatType, startTime) 
+        
         #@assert(size(positions,1) > 1)
         #@assert(size(positions,2) == Base.length(names))
         #@assert(Base.length(v_max) == Base.length(names))
@@ -185,8 +186,8 @@ pathEndTime(path::PTP_path) = path.Tend
 Given a `path::PTP_path` and a time instant `time`, return the actual
 position at time `time` in vector `position`.
 """
-function getPosition!(path::PTP_path{FloatType}, time::FloatType, position::Vector{FloatType}) where {FloatType}
-    time = ustrip(time)
+function getPosition!(path::PTP_path{FloatType}, time, position::Vector{FloatType}) where {FloatType}
+    time = convertTimeVariable(FloatType, time)
     @assert(length(position) == size(path.positions,2))
     npath = length(path.hasPath)
     np    = length(position)
@@ -244,11 +245,11 @@ Given a `path::PTP_path` and a time instant `time`, return the actual
 position, velocity and acceleration at time `time` in vectors
 `position, velocity, acceleration`.
 """
-function getPosition!(path::PTP_path{FloatType}, time::FloatType,
+function getPosition!(path::PTP_path{FloatType}, time,
                       position::Vector{FloatType},
                       velocity::Vector{FloatType},
                       acceleration::Vector{FloatType})::Nothing where {FloatType}
-    time = ustrip(time)
+    time = convertTimeVariable(FloatType, time)                    
     @assert(length(position)     == size(path.positions,2))
     @assert(length(velocity)     == length(position))
     @assert(length(acceleration) == length(acceleration))
@@ -361,7 +362,8 @@ of the path over `time` up to `tend` for all `ntime` time points.
 """
 function getPath(path::PTP_path{FloatType}; names=path.names, 
                  ntime=101, tend = 1.1*path.Tend, onlyPositions=false) where {FloatType}
-    time = range(convert(FloatType,0)u"s",convert(FloatType,tend)u"s",length=ntime)
+    tend = convertTimeVariable(FloatType, tend)                
+    time = range(convert(FloatType,0)u"s",(tend)u"s",length=ntime)
     indices = indexin(names, path.names)
     names2  = deepcopy(names)
     for i in eachindex(indices)

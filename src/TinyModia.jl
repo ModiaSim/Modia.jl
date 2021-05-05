@@ -700,10 +700,10 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     if logTiming
         println("Generate code")
 #        @time code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless, hasInputs=true)
+        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
     else
 #        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless, hasInputs=true)
+        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         @show mappedParameters
