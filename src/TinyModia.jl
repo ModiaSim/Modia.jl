@@ -36,6 +36,7 @@ include("EventHandler.jl")
 include("CodeGeneration.jl")
 include("Synchronous.jl")
 include("SimulateAndPlot.jl")
+include("ReverseDiffInterface.jl")
 include("PathPlanning.jl")
 
 # include("IncidencePlot.jl")
@@ -46,7 +47,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-05-05"
+const Date = "2021-05-17"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")

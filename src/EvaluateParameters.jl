@@ -51,16 +51,46 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    propagateEvaluateAndInstantiate(modelModule::Module, model::NamedTuple)
+    map = propagateEvaluateAndInstantiate!(modelModule::Module, model, 
+                   eqInfo::ModiaBase.EquationInfo, x_start; log=false)
     
-Recursively traverse the hierarchical NamedTuple `model` and perform the following actions:
+Recursively traverse the hierarchical collection `model` and perform the following actions:
 
 - Propagate values.
 - Evaluate expressions in the context of `modelModule`.
 - Instantiate dependent objects.
-- Return the evaluated `model` as NamedTuple.
+- Store start values of states with key x_name in x_start::Vector{FloatType} 
+  (which has length eqInfo.nx).
+- Return the evaluated `model` as map::TinyModia.Map if successfully evaluated, and otherwise 
+  return nothing, if an error occured (an error message was printed).
 """
-function propagateEvaluateAndInstantiate(modelModule, model, environment=[], path=""; log=false)
+function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start; log=false)
+    x_found = fill(false, length(eqInfo.x_info))
+    map = propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo, x_start, x_found, [], ""; log=log)
+    if isnothing(map)
+        return nothing
+    end
+    
+    # Check that all values of x_start are set:
+    x_start_missing = []
+    for (i, found) in enumerate(x_found)
+        if !found
+            push!(x_start_missing, equationInfo.x_info[i].x_name)
+        end
+    end
+    if length(x_start_missing) > 0
+        printstyled("Model error: ", bold=true, color=:red)  
+        printstyled("Missing start/init values for variables: ", x_start_missing, 
+                    bold=true, color=:red)
+        return nothing
+    end
+    return map
+end
+
+        
+function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase.EquationInfo, 
+                                           x_start::Vector{FloatType}, x_found::Vector{Bool}, 
+                                           environment, path::String; log=false) where {FloatType}
     if log
         println("\n!!! instantiate objects of $path: ", model)
     end
@@ -118,7 +148,11 @@ function propagateEvaluateAndInstantiate(modelModule, model, environment=[], pat
                 end
             else
                 # For example: k = (a = 2.0, b = :(2*Lx))
-                current[k] = propagateEvaluateAndInstantiate(modelModule, v, vcat(environment, [current]), appendKey(path, k); log=log)     
+                value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, vcat(environment, [current]), appendKey(path, k); log=log)     
+                if isnothing(value)
+                    return nothing
+                end
+                current[k] = value
             end
             
         else
@@ -132,6 +166,37 @@ function propagateEvaluateAndInstantiate(modelModule, model, environment=[], pat
             current[k] = Core.eval(modelModule, subv)
             if log
                 println("          $k = ", current[k])
+            end
+            
+            # Set x_start
+            full_key = appendKey(path, k) 
+            if haskey(eqInfo.x_dict, full_key)
+                if log
+                    println("              (is stored in x_start)")
+                end
+                j = eqInfo.x_dict[full_key]
+                xe_info = eqInfo.x_info[j]                
+                x_value = current[k]
+                len = hasParticles(x_value) ? 1 : length(x_value)
+                if len != xe_info.length
+                    printstyled("Model error: ", bold=true, color=:red)  
+                    printstyled("Length of ", xe_info.x_name, " shall be changed from ",
+                                xe_info.length, " to $len\n",
+                                "This is currently not support in TinyModia.", bold=true, color=:red)
+                    return nothing
+                end                    
+                x_found[j] = true
+
+                # Temporarily remove units from x_start
+                # (TODO: should first transform to the var_unit units and then remove)    
+                if xe_info.length == 1
+                    x_start[xe_info.startIndex] = deepcopy( convert(FloatType, ustrip(x_value)) )
+                else
+                    ibeg = xe_info.startIndex - 1
+                    for i = 1:xe_info.length
+                        x_start[ibeg+i] = deepcopy( convert(FloatType, ustrip(x_value[i])) )
+                    end
+                end
             end
         end
     end 
@@ -150,7 +215,6 @@ function propagateEvaluateAndInstantiate(modelModule, model, environment=[], pat
         return obj        
     end
 end
-
 
 
 

@@ -22,12 +22,16 @@ BouncingBall = Model(
 
 
 model = @instantiateModel(BouncingBall, logCode=true)
-
 @show model.equationInfo.x_info
 
-model.pre = [true]
+# Temporary code, until edge, reinit and pre are supported in the Modia language
+    eh = model.eventHandler
+    eh.nz = 1
+    eh.z  = ones(eh.nz)
+    eh.zPositive = fill(false, eh.nz)
+    model.pre = [true]
 
-simulate!(model, Tsit5(), stopTime = 3.0, nz=1, log=true, logEvents=true)   # requiredFinalStates = [-0.3617373025974107]
+simulate!(model, Tsit5(), stopTime = 3.0, log=true, logEvents=true)   # requiredFinalStates = [-0.3617373025974107]
 
 plot(model, ["h", "v", "flying"])
 

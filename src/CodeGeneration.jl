@@ -55,6 +55,7 @@ function measurementToString(v::Vector{Measurements.Measurement{FloatType}}) whe
 end
 
 
+#= No longer needed
 function get_x_start!(FloatType, equationInfo, parameters)
     x_start = []
     startIndex = 1
@@ -90,6 +91,9 @@ function get_x_start!(FloatType, equationInfo, parameters)
     x_start2 = deepcopy(converted_x_start)
     return x_start2
 end
+=#
+
+
 
     
 """
@@ -127,8 +131,8 @@ mutable struct SimulationModel{FloatType,TimeType}
     #p::AbstractVector                       # Parameter and init/start values 
                                             # (parameter values are used in getDerivatives!,
                                             #  init/start values are extracted and stored in x_start) 
-    parameterExpressions::NamedTuple
-    parameters::NamedTuple   
+    parameters::NamedTuple
+    evaluatedParameters::NamedTuple   
     separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects   
     isInitial::Bool    
     storeResult::Bool
@@ -140,11 +144,16 @@ mutable struct SimulationModel{FloatType,TimeType}
     pre::Vector{Any}                        # Pre-values
     result::Vector{Tuple}                   # Simulation result
     algorithmType::Union{DataType,Missing}  # Type of integration algorithm (used in default-heading of plot)
-    
+    solution::Union{Any,Missing}            # Return value of DifferentialEquations.solve
+    save_x_in_solution::Bool                # = true, if the states are stored in solution
+   
     # Set when simulation is started
     startTime::TimeType
     stopTime::TimeType
     interval::TimeType
+    
+    
+
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameterDefinition, variableNames;
@@ -176,21 +185,23 @@ mutable struct SimulationModel{FloatType,TimeType}
                     variables[name] = -variables[name2]
                 end
             end
+            
+            # Build dictionary of x_names and set start indices of x-vector
+            ModiaBase.updateEquationInfo!(equationInfo)
 
         # Construct parameter values that are copied into the code
         #parameterValues = [eval(p) for p in values(parameters)]
         #@show typeof(parameterValues)
         #@show parameterValues
-        parameterExpressions = parameterDefinition[:_p]
+        parameters = deepcopy(parameterDefinition[:_p])
         
         # Determine x_start
-        # (Temporarily, must be called with parameterExpressions, because 
-        #  init-values of Modia3D joints are not present anymore in parameters;
-        #  therefore, init/start-values cannot be used in parameter propagation currently)         
-        x_start = get_x_start!(FloatType, equationInfo, parameterExpressions)
         nx = equationInfo.nx
-
-        parameters = propagateEvaluateAndInstantiate(modelModule, parameterExpressions) 
+        x_start = Vector{FloatType}(undef,nx)
+        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, x_start) 
+        if isnothing(evaluatedParameters)
+            return nothing
+        end
         
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
@@ -211,10 +222,37 @@ mutable struct SimulationModel{FloatType,TimeType}
 
         new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, 
             eventHandler, variables, zeroVariables,
-            vSolvedWithInitValuesAndUnit2, parameterExpressions, parameters, #parameterValues,
+            vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters, #parameterValues,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
-            x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[], missing)
+            x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[], missing, missing, false)
     end
+    
+    
+    function SimulationModel{FloatType,TimeType}(m::SimulationModel) where {FloatType,TimeType}       
+        # Construct data structure for linear equations
+        linearEquations = ModiaBase.LinearEquations{FloatType}[]
+        for leq in m.equationInfo.linearEquations
+            push!(linearEquations, ModiaBase.LinearEquations{FloatType}(leq...))
+        end
+        
+        # Construct dictionary for separate objects
+        separateObjects = OrderedDict{Int,Any}()
+                
+        # Initialize execution flags
+        eventHandler = EventHandler{FloatType,TimeType}()
+        eventHandler.initial = true
+        isInitial   = true
+        storeResult = false
+        nGetDerivatives = 0
+        nx = m.equationInfo.nx   
+        
+         new(m.modelModule, m.modelName, m.getDerivatives!, m.equationInfo, linearEquations, 
+            eventHandler, m.variables, m.zeroVariables,
+            m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters), 
+            separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
+            convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), 
+            deepcopy(m.pre), Tuple[], missing, missing, false)       
+    end    
 end
 
 # Default constructors
@@ -254,9 +292,9 @@ has then an effect.
 """
 function reinit(m::SimulationModel, x, j, v_new, leqMode; v_threshold=0.01)
     if leqMode >= 0
-        error("reinit(..) of model ", m.modelaName, " is called when solving a linear equation system (this is not supported)")
+        error("reinit(..) of model ", m.modelName, " is called when solving a linear equation system (this is not supported)")
     elseif !isEvent(m)
-        error("reinit(..) of model ", m.modelaName, " is called outside of an event phase (this is not allowed)")
+        error("reinit(..) of model ", m.modelName, " is called outside of an event phase (this is not allowed)")
     end
    
     eh = m.eventHandler   
@@ -409,7 +447,7 @@ function get_lastValue(m::SimulationModel, name::String; unit=true)
         # Unit missing (needs to be fixed)
         value = 0.0
     else
-        value = get_value(m.parameters, name)
+        value = get_value(m.evaluatedParameters, name)
         if ismissing(value)
             @info "get_lastValue: $name is not known and is ignored."
             return nothing;
@@ -545,7 +583,7 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 
 """
     success = init!(simulationModel, startTime, tolerance, 
-                    merge, log, logParameters, logStates)
+                    merge, log, logEvaluatedParameters, logStates)
 
 
 Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
@@ -566,44 +604,36 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 If initialization is successful return true, otherwise false.
 """
 function init!(m::SimulationModel, tolerance, merge, 
-               log::Bool, logParameterExpressions::Bool, 
-               logParameters::Bool, logStates::Bool, logEvents)::Bool
+               log::Bool, logParameters::Bool, 
+               logEvaluatedParameters::Bool, logStates::Bool, logEvents)::Bool
     empty!(m.result)
     eh = m.eventHandler
     reinitEventHandler(eh, m.stopTime, logEvents)
     
     # Initialize auxiliary arrays for event iteration
     m.x_init .= 0
-
-	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting parameters
-    FloatType = getFloatType(m)      
+    m.der_x  .= 0
+    
+	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters 
     if !isnothing(merge)
-        m.parameterExpressions = recursiveMerge(m.parameterExpressions, merge)
+        m.parameters = recursiveMerge(m.parameters, merge)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.x_start)
+        if isnothing(m.evaluatedParameters)
+            return false
+        end
+    end       
         
-        # Determine x_start
-        # (Temporarily, must be called with parameterExpressions, because 
-        #  init-values of Modia3D joints are not present anymore in parameters;
-        #  therefore, init/start-values cannot be used in parameter propagation currently)    
-        m.x_start = get_x_start!(FloatType, m.equationInfo, m.parameterExpressions)
-        nx = m.equationInfo.nx        
-        m.der_x = zeros(FloatType, nx)
-
-        m.parameters = propagateEvaluateAndInstantiate(m.modelModule, m.parameterExpressions)  
-    else
-        m.der_x .= 0
-    end
-
     # Re-initialize dictionary of separate objects
     empty!(m.separateObjects)
     
     # Log parameters
-    if logParameterExpressions
-        parameterExpressions = m.parameterExpressions
-        @showModel parameterExpressions
-    end
     if logParameters
         parameters = m.parameters
         @showModel parameters
+    end
+    if logEvaluatedParameters
+        evaluatedParameters = m.evaluatedParameters
+        @showModel evaluatedParameters
     end
 	
     if logStates
@@ -629,7 +659,7 @@ function init!(m::SimulationModel, tolerance, merge,
     m.nGetDerivatives = 0
     m.isInitial   = true
     eh.initial    = true
-    m.storeResult = true
+#    m.storeResult = true
 #    m.getDerivatives!(m.der_x, m.x_start, m, startTime)
 #    Base.invokelatest(m.getDerivatives!, m.der_x, m.x_start, m, startTime)
     for i in eachindex(m.x_init)
@@ -643,6 +673,11 @@ function init!(m::SimulationModel, tolerance, merge,
     
     # Check vSolvedWithInitValuesAndUnit
     if length(m.vSolvedWithInitValuesAndUnit) > 0
+        # Store variables after initialization
+        m.storeResult = true
+        m.getDerivatives!(m.der_x, m.x_start, m, m.startTime) 
+        m.storeResult = false 
+        
         names = String[]
         valuesBeforeInit = Any[]
         valuesAfterInit  = Any[]
@@ -673,6 +708,9 @@ function init!(m::SimulationModel, tolerance, merge,
             println("\n")
             return false
         end
+        
+        # Remove result 
+        empty!(m.result)
     end
     return true
 end
@@ -962,7 +1000,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     _m.time = TinyModia.getValue(_time)
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
-                    _p = _m.parameters
+                    _p = _m.evaluatedParameters
                     _leq_mode  = -1
                     $code_time
                     $(code_x...)

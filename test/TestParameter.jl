@@ -18,7 +18,7 @@ FirstOrder = Model(
 
 firstOrder = @instantiateModel(FirstOrder)
 
-simulate!(firstOrder, Tsit5(), stopTime = 10, log=false, logParameterExpressions=true, logParameters=true, requiredFinalStates = [-0.3617373025974107])
+simulate!(firstOrder, Tsit5(), stopTime = 10, log=false, logParameters=true, logEvaluatedParameters=true, requiredFinalStates = [-0.3617373025974107])
 
 plot(firstOrder, ["u", "x", "der(x)", "y"], figure=1)
 
@@ -45,11 +45,11 @@ SecondOrder = Model(
 )
 
 secondOrder = @instantiateModel(SecondOrder, unitless=true)
-simulate!(secondOrder, merge=Map(D=0.3), logParameterExpressions=true, logParameters=true,
+simulate!(secondOrder, merge=Map(D=0.3), logParameters=true, logEvaluatedParameters=true,
           requiredFinalStates = [0.9974089572681231, 0.011808652820321723])
 plot(secondOrder, [("sys.u", "sys.y"); "sys.x"], figure = 2)
 
-simulate!(secondOrder, merge=Map(w=100.0, D=0.1, k=1.1), logParameterExpressions=true, logParameters=true,
+simulate!(secondOrder, merge=Map(w=100.0, D=0.1, k=1.1), logParameters=true, logEvaluatedParameters=true,
           requiredFinalStates = [0.9999806306477742, -0.00391695258236727])
 plot(secondOrder, [("sys.u", "sys.y"); "sys.x"], figure = 3)
 
