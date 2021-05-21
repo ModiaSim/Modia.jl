@@ -75,15 +75,16 @@ function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start; l
     x_start_missing = []
     for (i, found) in enumerate(x_found)
         if !found
-            push!(x_start_missing, equationInfo.x_info[i].x_name)
+            push!(x_start_missing, eqInfo.x_info[i].x_name)
         end
     end
-    if length(x_start_missing) > 0
-        printstyled("Model error: ", bold=true, color=:red)  
-        printstyled("Missing start/init values for variables: ", x_start_missing, 
-                    bold=true, color=:red)
-        return nothing
-    end
+    #if length(x_start_missing) > 0
+    #    printstyled("Model error: ", bold=true, color=:red)  
+    #    printstyled("Missing start/init values for variables: ", x_start_missing, 
+    #                bold=true, color=:red)
+    #    print("\n\n")
+    #    return nothing
+    #end
     return map
 end
 

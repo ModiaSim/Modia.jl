@@ -6,7 +6,8 @@ using Test
 
     include("TestVariables.jl") 
     include("TestFirstOrder.jl") 
-    include("TestFirstOrder2.jl")        
+    include("TestFirstOrder2.jl")  
+    include("TestSource.jl")         
     include("TestStateSelection.jl") 
     include("TestFilterCircuit.jl")     
     

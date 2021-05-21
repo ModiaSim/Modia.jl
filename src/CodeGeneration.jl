@@ -950,7 +950,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     code_der_x = Expr[]
     #code_p     = Expr[]
 
-    if length(x_info) == 1 && x_info[1].x_name == "" && x_info[1].der_x_name == ""
+    if length(x_info) == 1 && x_info[1].x_name == "_dummy_x" && x_info[1].der_x_name == "der(_dummy_x)"
         # Explicitly solved pure algebraic variables. Introduce dummy equation
         push!(code_der_x, :( _der_x[1] = -_x[1] ))
     else
