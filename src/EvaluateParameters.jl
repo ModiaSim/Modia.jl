@@ -219,24 +219,26 @@ end
 
 
 """
-    getIdParameter(par, id)
+    (obj, path) = getIdParameter(evaluatedParameters, id)
     
-Search recursively in NamedTuple `par` for a NamedTuple that has 
-`key = :_id, value = id` and return this NamedTuple or nothing,
-if not present.
+Search recursively in `evaluatedParameters` for a NamedTuple that has 
+`key = :_id, value = id` and return this NamedTuple as (obj, path) or 
+(nothing,nothing), where `obj` is the NamedTuple and `path` is the
+path::String path of  `obj`.
 """
-function getIdParameter(par::NamedTuple, id::Int)
-    if haskey(par, :_id) && par[:_id] == id
-        return par
+function getIdParameter(evaluatedParameters::NamedTuple, id::Int, path::String="")
+    if haskey(evaluatedParameters, :_id) && evaluatedParameters[:_id] == id
+        return (evaluatedParameters, path)
     else
-        for (key,value) in zip(keys(par), par)
+        for (key,value) in zip(keys(evaluatedParameters), evaluatedParameters)
             if typeof(value) <: NamedTuple
-                result = getIdParameter(value, id)
-                if !isnothing(result)
+                result = getIdParameter(value, id, appendKey(path,key))
+                if !isnothing(result[1])
                     return result
                 end
             end
         end   
     end
-    return nothing
+    return (nothing,nothing)
 end
+
