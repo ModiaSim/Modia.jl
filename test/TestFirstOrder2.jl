@@ -29,6 +29,8 @@ simulate!(firstOrder, Tsit5(), stopTime = 10, merge = Map(T = 0.4, x = 0.9),
 println()
 result1 = get_result(firstOrder)
 @show(result1[1:10,:])
+println()
+@show(result1[1:10, ["time", "u", "y"]])
 
 println()
 result2 = get_result(firstOrder, onlyStates=true, extraNames=["y"])
