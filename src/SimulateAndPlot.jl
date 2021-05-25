@@ -8,7 +8,7 @@ import MonteCarloMeasurements
 using  Unitful
 using  Test
 import DifferentialEquations
-
+import DataFrames
 
 #---------------------------------------------------------------------
 #                          Simulation
@@ -447,12 +447,22 @@ end
 
 
 """
-    signal = get_result(model, name; unit=true)
+    signal    = get_result(model, name; unit=true)
+    dataFrame = get_result(model)
 
 After a successful simulation of `model::SimulationModel`, return
 the result for the signal `name::String` as vector of points
 together with its unit. The time vector has path name `"time"`.
 If `unit=false`, the signal is returned, **without unit**.
+
+The second form, returns the complete result in form of a DataFrame object.
+Therefore, the whole functionality of package DataFrames can be used,
+including storing the result on file in different formats.
+Furthermore, also ModiaPlot.plot can be used on dataFrame.
+Parameters are stored as ModiaPlot.OneValueVector inside dataFrame
+(are treated as vectors, but actually only the parameter value and the number
+of time points is stored).
+    
 
 # Example
 
@@ -499,4 +509,37 @@ function get_result(m::SimulationModel, name::String; unit=true)
     =#
     
     return ysig
+end
+
+
+function setEvaluatedParametersInDataFrame!(obj::NamedTuple, x_dict, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing
+    for (key,value) in zip(keys(obj), obj)
+        name = appendName(path, key)
+        if typeof(value) <: NamedTuple
+            setEvaluatedParametersInDataFrame!(value, x_dict, dataFrame, name, nResult)
+        elseif !haskey(x_dict, name)
+            dataFrame[!,name] = ModiaPlot.OneValueVector(value,nResult)
+        end
+    end
+    return nothing
+end
+
+function get_result(m::SimulationModel)
+    if m.save_x_in_solution 
+        @error "get_result(instantiatedModel) not yet supported, if result is stored in DifferentialEquations.jl solution"
+    end
+        
+    dataFrame = DataFrames.DataFrame()
+    
+    for (name, resIndex) in m.variables
+        dataFrame[!,name] = ResultView(m.result, resIndex) 
+    end
+
+    zeroVariable = ModiaPlot.OneValueVector(0.0, length(m.result))
+    for name in m.zeroVariables
+        dataFrame[!,name] = zeroVariable
+    end
+
+    setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.equationInfo.x_dict, dataFrame, "", length(m.result))
+    return dataFrame
 end
