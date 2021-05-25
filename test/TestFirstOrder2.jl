@@ -26,10 +26,18 @@ simulate!(firstOrder, Tsit5(), stopTime = 10, merge = Map(T = 0.4, x = 0.9),
           requiredFinalStates = [-0.17964872595554535])
 
 # Test get_result(instantiatedModel)
-result = get_result(firstOrder)
+println()
+result1 = get_result(firstOrder)
+@show(result1[1:10,:])
 
-@show(result[1:10,:])
+println()
+result2 = get_result(firstOrder, onlyStates=true, extraNames=["y"])
+@show(result2[1:10,:])
 
-plot(result, [("u", "x"), "der(x)", "y"])
+println()
+result3 = get_result(firstOrder, extraNames=["y"])
+@show(result3[1:10,:])
+
+plot(result1, [("u", "x"), "der(x)", "y"])
 
 end

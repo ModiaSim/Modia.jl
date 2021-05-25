@@ -447,27 +447,32 @@ end
 
 
 """
-    signal    = get_result(model, name; unit=true)
-    dataFrame = get_result(model)
+    signal    = get_result(instantiatedModel, name; unit=true)
+    dataFrame = get_result(instantiatedModel; onlyStates=false, extraNames=missing)
 
-After a successful simulation of `model::SimulationModel`, return
-the result for the signal `name::String` as vector of points
-together with its unit. The time vector has path name `"time"`.
-If `unit=false`, the signal is returned, **without unit**.
+- First form: After a successful simulation of `instantiatedModel`, return
+  the result for the signal `name::String` as vector of points
+  together with its unit. The time vector has path name `"time"`.
+  If `unit=false`, the signal is returned, **without unit**.
 
-The second form, returns the complete result in form of a DataFrame object.
-Therefore, the whole functionality of package DataFrames can be used,
-including storing the result on file in different formats.
-Furthermore, also ModiaPlot.plot can be used on dataFrame.
-Parameters are stored as ModiaPlot.OneValueVector inside dataFrame
-(are treated as vectors, but actually only the parameter value and the number
-of time points is stored).
-    
+- Second form: Return the **complete result** in form of a DataFrame object.
+  Therefore, the whole functionality of package [DataFrames](https://dataframes.juliadata.org/stable/) 
+  can be used, including storing the result on file in different formats.
+  Furthermore, also ModiaPlot.plot can be used on dataFrame.
+  Parameters and zero-value variables are stored as ModiaPlot.OneValueVector inside dataFrame
+  (are treated as vectors, but actually only the value and the number
+  of time points is stored). If `onlyStates=true`, then only the states and the signals
+  identified with `extraNames::Vector{String}` are stored in `dataFrame`. 
+  If `onlyStates=false` and `extraNames` given, then only the signals 
+  identified with `extraNames` are stored in `dataFrame`.
+  These keyword arguments are useful, if `dataFrame` shall be 
+  utilized as reference result used in ModiaPlot.compareResults(..).
 
 # Example
 
 ```julia
 using ModiaBase
+using ModiaPlot
 using Unitful
 
 include("\$(ModiaBase.path)/demos/models/Model_Pendulum.jl")
@@ -476,6 +481,7 @@ using  .Model_Pendulum
 pendulum = simulationModel(Pendulum)
 simulate!(pendulum, stopTime=7.0)
 
+# Get one signal from the result and plot with the desired plot package
 time = get_result(pendulum, "time")  # vector with unit u"s"
 phi  = get_result(pendulum, "phi")   # vector with unit u"rad"
 
@@ -485,6 +491,16 @@ PyPlot.clf()       # Clear current figure
 PyPlot.plot(ustrip(time), ustrip(phi), "b--", label="phi in " * string(unit(phi[1])))
 PyPlot.xlabel("time in " * string(unit(time[1])))
 PyPlot.legend()
+
+# Get complete result and plot one signal
+result = get_result(pendulum)
+ModiaPlot.plot(result, "phi")
+
+# Get only states to be used as reference and compare result with reference
+reference = get_result(pendulum, onlyStates=true)
+(success, diff, diff_names, max_error, within_tolerance) = 
+    ModiaPlot.compareResults(result, reference, tolerance=0.01)
+println("Check results: success = $success")
 ```
 """
 function get_result(m::SimulationModel, name::String; unit=true)
@@ -524,22 +540,38 @@ function setEvaluatedParametersInDataFrame!(obj::NamedTuple, x_dict, dataFrame::
     return nothing
 end
 
-function get_result(m::SimulationModel)
+function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
     if m.save_x_in_solution 
         @error "get_result(instantiatedModel) not yet supported, if result is stored in DifferentialEquations.jl solution"
     end
         
     dataFrame = DataFrames.DataFrame()
     
-    for (name, resIndex) in m.variables
-        dataFrame[!,name] = ResultView(m.result, resIndex) 
+    if onlyStates || !ismissing(extraNames)
+        dataFrame[!,"time"] = get_result(m, "time")
+        if onlyStates
+            for (name, dummy) in m.equationInfo.x_dict
+                dataFrame[!,name] = ResultView(m.result, m.variables[name])
+            end
+        end
+        if !ismissing(extraNames)
+            for name in extraNames
+                dataFrame[!,name] = get_result(m, name)
+            end
+        end
+        
+    else
+    
+        for (name, resIndex) in m.variables
+            dataFrame[!,name] = ResultView(m.result, resIndex) 
+        end
+    
+        zeroVariable = ModiaPlot.OneValueVector(0.0, length(m.result))
+        for name in m.zeroVariables
+            dataFrame[!,name] = zeroVariable
+        end
+    
+        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.equationInfo.x_dict, dataFrame, "", length(m.result))
     end
-
-    zeroVariable = ModiaPlot.OneValueVector(0.0, length(m.result))
-    for name in m.zeroVariables
-        dataFrame[!,name] = zeroVariable
-    end
-
-    setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.equationInfo.x_dict, dataFrame, "", length(m.result))
     return dataFrame
 end
