@@ -528,12 +528,12 @@ function get_result(m::SimulationModel, name::String; unit=true)
 end
 
 
-function setEvaluatedParametersInDataFrame!(obj::NamedTuple, x_dict, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing
+function setEvaluatedParametersInDataFrame!(obj::NamedTuple, variables, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing
     for (key,value) in zip(keys(obj), obj)
         name = appendName(path, key)
         if typeof(value) <: NamedTuple
-            setEvaluatedParametersInDataFrame!(value, x_dict, dataFrame, name, nResult)
-        elseif !haskey(x_dict, name)
+            setEvaluatedParametersInDataFrame!(value, variables, dataFrame, name, nResult)
+        elseif !haskey(variables, name)
             dataFrame[!,name] = ModiaPlot.OneValueVector(value,nResult)
         end
     end
@@ -571,7 +571,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
             dataFrame[!,name] = zeroVariable
         end
     
-        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.equationInfo.x_dict, dataFrame, "", length(m.result))
+        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.variables, dataFrame, "", length(m.result))
     end
     return dataFrame
 end
