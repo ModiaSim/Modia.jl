@@ -47,7 +47,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-05-21"
+const Date = "2021-05-27"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -728,7 +728,9 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-    nCrossingFunctions, nClocks, nSamples = getEventCounters()
+    nCrossingFunctions, nClocks, nSamples, previousVar = getEventCounters()
+    @show previousVar
+
     model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
