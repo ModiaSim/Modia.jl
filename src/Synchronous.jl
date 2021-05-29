@@ -97,3 +97,12 @@ end
 
 
 hold(v) = v
+
+
+@inline function hold(v, clock::Bool, m::SimulationModel, nr::Int)
+    if clock 
+        m.hold[nr] = v
+    end
+    return m.hold[nr]
+end
+

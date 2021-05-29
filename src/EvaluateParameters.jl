@@ -64,9 +64,9 @@ Recursively traverse the hierarchical collection `model` and perform the followi
 - Return the evaluated `model` as map::TinyModia.Map if successfully evaluated, and otherwise 
   return nothing, if an error occured (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start, previous_dict, previous, pre_dict, pre; log=false)
+function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
     if isnothing(map)
         return nothing
     end
@@ -106,6 +106,19 @@ function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start, p
             namesOfMissingValues *= "\n    " * name
         end
     end
+
+    # Check that all hold values are set:
+    first = true
+    for (name,index) in hold_dict
+        if ismissing(hold[index])
+            missingInitValues = true
+            if first
+                first = false
+                namesOfMissingValues *= "\n  Variables from hold(..):"
+            end
+            namesOfMissingValues *= "\n    " * name
+        end
+    end
     
     if missingInitValues
         printstyled("Model error: ", bold=true, color=:red)  
@@ -128,7 +141,8 @@ end
         
 function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase.EquationInfo, 
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
-                                           previous_dict, previous, pre_dict, pre, environment, path::String; log=false) where {FloatType}
+                                           previous_dict, previous, pre_dict, pre, hold_dict, hold, 
+                                           environment, path::String; log=false) where {FloatType}
     if log
         println("\n!!! instantiate objects of $path: ", model)
     end
@@ -186,7 +200,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
                 end
             else
                 # For example: k = (a = 2.0, b = :(2*Lx))
-                value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, 
+                value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                                           vcat(environment, [current]), appendKey(path, k); log=log)     
                 if isnothing(value)
                     return nothing
@@ -241,7 +255,10 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
                 previous[ previous_dict[full_key] ] = current[k]
                 
             elseif haskey(pre_dict, full_key)
-                pre[ pre_dict[full_key] ] = current[k]                
+                pre[ pre_dict[full_key] ] = current[k]     
+                
+            elseif haskey(hold_dict, full_key)
+                hold[ hold_dict[full_key] ] = current[k]                 
             end
         end
     end 
