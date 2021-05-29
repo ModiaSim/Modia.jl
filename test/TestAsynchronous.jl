@@ -13,8 +13,8 @@ BooleanPulse = Model(
 	startTime = parameter,
 	width = parameter,
 	equations = :[
-#		y = positive(time-startTime) && ! positive(time-(startTime+width))
-		y = time > startTime && ! (time > startTime+width)
+ 		y = positive(ustrip(time-startTime)) && ! positive(ustrip(time-(startTime+width)))
+		#y = time > startTime && ! (time > startTime+width)
 	]
 )
 

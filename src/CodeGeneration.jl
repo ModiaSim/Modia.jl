@@ -220,6 +220,11 @@ mutable struct SimulationModel{FloatType,TimeType}
                                             #  init/start values are extracted and stored in x_start) 
     parameters::NamedTuple
     evaluatedParameters::NamedTuple   
+    previous::AbstractVector                # previous[i] is the value of previous(...., i)
+    nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
+    previous_names::Vector{String}          # previous_names[i] is the name of previous-variable i
+    previous_dict::OrderedDict{String,Int}  # previous_dict[name] is the index of previous-variable name
+    
     separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects   
     isInitial::Bool    
     storeResult::Bool
@@ -236,6 +241,7 @@ mutable struct SimulationModel{FloatType,TimeType}
      
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
+                                        previousVars,
                                         parameterDefinition, variableNames;
                                         nz::Int = 0,
                                         pre_startValues = Any[],
@@ -269,19 +275,25 @@ mutable struct SimulationModel{FloatType,TimeType}
             # Build dictionary of x_names and set start indices of x-vector
             ModiaBase.updateEquationInfo!(equationInfo)
 
+            # Build previous-arrays
+            previous       = Vector{Any}(missing, length(previousVars))
+            previous_names = string.(previousVars)
+            previous_dict  = OrderedDict{String,Int}(zip(previous_names, 1:length(previousVars)))
+            
         # Construct parameter values that are copied into the code
         #parameterValues = [eval(p) for p in values(parameters)]
         #@show typeof(parameterValues)
         #@show parameterValues
         parameters = deepcopy(parameterDefinition[:_p])
         
-        # Determine x_start
+        # Determine x_start and previous values
         nx = equationInfo.nx
         x_start = Vector{FloatType}(undef,nx)
-        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, x_start) 
+        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, x_start, previous_dict, previous) 
         if isnothing(evaluatedParameters)
             return nothing
         end
+        nextPrevious = deepcopy(previous)
         
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
@@ -299,10 +311,11 @@ mutable struct SimulationModel{FloatType,TimeType}
         storeResult = false
         nGetDerivatives = 0
         pre = deepcopy(pre_startValues)
-
+        
         new(modelModule, modelName, SimulationOptions{FloatType,TimeType}(), getDerivatives!, equationInfo, linearEquations, 
             eventHandler, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters, #parameterValues,
+            previous, nextPrevious, previous_names, previous_dict,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
             x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[], missing, missing, false)
     end
@@ -329,6 +342,7 @@ mutable struct SimulationModel{FloatType,TimeType}
          new(m.modelModule, m.modelName, m.options, m.getDerivatives!, m.equationInfo, linearEquations, 
             eventHandler, m.variables, m.zeroVariables,
             m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters), 
+            deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), 
             deepcopy(m.pre), Tuple[], missing, missing, false)       
@@ -694,7 +708,7 @@ function init!(m::SimulationModel)::Bool
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters 
     if !isnothing(merge)
         m.parameters = recursiveMerge(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.x_start)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.x_start, m.previous_dict, m.previous)
         if isnothing(m.evaluatedParameters)
             return false
         end
@@ -1019,7 +1033,7 @@ Symbol `functionName` as function name. By `eval(code)` or
 - `hasUnits::Bool`: = true, if variables have units. Note, the units of the state vector are defined in equationinfo.
 """
 function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.EquationInfo,
-                                  parameters, variables, functionName::Symbol;
+                                  parameters, variables, previousVars, functionName::Symbol;
                                   pre::Vector{Symbol} = Symbol[], hasUnits=false)
 
     # Generate code to copy x to struct and struct to der_x
@@ -1072,6 +1086,16 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         code_time = :( $timeName = _time )
     end
 
+    # Code for previous
+    code_previous1 = Expr[]
+    code_previous2 = Expr[]    
+    for (i, value) in enumerate(previousVars)
+        previousName = previousVars[i]
+        push!(code_previous1, :( $previousName = _m.previous[$i] ))
+        push!(code_previous2, :( _m.nextPrevious[$i] = $previousName ))        
+    end
+
+    
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing
@@ -1082,8 +1106,10 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     _leq_mode  = -1
                     $code_time
                     $(code_x...)
+                    $(code_previous1...)
                     $(AST...)
                     $(code_der_x...)
+                    $(code_previous2...)
 
                     if TinyModia.isEvent(_m)
                         $(code_pre...)

@@ -172,10 +172,11 @@ function setNextEvent!(h::EventHandler{FloatType,TimeType}, nextEventTime::TimeT
 end
 
 
-positive!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = positive!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
+#positive!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = positive!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
 
-function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
+function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String, leq_mode::Int; 
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
+    crossing = getValue(crossing)
     leq_mode = -1
     if leq_mode >= 0
         return crossing > convert(FloatType,0)
