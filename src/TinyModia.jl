@@ -728,8 +728,8 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-    nCrossingFunctions, nClocks, nSamples, previousVar = getEventCounters()
-    @show previousVar
+    nCrossingFunctions, nClocks, nSamples, previousVars, preVars = getEventCounters()
+    @show previousVars preVars
 
     model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
