@@ -224,6 +224,11 @@ mutable struct SimulationModel{FloatType,TimeType}
     nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     previous_names::Vector{String}          # previous_names[i] is the name of previous-variable i
     previous_dict::OrderedDict{String,Int}  # previous_dict[name] is the index of previous-variable name
+
+    prev::AbstractVector
+    nextPre::AbstractVector
+    pre_names::Vector{String}
+    pre_dict::OrderedDict{String,Int}
     
     separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects   
     isInitial::Bool    
@@ -241,10 +246,9 @@ mutable struct SimulationModel{FloatType,TimeType}
      
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
-                                        previousVars,
+                                        previousVars, preVars,
                                         parameterDefinition, variableNames;
                                         nz::Int = 0,
-                                        pre_startValues = Any[],
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
@@ -280,6 +284,11 @@ mutable struct SimulationModel{FloatType,TimeType}
             previous_names = string.(previousVars)
             previous_dict  = OrderedDict{String,Int}(zip(previous_names, 1:length(previousVars)))
             
+            # Build pre-arrays
+            pre       = Vector{Any}(missing, length(preVars))
+            pre_names = string.(preVars)
+            pre_dict  = OrderedDict{String,Int}(zip(pre_names, 1:length(preVars)))
+            
         # Construct parameter values that are copied into the code
         #parameterValues = [eval(p) for p in values(parameters)]
         #@show typeof(parameterValues)
@@ -289,11 +298,12 @@ mutable struct SimulationModel{FloatType,TimeType}
         # Determine x_start and previous values
         nx = equationInfo.nx
         x_start = Vector{FloatType}(undef,nx)
-        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, x_start, previous_dict, previous) 
+        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, x_start, previous_dict, previous, pre_dict, pre) 
         if isnothing(evaluatedParameters)
             return nothing
         end
         nextPrevious = deepcopy(previous)
+        nextPre      = deepcopy(pre)
         
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
@@ -310,12 +320,12 @@ mutable struct SimulationModel{FloatType,TimeType}
         isInitial   = true
         storeResult = false
         nGetDerivatives = 0
-        pre = deepcopy(pre_startValues)
         
         new(modelModule, modelName, SimulationOptions{FloatType,TimeType}(), getDerivatives!, equationInfo, linearEquations, 
             eventHandler, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters, #parameterValues,
             previous, nextPrevious, previous_names, previous_dict,
+            pre, nextPre, pre_names, pre_dict,            
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
             x_start, zeros(FloatType,nx), zeros(FloatType,nx), pre, Tuple[], missing, missing, false)
     end
@@ -343,6 +353,7 @@ mutable struct SimulationModel{FloatType,TimeType}
             eventHandler, m.variables, m.zeroVariables,
             m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters), 
             deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
+            deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), 
             deepcopy(m.pre), Tuple[], missing, missing, false)       
@@ -566,6 +577,17 @@ function eventIteration!(m::SimulationModel{FloatType,TimeType}, x::Vector{Float
         iter += 1
         Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)
         success = terminateEventIteration!(eh)
+        
+        # Check pre
+        for i = 1:length(m.pre)
+            if m.pre[i] != m.nextPre[i]
+                if m.options.logEvents
+                    println("        ", m.pre_names[i], " changed from ", m.pre[i], " to ", m.nextPre[i])
+                end
+                m.pre[i] = m.nextPre[i]
+                success = false
+            end 
+        end
     end
     eh.event = false        
 
@@ -708,7 +730,7 @@ function init!(m::SimulationModel)::Bool
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters 
     if !isnothing(merge)
         m.parameters = recursiveMerge(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.x_start, m.previous_dict, m.previous)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.x_start, m.previous_dict, m.previous, m.pre_dict, m.pre)
         if isnothing(m.evaluatedParameters)
             return false
         end
@@ -1033,7 +1055,7 @@ Symbol `functionName` as function name. By `eval(code)` or
 - `hasUnits::Bool`: = true, if variables have units. Note, the units of the state vector are defined in equationinfo.
 """
 function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.EquationInfo,
-                                  parameters, variables, previousVars, functionName::Symbol;
+                                  parameters, variables, previousVars, preVars, functionName::Symbol;
                                   pre::Vector{Symbol} = Symbol[], hasUnits=false)
 
     # Generate code to copy x to struct and struct to der_x
@@ -1072,12 +1094,6 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     #for (i,pi) in enumerate(parameters)
     #    push!(code_p, :( $pi = _m.p[$i] ) )
     #end
-    
-    code_pre = Expr[]
-    for (i, pre_i) in enumerate(pre)
-        pre_name = pre[i]
-        push!(code_pre, :( _m.pre[$i] = $pre_i ))
-    end
 
     timeName = variables[1]
     if hasUnits
@@ -1095,6 +1111,14 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         push!(code_previous2, :( _m.nextPrevious[$i] = $previousName ))        
     end
 
+    # Code for pre
+    code_pre1 = Expr[]
+    code_pre2 = Expr[]    
+    for (i, value) in enumerate(preVars)
+        preName = preVars[i]
+        push!(code_pre1, :( $preName = _m.pre[$i] ))
+        push!(code_pre2, :( _m.nextPre[$i] = $preName ))        
+    end
     
     # Generate code of the function
     code = quote
@@ -1107,13 +1131,12 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $code_time
                     $(code_x...)
                     $(code_previous1...)
+                    $(code_pre1...)                   
                     $(AST...)
                     $(code_der_x...)
                     $(code_previous2...)
+                    $(code_pre2...)
 
-                    if TinyModia.isEvent(_m)
-                        $(code_pre...)
-                    end
                     if _m.storeResult
                         TinyModia.addToResult!(_m, $(variables...))
                     end
