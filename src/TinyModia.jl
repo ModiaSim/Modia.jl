@@ -47,7 +47,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-05-27"
+const Date = "2021-05-29"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -699,6 +699,9 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
     # Generate code
     nCrossingFunctions, nClocks, nSamples, previousVars, preVars = getEventCounters()   
+    @show preVars
+    previousVars = Symbol.(previousVars)
+    preVars = Symbol.(preVars)
     holdVars = Symbol[]  # fix this
     
     if logTiming

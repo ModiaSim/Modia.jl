@@ -9,9 +9,7 @@ BooleanPulse1 = Model(
 	startTime = parameter,
 	width = parameter,
 	equations = :[
-#		y = positive(time-startTime) && ! positive(time-(startTime+width)) 	# Gives stack overflow unitless=false
-#		y = time > startTime && ! (time > startTime+width)
-        y = after(startTime) && ! after(startTime + width)					# Gives stack overflow unitless=false
+        y = after(startTime) && ! after(startTime + width)
 	]
 )
 
@@ -19,7 +17,7 @@ TestBooleanPulse1 = Model(
 	pulse = BooleanPulse1 | Map(startTime=2u"s", width=2u"s"),
 )
 
-model = @instantiateModel(TestBooleanPulse1, log=true, logCode=true, unitless=true)
+model = @instantiateModel(TestBooleanPulse1, log=true, logCode=true)
 simulate!(model, Tsit5(), stopTime=10, log=true, logEvents=true)
 plot(model, [("pulse.y"), ("pulse.startTime")], heading="TestBooleanPulse1", figure=1)
 
@@ -43,7 +41,7 @@ TestBooleanPulse = Model(
 	pulse = BooleanPulse | Map(startTime=2u"s", period=2u"s"),
 )
 
-model = @instantiateModel(TestBooleanPulse, log=true, logCode=true, unitless=true)
+model = @instantiateModel(TestBooleanPulse, log=true, logCode=true)
 simulate!(model, Tsit5(), stopTime=10, log=true, logEvents=true)
 plot(model, [("pulse.y"), ("pulse.pulseStart")], heading="TestBooleanPulse", figure=1)
 
@@ -55,7 +53,7 @@ plot(model, [("pulse.y"), ("pulse.pulseStart")], heading="TestBooleanPulse", fig
 SRFlipFlop = Model(
     Q = Var(init=false),
     equations = :[
-		Q = S || ! R && previous(Q)  # Currently gives: LoadError: UndefVarError: sr.Q not defined
+		Q = S || ! R && previous(Q)  # Currently gives: ERROR: LoadError: MethodError: no method matching pre(::Bool, ::TinyModia.SimulationModel{Float64, Float64}, ::Int64)
     ]
 ) 
 
