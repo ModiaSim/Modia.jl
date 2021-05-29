@@ -27,15 +27,16 @@ interval(u)
 
 # The argument list of function F is extended with the argument simulationModel.
 
-export Clock, @Clock, sample, hold, previous, updatePrevious
+export Clock, sample, hold, previous
 
 # -------------------------------------------------------------------
 
+#=
 macro Clock(interval, nr)
     code = :(Clock($interval, instantiatedModel, $nr))
     return esc(code)
 end
-
+=#
 
 function Clock(interval, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
     eh = m.eventHandler
@@ -86,58 +87,13 @@ function sample(v, clock::Bool, m::SimulationModel{FloatType,TimeType}, nr::Int)
     end
 end
 
-# initPrevious not used
-#=
-function initPrevious(v, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
-    eh = m.eventHandler
-    if isInitial(m)
-        #if eh.logEvents
-        #    println("        in initPrevious, nr = $nr (initialize previous store)")
-        #end
 
-        eh.previous[nr] = v
-        return v
-    else
-        return eh.previous[nr]   
-    end
-end
-=#
-
-function previous(v, clock::Bool, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
-    eh = m.eventHandler
-    if isInitial(m)
-        #if eh.logEvents
-        #    println("        in previous, nr = $nr (initialize previous store)")
-        #end 
-
-        eh.previous[nr]     = v
-        eh.nextPrevious[nr] = v
-        return v
-    end
-  
+@inline function previous(v, clock::Bool, m::SimulationModel, nr::Int)
     if clock 
-        eh.previous[nr] = eh.nextPrevious[nr];
-        #if eh.logEvents
-        #    println("        in previous, nr = $nr (clock is active)")
-        #end
+        m.previous[nr] = m.nextPrevious[nr]
     end
-    return eh.previous[nr]
+    return m.previous[nr]
 end
 
-#=
-function previous(v, clock::Bool)
-  return v
-end
-=#
-
-function updatePrevious(v, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
-    eh = m.eventHandler
-    if isEvent(m) && isAfterSimulationStart(m)
-    # if eh.logEvents
-    #   println("        in updatePrevious, nr = $nr, v = $v, time = ", eh.time)
-    # end
-        eh.nextPrevious[nr] = v
-    end
-end
 
 hold(v) = v

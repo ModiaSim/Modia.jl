@@ -44,13 +44,14 @@ SpeedControlPI = MassWithSpringDamper | Model(
     vd = Var(start=0.0),
     u  = Var(start=0.0),  
 	e = Var(start=0.0),
-	intE = Var(start=0),
+	intE = Var(start=0.0),
     equations = :[ 
 		vd = sample(v, Clock(0.1))     # speed sensor
 		
 		# PI controller for speed
 		e = vref-vd
-		intE = previous(intE, Clock(0.1)) + e
+        previous_intE = previous(intE, Clock(0.1))
+		intE = previous_intE + e
 		u = K*(e + intE/Ti)
 
 		# force actuator
@@ -60,6 +61,6 @@ SpeedControlPI = MassWithSpringDamper | Model(
 
 speedControlPI = @instantiateModel(SpeedControlPI, log=true, logCode=true, logStateSelection=true)
 simulate!(speedControlPI, Tsit5(), stopTime=1.5, log=true, logEvents=true)
-plot(speedControlPI, [("v", "f"), "vd"], heading="SpeedControlPI", figure=1)
+plot(speedControlPI, [("v", "f"), "vd", ("previous_intE", "intE")], heading="SpeedControlPI", figure=2)
 
 end

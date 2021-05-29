@@ -698,13 +698,14 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     end
 
     # Generate code
+    nCrossingFunctions, nClocks, nSamples, previousVars, preVars = getEventCounters()   
     if logTiming
         println("Generate code")
 #        @time code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, :getDerivatives, hasUnits = !unitless)
     else
 #        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         @show mappedParameters
@@ -728,10 +729,8 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         @show startValues
     end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
-    nCrossingFunctions, nClocks, nSamples, previousVars, preVars = getEventCounters()
-    @show previousVars preVars
 
-    model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues,
+    model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues, previousVars, preVars,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,

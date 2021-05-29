@@ -64,9 +64,9 @@ Recursively traverse the hierarchical collection `model` and perform the followi
 - Return the evaluated `model` as map::TinyModia.Map if successfully evaluated, and otherwise 
   return nothing, if an error occured (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start; log=false)
+function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start, previous_dict, previous, pre_dict, pre; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo, x_start, x_found, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, [], ""; log=log)
     if isnothing(map)
         return nothing
     end
@@ -78,6 +78,43 @@ function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start; l
             push!(x_start_missing, eqInfo.x_info[i].x_name)
         end
     end
+    
+    # Check that all previous values are set:
+    missingInitValues = false
+    namesOfMissingValues = ""
+    first = true
+    for (name,index) in previous_dict
+        if ismissing(previous[index])
+            missingInitValues = true
+            if first
+                first = false
+                namesOfMissingValues *= "\n  Variables from previous(..):"
+            end
+            namesOfMissingValues *= "\n    " * name
+        end
+    end
+
+    # Check that all pre values are set:
+    first = true
+    for (name,index) in pre_dict
+        if ismissing(pre[index])
+            missingInitValues = true
+            if first
+                first = false
+                namesOfMissingValues *= "\n  Variables from pre(..):"
+            end
+            namesOfMissingValues *= "\n    " * name
+        end
+    end
+    
+    if missingInitValues
+        printstyled("Model error: ", bold=true, color=:red)  
+        printstyled("Missing start/init values for variables: ", namesOfMissingValues, 
+                    bold=true, color=:red)
+        print("\n\n")
+        return nothing
+    end    
+    
     #if length(x_start_missing) > 0
     #    printstyled("Model error: ", bold=true, color=:red)  
     #    printstyled("Missing start/init values for variables: ", x_start_missing, 
@@ -91,7 +128,7 @@ end
         
 function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase.EquationInfo, 
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
-                                           environment, path::String; log=false) where {FloatType}
+                                           previous_dict, previous, pre_dict, pre, environment, path::String; log=false) where {FloatType}
     if log
         println("\n!!! instantiate objects of $path: ", model)
     end
@@ -149,7 +186,8 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
                 end
             else
                 # For example: k = (a = 2.0, b = :(2*Lx))
-                value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, vcat(environment, [current]), appendKey(path, k); log=log)     
+                value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, 
+                                                          vcat(environment, [current]), appendKey(path, k); log=log)     
                 if isnothing(value)
                     return nothing
                 end
@@ -198,6 +236,12 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
                         x_start[ibeg+i] = deepcopy( convert(FloatType, ustrip(x_value[i])) )
                     end
                 end
+                
+            elseif haskey(previous_dict, full_key)
+                previous[ previous_dict[full_key] ] = current[k]
+                
+            elseif haskey(pre_dict, full_key)
+                pre[ pre_dict[full_key] ] = current[k]                
             end
         end
     end 
