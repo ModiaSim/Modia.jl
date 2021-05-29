@@ -93,9 +93,95 @@ function get_x_start!(FloatType, equationInfo, parameters)
 end
 =#
 
+const BasicSimulationKeywordArguments = OrderedSet{Symbol}(
+        [:merge, :tolerance, :startTime, :stopTime, :interval, :interp_points, :adaptive, :log, :logStates, :logEvents, :logParameters, :logEvaluatedParameters, :requiredFinalStates])
+const RegisteredExtraSimulateKeywordArguments = OrderedSet{Symbol}()
 
+function registerExtraSimulateKeywordArguments(keys)::Nothing
+    for key in keys
+        if key in BasicSimulationKeywordArguments || key in RegisteredExtraSimulateKeywordArguments
+            @error "registerExtraSimulateKeywordArguments:\nKeyword $key is already registered (use another keyword)\n\n"
+        end
+        push!(RegisteredExtraSimulateKeywordArguments, key)
+    end
+    return nothing
+end
 
+"""
+    convertTimeVariable(TimeType, t)
     
+If `t` has a unit, it is transformed to u"s", the unit is stripped off,
+converted to `TimeType` and returned. Otherwise `t` is converted to `TimeType` and returned.
+
+# Example
+```julia
+convertTimeVariable(Float32, 2.0u"hr")  # = 7200.0f0
+```
+"""
+convertTimeVariable(TimeType, t) = typeof(t) <: Unitful.AbstractQuantity ? convert(TimeType, ustrip(uconvert(u"s", t))) : convert(TimeType, t)
+
+
+struct SimulationOptions{FloatType,TimeType}
+    merge::NamedTuple
+    tolerance::Float64
+    startTime::TimeType   # u"s"
+    stopTime::TimeType    # u"s"
+    interval::TimeType    # u"s"
+    desiredResultTimeUnit    
+    interp_points::Int
+    adaptive::Bool
+    log::Bool
+    logStates::Bool
+    logEvents::Bool
+    logParameters::Bool
+    logEvaluatedParameters::Bool
+    requiredFinalStates::Union{Nothing, Vector{FloatType}}
+    extra_kwargs
+    
+    function SimulationOptions{FloatType,TimeType}(; kwargs...) where {FloatType,TimeType}
+        merge         = get(kwargs, :merge, NamedTuple())
+        tolerance     = get(kwargs, :tolerance, 1e-6)
+        if tolerance <= 0.0
+            @error "tolerance (= $tolerance) must be > 0"
+        end
+        startTime     = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
+        rawStopTime   = get(kwargs, :stopTime, 1.0)
+        stopTime      = convertTimeVariable(TimeType, rawStopTime)
+        interval      = convertTimeVariable(TimeType, get(kwargs, :interval , (stopTime - startTime)/500.0) )
+        desiredResultTimeUnit = unit(rawStopTime)          
+        interp_points = get(kwargs, :interp_points, 0)
+        if interp_points < 0
+            @error "interp_points (= $interp_points) must be > 0"
+        elseif interp_points == 1
+            # DifferentialEquations.jl crashes
+            interp_points = 2
+        end      
+        adaptive      = get(kwargs, :adaptive     , true)
+        log           = get(kwargs, :log          , false)
+        logStates     = get(kwargs, :logStates    , false)
+        logEvents     = get(kwargs, :logEvents    , false)
+        logParameters = get(kwargs, :logParameters, false)
+        logEvaluatedParameters = get(kwargs, :logEvaluatedParameters, false)
+        requiredFinalStates = get(kwargs, :requiredFinalStates, nothing)
+        
+        extra_kwargs = OrderedDict{Symbol,Any}()
+        for (key,value) in zip(keys(kwargs), kwargs)
+            if key in BasicSimulationKeywordArguments
+                nothing;
+            elseif key in RegisteredExtraSimulateKeywordArguments
+                extra_kwargs[key] = value
+            else
+                @error "$key = $value: $key is not known"
+            end
+        end
+        
+        new(merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit,
+            interp_points, adaptive, log, logStates, logEvents, logParameters, 
+            logEvaluatedParameters, requiredFinalStates, extra_kwargs)
+    end        
+end
+
+
 """
     simulationModel = SimulationModel{FloatType,TimeType}(
             modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
@@ -121,6 +207,7 @@ end
 mutable struct SimulationModel{FloatType,TimeType}
     modelModule::Module
     modelName::String
+    options::SimulationOptions
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
     linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
@@ -146,14 +233,7 @@ mutable struct SimulationModel{FloatType,TimeType}
     algorithmType::Union{DataType,Missing}  # Type of integration algorithm (used in default-heading of plot)
     solution::Union{Any,Missing}            # Return value of DifferentialEquations.solve
     save_x_in_solution::Bool                # = true, if the states are stored in solution
-   
-    # Set when simulation is started
-    startTime::TimeType
-    stopTime::TimeType
-    interval::TimeType
-    
-    
-
+     
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         parameterDefinition, variableNames;
@@ -220,7 +300,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         nGetDerivatives = 0
         pre = deepcopy(pre_startValues)
 
-        new(modelModule, modelName, getDerivatives!, equationInfo, linearEquations, 
+        new(modelModule, modelName, SimulationOptions{FloatType,TimeType}(), getDerivatives!, equationInfo, linearEquations, 
             eventHandler, variables, zeroVariables,
             vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters, #parameterValues,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
@@ -246,7 +326,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         nGetDerivatives = 0
         nx = m.equationInfo.nx   
         
-         new(m.modelModule, m.modelName, m.getDerivatives!, m.equationInfo, linearEquations, 
+         new(m.modelModule, m.modelName, m.options, m.getDerivatives!, m.equationInfo, linearEquations, 
             eventHandler, m.variables, m.zeroVariables,
             m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters), 
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, 
@@ -582,8 +662,7 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 
 
 """
-    success = init!(simulationModel, startTime, tolerance, 
-                    merge, log, logEvaluatedParameters, logStates)
+    success = init!(simulationModel)
 
 
 Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
@@ -603,12 +682,10 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
   
 If initialization is successful return true, otherwise false.
 """
-function init!(m::SimulationModel, tolerance, merge, 
-               log::Bool, logParameters::Bool, 
-               logEvaluatedParameters::Bool, logStates::Bool, logEvents)::Bool
+function init!(m::SimulationModel)::Bool
     empty!(m.result)
     eh = m.eventHandler
-    reinitEventHandler(eh, m.stopTime, logEvents)
+    reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
     
     # Initialize auxiliary arrays for event iteration
     m.x_init .= 0
@@ -616,7 +693,7 @@ function init!(m::SimulationModel, tolerance, merge,
     
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters 
     if !isnothing(merge)
-        m.parameters = recursiveMerge(m.parameters, merge)
+        m.parameters = recursiveMerge(m.parameters, m.options.merge)
         m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.x_start)
         if isnothing(m.evaluatedParameters)
             return false
@@ -627,16 +704,16 @@ function init!(m::SimulationModel, tolerance, merge,
     empty!(m.separateObjects)
     
     # Log parameters
-    if logParameters
+    if m.options.logParameters
         parameters = m.parameters
         @showModel parameters
     end
-    if logEvaluatedParameters
+    if m.options.logEvaluatedParameters
         evaluatedParameters = m.evaluatedParameters
         @showModel evaluatedParameters
     end
 	
-    if logStates
+    if m.options.logStates
         # List init/start values
         x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[], nominal=Float64[])   
         for xe_info in m.equationInfo.x_info
@@ -651,8 +728,8 @@ function init!(m::SimulationModel, tolerance, merge,
     end
 
     # Initialize model, linearEquations and compute and store all variables at the initial time
-    if log
-        println("      Initialization at time = ", m.startTime, " s")  
+    if m.options.log
+        println("      Initialization at time = ", m.options.startTime, " s")  
     end  
  
     # Perform initial event iteration 
@@ -665,7 +742,7 @@ function init!(m::SimulationModel, tolerance, merge,
     for i in eachindex(m.x_init)
         m.x_init[i] = deepcopy(m.x_start[i])
     end
-    eventIteration!(m, m.x_init, m.startTime)
+    eventIteration!(m, m.x_init, m.options.startTime)
     eh.initial    = false
     m.isInitial   = false
     m.storeResult = false   
@@ -675,12 +752,13 @@ function init!(m::SimulationModel, tolerance, merge,
     if length(m.vSolvedWithInitValuesAndUnit) > 0
         # Store variables after initialization
         m.storeResult = true
-        m.getDerivatives!(m.der_x, m.x_start, m, m.startTime) 
+        m.getDerivatives!(m.der_x, m.x_start, m, m.options.startTime) 
         m.storeResult = false 
         
         names = String[]
         valuesBeforeInit = Any[]
         valuesAfterInit  = Any[]
+        tolerance = m.options.tolerance
 
         for (name, valueBefore) in m.vSolvedWithInitValuesAndUnit
             valueAfterInit  = get_lastValue(m, name, unit=false)
@@ -811,11 +889,11 @@ function affectEvent!(integrator)::Nothing
     outputs!(integrator.u, time, integrator)
     
     # Set next time event
-    if abs(eh.nextEventTime - m.stopTime) < 1e-10
-        eh.nextEventTime = m.stopTime
+    if abs(eh.nextEventTime - m.options.stopTime) < 1e-10
+        eh.nextEventTime = m.options.stopTime
     end
     #println("... end affect: time ", time,", nextEventTime = ", eh.nextEventTime)
-    if eh.nextEventTime <= m.stopTime
+    if eh.nextEventTime <= m.options.stopTime
         DifferentialEquations.add_tstop!(integrator, eh.nextEventTime) 
     end
     return nothing
@@ -872,7 +950,7 @@ function timeEventCondition!(u, t, integrator)::Bool
     m  = integrator.p
     eh = m.eventHandler
     if t >= eh.nextEventTime
-        eh.nextEventTime = m.stopTime
+        eh.nextEventTime = m.options.stopTime
         return true
     end
     return false   

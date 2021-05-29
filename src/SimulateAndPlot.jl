@@ -14,16 +14,6 @@ import DataFrames
 #                          Simulation
 #---------------------------------------------------------------------
 
-"""
-    convertTimeVariable(FloatType, t)
-
-The function returns variable `t` in a normalized form:
-
-1. If `t` has a unit, it is transformed to u"s" and the unit is stripped off.
-2. `t` is converted to `FloatType`.
-"""
-convertTimeVariable(FloatType, t) = typeof(t) <: Unitful.AbstractQuantity ? convert(FloatType, ustrip(uconvert(u"s", t))) : convert(FloatType, t)
-
                    
 """
     simulate!(model [, algorithm]; merge = nothing,
@@ -120,43 +110,19 @@ function simulate!(m::Nothing, args...; kwargs...)
     @info "The call of simulate!(..) is ignored, since the first argument is nothing."
     return nothing
 end
-function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
-                   merge          = nothing,
-                   tolerance      = 1e-6,
-                   startTime      = 0.0,
-                   stopTime       = 1.0,
-                   interval       = NaN,
-                   interp_points  = 0,
-                   adaptive::Bool = true,
-                   log::Bool           = false,
-                   logStates::Bool     = false,
-                   logEvents::Bool     = false,
-                   logParameters::Bool = false,
-                   logEvaluatedParameters::Bool = false,
-                   requiredFinalStates          = nothing) where {FloatType,TimeType}
+function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; kwargs...) where {FloatType,TimeType}
+        m.options = SimulationOptions{FloatType,TimeType}(; kwargs...)
 
         # Initialize/re-initialize SimulationModel
-        if log || logEvaluatedParameters || logStates
+        if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
             println("... Simulate model ", m.modelName)
         end
         
         cpuStart::UInt64 = time_ns()
         cpuLast::UInt64  = cpuStart
         cpuStartIntegration::UInt64 = cpuStart
-        m.algorithmType = typeof(algorithm)
-        
-# Move to init ---------------------------------------------------------       
-        startTime2 = convertTimeVariable(TimeType, startTime)
-        stopTime2  = convertTimeVariable(TimeType, stopTime)
-        interval2  = convertTimeVariable(TimeType, interval)
-        interval2  = isnan(interval2) ? (stopTime2 - startTime2)/500.0 : interval2
-        m.startTime = startTime2
-        m.stopTime  = stopTime2
-        m.interval  = interval2
-        
-        success = init!(m, tolerance, merge, log, logParameters, logEvaluatedParameters, logStates, logEvents)
-# End Move to init ---------------------------------------------------------       
-
+        m.algorithmType = typeof(algorithm)       
+        success = init!(m)
         if !success
             return nothing
         end
@@ -166,52 +132,46 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             
             # Store variables in result
             m.storeResult = true
-            m.getDerivatives!(m.der_x, m.x_init, m, m.startTime)
+            m.getDerivatives!(m.der_x, m.x_init, m, m.options.startTime)
             m.storeResult = false
 
         else
             # Define problem and callbacks based on algorithm and model type
-            if abs(m.interval) < abs(m.stopTime-m.startTime)
-                tspan2 = m.startTime:m.interval:m.stopTime
+            if abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
+                tspan2 = m.options.startTime:m.options.interval:m.options.stopTime
             else
-                tspan2 = [m.startTime, m.stopTime]
+                tspan2 = [m.options.startTime, m.options.stopTime]
             end
-           	tspan   = (m.startTime, m.stopTime)            
-            abstol  = 0.1*tolerance
+           	tspan   = (m.options.startTime, m.options.stopTime)            
+            abstol  = 0.1*m.options.tolerance
             problem = DifferentialEquations.ODEProblem(derivatives!, m.x_init, tspan, m) 
             
             callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)   
             eh = m.eventHandler            
-            if eh.nz > 0
-                if interp_points == 1
-                    # DifferentialEquations.jl crashes
-                    interp_points = 2
-                end
-        
+            if eh.nz > 0        
                 # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
                 # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
                 # A temporary fix is to use time events at the communication points, but this slows down simulation.
                 callback1 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)  
                 callback3 = DifferentialEquations.VectorContinuousCallback(stateEventCondition!, 
-                                 affectStateEvent!, eh.nz, interp_points=interp_points)                       
+                                 affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                       
                 callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)
             else
-                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=sign(m.stopTime-m.startTime))
+                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=sign(m.options.stopTime-m.options.startTime))
                 callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
             end
     
             # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-            dt = adaptive ? interval2/10 : interval2    # initial step-size
+            dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
     
             # Compute solution 
             tstops = (m.eventHandler.nextEventTime,)
-            #println("... tstops = ", tstops)
-            solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, reltol=tolerance, abstol=abstol,
+            solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol,
                                                 save_everystep=false, save_start=false, save_end=true,
-                                                callback=callbacks, adaptive=adaptive, dt=dt, tstops = tstops) :
-                                            DifferentialEquations.solve(problem, algorithm, reltol=tolerance, abstol=abstol,
+                                                callback=callbacks, adaptive=m.options.adaptive, dt=dt, tstops = tstops) :
+                                            DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol,
                                                 save_everystep=false, save_start=false, save_end=true,
-                                                callback=callbacks, adaptive=adaptive, dt=dt, tstops = tstops)
+                                                callback=callbacks, adaptive=m.options.adaptive, dt=dt, tstops = tstops)
             m.solution = solution
             if ismissing(algorithm)
                 m.algorithmType = typeof(solution.alg)
@@ -222,7 +182,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             terminate!(m, finalStates, solution.t[end])
         end
         
-        if log
+        if m.options.log
             cpuTimeInitialization = convert(Float64, (cpuStartIntegration - cpuStart) * 1e-9)
             cpuTimeIntegration    = convert(Float64, (time_ns() - cpuStartIntegration) * 1e-9)
             cpuTime               = cpuTimeInitialization + cpuTimeIntegration
@@ -234,8 +194,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             #                                      round(cpuTimeIntegration   , sigdigits=3), " s)")
             println("        algorithm       = ", m.algorithmType == Nothing ? Nothing : solution.alg)
             println("        FloatType       = ", FloatType)
-            println("        interval        = ", interval2, " s")
-            println("        tolerance       = ", tolerance, " (relative tolerance)")
+            println("        interval        = ", m.options.interval, " s")
+            println("        tolerance       = ", m.options.tolerance, " (relative tolerance)")
             println("        nEquations      = ", length(m.x_start))
             println("        nResults        = ", length(m.result))
             println("        nAcceptedSteps  = ", solution.destats.naccept)
@@ -250,6 +210,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
             println("        nRestartEvents  = ", eh.nRestartEvents)      
         end
 
+        requiredFinalStates = m.options.requiredFinalStates
         if !isnothing(requiredFinalStates)
             if length(finalStates) != length(requiredFinalStates)
                 success = false
