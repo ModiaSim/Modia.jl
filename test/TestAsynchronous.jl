@@ -19,19 +19,18 @@ TestBooleanPulse1 = Model(
 
 model = @instantiateModel(TestBooleanPulse1, log=true, logCode=true)
 simulate!(model, Tsit5(), stopTime=10, log=true, logEvents=true)
-plot(model, [("pulse.y"), ("pulse.startTime")], heading="TestBooleanPulse1", figure=1)
+plot(model, [("pulse.y")], heading="TestBooleanPulse1", figure=1)
 
 
 BooleanPulse = Model(
 	width = parameter | Map(value=50, min=0, max=100) | info"Width of pulse in % of period",
 	period = parameter | Map(min=0) | info"Time for one period",
 	startTime = parameter | info"Time instant of first pulse",
-	pulseStart = Var() | info"Start time of pulse",
+	pulseStart = Var(start=:(startTime)) | info"Start time of pulse",
 	y = output,
 	equations = :[
 		Twidth = period*width/100
-#		clock1 = Clock(startTime, period)  # Clock with 4 arguments not available yet.
-		clock1 = Clock(period)  # Gives unit error if unitless=false
+		clock1 = Clock(startTime, period)
 		pulseStart = sample(time, clock1)
         y = after(pulseStart) && ! after(pulseStart + Twidth)
 	]
@@ -53,13 +52,15 @@ plot(model, [("pulse.y"), ("pulse.pulseStart")], heading="TestBooleanPulse", fig
 SRFlipFlop = Model(
     Q = Var(init=false),
     equations = :[
-		Q = S || ! R && previous(Q)  # Currently gives: ERROR: LoadError: MethodError: no method matching pre(::Bool, ::TinyModia.SimulationModel{Float64, Float64}, ::Int64)
+		Q = S || ! R && previous(Q)
     ]
 ) 
 
 TestSRFlipFlop = Model(
 	set = BooleanPulse1 | Map(startTime=2u"s", width=2u"s"),
 	reset = BooleanPulse1 | Map(startTime=5u"s", width=2u"s"),
+#	set = BooleanPulse | Map(startTime=2u"s", period=4u"s"),
+#	reset = BooleanPulse | Map(startTime=1u"s", period=4u"s"),
 	sr = SRFlipFlop,
 	equations = :[
 		connect(set.y, sr.S)
@@ -68,7 +69,7 @@ TestSRFlipFlop = Model(
 )
 
 model = @instantiateModel(TestSRFlipFlop, log=true, logCode=true, unitless=true)
-simulate!(model, Tsit5(), stopTime=10, log=true, logEvents=true)
-plot(model, [("sr.S", "sr.R"), ("sr.Q")], heading="TestSRFlipFlop", figure=1)
+simulate!(model, Tsit5(), stopTime=15, log=true, logEvents=true)
+plot(model, [("sr.S"), ("sr.R"), ("sr.Q")], heading="TestSRFlipFlop", figure=1)
 
 end
