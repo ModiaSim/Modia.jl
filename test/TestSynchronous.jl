@@ -11,7 +11,7 @@ MassWithSpringDamper = Model(
     k = 1.0,           # spring constant
     d = 0.1,           # damping coefficient
     x = Var(init=0.0), # Position
-    v = Var(init=0.0), # Velocity
+    v = Var(init=5.0), # Velocity
     equations1 = :[
         der(x) = v
         m*der(v) = f - k*x - d*v
@@ -33,7 +33,8 @@ SpeedControl = MassWithSpringDamper | Model(
 
 speedControl = @instantiateModel(SpeedControl)
 simulate!(speedControl, Tsit5(), stopTime=1.5, log=true, logEvents=true)
-plot(speedControl, [("v", "f"), "vd"], heading="SpeedControl", figure=1)
+plot(speedControl, [("v", "vd"), ("u","f")], heading="SpeedControl", figure=1)
+
 
 SpeedControlPI = MassWithSpringDamper | Model(
     k    = 0.0,
@@ -61,6 +62,7 @@ SpeedControlPI = MassWithSpringDamper | Model(
 
 speedControlPI = @instantiateModel(SpeedControlPI, log=true, logCode=true, logStateSelection=true)
 simulate!(speedControlPI, Tsit5(), stopTime=1.5, log=true, logEvents=true)
-plot(speedControlPI, [("v", "f"), "vd", ("previous_intE", "intE")], heading="SpeedControlPI", figure=2)
+plot(speedControlPI, [("v", "vd"), ("u","f"), ("previous_intE", "intE")], heading="SpeedControlPI", figure=2)
+
 
 end
