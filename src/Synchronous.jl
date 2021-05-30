@@ -88,7 +88,9 @@ function sample(v, clock::Bool, m::SimulationModel{FloatType,TimeType}, nr::Int)
 end
 
 
-@inline function previous(v, clock::Bool, m::SimulationModel, nr::Int)
+previous(v, clock::Bool, m::SimulationModel, nr::Int) = previous(clock, m, nr)
+
+@inline function previous(clock::Bool, m::SimulationModel, nr::Int)
     if clock 
         m.previous[nr] = m.nextPrevious[nr]
     end
