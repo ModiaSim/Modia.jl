@@ -385,7 +385,7 @@ negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHa
 change(  m::SimulationModel, args...; kwargs...) = TinyModia.change!(  m.eventHandler, args...; kwargs...)
 edge(    m::SimulationModel, args...; kwargs...) = TinyModia.edge!(    m.eventHandler, args...; kwargs...)
 pre(     m::SimulationModel, i)                  = m.pre[i]
-
+pre(v,   m::SimulationModel, i)                  = m.pre[i]
 
 
 """
