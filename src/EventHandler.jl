@@ -25,7 +25,7 @@ getValue(v::ForwardDiff.Dual) = v.value
 
 const nClock = 100
 const nSample = 100
-const nPrevious = 100
+const nAfterDefault = 100
 
 mutable struct EventHandler{FloatType,TimeType}
     stopTime::TimeType              # stopTime of simulation
@@ -45,6 +45,8 @@ mutable struct EventHandler{FloatType,TimeType}
     event::Bool                     # = true, if model is called at an event  
     afterSimulationStart::Bool      # = true, if model is called after simulation start
     crossing::Bool                  # = true, if model is called to compute crossing function
+    firstEventIterationDirectlyAfterInitial::Bool # = true, at the first event iteration directly after initial at model.options.startTime.
+    triggerEventDirectlyAfterInitial::Bool        # = true, if time event shall be triggered directly after initial at model.options.startTime
     
     # Values especially for simulations with several segments
     firstInitialOfAllSegments::Bool # = true, if model is called at initialization of the first simulation segment.
@@ -68,19 +70,23 @@ mutable struct EventHandler{FloatType,TimeType}
                             # zero, that is beforeEvent(z[i])*z[i] < 0, an event is triggered
                             # (allocated during instanciation according to nz).
     zPositive::Vector{Bool} # = true if z > 0 at the last event instant, otherwise false
+    
+    # For after time events:
+    nafter::Int             # Number of after time events
+    after::Vector{Bool}     # after[i] = time >= after(<variable i>)
 
     # For clocks (time events):
-    clock::Vector{TimeType}
+    clock::Vector{TimeType}    
     sample::Vector{Any}
-    previous::Vector{Any}
-    nextPrevious::Vector{Any}
     
-    function EventHandler{FloatType,TimeType}(; nz::Int=0, logEvents::Bool=false) where {FloatType,TimeType} 
+    function EventHandler{FloatType,TimeType}(; nz::Int=0, nAfter::Int=0, logEvents::Bool=false) where {FloatType,TimeType} 
         @assert(nz >= 0)
-        new(floatmax(TimeType), logEvents, 0, 0, 0, 0, convert(TimeType,0), false, false, false, false, false, false, false, floatmax(TimeType), floatmax(TimeType),
-            true, NoRestart, false, false, nz, ones(FloatType,nz), fill(false, nz),
-            fill(convert(TimeType,0),nClock), Vector{Any}(undef, nSample), 
-            Vector{Any}(undef, nPrevious), Vector{Any}(undef, nPrevious))              
+        @assert(nAfter >= 0)
+        nAfter = nAfter > 0 ? nAfter : nAfterDefault
+        new(floatmax(TimeType), logEvents, 0, 0, 0, 0, convert(TimeType,0), 
+            false, false, false, false, false, false, false, false, false, floatmax(TimeType), floatmax(TimeType),
+            true, NoRestart, false, false, nz, ones(FloatType,nz), fill(false, nz), nAfter, fill(false,nAfter),
+            fill(convert(TimeType,0),nClock), Vector{Any}(undef, nSample))              
     end
 end
 
@@ -101,6 +107,9 @@ function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, stopTime::Time
     eh.terminal = false
     eh.event    = false 
     eh.crossing = false
+    eh.firstEventIterationDirectlyAfterInitial = false
+    eh.triggerEventDirectlyAfterInitial = false
+    
     eh.afterSimulationStart = false
     eh.firstInitialOfAllSegments = false
     eh.terminalOfAllSegments     = false 
@@ -112,6 +121,7 @@ function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, stopTime::Time
     eh.newEventIteration   = false
     eh.firstEventIteration = true
     eh.z .= convert(FloatType, 0)
+    eh.after .= false
     
     return nothing
 end
@@ -131,44 +141,67 @@ function initEventIteration!(h::EventHandler{FloatType,TimeType}, t::TimeType)::
     return nothing
 end
 
-function terminateEventIteration!(h::EventHandler{FloatType,TimeType}) where {FloatType,TimeType}
-    if h.restart == Terminate || h.restart == FullRestart
-        result = true
-    elseif h.initial
-        result = false
-    else
-        result = !h.newEventIteration
-    end
-    h.initial = false  
-    h.firstInitialOfAllSegments = false          
-    h.firstEventIteration = false
-    h.newEventIteration   = false
-    return result
-end
-
 
 const zEps = 1.e-10
 
 
 function setNextEvent!(h::EventHandler{FloatType,TimeType}, nextEventTime::TimeType; 
+                       triggerEventDirectlyAfterInitial=false,
                        integrateToEvent::Bool=true, 
-                       restart::EventRestart=Restart) where {FloatType,TimeType}
+                       restart::EventRestart=Restart)::Nothing where {FloatType,TimeType}
     #println("... setNextEvent!: time = ", h.time, ", nextEventTime = ", nextEventTime, ", restart = ", restart)                   
     if (h.event && nextEventTime > h.time) || (h.initial && nextEventTime >= h.time)
-        if integrateToEvent
-            h.maxTime = min(h.maxTime, nextEventTime)
-        end
-        if nextEventTime < h.nextEventTime
-            h.nextEventTime    = nextEventTime
-            h.integrateToEvent = integrateToEvent
-            if h.logEvents
-                println("        nextEventTime = ", round(nextEventTime, sigdigits=6), 
-                        " s, integrateToEvent = ", integrateToEvent ? "true" : "false")
+        if h.initial && triggerEventDirectlyAfterInitial && nextEventTime == h.time
+            h.triggerEventDirectlyAfterInitial = true
+            
+            if nextEventTime < h.nextEventTime
+                h.nextEventTime = nextEventTime
+                if h.logEvents
+                    println("        nextEventTime = ", round(nextEventTime, sigdigits=6), " s")
+                end
+            end
+        else
+            if integrateToEvent
+                h.maxTime = min(h.maxTime, nextEventTime)
+            end
+            if nextEventTime < h.nextEventTime
+                h.nextEventTime    = nextEventTime
+                h.integrateToEvent = integrateToEvent
+                if h.logEvents
+                    println("        nextEventTime = ", round(nextEventTime, sigdigits=6), 
+                            " s, integrateToEvent = ", integrateToEvent ? "true" : "false")
+                end
             end
         end
         h.restart = max(h.restart, restart)
     end
     return nothing
+end
+
+
+function after!(h::EventHandler{FloatType,TimeType}, nr::Int, t::Number, tAsString::String, leq_mode::Int; 
+                restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
+    # time >= t  (it is required that t is a discrete-time expression, but this cannot be checked)
+    if h.initial
+        h.after[nr] = h.time >= t
+        if h.logEvents
+            println("        time >= ", tAsString, " became ", h.after[nr] ? "true" : "false")  
+        end
+        if t > h.time
+            setNextEvent!(h, t, restart = restart)
+        end
+        
+    elseif h.event
+        if abs(h.time - t) < 1E-10
+            if h.logEvents && !h.after[nr]
+                println("        time >= ", tAsString, " became true")
+            end
+            h.after[nr] = true         
+        elseif t > h.time
+             setNextEvent!(h, t, restart = restart)
+        end
+    end
+    return h.after[nr] 
 end
 
 

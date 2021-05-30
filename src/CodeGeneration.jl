@@ -10,7 +10,7 @@ using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
 
 export SimulationModel, measurementToString, get_lastValue
-export positive, negative, change, edge, reinit, pre
+export positive, negative, change, edge, after, reinit, pre
 
 
 """
@@ -253,6 +253,7 @@ mutable struct SimulationModel{FloatType,TimeType}
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
                                         nz::Int = 0,
+                                        nAfter::Int = 0,
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
@@ -325,7 +326,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         separateObjects = OrderedDict{Int,Any}()
                 
         # Initialize execution flags
-        eventHandler = EventHandler{FloatType,TimeType}(nz=nz)
+        eventHandler = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
         eventHandler.initial = true
         isInitial   = true
         storeResult = false
@@ -384,6 +385,7 @@ positive(m::SimulationModel, args...; kwargs...) = TinyModia.positive!(m.eventHa
 negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHandler, args...; kwargs...)
 change(  m::SimulationModel, args...; kwargs...) = TinyModia.change!(  m.eventHandler, args...; kwargs...)
 edge(    m::SimulationModel, args...; kwargs...) = TinyModia.edge!(    m.eventHandler, args...; kwargs...)
+after(   m::SimulationModel, args...; kwargs...) = TinyModia.after!(   m.eventHandler, args...; kwargs...)
 pre(     m::SimulationModel, i)                  = m.pre[i]
 pre(v,   m::SimulationModel, i)                  = m.pre[i]
 
@@ -574,6 +576,80 @@ function get_lastValue(m::SimulationModel, name::String; unit=true)
     return unit ? value : ustrip(value)
 end
 
+
+
+"""
+    terminateEventIteration!(instantiatedModel)
+    
+Return true, if event iteration shall be terminated and simulation started.
+
+Return false, if event iteration shall be continued. Reasons for continuing are:
+
+1. pre != nextPre
+
+2. positive(..), negative(..), change(..), edge(..) trigger a new iteration.
+
+3. triggerEventAfterInitial = true
+
+Note
+
+- isInitial:
+  When simulation shall be started, isInitial = true. When neither (1) nor (2) hold, isInitial = false
+  and isInitial remains false for the rest of the simulation.
+
+- firstInitialOfAllSegments: 
+  When simulation shall be started, firstInitialOfAllSegments = true. After the first iteration,
+  this flag is set to false. This flag can be used to initialize devices (e.g. renderer), that should be
+  initialized once and not several times.
+  
+- firstEventIteration:
+  This flag is true during the first iteration at an event.
+  
+- firstEventIterationDirectlyAfterInitial:
+  This flag is true during the first iteration directly at the time event after initialization
+  (at simulation startTime).
+"""
+function terminateEventIteration!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,TimeType}
+    h = m.eventHandler
+    h.firstInitialOfAllSegments = false          
+    h.firstEventIteration       = false    
+    h.firstEventIterationDirectlyAfterInitial = false
+
+    # pre-iteration
+    pre_iteration = false
+    for i = 1:length(m.pre)
+        if m.pre[i] != m.nextPre[i]
+            if m.options.logEvents
+                println("        ", m.pre_names[i], " changed from ", m.pre[i], " to ", m.nextPre[i])
+            end
+            m.pre[i] = m.nextPre[i]
+            pre_iteration = true
+        end 
+    end 
+    
+    if pre_iteration || h.newEventIteration 
+        h.newEventIteration = false
+        return false   # continue event iteration
+    end
+            
+    if h.restart == Terminate || h.restart == FullRestart
+        h.initial = false
+        return true
+        
+    elseif h.triggerEventDirectlyAfterInitial
+        h.triggerEventDirectlyAfterInitial = false
+        if h.initial
+            h.firstEventIterationDirectlyAfterInitial = true
+        end
+        h.initial = false
+        return false # continue event iteration
+    end
+    
+    h.initial = false
+    return true
+end
+
+
 function eventIteration!(m::SimulationModel{FloatType,TimeType}, x::Vector{FloatType}, t_event::TimeType)::Nothing where {FloatType,TimeType}
     eh = m.eventHandler
 
@@ -587,18 +663,16 @@ function eventIteration!(m::SimulationModel{FloatType,TimeType}, x::Vector{Float
     eh.event = true
     while !success && iter <= iter_max
         iter += 1
-        Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)
-        success = terminateEventIteration!(eh)
+        Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)      
+        success = terminateEventIteration!(m)
         
-        # Check pre
-        for i = 1:length(m.pre)
-            if m.pre[i] != m.nextPre[i]
-                if m.options.logEvents
-                    println("        ", m.pre_names[i], " changed from ", m.pre[i], " to ", m.nextPre[i])
-                end
-                m.pre[i] = m.nextPre[i]
-                success = false
-            end 
+        if eh.firstEventIterationDirectlyAfterInitial
+            iter = 0  # reset iteration counter, since new event
+            if m.options.logEvents
+                println("\n      Time event at time = ", eh.time, " s")
+            end
+            eh.nTimeEvents += 1 
+            eh.nextEventTime = m.options.stopTime
         end
     end
     eh.event = false        
@@ -633,6 +707,24 @@ isTerminal(m::SimulationModel) = m.eventHandler.terminal
 Return true, if **event phase** of simulation (including initialization).
 """
 isEvent(m::SimulationModel) = m.eventHandler.event
+
+
+"""
+    isFirstEventIteration(instantiatedModel)
+
+Return true, if **event phase** of simulation (including initialization) and
+during the first iteration of the event iteration. 
+"""
+isFirstEventIteration(m::SimulationModel) = m.eventHandler.firstEventIteration
+
+
+"""
+    isFirstEventIterationDirectlyAfterInitial(instantiatedModel)
+
+Return true, if first iteration directly after initialization where initial=true
+(so at the startTime of the simulation). 
+"""
+isFirstEventIterationDirectlyAfterInitial(m::SimulationModel) = m.eventHandler.firstEventIterationDirectlyAfterInitial
 
 
 """

@@ -25,72 +25,65 @@ interval(u)
 
 =#
 
-# The argument list of function F is extended with the argument simulationModel.
-
 export Clock, sample, hold, previous
 
-# -------------------------------------------------------------------
 
-#=
-macro Clock(interval, nr)
-    code = :(Clock($interval, instantiatedModel, $nr))
-    return esc(code)
-end
-=#
+Clock(interval, m::SimulationModel, nr::Int) = Clock(m.options.startTime, interval, m, nr)
 
-function Clock(interval, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
+
+function Clock(startTime, interval, m::SimulationModel{FloatType,TimeType}, nr::Int)::Bool where {FloatType,TimeType}
+# Clock ticks at startTime, startTime + interval, startTime + 2*interval, ...
+# This is independent of the starTime of the simulation. Example:
+#   if startTime = -3, interval = 1.5, m.options.startTime = 1.0 then
+#   the clock ticks at 1.5, 3.0, 4.5, ...
     eh = m.eventHandler
-    if isInitial(m)
-        #if eh.logEvents
-        #    println("        in Clock, nr = $nr (isInitial)")
-        #end
-
-        eh.clock[nr] = eh.time + convert(TimeType,interval)     
-        setNextEvent!(eh, eh.clock[nr])
-    
-    elseif isEvent(m) && isAfterSimulationStart(m)
-        tick = abs(eh.time - eh.clock[nr]) < 1E-10
-        if tick
-            #if eh.logEvents
-            #    println("        in Clock, nr = $nr (isEvent; clock is active)")
-            #end
+    if isEvent(m)
+        if isInitial(m)
+            startTime2 = convert(TimeType, startTime)
+            interval2  = convert(TimeType, interval)
+            
+            tFirst = startTime2 >= eh.time ? startTime2 : startTime2 + div(eh.time - startTime2, interval2, RoundUp)*interval2
+            if abs(eh.time - tFirst) < 1e-10
+                eh.clock[nr] = eh.time     
+                setNextEvent!(eh, eh.clock[nr], triggerEventDirectlyAfterInitial=true)
+            else    
+                eh.clock[nr] = tFirst 
+                setNextEvent!(eh, eh.clock[nr])
+            end
+         
+        elseif isFirstEventIterationDirectlyAfterInitial(m)
             eh.clock[nr] = eh.time + convert(TimeType,interval)            
             setNextEvent!(eh, eh.clock[nr])
             return true
+            
+        elseif isFirstEventIteration(m) && isAfterSimulationStart(m)
+            tick = abs(eh.time - eh.clock[nr]) < 1E-10
+            if tick
+                eh.clock[nr] = eh.time + convert(TimeType,interval)            
+                setNextEvent!(eh, eh.clock[nr])
+                return true
+            end
+            setNextEvent!(eh, eh.clock[nr])
         end
-        setNextEvent!(eh, eh.clock[nr])
     end
 
     return false
 end
 
 
-function sample(v, clock::Bool, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
+@inline function sample(v, clock::Bool, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
     eh = m.eventHandler
-    if isInitial(m)
-        #if eh.logEvents
-        #    println("        in sample, nr = $nr (isInitial)")
-        #end
-
+    if isInitial(m) || clock
         eh.sample[nr] = v
-        return v
     end
-  
-    if clock 
-        #if eh.logEvents
-        #    println("        in sample, nr = $nr (clock is active)")
-        #end
-        eh.sample[nr] = v
-        return v
-    else
-        return eh.sample[nr] 
-    end
+    return eh.sample[nr] 
 end
 
 
 previous(v, clock::Bool, m::SimulationModel, nr::Int) = previous(clock, m, nr)
 
 @inline function previous(clock::Bool, m::SimulationModel, nr::Int)
+    # m.previous[nr] is initialized with the start/init value of v before the first model evaluation
     if clock 
         m.previous[nr] = m.nextPrevious[nr]
     end
@@ -102,6 +95,7 @@ hold(v) = v
 
 
 @inline function hold(v, clock::Bool, m::SimulationModel, nr::Int)
+    # m.hold[nr] is initialized with the start/init value of v before the first model evaluation
     if clock 
         m.hold[nr] = v
     end
