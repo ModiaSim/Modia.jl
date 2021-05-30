@@ -47,7 +47,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-05-29"
+const Date = "2021-05-30"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -649,7 +649,6 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
             G, Array{Array{Int64,1},1}(blt), assign, Avar, Bequ, stateSelectionFunctions;
             unitless, log = logStateSelection, modelName = name)
     end
-#    equationInfo.nz = nCrossingFunctions
 
     if ! success
         error("Aborting")
@@ -698,7 +697,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     end
 
     # Generate code
-    nCrossingFunctions, nClocks, nSamples, previousVars, preVars = getEventCounters()   
+    nCrossingFunctions, nAfter, nClocks, nSamples, previousVars, preVars = getEventCounters()   
     @show preVars
     previousVars = Symbol.(previousVars)
     preVars = Symbol.(preVars)
@@ -740,7 +739,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
                                          OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
-                                         nz=nCrossingFunctions)
+                                         nz=nCrossingFunctions, nAfter=nAfter)
  
     if false # logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
