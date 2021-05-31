@@ -182,23 +182,30 @@ end
 function after!(h::EventHandler{FloatType,TimeType}, nr::Int, t::Number, tAsString::String, leq_mode::Int; 
                 restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     # time >= t  (it is required that t is a discrete-time expression, but this cannot be checked)
+    t2 = convert(TimeType,t)
     if h.initial
-        h.after[nr] = h.time >= t
+        h.after[nr] = h.time >= t2
         if h.logEvents
-            println("        time >= ", tAsString, " became ", h.after[nr] ? "true" : "false")  
+            println("        after(", tAsString, " (= ", t2, ")) became ", h.after[nr] ? "true" : "false")  
         end
-        if t > h.time
-            setNextEvent!(h, t, restart = restart)
+        if t2 > h.time
+            setNextEvent!(h, t2, restart = restart)
         end
         
     elseif h.event
-        if abs(h.time - t) < 1E-10
+        if abs(h.time - t2) < 1E-10
             if h.logEvents && !h.after[nr]
-                println("        time >= ", tAsString, " became true")
+                println("        after(", tAsString, " (= ", t2, ")) became true")  
             end
             h.after[nr] = true         
-        elseif t > h.time
-             setNextEvent!(h, t, restart = restart)
+        elseif t2 > h.time
+            setNextEvent!(h, t2, restart = restart)
+            h.after[nr] = false
+        else
+            if h.logEvents && !h.after[nr]
+                println("        after(", tAsString, " (= ", t2, ")) became true")              
+            end
+            h.after[nr] = true
         end
     end
     return h.after[nr] 

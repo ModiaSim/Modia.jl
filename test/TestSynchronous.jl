@@ -45,7 +45,7 @@ SpeedControlPI = MassWithSpringDamper | Model(
     vd = Var(start=0.0),
     u  = Var(start=0.0),  
 	e = Var(start=0.0),
-	intE = Var(start=0.0),
+	intE = Var(start=10.0),  # To check that previous(intE) is corrected initialized
     equations = :[ 
 		vd = sample(v, Clock(0.1))     # speed sensor
 		

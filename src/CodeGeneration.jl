@@ -11,6 +11,7 @@ using  DataFrames
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, change, edge, after, reinit, pre
+export isInitial, isTerminal
 
 
 """
@@ -387,7 +388,6 @@ change(  m::SimulationModel, args...; kwargs...) = TinyModia.change!(  m.eventHa
 edge(    m::SimulationModel, args...; kwargs...) = TinyModia.edge!(    m.eventHandler, args...; kwargs...)
 after(   m::SimulationModel, args...; kwargs...) = TinyModia.after!(   m.eventHandler, args...; kwargs...)
 pre(     m::SimulationModel, i)                  = m.pre[i]
-pre(v,   m::SimulationModel, i)                  = m.pre[i]
 
 
 """
@@ -1207,21 +1207,17 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     end
 
     # Code for previous
-    code_previous1 = Expr[]
-    code_previous2 = Expr[]    
+    code_previous = Expr[]    
     for (i, value) in enumerate(previousVars)
         previousName = previousVars[i]
-        push!(code_previous1, :( $previousName = _m.previous[$i] ))
-        push!(code_previous2, :( _m.nextPrevious[$i] = $previousName ))        
+        push!(code_previous, :( _m.nextPrevious[$i] = $previousName ))        
     end
 
     # Code for pre
-    code_pre1 = Expr[]
-    code_pre2 = Expr[]    
+    code_pre = Expr[]    
     for (i, value) in enumerate(preVars)
         preName = preVars[i]
-        push!(code_pre1, :( $preName = _m.pre[$i] ))
-        push!(code_pre2, :( _m.nextPre[$i] = $preName ))        
+        push!(code_pre, :( _m.nextPre[$i] = $preName ))        
     end
     
     # Generate code of the function
@@ -1233,13 +1229,13 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     _p = _m.evaluatedParameters
                     _leq_mode  = -1
                     $code_time
-                    $(code_x...)
-                    $(code_previous1...)
-                    $(code_pre1...)                   
+                    $(code_x...)                  
                     $(AST...)
                     $(code_der_x...)
-                    $(code_previous2...)
-                    $(code_pre2...)
+                    if TinyModia.isFirstEventIteration(_m) && !TinyModia.isInitial(_m)
+                        $(code_previous...)
+                    end
+                    $(code_pre...)
 
                     if _m.storeResult
                         TinyModia.addToResult!(_m, $(variables...))

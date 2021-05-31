@@ -80,8 +80,6 @@ end
 end
 
 
-previous(v, clock::Bool, m::SimulationModel, nr::Int) = previous(clock, m, nr)
-
 @inline function previous(clock::Bool, m::SimulationModel, nr::Int)
     # m.previous[nr] is initialized with the start/init value of v before the first model evaluation
     if clock 
