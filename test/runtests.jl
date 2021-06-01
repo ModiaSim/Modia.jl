@@ -31,6 +31,7 @@ using Test
     include("TestSynchronous.jl") 
     include("TestInputOutput.jl")      
     include("TestPathPlanning.jl")  
+    include("TestExtraSimulateKeywordArguments.jl")
     
     include("../examples/runexamples.jl")    
 
