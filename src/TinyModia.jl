@@ -698,7 +698,6 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
     # Generate code
     nCrossingFunctions, nAfter, nClocks, nSamples, previousVars, preVars = getEventCounters()   
-    @show preVars
     previousVars = Symbol.(previousVars)
     preVars = Symbol.(preVars)
     holdVars = Symbol[]  # fix this
