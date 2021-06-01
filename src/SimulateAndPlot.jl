@@ -111,7 +111,12 @@ function simulate!(m::Nothing, args...; kwargs...)
     return nothing
 end
 function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; kwargs...) where {FloatType,TimeType}
-        m.options = SimulationOptions{FloatType,TimeType}(; kwargs...)
+        empty!(m.result)
+        options = SimulationOptions{FloatType,TimeType}(; kwargs...)
+        if isnothing(options)
+            return nothing
+        end
+        m.options = options
 
         # Initialize/re-initialize SimulationModel
         if m.options.log || m.options.logEvaluatedParameters || m.options.logStates

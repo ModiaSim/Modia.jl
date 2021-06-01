@@ -12,6 +12,8 @@ using  DataFrames
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, change, edge, after, reinit, pre
 export isInitial, isTerminal
+export registerExtraSimulateKeywordArguments
+export get_extraSimulateKeywordArgumentsDict
 
 
 """
@@ -100,13 +102,14 @@ const RegisteredExtraSimulateKeywordArguments = OrderedSet{Symbol}()
 
 function registerExtraSimulateKeywordArguments(keys)::Nothing
     for key in keys
-        if key in BasicSimulationKeywordArguments || key in RegisteredExtraSimulateKeywordArguments
-            @error "registerExtraSimulateKeywordArguments:\nKeyword $key is already registered (use another keyword)\n\n"
+        if key in BasicSimulationKeywordArguments
+            @error "registerExtraSimulateKeywordArguments:\nKeyword $key is ignored, since standard keyword of simulate!(..) (use another keyword)\n\n"
         end
         push!(RegisteredExtraSimulateKeywordArguments, key)
     end
     return nothing
 end
+
 
 """
     convertTimeVariable(TimeType, t)
@@ -137,22 +140,25 @@ struct SimulationOptions{FloatType,TimeType}
     logParameters::Bool
     logEvaluatedParameters::Bool
     requiredFinalStates::Union{Nothing, Vector{FloatType}}
-    extra_kwargs
+    extra_kwargs::OrderedDict{Symbol,Any}
     
-    function SimulationOptions{FloatType,TimeType}(; kwargs...) where {FloatType,TimeType}
-        merge         = get(kwargs, :merge, NamedTuple())
-        tolerance     = get(kwargs, :tolerance, 1e-6)
+    function SimulationOptions{FloatType,TimeType}(errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}  
+        success   = true
+        merge     = get(kwargs, :merge, NamedTuple())
+        tolerance = get(kwargs, :tolerance, 1e-6)
         if tolerance <= 0.0
-            @error "tolerance (= $tolerance) must be > 0"
+            printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) must be > 0\n\n", bold=true, color=:red)
+            success = false 
         end
-        startTime     = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
-        rawStopTime   = get(kwargs, :stopTime, 1.0)
-        stopTime      = convertTimeVariable(TimeType, rawStopTime)
-        interval      = convertTimeVariable(TimeType, get(kwargs, :interval , (stopTime - startTime)/500.0) )
+        startTime = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
+        rawStopTime       = get(kwargs, :stopTime, 1.0)
+        stopTime  = convertTimeVariable(TimeType, rawStopTime)
+        interval  = convertTimeVariable(TimeType, get(kwargs, :interval , (stopTime - startTime)/500.0) )
         desiredResultTimeUnit = unit(rawStopTime)          
         interp_points = get(kwargs, :interp_points, 0)
         if interp_points < 0
-            @error "interp_points (= $interp_points) must be > 0"
+            printstyled(errorMessagePrefix, "interp_points (= $(interp_points)) must be > 0\n\n", bold=true, color=:red)
+            success = false    
         elseif interp_points == 1
             # DifferentialEquations.jl crashes
             interp_points = 2
@@ -163,24 +169,28 @@ struct SimulationOptions{FloatType,TimeType}
         logEvents     = get(kwargs, :logEvents    , false)
         logParameters = get(kwargs, :logParameters, false)
         logEvaluatedParameters = get(kwargs, :logEvaluatedParameters, false)
-        requiredFinalStates = get(kwargs, :requiredFinalStates, nothing)
-        
-        extra_kwargs = OrderedDict{Symbol,Any}()
-        for (key,value) in zip(keys(kwargs), kwargs)
+        requiredFinalStates    = get(kwargs, :requiredFinalStates, nothing)
+
+        extra_kwargs = OrderedDict{Symbol,Any}()        
+        for option in kwargs
+            key = option.first
             if key in BasicSimulationKeywordArguments
                 nothing;
             elseif key in RegisteredExtraSimulateKeywordArguments
-                extra_kwargs[key] = value
+                extra_kwargs[key] = option.second
             else
-                @error "$key = $value: $key is not known"
+                printstyled(errorMessagePrefix, "$key is unknown (keyword argument: $key = $(option.second))\n\n", bold=true, color=:red)
+                success = false
             end
-        end
-        
-        new(merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit,
-            interp_points, adaptive, log, logStates, logEvents, logParameters, 
-            logEvaluatedParameters, requiredFinalStates, extra_kwargs)
+        end    
+
+        obj = new(merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
+                  adaptive, log, logStates, logEvents, logParameters, logEvaluatedParameters,
+                  requiredFinalStates, extra_kwargs)
+        return success ? obj : nothing
     end        
 end
+
 
 
 """
@@ -575,6 +585,15 @@ function get_lastValue(m::SimulationModel, name::String; unit=true)
 
     return unit ? value : ustrip(value)
 end
+
+
+"""
+    get_extraSimulateKeywordArgumentsDict(instantiateModel)
+    
+Return the dictionary, in which extra keyword arguments of the last 
+`simulate!(instantiatedModel,...)` call are stored.
+"""
+get_extraSimulateKeywordArgumentsDict(m::SimulationModel) = m.options.extra_kwargs
 
 
 
