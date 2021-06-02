@@ -47,7 +47,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-06-01"
+const Date = "2021-06-02"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -199,7 +199,7 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
             if log
                 println("Differentiating: ", equations[i])
             end
-            equations[Bequ[i]] = derivative(equations[i], keys(parameters))
+            equations[Bequ[i]] = simplify(derivative(equations[i], keys(parameters)))
             if log
                 println("  Differentiated equation: ", equations[Bequ[i]])
             end
