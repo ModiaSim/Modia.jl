@@ -11,7 +11,7 @@ using  DataFrames
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, change, edge, after, reinit, pre
-export isInitial, isTerminal
+export initial, terminal, isInitial, isTerminal
 export registerExtraSimulateKeywordArguments
 export get_extraSimulateKeywordArgumentsDict
 
@@ -710,6 +710,7 @@ end
 Return true, if **initialization phase** of simulation.
 """
 isInitial(m::SimulationModel) = m.eventHandler.initial
+initial(  m::SimulationModel) = m.eventHandler.initial
 
 
 """
@@ -718,6 +719,7 @@ isInitial(m::SimulationModel) = m.eventHandler.initial
 Return true, if **terminal phase** of simulation.
 """
 isTerminal(m::SimulationModel) = m.eventHandler.terminal
+terminal(  m::SimulationModel) = m.eventHandler.terminal
 
 
 """
