@@ -31,7 +31,7 @@ BooleanPulse = Model(
 	equations = :[
 		Twidth = period*width/100
 		clock1 = Clock(startTime, period)
-        pulseStart = sample(isInitial(instantiatedModel) ? startTime : time, clock1)
+        pulseStart = sample(initial(instantiatedModel) ? startTime : time, clock1)
         y = after(pulseStart) && ! after(pulseStart + Twidth)
 	]
 )
