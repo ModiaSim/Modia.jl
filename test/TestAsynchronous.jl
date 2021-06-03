@@ -31,7 +31,7 @@ BooleanPulse = Model(
 	equations = :[
 		Twidth = period*width/100
 		clock1 = Clock(startTime, period)
-        pulseStart = sample(isInitial(instantiatedModel) ? startTime : time, clock1)
+        pulseStart = sample(if initial(); startTime else time end, clock1)
         y = after(pulseStart) && ! after(pulseStart + Twidth)
 	]
 )
@@ -52,15 +52,13 @@ plot(model, [("pulse.y"), ("pulse.pulseStart")], heading="TestBooleanPulse", fig
 SRFlipFlop = Model(
     Q = Var(init=false),
     equations = :[
-		Q = S || ! R && previous(Q)
+		Q = S || ! R && pre(Q)
     ]
 ) 
 
 TestSRFlipFlop = Model(
-	set = BooleanPulse1 | Map(startTime=2u"s", width=2u"s"),
-	reset = BooleanPulse1 | Map(startTime=5u"s", width=2u"s"),
-	#set = BooleanPulse | Map(startTime=2u"s", period=4u"s"),
-	#reset = BooleanPulse | Map(startTime=1u"s", period=4u"s"),
+	set = BooleanPulse | Map(startTime=2u"s", period=4u"s"),
+	reset = BooleanPulse | Map(startTime=5u"s", period=4u"s"),
 	sr = SRFlipFlop,
 	equations = :[
 		connect(set.y, sr.S)
@@ -68,8 +66,8 @@ TestSRFlipFlop = Model(
 	]
 )
 
-model = @instantiateModel(TestSRFlipFlop, log=true, logCode=true, unitless=true)
+model = @instantiateModel(TestSRFlipFlop, log=true, logCode=true)
 simulate!(model, Tsit5(), stopTime=15, log=true, logEvents=true)
-plot(model, [("set.y", "reset.y"), ("sr.S"), ("sr.R"), ("sr.Q")], heading="TestSRFlipFlop", figure=3)
+plot(model, [("sr.S"), ("sr.R"), ("sr.Q")], heading="TestSRFlipFlop", figure=3)
 
 end
