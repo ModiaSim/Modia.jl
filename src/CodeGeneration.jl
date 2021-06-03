@@ -1228,10 +1228,19 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     end
 
     # Code for previous
-    code_previous = Expr[]    
-    for (i, value) in enumerate(previousVars)
-        previousName = previousVars[i]
-        push!(code_previous, :( _m.nextPrevious[$i] = $previousName ))        
+    if length(previousVars) > 0
+        code_previous2 = Expr[]    
+        for (i, value) in enumerate(previousVars)
+            previousName = previousVars[i]
+            push!(code_previous2, :( _m.nextPrevious[$i] = $previousName ))        
+        end
+        code_previous = quote
+             if TinyModia.isFirstEventIteration(_m) && !TinyModia.isInitial(_m)
+                 $(code_previous2...)
+             end
+        end
+    else
+        code_previous = :()
     end
 
     # Code for pre
@@ -1248,14 +1257,12 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
                     _p = _m.evaluatedParameters
-                    _leq_mode  = -1
+                    _leq_mode = nothing
                     $code_time
                     $(code_x...)                  
                     $(AST...)
                     $(code_der_x...)
-                    if TinyModia.isFirstEventIteration(_m) && !TinyModia.isInitial(_m)
-                        $(code_previous...)
-                    end
+                    $code_previous
                     $(code_pre...)
 
                     if _m.storeResult

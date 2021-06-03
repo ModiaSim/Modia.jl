@@ -179,7 +179,8 @@ function setNextEvent!(h::EventHandler{FloatType,TimeType}, nextEventTime::TimeT
 end
 
 
-function after!(h::EventHandler{FloatType,TimeType}, nr::Int, t::Number, tAsString::String, leq_mode::Int; 
+function after!(h::EventHandler{FloatType,TimeType}, nr::Int, t::Number, tAsString::String, 
+                leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}}; 
                 restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     # time >= t  (it is required that t is a discrete-time expression, but this cannot be checked)
     t2 = convert(TimeType,t)
@@ -214,21 +215,29 @@ end
 
 #positive!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = positive!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
 
-function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String, leq_mode::Int; 
+function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String,
+                   leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}}; 
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     crossing = getValue(crossing)
-    leq_mode = -1
-    if leq_mode >= 0
-        return crossing > convert(FloatType,0)
+    
+    if h.initial
+        if !isnothing(leq) && leq.mode >= 0
+            # crossing has no meaningful value (called in algebraic loop with zero or unit vectors of unknowns). 
+            h.zPositive[nr] = false  # set to an arbitrary value
+            h.z[nr]         = -zEps  # set to an arbitrary value that is consistent to zPositive
+            return h.zPositive[nr]
+        end
         
-    elseif h.initial
         h.zPositive[nr] = crossing > convert(FloatType,0)
         if h.logEvents
             println("        ", crossingAsString, " (= ", crossing, ")", positiveCrossingAsString(h.zPositive[nr]))
         end
 
     elseif h.event
-        # println("... nr = ", nr, ", crossing = ", crossing)
+        if !isnothing(leq) && leq.mode >= 0
+            # crossing has no meaningful value (called in algebraic loop with zero or unit vectors of unknowns).
+            return h.zPositive[nr]
+        end
         new_zPositive = crossing > convert(FloatType,0)
         change = (h.zPositive[nr] && !new_zPositive) || (!h.zPositive[nr] && new_zPositive)
         h.zPositive[nr] = new_zPositive
@@ -238,7 +247,13 @@ function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, cross
             if h.logEvents
                 println("        ", crossingAsString, " (= ", crossing, ")", positiveCrossingAsString(h.zPositive[nr]))
             end
-            h.newEventIteration = true
+            if !isnothing(leq) && leq.mode == -1
+                # Solution of mixed linear equation system is not consistent to positve(..)
+                leq.success = false
+                if leq.niter > leq.niter_max
+                    push!(leq.inconsistentPositive, crossingAsString)
+                end
+            end
         end
     end
     h.z[nr] = crossing + (h.zPositive[nr] ? zEps : -zEps)
@@ -247,22 +262,30 @@ function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, cross
 end
 
 
-negative!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = negative!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
-
-function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
+function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String,
+                   leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}}; 
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
-                   
-    if leq_mode >= 0
-        return crossing >= convert(FloatType,0)
-                           
-    elseif h.initial
-        h.zPositive[nr] = crossing >= convert(FloatType,0)
+    crossing = getValue(crossing)     
+    
+    if h.initial
+        if !isnothing(leq) && leq.mode >= 0
+            # crossing has no meaningful value (called in algebraic loop with zero or unit vectors of unknowns). 
+            h.zPositive[nr] = true  # set to an arbitrary value
+            h.z[nr]         = zEps  # set to an arbitrary value that is consistent to zPositive
+            return !h.zPositive[nr]
+        end
+        
+        h.zPositive[nr] = !(crossing < convert(FloatType,0))
         if h.logEvents
             println("        ", crossingAsStringg, " (= ", crossing, ")", negativeCrossingAsString(!h.zPositive[nr]))
         end
 
     elseif h.event
-        new_zPositive = crossing >= convert(FloatType,0)
+        if !isnothing(leq) && leq.mode >= 0
+            # crossing has no meaningful value (called in algebraic loop with zero or unit vectors of unknowns).
+            return !h.zPositive[nr]
+        end    
+        new_zPositive = !(crossing < convert(FloatType,0))
         change = (h.zPositive[nr] && !new_zPositive) || (!h.zPositive[nr] && new_zPositive)
         h.zPositive[nr] = new_zPositive
         
@@ -271,7 +294,13 @@ function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::Float
             if h.logEvents
                 println("        ", crossingAsStringg, " (= ", crossing, ")", negativeCrossingAsString(!h.zPositive[nr]))
             end
-            h.newEventIteration = true
+            if !isnothing(leq) && leq.mode == -1
+                # Solution of mixed linear equation system is not consistent to negative(..)
+                leq.success = false
+                if leq.niter > leq.niter_max
+                    push!(leq.inconsistentNegative, crossingAsString)
+                end
+            end
         end
     end
     h.z[nr] = crossing + (h.zPositive[nr] ? zEps : -zEps)
@@ -280,9 +309,9 @@ function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::Float
 end
 
 
-change!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = change!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
-
-function change!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
+#=
+function change!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, 
+                 leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}}; 
                  restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     if leq_mode >= 0
         return crossing > convert(FloatType,0)
@@ -313,16 +342,19 @@ function change!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatTy
 
     return false
 end
+=#
 
 
-edge!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = edge!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
-
-function edge!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String, leq_mode::Int; 
+function edge!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String, 
+               leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}}; 
                restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
-    
-    if leq_mode >= 0
-        return false
-    end    
+     
+    if !isnothing(leq)
+        @error "edge(" * crossingAsString * ") is called in a linear system of equations with\n" *
+               "iteration variables $(leq.vTear_names). This is not supported."
+    end
+
+    crossing = getValue(crossing)  
     
     if h.initial 
         h.zPositive[nr] = crossing > convert(FloatType,0)
