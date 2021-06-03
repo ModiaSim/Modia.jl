@@ -64,7 +64,7 @@ Rectifier2 = Model(
     ]
 )
 
-rectifier2 = @instantiateModel(Rectifier2, logExecution=false, logCode=false, unitless=true)
+rectifier2 = @instantiateModel(Rectifier2)
 @time simulate!(rectifier2, Tsit5(), stopTime = 0.1, requiredFinalStates=[183.9899542497182])
 plot(rectifier2, [("V.v", "C.v"), "V.i"], figure=2)
 

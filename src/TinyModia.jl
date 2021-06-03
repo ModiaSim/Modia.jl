@@ -520,7 +520,8 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         solution = makeDerVar(solution, keys(parameters), keys(inputs))
         if logExecution
             var = string(unknowns[v])
-            return :($solution; println($var, " = ", upreferred.($(solution.args[1]))))
+            solutionString = string(solution)
+            return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", upreferred.($(solution.args[1]))))
         else
             return solution
         end
@@ -528,10 +529,13 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
     function getResidualEquationAST(e, residualName)
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
-        resid = makeDerVar(:(ustrip($(eq.args[2]) - $(eq.args[1]))), keys(parameters), keys(inputs))
+        eqs = sub(eq.args[2], eq.args[1])
+        resid = makeDerVar(:(ustrip($eqs)), keys(parameters), keys(inputs) )
         residual = :($residualName = $resid)
-        if false #logExecution
-            return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
+        residString = string(resid)
+        if logExecution
+            return :(println("Calculating residual: ", $residString); $residualName = $resid; println("  Residual: ", $residualName) )
+#            return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
         else
             return residual
         end
