@@ -18,13 +18,13 @@ import FiniteDiff
 
                    
 """
-    simulate!(model [, algorithm]; merge = nothing,
+    simulate!(instantiatedModel [, algorithm]; merge = nothing,
               tolerance = 1e-6, startTime = 0.0, stopTime = 1.0, interval = NaN,
               interp_points = 0, adaptive = true, log = false, logStates = false,
               logEvents = false, logParameters = false, logEvaluatedParameters = false, 
               requiredFinalStates = nothing)
 
-Simulate `model::SimulationModel` with `algorithm`
+Simulate `instantiatedModel::SimulationModel` with `algorithm`
 (= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)).
 If the `algorithm` argument is missing, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
@@ -249,9 +249,10 @@ end
 #---------------------------------------------------------------------
 
 """
-    (A, finalStates) = linearize!(instantiatedModel, 
-                                  <all other arguments of simulate!>,
-                                  analytic = true)
+    (A, finalStates) = linearize!(instantiatedModel [, algorithm];
+                                  stopTime = 0.0,
+                                  analytic = true,
+                                  <all other keyword arguments of simulate!>)
     
 Simulate until `stopTime` and linearize `instantiatedModel` at `finalStates`.
 The names of the state vector can be inquired by `get_xNames(instantiatedModel)`.
@@ -310,8 +311,9 @@ function linearize!(m::Nothing, args...; kwargs...)
     @info "The call of linearize!(..) is ignored, since the first argument is nothing."
     return   nothing
 end
-function linearize!(m::SimulationModel{FloatType,TimeType}, args...; analytic=true, kwargs...) where {FloatType,TimeType}
-    solution = simulate!(m, args...; kwargs...)
+function linearize!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
+                    stopTime = 0.0, analytic = true, kwargs...) where {FloatType,TimeType}
+    solution = simulate!(m, algorithm; stopTime=stopTime, kwargs...)
     finalStates = solution[:,end]
     
     # Function that shall be linearized
