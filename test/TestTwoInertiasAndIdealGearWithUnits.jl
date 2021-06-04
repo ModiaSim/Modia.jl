@@ -4,6 +4,7 @@ using TinyModia
 using DifferentialEquations
 using ModiaPlot
 using Unitful
+using Test
 
 TwoInertiasAndIdealGearWithUnits = Model(
     J1 = 0.0025u"kg*m^2",
@@ -40,5 +41,16 @@ simulate!(twoInertiasAndIdealGearWithUnits, Tsit5(), stopTime = 4.0,
           requiredFinalStates=[1.5628074713622309, -6.878080753044174e-5])
           
 plot(twoInertiasAndIdealGearWithUnits, ["phi2", "w2", "der(w2)"])
+
+# Linearize
+println("\n... Linearize at stopTime = 0 and 4")
+(A0, x0) = linearize!(twoInertiasAndIdealGearWithUnits, stopTime=0)
+(A1, x1) = linearize!(twoInertiasAndIdealGearWithUnits, stopTime=4) 
+xNames = get_xNames(twoInertiasAndIdealGearWithUnits)
+@show xNames
+@show A0, x0
+@show A1, x1
+@test isapprox(A0,[0.0 1.0; 0.0 0.0])
+@test isapprox(A0, A1)
 
 end

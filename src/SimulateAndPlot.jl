@@ -1,5 +1,5 @@
 
-export simulate!, get_result
+export simulate!, linearize!, get_result
 
 using  ModiaPlot
 import ModiaBase
@@ -9,6 +9,8 @@ using  Unitful
 using  Test
 import DifferentialEquations
 import DataFrames
+import ForwardDiff
+import FiniteDiff
 
 #---------------------------------------------------------------------
 #                          Simulation
@@ -240,6 +242,96 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; kw
 end
 
 #get_x_startIndexAndLength(m::SimulationModel, name) = ModiaBase.get_x_startIndexAndLength(m.equationInfo, name)
+
+
+#---------------------------------------------------------------------
+#                          Linearization
+#---------------------------------------------------------------------
+
+"""
+    (A, finalStates) = linearize!(instantiatedModel, 
+                                  <all other arguments of simulate!>,
+                                  analytic = true)
+    
+Simulate until `stopTime` and linearize `instantiatedModel` at `finalStates`.
+The names of the state vector can be inquired by `get_xNames(instantiatedModel)`.
+
+By default, linearization is performed analytically with package 
+[ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl),
+so is computed by symbolically differentiating the model.
+`ForwardDiff` might not be compatible with some floating point types, such as
+`Measurements` and Julia triggers an error that some overloaded
+models are ambiguous. 
+
+In such a case, set keyword argument `analytic=false` 
+and linearization is performed numerically with a central finite difference
+approximation using package [FiniteDiff](https://github.com/JuliaDiff/FiniteDiff.jl).
+
+Analytic linearization returns matrix `A` in full precision whereas numeric linearization
+returns `A` in reduced precision. You can improve this situation, by using a larger
+`FloatType` for `instantiatedModel` (see example below).
+
+# Output arguments
+
+- `A::Matrix`: Matrix A of the linear ODE: ``\\dot{\\Delta x} = A*\\Delta x``.
+
+- `finalStates::Vector`: Linearization point.
+
+
+# Example
+
+```julia
+using TinyModia
+using DoubleFloats
+using Measurements
+
+FirstOrder = Model(
+    T = 0.4 ± 0.04,
+    x = Var(init = 0.9 ± 0.09),
+    equations = :[u = inputSignal(time/u"s"),
+                  T * der(x) + x = u]
+)
+
+firstOrder1 = @instantiateModel(FirstOrder, FloatType = Measurement{Float64})
+
+# Standard precision
+(A1, finalStates1) = linearize!(firstOrder1, stopTime=0, analytic=false)
+
+# Higher precision
+firstOrder2 = SimulationModel{Measurement{Double64}}(firstOrder1)
+(A2, finalStates2) = linearize!(firstOrder2, stopTime=0, analytic=false)
+
+# Show results with 15 digits (default print with Measurements shows 3 digits)
+println(IOContext(stdout, :error_digits=>15), "A1 = ", A1)
+println(IOContext(stdout, :error_digits=>15), "A2 = ", A2)
+```
+"""
+function linearize!(m::Nothing, args...; kwargs...)
+    @info "The call of linearize!(..) is ignored, since the first argument is nothing."
+    return   nothing
+end
+function linearize!(m::SimulationModel{FloatType,TimeType}, args...; analytic=true, kwargs...) where {FloatType,TimeType}
+    solution = simulate!(m, args...; kwargs...)
+    finalStates = solution[:,end]
+    
+    # Function that shall be linearized
+    function modelToLinearize!(der_x, x)
+        Base.invokelatest(m.getDerivatives!, der_x, x, m, m.options.startTime)
+        return nothing
+    end
+    
+    # Linearize
+    if analytic
+        A = ForwardDiff.jacobian(modelToLinearize!, m.der_x, finalStates)
+    else
+        A = zeros(FloatType, length(finalStates), length(finalStates))
+        FiniteDiff.finite_difference_jacobian!(A, modelToLinearize!, finalStates)
+    end
+    
+    return (A, finalStates)
+end
+
+
 
 
 #---------------------------------------------------------------------

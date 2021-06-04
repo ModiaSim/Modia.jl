@@ -42,4 +42,20 @@ simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0, logParameters=true, 
 
 plot(twoInertiasAndIdealGear, ["phi2", "w2", "der(w2)"])
 
+# Linearize
+println("\n... Analytic linearization")
+(A1, x1) = linearize!(twoInertiasAndIdealGear, stopTime=4)
+xNames = get_xNames(twoInertiasAndIdealGear)
+@show xNames
+println(IOContext(stdout, :error_digits=>15), "A1 = ", A1, ", x1 = ", x1)
+
+println("\n... Numeric linearization with Float64")
+(A2, x2) = linearize!(twoInertiasAndIdealGear, stopTime=4, analytic=false)
+println(IOContext(stdout, :error_digits=>15), "A2 = ", A2, ", x2 = ", x2)
+
+println("\n... Numeric linearization with Double64")
+using DoubleFloats
+twoInertiasAndIdealGear2 = SimulationModel{Measurement{Double64}}(twoInertiasAndIdealGear)
+(A3, x3) = linearize!(twoInertiasAndIdealGear2, stopTime=3, analytic=false)
+println(IOContext(stdout, :error_digits=>15), "A3 = ", A3, ", x3 = ", x3)
 end

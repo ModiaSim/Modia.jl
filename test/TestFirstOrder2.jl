@@ -3,6 +3,7 @@ module TestFirstOrder2
 using TinyModia
 using DifferentialEquations
 using ModiaPlot
+using Test
 
 # using RuntimeGeneratedFunctions
 # RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -40,6 +41,21 @@ println()
 result3 = get_result(firstOrder, extraNames=["y"])
 @show(result3[1:10,:])
 
+# Linearize
+println("\n... Linearize at stopTime = 0 and 10:")
+(A_0 , x_0)  = linearize!(firstOrder, stopTime=0)
+(A_10, x_10) = linearize!(firstOrder, stopTime=10) 
+(A_10_numeric, x_10_numeric) = linearize!(firstOrder, stopTime=10, analytic=false) 
+xNames = get_xNames(firstOrder)
+@show xNames
+@show A_0 , x_0
+@show A_10, x_10
+@show A_10_numeric, x_10_numeric
+@test isapprox(A_0,[-1/0.4])
+@test isapprox(A_0, A_10)
+
+
 plot(result1, [("u", "x"), "der(x)", "y"])
+
 
 end

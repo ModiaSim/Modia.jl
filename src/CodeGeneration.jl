@@ -10,8 +10,9 @@ using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
 
 export SimulationModel, measurementToString, get_lastValue
-export positive, negative, change, edge, after, reinit, pre
+export positive, negative, previous, edge, after, reinit, pre
 export initial, terminal, isInitial, isTerminal
+export get_xNames
 export registerExtraSimulateKeywordArguments
 export get_extraSimulateKeywordArgumentsDict
 
@@ -702,6 +703,14 @@ function eventIteration!(m::SimulationModel{FloatType,TimeType}, x::Vector{Float
         
     return nothing
 end
+
+"""
+    get_xNames(instantiatedModel)
+    
+Return the names of the elements of the x-vector in a Vector{String}.
+"""
+get_xNames(m::SimulationModel) = ModiaBase.get_xNames(m.equationInfo)
+
 
 
 """
