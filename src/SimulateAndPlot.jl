@@ -261,7 +261,7 @@ By default, linearization is performed analytically with package
 so is computed by symbolically differentiating the model.
 `ForwardDiff` might not be compatible with some floating point types, such as
 `Measurements` and Julia triggers an error that some overloaded
-models are ambiguous. 
+operations are ambiguous. 
 
 In such a case, set keyword argument `analytic=false` 
 and linearization is performed numerically with a central finite difference
