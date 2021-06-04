@@ -58,4 +58,14 @@ xNames = get_xNames(firstOrder)
 plot(result1, [("u", "x"), "der(x)", "y"])
 
 
+FirstOrder3 = Model(
+    T = 2u"hr",
+    x = Var(init=1.0),
+    equations = :[u = if after(1.5u"hr"); 1.0 else 0.0 end,
+                  T * der(x) + x = u]
+)
+firstOrder3 = @instantiateModel(FirstOrder3, logCode=true)
+simulate!(firstOrder3, Tsit5(), stopTime = 10u"hr")
+plot(firstOrder3, [("u", "x"), "der(x)"], figure=2)
+
 end

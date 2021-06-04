@@ -418,6 +418,10 @@ function ModiaPlot.getRawSignal(m::SimulationModel, name)
     elseif haskey(m.variables, name)
         resIndex = m.variables[name]
         signal = ResultView(m.result, resIndex)       
+        if name == "time" && !(m.options.desiredResultTimeUnit == NoUnits ||
+                               m.options.desiredResultTimeUnit == u"s")
+            signal  = uconvert.(m.options.desiredResultTimeUnit, signal)
+        end
 #=        
         negAlias = false
         if resIndex < 0
@@ -528,6 +532,9 @@ end
   These keyword arguments are useful, if `dataFrame` shall be 
   utilized as reference result used in ModiaPlot.compareResults(..).
 
+In both cases, a **view** on the internal result memory is provided
+(so result data is not copied).
+
 # Example
 
 ```julia
@@ -621,9 +628,12 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
         end
         
     else
-    
         for (name, resIndex) in m.variables
-            dataFrame[!,name] = ResultView(m.result, resIndex) 
+            if name == "time"
+                dataFrame[!,name] = get_result(m, "time")  # Takes care of conversion to unit m.options.desiredResultTimeUnit
+            else
+                dataFrame[!,name] = ResultView(m.result, resIndex) 
+            end
         end
     
         zeroVariable = ModiaPlot.OneValueVector(0.0, length(m.result))
