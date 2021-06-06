@@ -30,6 +30,19 @@ using  Measurements
 import MonteCarloMeasurements
 using JSON
 
+export stripUnit
+"""
+    stripUnit(v)
+    
+Convert the unit of `v` to the preferred units (default are the SI units),
+and then strip the unit. For details see `upreferred` and `preferunits` in 
+[Unitful](https://painterqubits.github.io/Unitful.jl/stable/conversion/)
+
+The function is defined as: `stripUnit(v) = ustrip(upreferred.(v))`.
+"""
+stripUnit(v) = ustrip.(upreferred.(v))
+
+
 include("NamedTupleModels.jl")
 include("EvaluateParameters.jl")
 include("EventHandler.jl")
@@ -47,7 +60,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.7.3-dev"
-const Date = "2021-06-02"
+const Date = "2021-06-06"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")

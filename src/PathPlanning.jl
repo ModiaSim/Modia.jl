@@ -399,7 +399,7 @@ function getPath(path::PTP_path{FloatType}; names=path.names,
         qtd  = zeros(FloatType,length(path.names))
         qtdd = zeros(FloatType,length(path.names))
         for i in eachindex(time)
-            getPosition!(path, ustrip(time[i]), qt, qtd, qtdd)
+            getPosition!(path, stripUnit(time[i]), qt, qtd, qtdd)
             q[i,:]   = qt[indices]
             qd[i,:]  = qtd[indices]
             qdd[i,:] = qtdd[indices]

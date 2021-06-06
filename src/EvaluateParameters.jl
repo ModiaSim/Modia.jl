@@ -240,14 +240,13 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
                 end                    
                 x_found[j] = true
 
-                # Temporarily remove units from x_start
-                # (TODO: should first transform to the var_unit units and then remove)    
+                # Temporarily remove units from x_start  
                 if xe_info.length == 1
-                    x_start[xe_info.startIndex] = deepcopy( convert(FloatType, ustrip(x_value)) )
+                    x_start[xe_info.startIndex] = deepcopy( convert(FloatType, stripUnit(x_value)) )
                 else
                     ibeg = xe_info.startIndex - 1
                     for i = 1:xe_info.length
-                        x_start[ibeg+i] = deepcopy( convert(FloatType, ustrip(x_value[i])) )
+                        x_start[ibeg+i] = deepcopy( convert(FloatType, stripUnit(x_value[i])) )
                     end
                 end
                 

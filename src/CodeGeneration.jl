@@ -91,7 +91,7 @@ function get_x_start!(FloatType, equationInfo, parameters)
     
     # Temporarily remove units from x_start
     # (TODO: should first transform to the var_unit units and then remove)    
-    converted_x_start = convert(Vector{FloatType}, [ustrip(v) for v in x_start])  # ustrip.(x_start) does not work for MonteCarloMeasurements
+    converted_x_start = convert(Vector{FloatType}, [stripUnit(v) for v in x_start])  # stripUnit.(x_start) does not work for MonteCarloMeasurements
     x_start2 = deepcopy(converted_x_start)
     return x_start2
 end
@@ -123,7 +123,7 @@ converted to `TimeType` and returned. Otherwise `t` is converted to `TimeType` a
 convertTimeVariable(Float32, 2.0u"hr")  # = 7200.0f0
 ```
 """
-convertTimeVariable(TimeType, t) = typeof(t) <: Unitful.AbstractQuantity ? convert(TimeType, ustrip(uconvert(u"s", t))) : convert(TimeType, t)
+convertTimeVariable(TimeType, t) = typeof(t) <: Unitful.AbstractQuantity ? convert(TimeType, stripUnit(t)) : convert(TimeType, t)
 
 
 struct SimulationOptions{FloatType,TimeType}
@@ -584,7 +584,7 @@ function get_lastValue(m::SimulationModel, name::String; unit=true)
         end
     end
 
-    return unit ? value : ustrip(value)
+    return unit ? value : stripUnit(value)
 end
 
 
@@ -932,7 +932,7 @@ function init!(m::SimulationModel)::Bool
 
         for (name, valueBefore) in m.vSolvedWithInitValuesAndUnit
             valueAfterInit  = get_lastValue(m, name, unit=false)
-            valueBeforeInit = ustrip.(valueBefore)
+            valueBeforeInit = stripUnit.(valueBefore)
             if !isnothing(valueAfterInit) && abs(valueBeforeInit - valueAfterInit) >= max(abs(valueBeforeInit),abs(valueAfterInit),0.01*tolerance)*tolerance
                 push!(names, name)
                 push!(valuesBeforeInit, valueBeforeInit)
@@ -1219,7 +1219,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 push!(code_x, :( $x_name = _x[$indexRange]*@u_str($x_unit)) )
             end
             if hasUnits
-                push!(code_der_x, :( _der_x[$indexRange] = ustrip( $der_x_name )) )
+                push!(code_der_x, :( _der_x[$indexRange] = TinyModia.stripUnit( $der_x_name )) )
             else
                 push!(code_der_x, :( _der_x[$indexRange] = $der_x_name ))
             end
@@ -1231,25 +1231,25 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     timeName = variables[1]
     if hasUnits
-        code_time = :( $timeName = _time*u"s" )
+        code_time = :( $timeName = _time*upreferred(u"s") )
     else
         code_time = :( $timeName = _time )
     end
 
     # Code for previous
-    if length(previousVars) > 0
-        code_previous2 = Expr[]    
+    code_previous = []
+    if length(previousVars) > 0  
+        code_previous2 = Expr[]
         for (i, value) in enumerate(previousVars)
             previousName = previousVars[i]
             push!(code_previous2, :( _m.nextPrevious[$i] = $previousName ))        
         end
-        code_previous = quote
+        code_previous3 = quote
              if TinyModia.isFirstEventIteration(_m) && !TinyModia.isInitial(_m)
                  $(code_previous2...)
              end
         end
-    else
-        code_previous = :()
+        push!(code_previous, code_previous3)
     end
 
     # Code for pre
@@ -1271,7 +1271,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_x...)                  
                     $(AST...)
                     $(code_der_x...)
-                    $code_previous
+                    $(code_previous...)
                     $(code_pre...)
 
                     if _m.storeResult

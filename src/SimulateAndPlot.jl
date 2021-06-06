@@ -538,7 +538,7 @@ In both cases, a **view** on the internal result memory is provided
 # Example
 
 ```julia
-using ModiaBase
+using TinyModia
 using ModiaPlot
 using Unitful
 
@@ -555,7 +555,7 @@ phi  = get_result(pendulum, "phi")   # vector with unit u"rad"
 import PyPlot
 PyPlot.figure(4)   # Change to figure 4 (or create it, if it does not exist)
 PyPlot.clf()       # Clear current figure
-PyPlot.plot(ustrip(time), ustrip(phi), "b--", label="phi in " * string(unit(phi[1])))
+PyPlot.plot(stripUnit(time), stripUnit(phi), "b--", label="phi in " * string(unit(phi[1])))
 PyPlot.xlabel("time in " * string(unit(time[1])))
 PyPlot.legend()
 
@@ -578,7 +578,7 @@ function get_result(m::SimulationModel, name::String; unit=true)
         
     (isConstant, ysig) = ModiaPlot.getRawSignal(m, name)
 
-    ysig = unit ? ysig : ustrip.(ysig)
+    ysig = unit ? ysig : stripUnit.(ysig)
 
 
     #=
