@@ -44,8 +44,8 @@ plot(twoInertiasAndIdealGearWithUnits, ["phi2", "w2", "der(w2)"])
 
 # Linearize
 println("\n... Linearize at stopTime = 0 and 4")
-(A0, x0) = linearize!(twoInertiasAndIdealGearWithUnits, stopTime=0)
-(A1, x1) = linearize!(twoInertiasAndIdealGearWithUnits, stopTime=4) 
+(A0, x0) = linearize!(twoInertiasAndIdealGearWithUnits, stopTime=0, analytic = true)
+(A1, x1) = linearize!(twoInertiasAndIdealGearWithUnits, stopTime=4, analytic = true) 
 xNames = get_xNames(twoInertiasAndIdealGearWithUnits)
 @show xNames
 @show A0, x0

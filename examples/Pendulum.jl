@@ -38,10 +38,10 @@ plot(pendulum2, [("phi", "w"); "r"], figure = 2)
 using DoubleFloats
 using Measurements
 println("\n... Numerically linearize at stopTime = 10 with Float64 and Double64:")
-(A_10, x_10) = linearize!(pendulum2, stopTime=10, analytic=false) 
+(A_10, x_10) = linearize!(pendulum2, stopTime=10) 
 
 pendulum3 = SimulationModel{Measurement{Double64}}(pendulum2)
-(A_10_Double64, x_10_Double64) = linearize!(pendulum3, stopTime=10, analytic=false) 
+(A_10_Double64, x_10_Double64) = linearize!(pendulum3, stopTime=10) 
 
 xNames = get_xNames(pendulum2)
 @show xNames

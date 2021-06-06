@@ -44,7 +44,7 @@ plot(twoInertiasAndIdealGear, ["phi2", "w2", "der(w2)"])
 
 # Linearize
 println("\n... Analytic linearization")
-(A1, x1) = linearize!(twoInertiasAndIdealGear, stopTime=4)
+(A1, x1) = linearize!(twoInertiasAndIdealGear, stopTime=4, analytic = true)
 xNames = get_xNames(twoInertiasAndIdealGear)
 @show xNames
 println(IOContext(stdout, :error_digits=>15), "A1 = ", A1, ", x1 = ", x1)

@@ -43,8 +43,8 @@ result3 = get_result(firstOrder, extraNames=["y"])
 
 # Linearize
 println("\n... Linearize at stopTime = 0 and 10:")
-(A_0 , x_0)  = linearize!(firstOrder)
-(A_10, x_10) = linearize!(firstOrder, stopTime=10) 
+(A_0 , x_0)  = linearize!(firstOrder, analytic = true)
+(A_10, x_10) = linearize!(firstOrder, stopTime=10, analytic = true) 
 (A_10_numeric, x_10_numeric) = linearize!(firstOrder, stopTime=10, analytic=false) 
 xNames = get_xNames(firstOrder)
 @show xNames
