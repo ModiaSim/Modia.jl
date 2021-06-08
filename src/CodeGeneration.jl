@@ -143,9 +143,9 @@ struct SimulationOptions{FloatType,TimeType}
     requiredFinalStates::Union{Nothing, Vector{FloatType}}
     extra_kwargs::OrderedDict{Symbol,Any}
     
-    function SimulationOptions{FloatType,TimeType}(errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}  
-        success   = true
-        merge     = get(kwargs, :merge, NamedTuple())
+    function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}  
+        success   = true       
+        #merge     = get(kwargs, :merge, NamedTuple())
         tolerance = get(kwargs, :tolerance, 1e-6)
         if tolerance <= 0.0
             printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) must be > 0\n\n", bold=true, color=:red)
@@ -185,11 +185,14 @@ struct SimulationOptions{FloatType,TimeType}
             end
         end    
 
-        obj = new(merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
+        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
                   adaptive, log, logStates, logEvents, logParameters, logEvaluatedParameters,
                   requiredFinalStates, extra_kwargs)
         return success ? obj : nothing
-    end        
+    end
+
+    SimulationOptions{FloatType,TimeType}(; kwargs...) where {FloatType,TimeType} = 
+        SimulationOptions{FloatType,TimeType}(NamedTuple(); kwargs...)
 end
 
 

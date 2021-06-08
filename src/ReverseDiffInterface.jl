@@ -2,59 +2,43 @@ export ModiaProblem, ModiaSolve
 
 function ModiaProblem(m1::TinyModia.SimulationModel{FloatType1,FloatType1}, 
                       m2::TinyModia.SimulationModel{FloatType2,FloatType2};
-                      p,
-                      tolerance = 1e-6,
-                      startTime = 0.0,
-                      stopTime  = 1.0,
-                      interval  = NaN,
-                      merge     = nothing,
-                      log::Bool           = false,
-                      logStates::Bool     = false,
-                      logEvents::Bool     = false,
-                      logParameters::Bool = false,
-                      logEvaluatedParameters::Bool = false) where {FloatType1,FloatType2}
-   
-    # Store states x of m1 at communication points in the DifferentialEquations result data structure solution
-    m1.save_x_in_solution = true 
-    m2.save_x_in_solution = true
-    
+                      p, merge=nothing, kwargs...) where {FloatType1,FloatType2}
+
     TimeType1 = FloatType1
     TimeType2 = FloatType2
-
-    startTime2 = TinyModia.convertTimeVariable(TimeType1, startTime)
-    startTime3 = TinyModia.convertTimeVariable(TimeType2, startTime)
-
-    stopTime2  = TinyModia.convertTimeVariable(TimeType1, stopTime)
-    stopTime3  = TinyModia.convertTimeVariable(TimeType2, stopTime)
-
-    interval2  = TinyModia.convertTimeVariable(TimeType1, interval)
-    interval2  = isnan(interval2) ? (stopTime2 - startTime2)/500.0 : interval2
-
-
-    m1.startTime = startTime2
-    m1.stopTime  = stopTime2
-    m1.interval  = interval2
-
-    m2.startTime = startTime3
-    m2.stopTime  = stopTime3
-
-   	tspan   = (startTime2, stopTime2)
-
-    # Initialize/re-initialize SimulationModel
-    if log || logParameters || logEvaluatedParameters || logStates
-        println("... Construct simulation problem of DifferentialEquations.jl for ", m.modelName)
-    end
-     
-    success1 = TinyModia.init!(m1, tolerance, merge, log, logParameters, logEvaluatedParameters, logStates, logEvents)
-    if !success1|| m1.eventHandler.restart == TinyModia.Terminate
-        return nothing
-    end
-    
     merge2 = Map(p = parameter | convert(Vector{FloatType2}, p))
     if !isnothing(merge)
         merge2 = merge | merge2
     end
-    success2 = TinyModia.init!(m2, tolerance, merge2, log, logParameters, logEvaluatedParameters, logStates, logEvents)
+       
+    # Store states x of m1 at communication points in the DifferentialEquations result data structure solution
+    m1.save_x_in_solution = true 
+    m2.save_x_in_solution = true
+
+    # Save kwargs of ModiaProblem in simulation models
+    empty!(m1.result)
+    empty!(m2.result)    
+    options1 = SimulationOptions{FloatType1,TimeType1}(merge ; kwargs...)
+    options2 = SimulationOptions{FloatType2,TimeType2}(merge2; kwargs...)    
+    if isnothing(options1) || isnothing(options2)
+        return nothing
+    end
+    m1.options = options1
+    m2.options = options2        
+
+   	tspan = (options1.startTime, options1.stopTime)
+
+    # Initialize/re-initialize SimulationModel
+    if options1.log || options1.logParameters || options1.logEvaluatedParameters || options1.logStates
+        println("... Construct simulation problem of DifferentialEquations.jl for ", m.modelName)
+    end
+     
+    success1 = TinyModia.init!(m1)
+    if !success1|| m1.eventHandler.restart == TinyModia.Terminate
+        return nothing
+    end
+    
+    success2 = TinyModia.init!(m2)
     if !success2|| m2.eventHandler.restart == TinyModia.Terminate
         return nothing
     end
@@ -118,37 +102,37 @@ function ModiaProblem(m1::TinyModia.SimulationModel{FloatType1,FloatType1},
     #callback = DifferentialEquations.PresetTimeCallback((startTime2:interval:stopTime2), affect_outputs!)
 
     # Define problem and callbacks based on algorithm and model type
-    abstol = 0.1*tolerance
+    abstol = 0.1*options1.tolerance
     return DifferentialEquations.ODEProblem(p_derivatives!, m1.x_init, tspan, p;   # x_init
-             reltol=tolerance, abstol=abstol,      # callback = callback, 
-             modia_interval = interval2,
+             reltol=options1.tolerance, abstol=abstol,      # callback = callback, 
+             modia_interval = options1.interval,
              modia_instantiatedModel = m1)
 end
 
 
 function ModiaSolve(problem, algorithm=missing; p, adaptive::Bool = true)
 
-    startTime2 = problem.tspan[1]
-    stopTime2  = problem.tspan[2]
-    interval2  = problem.kwargs.data[:modia_interval]
-    m          = problem.kwargs.data[:modia_instantiatedModel]
+    startTime = problem.tspan[1]
+    stopTime  = problem.tspan[2]
+    interval  = problem.kwargs.data[:modia_interval]
+    m         = problem.kwargs.data[:modia_instantiatedModel]
     m.algorithmType = typeof(algorithm)
     
     # Define problem and callbacks based on algorithm and model type
-    if abs(interval2) < abs(stopTime2-startTime2)
-        tspan2 = startTime2:interval2:stopTime2
+    if abs(interval) < abs(stopTime-startTime)
+        tspan = startTime:interval:stopTime
     else
-        tspan2 = [startTime2, stopTime2]
+        tspan = [startTime, stopTime]
     end
 
     # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-    dt = adaptive ? interval2/10 : interval2    # initial step-size
+    dt = adaptive ? interval/10 : interval    # initial step-size
 
     # Compute solution
     solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, p=p,
-                                        saveat = tspan2, adaptive=adaptive, dt=dt) :
+                                        saveat = tspan, adaptive=adaptive, dt=dt) :
                                     DifferentialEquations.solve(problem, algorithm, p=p,
-                                        saveat = tspan2, adaptive=adaptive, dt=dt)
+                                        saveat = tspan, adaptive=adaptive, dt=dt)
     m.solution = solution
     return solution
 end
