@@ -27,7 +27,8 @@ function ModiaProblem(m1::TinyModia.SimulationModel{FloatType1,FloatType1},
     m2.options = options2        
 
    	tspan = (options1.startTime, options1.stopTime)
-
+    tspan_outputs = options1.startTime:options1.interval:options1.stopTime
+    
     # Initialize/re-initialize SimulationModel
     if options1.log || options1.logParameters || options1.logEvaluatedParameters || options1.logStates
         println("... Construct simulation problem of DifferentialEquations.jl for ", m.modelName)
@@ -43,42 +44,6 @@ function ModiaProblem(m1::TinyModia.SimulationModel{FloatType1,FloatType1},
         return nothing
     end
     
-#=    
-    # Change parameters p in m2 to FloatType2
-    m2.parameters = TinyModia.recursiveMerge(m2.parameters, Map(p = convert(Vector{FloatType2}, p)))
-    m2.evaluatedParameters = TinyModia.propagateEvaluateAndInstantiate!(m2.modelModule, m2.parameters, m2.equationInfo, m2.x_start)
-    if isnothing(m2.evaluatedParameters)
-        return false
-    end 
-    
-    function x_init(pp, t0::FloatType1)
-        if t0 <= 0.1
-            println("... init m1 called")
-        end    
-        success = TinyModia.init!(m1, tolerance, merge, log, logParameters, logEvaluatedParameters, logStates, logEvents)
-        if success 
-            return m1.x_init
-        else
-            return nothing
-        end
-    end
-    
-    function x_init(pp, t0::FloatType2)
-        if t0 <= 0.1
-            println("... init m2 called")
-        end       
-        success = TinyModia.init!(m2, tolerance, merge, log, logParameters, logEvaluatedParameters, logStates, logEvents)
-        if success 
-            return m2.x_init
-        else
-            return nothing
-        end
-    end    
-=#
-
-
-
-#    function p_derivatives!(der_x, x, p::Vector{FloatType1}, t::FloatType1)::Nothing
     function p_derivatives!(der_x, x, p, t::FloatType1)::Nothing 
         m1.evaluatedParameters.p .= p
         Base.invokelatest(m1.getDerivatives!, der_x, x, m1, t)
@@ -91,20 +56,33 @@ function ModiaProblem(m1::TinyModia.SimulationModel{FloatType1,FloatType1},
         return nothing
     end
 
-    #function affect_outputs!(integrator)::Nothing
-    #    if eltype(integrator.p) == FloatType1
-    #        m1.storeResult = true
-    #        Base.invokelatest(m1.getDerivatives!, m1.der_x, integrator.u, m1, integrator.t)
-    #        m1.storeResult = false
-    #    end
-    #    return nothing
-    #end
-    #callback = DifferentialEquations.PresetTimeCallback((startTime2:interval:stopTime2), affect_outputs!)
+    #= This call back gives an error:
+    # type TrackedAffect has no field funciter
+    function outputs!(x, t, integrator)::Nothing
+       if eltype(integrator.p) == FloatType1
+           m1.storeResult = true
+           p_derivatives!(m1.der_x, x, integrator.p, t)
+           m1.storeResult = false
+       end
+       return nothing
+    end
+    callback = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan_outputs)
+    =#
+    
+    function affect_outputs!(integrator)::Nothing
+       if eltype(integrator.p) == FloatType1
+           m1.storeResult = true
+           p_derivatives!(m1.der_x, integrator.u, integrator.p, integrator.t)
+           m1.storeResult = false
+       end
+       return nothing
+    end    
+    callback = DifferentialEquations.PresetTimeCallback(tspan_outputs, affect_outputs!)
 
     # Define problem and callbacks based on algorithm and model type
     abstol = 0.1*options1.tolerance
     return DifferentialEquations.ODEProblem(p_derivatives!, m1.x_init, tspan, p;   # x_init
-             reltol=options1.tolerance, abstol=abstol,      # callback = callback, 
+             reltol=options1.tolerance, abstol=abstol, callback = callback, 
              modia_interval = options1.interval,
              modia_instantiatedModel = m1)
 end

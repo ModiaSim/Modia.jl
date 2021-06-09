@@ -348,10 +348,8 @@ is defined in the TinyModia SimulationModel (generated with [`TinyModia.@instant
 that can be accessed and can be used for plotting.
 """
 ModiaPlot.hasSignal(m::SimulationModel, name) = 
-    m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
-        (haskey(m.variables, name) || 
-         name in m.zeroVariables ||
-         !ismissing(get_value(m.evaluatedParameters, name)))
+    # m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
+     haskey(m.variables, name) || name in m.zeroVariables || !ismissing(get_value(m.evaluatedParameters, name))
 
         
 """
@@ -362,14 +360,14 @@ Return the variable names (parameters, time-varying variables) of a TinyModia Si
 and can be used for plotting.
 """
 function ModiaPlot.getNames(m::SimulationModel)
-    if m.save_x_in_solution 
-        names = ["time"]
-        append!(names, collect( keys(m.equationInfo.x_dict) ))
-    else
+    #if m.save_x_in_solution 
+    #    names = ["time"]
+    #    append!(names, collect( keys(m.equationInfo.x_dict) ))
+    #else
         names = get_names(m.evaluatedParameters)
         append!(names, collect(m.zeroVariables))
         append!(names, collect( keys(m.variables) ) )
-    end
+    #end
     return sort(names)
 end
 
@@ -411,11 +409,14 @@ function ModiaPlot.getRawSignal(m::SimulationModel, name)
             @assert(xe_info.length == 1)   # temporarily only scalars are supported
             xe_index = xe_info.startIndex
             return (false, m.solution[xe_index,:])
-        else
-            error("getRawSignal(m, $name): only states can be inquired currently")
         end
         
-    elseif haskey(m.variables, name)
+        #else
+        #    error("getRawSignal(m, $name): only states can be inquired currently")
+        #end
+    end
+    
+    if haskey(m.variables, name)
         resIndex = m.variables[name]
         signal = ResultView(m.result, resIndex)       
         if name == "time" && !(m.options.desiredResultTimeUnit == NoUnits ||
@@ -608,9 +609,9 @@ function setEvaluatedParametersInDataFrame!(obj::NamedTuple, variables, dataFram
 end
 
 function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
-    if m.save_x_in_solution 
-        @error "get_result(instantiatedModel) not yet supported, if result is stored in DifferentialEquations.jl solution"
-    end
+    #if m.save_x_in_solution 
+    #    @error "get_result(instantiatedModel) not yet supported, if result is stored in DifferentialEquations.jl solution"
+    #end
         
     dataFrame = DataFrames.DataFrame()
     
