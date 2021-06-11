@@ -136,11 +136,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             
         if m.eventHandler.restart == Terminate
             finalStates = m.x_init
-            
-            # Store variables in result
-            m.storeResult = true
-            m.getDerivatives!(m.der_x, m.x_init, m, m.options.startTime)
-            m.storeResult = false
+            terminate!(m, finalStates, m.options.startTime)
 
         else
             # Define problem and callbacks based on algorithm and model type

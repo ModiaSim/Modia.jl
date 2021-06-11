@@ -975,7 +975,9 @@ Terminate model.
 function terminate!(m::SimulationModel, x, t)::Nothing
     eh = m.eventHandler
     eh.terminal = true
+    m.storeResult = true
     Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+    m.storeResult = false
     eh.terminal = false
     return nothing
 end
