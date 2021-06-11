@@ -322,7 +322,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         
         # Determine x_start and previous values
         nx = equationInfo.nx
-        x_start = Vector{FloatType}(undef,nx)
+        x_start = zeros(FloatType,nx)
         evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold) 
         if isnothing(evaluatedParameters)
             return nothing

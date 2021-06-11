@@ -74,18 +74,18 @@ connect = :[
 
 println("Build array of Cauer low pass filters")
 @time Filters = Model(
-    filters = [CauerLowPassOPVWithoutNodes(1) for i in 1:6]
+    filters = [CauerLowPassOPVWithoutNodes(1) for i in 1:5]
 )
 
-model = @instantiateModel(Filters, logDetails=false, logTiming=false, unitless=true)
+model = @instantiateModel(Filters, logDetails=false, logTiming=false, unitless=true,
+                                   logStateSelection=true)
 
 println("Simulate")
-@time simulate!(model, Tsit5(), stopTime = 60)
+@time simulate!(model, Tsit5(), stopTime = 60, log=true, logStates=true)
 plot(model, ("filters_1.C9.v", 
              "filters_2.C9.v",
              "filters_3.C9.v",
              "filters_4.C9.v",  
-             "filters_5.C9.v",    
-             "filters_6.C9.v",     
+             "filters_5.C9.v",        
              ) )
 end
