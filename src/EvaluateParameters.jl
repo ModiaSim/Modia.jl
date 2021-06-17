@@ -46,27 +46,28 @@ end
 =#
 
 
+const ModelType = NamedTuple
 
 appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(modelModule::Module, model, 
+    map = propagateEvaluateAndInstantiate!(modelModule::Module, parameters, EvaluatedParType,
                    eqInfo::ModiaBase.EquationInfo, x_start; log=false)
     
-Recursively traverse the hierarchical collection `model` and perform the following actions:
+Recursively traverse the hierarchical collection `parameters` and perform the following actions:
 
 - Propagate values.
 - Evaluate expressions in the context of `modelModule`.
 - Instantiate dependent objects.
 - Store start values of states with key x_name in x_start::Vector{FloatType} 
   (which has length eqInfo.nx).
-- Return the evaluated `model` as map::TinyModia.Map if successfully evaluated, and otherwise 
-  return nothing, if an error occured (an error message was printed).
+- Return the evaluated `parameters` as EvaluatedParType if successfully evaluated, and otherwise 
+  return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+function propagateEvaluateAndInstantiate!(modelModule, parameters, EvaluatedParType, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(modelModule, parameters, EvaluatedParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
     if isnothing(map)
         return nothing
     end
@@ -138,44 +139,44 @@ function propagateEvaluateAndInstantiate!(modelModule, model, eqInfo, x_start, p
     return map
 end
 
-        
-function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase.EquationInfo, 
+
+function propagateEvaluateAndInstantiate2!(modelModule, parameters, EvaluatedParType, eqInfo::ModiaBase.EquationInfo, 
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
                                            environment, path::String; log=false) where {FloatType}
     if log
-        println("\n!!! instantiate objects of $path: ", model)
+        println("\n!!! instantiate objects of $path: ", parameters)
     end
     current = OrderedDict()
     
-    # Determine, whether the "model" has a ":_constructor" key and handle this specially
+    # Determine, whether the "parameters" has a ":_constructor" key and handle this specially
     constructor = nothing
     usePath     = false
-    if haskey(model, :_constructor)
+    if haskey(parameters, :_constructor)
         # For example: obj = (class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
         #          or: rev = (_constructor = (class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)    
-        v = model[:_constructor]
-        if typeof(v) <: NamedTuple
+        v = parameters[:_constructor]
+        if typeof(v) <: ModelType
             constructor = v[:value]
             if haskey(v, :_path)
                 usePath = v[:_path]
             end
         else
             constructor = v
-            if haskey(model, :_path)
-                usePath = model[:_path]
+            if haskey(parameters, :_path)
+                usePath = parameters[:_path]
             end
         end
         
-    elseif haskey(model, :value)
+    elseif haskey(parameters, :value)
         # For example: p1 = (class = :Var, parameter = true, value = 0.2)
         #          or: p2 = (class = :Var, parameter = true, value = :(2*p1))
-        v = model[:value]
+        v = parameters[:value]
         veval = Core.eval(modelModule, subst(v, vcat(environment, [current]), modelModule))
         return veval
     end
     
-    for (k,v) in zip(keys(model), model)
+    for (k,v) in zip(keys(parameters), parameters)
         if log
             println("    ... key = $k, value = $v")
         end
@@ -183,9 +184,9 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
             nothing
             
         elseif !isnothing(constructor) && (k == :value || k == :init || k == :start)
-            error("value, init or start keys are not allowed in combination with a _constructor:\n$model")
+            error("value, init or start keys are not allowed in combination with a _constructor:\n$parameters")
             
-        elseif typeof(v) <: NamedTuple    
+        elseif typeof(v) <: ModelType   
             if haskey(v, :class) && v[:class] == :Par && haskey(v, :value)
                 # For example: k = (class = :Par, value = 2.0) -> k = 2.0
                 #          or: k = (class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )   
@@ -200,7 +201,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
                 end
             else
                 # For example: k = (a = 2.0, b = :(2*Lx))
-                value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
+                value = propagateEvaluateAndInstantiate2!(modelModule, v, EvaluatedParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                                           vcat(environment, [current]), appendKey(path, k); log=log)     
                 if isnothing(value)
                     return nothing
@@ -240,7 +241,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, model, eqInfo::ModiaBase
                 end                    
                 x_found[j] = true
 
-                # Temporarily remove units from x_start  
+                # Strip units from x_start  
                 if xe_info.length == 1
                     x_start[xe_info.startIndex] = deepcopy( convert(FloatType, stripUnit(x_value)) )
                 else
@@ -287,12 +288,12 @@ Search recursively in `evaluatedParameters` for a NamedTuple that has
 (nothing,nothing), where `obj` is the NamedTuple and `path` is the
 path::String path of  `obj`.
 """
-function getIdParameter(evaluatedParameters::NamedTuple, id::Int, path::String="")
+function getIdParameter(evaluatedParameters, id::Int, path::String="")
     if haskey(evaluatedParameters, :_id) && evaluatedParameters[:_id] == id
         return (evaluatedParameters, path)
     else
         for (key,value) in zip(keys(evaluatedParameters), evaluatedParameters)
-            if typeof(value) <: NamedTuple
+            if typeof(value) <: ModelType
                 result = getIdParameter(value, id, appendKey(path,key))
                 if !isnothing(result[1])
                     return result

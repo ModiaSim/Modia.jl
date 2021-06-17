@@ -112,7 +112,7 @@ function simulate!(m::Nothing, args...; kwargs...)
     @info "The call of simulate!(..) is ignored, since the first argument is nothing."
     return nothing
 end
-function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType}
+function simulate!(m::SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
         empty!(m.result)
         options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
         if isnothing(options)
