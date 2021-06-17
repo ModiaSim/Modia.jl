@@ -31,7 +31,7 @@ export Clock, sample, hold, previous
 Clock(interval, m::SimulationModel, nr::Int) = Clock(m.options.startTime, interval, m, nr)
 
 
-function Clock(startTime, interval, m::SimulationModel{FloatType,TimeType}, nr::Int)::Bool where {FloatType,TimeType}
+function Clock(startTime, interval, m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, nr::Int)::Bool where {FloatType,ParType,EvaluatedParType,TimeType}
 # Clock ticks at startTime, startTime + interval, startTime + 2*interval, ...
 # This is independent of the starTime of the simulation. Example:
 #   if startTime = -3, interval = 1.5, m.options.startTime = 1.0 then
@@ -71,7 +71,7 @@ function Clock(startTime, interval, m::SimulationModel{FloatType,TimeType}, nr::
 end
 
 
-@inline function sample(v, clock::Bool, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
+@inline function sample(v, clock::Bool, m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, nr::Int) where {FloatType,ParType,EvaluatedParType,TimeType}
     eh = m.eventHandler
     if isInitial(m) || clock
         eh.sample[nr] = v

@@ -198,7 +198,7 @@ end
 
 
 """
-    simulationModel = SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}(
+    simulationModel = SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(
             modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
             parameters, variableNames;
             vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}(),
@@ -219,7 +219,7 @@ end
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
-mutable struct SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}
+mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     modelModule::Module
     modelName::String
     options::SimulationOptions
@@ -264,7 +264,7 @@ mutable struct SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}
     save_x_in_solution::Bool                # = true, if the states are stored in solution
      
 
-    function SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
                                         nz::Int = 0,
@@ -272,7 +272,7 @@ mutable struct SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
-                                        var_name::Function       = v -> nothing) where {FloatType,TimeType,ParType,EvaluatedParType}                                        
+                                        var_name::Function       = v -> nothing) where {FloatType,ParType,EvaluatedParType,TimeType}                                        
         # Construct result dictionaries
         variables = OrderedDict{String,Int}()
         zeroVariables = OrderedSet{String}()
@@ -323,7 +323,7 @@ mutable struct SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}
         # Determine x_start and previous values
         nx = equationInfo.nx
         x_start = zeros(FloatType,nx)
-        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, EvaluatedParType, equationInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold) 
+        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, equationInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold) 
         if isnothing(evaluatedParameters)
             return nothing
         end
@@ -358,7 +358,7 @@ mutable struct SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}
     end
     
     
-    function SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}(m::SimulationModel) where {FloatType,TimeType,ParType,EvaluatedParType}       
+    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(m::SimulationModel) where {FloatType,ParType,EvaluatedParType,TimeType}      
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
         for leq in m.equationInfo.linearEquations
@@ -389,12 +389,18 @@ mutable struct SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}
 end
 
 # Default constructors
-SimulationModel(args...; kwargs...) = SimulationModel{Float64,Float64,NamedTupe,NamedTuple}(args...; kwargs...)
-  
-SimulationModel{Measurements.Measurement{T}}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},T,NamedTuple,NamedTuple}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.Particles{T,N},T,NamedTuple,NamedTuple}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},T,NamedTuple,NamedTuple}(args...; kwargs...)
-SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,FloatType,NamedTuple,NamedTuple}(args...; kwargs...)
+SimulationModel(args...; kwargs...) = SimulationModel{Float64,NamedTupe,NamedTuple,Float64}(args...; kwargs...)
+
+SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,NamedTuple,NamedTuple,FloatType}(args...; kwargs...)  
+SimulationModel{Measurements.Measurement{T}}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},NamedTuple,NamedTuple,T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.Particles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
+
+SimulationModel{FloatType,ParType}(args...; kwargs...) where {FloatType,ParType} = SimulationModel{FloatType,ParType,ParType,FloatType}(args...; kwargs...)  
+SimulationModel{Measurements.Measurement{T},ParType}(args...; kwargs...) where {T,ParType} = SimulationModel{Measurements.Measurement{T},ParType,ParType,T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType,ParType,T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType,ParType,T}(args...; kwargs...)
+
 
 positive(m::SimulationModel, args...; kwargs...) = TinyModia.positive!(m.eventHandler, args...; kwargs...)
 negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHandler, args...; kwargs...)
@@ -459,7 +465,7 @@ end
 Return the floating point type with which `simulationModel` is parameterized
 (for example returns: `Float64, Float32, DoubleFloat, Measurements.Measurement{Float64}`).
 """
-getFloatType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = FloatType
+getFloatType(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}) where {FloatType,ParType,EvaluatedParType,TimeType} = FloatType
 
 
 """
@@ -793,7 +799,7 @@ isTerminalOfAllSegments(m::SimulationModel)     = m.eventHandler.isTerminalOfAll
 
 At an event instant, set the next time event to `nextEventTime`.
 """
-setNextEvent!(m::SimulationModel{FloatType,TimeType}, nextEventTime) where {FloatType,TimeType} = 
+setNextEvent!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, nextEventTime) where {FloatType,ParType,EvaluatedParType,TimeType} = 
         setNextEvent!(m.eventHandler, convert(TimeType,nextEventTime)) 
 
 
@@ -855,7 +861,7 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
   
 If initialization is successful return true, otherwise false.
 """
-function init!(m::SimulationModel{FloatType,TimeType,ParType,EvaluatedParType})::Bool where {FloatType,TimeType,ParType,EvaluatedParType}
+function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType})::Bool where {FloatType,ParType,EvaluatedParType,TimeType}
     empty!(m.result)
     eh = m.eventHandler
     reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
@@ -867,7 +873,7 @@ function init!(m::SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}):
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters 
     if !isnothing(merge)
         m.parameters = recursiveMerge(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, EvaluatedParType, m.equationInfo, m.x_start, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, ParType, m.equationInfo, m.x_start, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
             return false
         end

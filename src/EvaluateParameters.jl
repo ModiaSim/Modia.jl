@@ -46,13 +46,11 @@ end
 =#
 
 
-const ModelType = NamedTuple
-
 appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(modelModule::Module, parameters, EvaluatedParType,
+    map = propagateEvaluateAndInstantiate!(modelModule::Module, parameters, ParType,
                    eqInfo::ModiaBase.EquationInfo, x_start; log=false)
     
 Recursively traverse the hierarchical collection `parameters` and perform the following actions:
@@ -62,12 +60,12 @@ Recursively traverse the hierarchical collection `parameters` and perform the fo
 - Instantiate dependent objects.
 - Store start values of states with key x_name in x_start::Vector{FloatType} 
   (which has length eqInfo.nx).
-- Return the evaluated `parameters` as EvaluatedParType if successfully evaluated, and otherwise 
+- Return the evaluated `parameters` as ParType if successfully evaluated, and otherwise 
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(modelModule, parameters, EvaluatedParType, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+function propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(modelModule, parameters, EvaluatedParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
     if isnothing(map)
         return nothing
     end
@@ -140,7 +138,7 @@ function propagateEvaluateAndInstantiate!(modelModule, parameters, EvaluatedParT
 end
 
 
-function propagateEvaluateAndInstantiate2!(modelModule, parameters, EvaluatedParType, eqInfo::ModiaBase.EquationInfo, 
+function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqInfo::ModiaBase.EquationInfo, 
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
                                            environment, path::String; log=false) where {FloatType}
@@ -156,7 +154,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, EvaluatedPar
         # For example: obj = (class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
         #          or: rev = (_constructor = (class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)    
         v = parameters[:_constructor]
-        if typeof(v) <: ModelType
+        if typeof(v) <: ParType
             constructor = v[:value]
             if haskey(v, :_path)
                 usePath = v[:_path]
@@ -186,7 +184,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, EvaluatedPar
         elseif !isnothing(constructor) && (k == :value || k == :init || k == :start)
             error("value, init or start keys are not allowed in combination with a _constructor:\n$parameters")
             
-        elseif typeof(v) <: ModelType   
+        elseif typeof(v) <: ParType   
             if haskey(v, :class) && v[:class] == :Par && haskey(v, :value)
                 # For example: k = (class = :Par, value = 2.0) -> k = 2.0
                 #          or: k = (class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )   
@@ -201,7 +199,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, EvaluatedPar
                 end
             else
                 # For example: k = (a = 2.0, b = :(2*Lx))
-                value = propagateEvaluateAndInstantiate2!(modelModule, v, EvaluatedParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
+                value = propagateEvaluateAndInstantiate2!(modelModule, v, ParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                                           vcat(environment, [current]), appendKey(path, k); log=log)     
                 if isnothing(value)
                     return nothing
@@ -293,7 +291,7 @@ function getIdParameter(evaluatedParameters, id::Int, path::String="")
         return (evaluatedParameters, path)
     else
         for (key,value) in zip(keys(evaluatedParameters), evaluatedParameters)
-            if typeof(value) <: ModelType
+            if typeof(value) <: ParType
                 result = getIdParameter(value, id, appendKey(path,key))
                 if !isnothing(result[1])
                     return result

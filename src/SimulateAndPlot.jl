@@ -112,7 +112,7 @@ function simulate!(m::Nothing, args...; kwargs...)
     @info "The call of simulate!(..) is ignored, since the first argument is nothing."
     return nothing
 end
-function simulate!(m::SimulationModel{FloatType,TimeType,ParType,EvaluatedParType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
+function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
         empty!(m.result)
         options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
         if isnothing(options)
@@ -307,8 +307,9 @@ function linearize!(m::Nothing, args...; kwargs...)
     @info "The call of linearize!(..) is ignored, since the first argument is nothing."
     return   nothing
 end
-function linearize!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
-                    merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,TimeType}
+function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, 
+                    algorithm=missing;
+                    merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,ParType,EvaluatedParType,TimeType}
     solution = simulate!(m, algorithm; merge=merge, stopTime=stopTime, kwargs...)
     finalStates = solution[:,end]
     
