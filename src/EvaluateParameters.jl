@@ -286,13 +286,13 @@ Search recursively in `evaluatedParameters` for a NamedTuple that has
 (nothing,nothing), where `obj` is the NamedTuple and `path` is the
 path::String path of  `obj`.
 """
-function getIdParameter(evaluatedParameters, id::Int, path::String="")
+function getIdParameter(evaluatedParameters, ParType, id::Int, path::String="")
     if haskey(evaluatedParameters, :_id) && evaluatedParameters[:_id] == id
         return (evaluatedParameters, path)
     else
         for (key,value) in zip(keys(evaluatedParameters), evaluatedParameters)
             if typeof(value) <: ParType
-                result = getIdParameter(value, id, appendKey(path,key))
+                result = getIdParameter(value, ParType, id, appendKey(path,key))
                 if !isnothing(result[1])
                     return result
                 end

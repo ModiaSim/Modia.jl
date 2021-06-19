@@ -1,7 +1,7 @@
 name = "TinyModia"
 uuid = "0169e107-af13-440d-89df-ca21e82123ce"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
-version = "0.7.3-dev"
+version = "0.8.0-dev"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
