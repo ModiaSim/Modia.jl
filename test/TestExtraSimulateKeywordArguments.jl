@@ -2,7 +2,7 @@ module TestExtraSimulateKeywordArguments
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 # Register extra simulate! keyword arguments
 registerExtraSimulateKeywordArguments([:dummy1, :dummy2, :dummy3])

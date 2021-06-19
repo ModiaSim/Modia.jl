@@ -2,7 +2,7 @@ module FilterCircuit
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 using Unitful
 
 setLogMerge(true)

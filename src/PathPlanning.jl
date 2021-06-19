@@ -39,7 +39,8 @@ a flange according to a given acceleration.
 
 # Example
 ```julia
-using TinyModia, ModiaPlot
+using TinyModia
+@usingModiaPlot
 
 const ptp_path = PTP_path(["angle1", "angle2", "angle3"],
                           positions = [0.0 2.0 3.0;  # angle1=0.0, angle2=2.0, angle3=3.0

@@ -1,12 +1,12 @@
 module TestVariables
 
 using TinyModia
-using ModiaPlot
+#@usingModiaPlot
 using Measurements
 using StaticArrays
 using Test
 
-@testset "... Test variable declarations" begin
+@testset "... Test variable declarations (TestVariables.jl)" begin
 
 v1 = input | output | flow | Var(min=0, nominal=10, init=5)
 @test v1 == (class = :Var, input = true, output = true, flow = true, min = 0, nominal = 10, init = 5)
@@ -53,11 +53,13 @@ TestVar1 = Model(
         der(x) = p*x+1
     ]
 )
+
 #@showModel TestVar1
 model = @instantiateModel(TestVar1, log=false, logCode=false)
+#=
 simulate!(model, merge=Map(p=-2, x=0.2), requiredFinalStates = [0.4593994150057028]) # x.init is not changed
 plot(model, "x")
-
+=#
 end
 
 end

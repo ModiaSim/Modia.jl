@@ -2,7 +2,7 @@ module TestSingularLRRL
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 SingularLRRL = Model(
     v0   = 10,

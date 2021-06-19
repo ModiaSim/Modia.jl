@@ -2,7 +2,7 @@ module TestSimpleStateEvents
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 
 SimpleStateEvents = Model(

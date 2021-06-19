@@ -2,7 +2,7 @@ module TestParameter
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 include("$(TinyModia.path)/models/Blocks.jl")
 
 

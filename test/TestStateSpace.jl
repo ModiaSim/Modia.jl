@@ -1,7 +1,7 @@
 module TestStateSpace
 
 using TinyModia
-using ModiaPlot
+@usingModiaPlot
 using DifferentialEquations
 
 include("$(TinyModia.path)/models/Blocks.jl")

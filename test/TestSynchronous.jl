@@ -2,7 +2,8 @@ module TestSynchronous
 
 #println("\nSynchronousExamples: Demonstrating the ability to simulate models with synchronous semantics")
 
-using TinyModia, ModiaPlot
+using TinyModia
+@usingModiaPlot
 using DifferentialEquations
 
 

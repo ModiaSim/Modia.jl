@@ -1,6 +1,7 @@
 module PendulumSimulation
 
-using TinyModia, Unitful, ModiaPlot
+using TinyModia, Unitful
+@usingModiaPlot
 using DifferentialEquations
 
 Pendulum = Model(

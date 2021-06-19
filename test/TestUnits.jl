@@ -2,7 +2,7 @@ module TestUnits
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 using Test
 using Unitful
 

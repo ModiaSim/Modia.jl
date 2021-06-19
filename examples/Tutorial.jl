@@ -1,10 +1,12 @@
 module Tutorial
 
-using Modia, ModiaPlot
+using Modia
+@usingModiaPlot
 
 # 1 Getting started
 
-using Modia, ModiaPlot
+using Modia
+@usingModiaPlot
 
 # Define model
 SimpleModel = Model(

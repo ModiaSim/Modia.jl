@@ -2,7 +2,7 @@ module TestTwoInertiasAndIdealGear
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 using Unitful
 using Test
 

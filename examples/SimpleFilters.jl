@@ -2,7 +2,7 @@ module SimpleFilters
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 SimpleModel = Model(
     T = 0.2,

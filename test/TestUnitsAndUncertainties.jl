@@ -2,7 +2,7 @@ module TestUnitsAndUncertainites
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 using Measurements
 using Unitful
 

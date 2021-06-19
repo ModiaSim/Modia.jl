@@ -1,7 +1,17 @@
 
 export simulate!, linearize!, get_result
+export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
+export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
+export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
 
-using  ModiaPlot
+# For backwards compatibility
+export getNames, hasName
+
+import ModiaResult
+import ModiaResult: @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
+import ModiaResult: resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
+import ModiaResult: signalNames, timeSignalName, hasOneTimeSignal, hasSignal
+
 import ModiaBase
 using  Measurements
 import MonteCarloMeasurements
@@ -29,7 +39,7 @@ Simulate `instantiatedModel::SimulationModel` with `algorithm`
 If the `algorithm` argument is missing, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
 
-The simulation results stored in `model` can be plotted with ModiaPlot.plot and the result values
+The simulation results stored in `model` can be plotted with plot and the result values
 can be retrieved with [`get_result`](@ref).
 
 
@@ -59,8 +69,9 @@ can be retrieved with [`get_result`](@ref).
 # Examples
 
 ```julia
-using ModiaPlot
+using TinyModia
 using DifferentialEquations
+using @usingModiaPlot
 
 # Define model
 inputSignal(t) = sin(t)
@@ -331,42 +342,50 @@ function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTy
 end
 
 
+#------------------------------------------------------------------------------------------------
+#        Provide the overloaded ModiaResult Abstract Interface for the results of SimulationModel
+#------------------------------------------------------------------------------------------------
 
+ModiaResult.timeSignalName(  m::SimulationModel) = "time"
+ModiaResult.hasOneTimeSignal(m::SimulationModel) = false
 
-#---------------------------------------------------------------------
-#        Provide ModiaPlot result access functions for SimulationModel
-#---------------------------------------------------------------------
 
 """
-    ModiaPlot.hasSignal(model::SimulationModel, name::String)
+    hasSignal(instantiatedModel, name::AbstractString)
     
-Return true if parameter or time-varying variable `name` (for example `a.b.c`)
-is defined in the TinyModia SimulationModel (generated with [`TinyModia.@instantiateModel`](@ref)
-that can be accessed and can be used for plotting.
+Return true if parameter or time-varying variable `name` (for example `name = "a.b.c"`)
+is defined in the [`@instantiateModel`](@ref) that can be accessed and can be used for plotting.
 """
-ModiaPlot.hasSignal(m::SimulationModel, name) = 
+ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = 
     # m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
      haskey(m.variables, name) || name in m.zeroVariables || !ismissing(get_value(m.evaluatedParameters, name))
 
-        
+# For backwards compatibility
+hasName(m::SimulationModel, name::AbstractString) = ModiaResult.hasSignal(m,name)
+
+
+
 """
-    ModiaPlot.getNames(model::SimulationModel)
+    signalNames(instantiatedModel)
     
-Return the variable names (parameters, time-varying variables) of a TinyModia SimulationModel
-(generated with [`TinyModia.@instantiateModel`](@ref) that can be accessed
-and can be used for plotting.
+Return the variable names (parameters, time-varying variables) of an
+[`@instantiateModel`](@ref) that can be accessed and can be used for plotting.
 """
-function ModiaPlot.getNames(m::SimulationModel)
+function ModiaResult.signalNames(m::SimulationModel)
     #if m.save_x_in_solution 
     #    names = ["time"]
     #    append!(names, collect( keys(m.equationInfo.x_dict) ))
     #else
-        names = get_names(m.evaluatedParameters)
-        append!(names, collect(m.zeroVariables))
-        append!(names, collect( keys(m.variables) ) )
+        all_names = get_names(m.evaluatedParameters)
+        append!(all_names, collect(m.zeroVariables))
+        append!(all_names, collect( keys(m.variables) ) )
     #end
-    return sort(names)
+    sort!(all_names)
+    return all_names 
 end
+
+# For backwards compatibility
+getNames(m::SimulationModel) = ModiaResult.signalNames(m)
 
 
 
@@ -396,24 +415,30 @@ function ChainRules.rrule(::typeof(ResultView), v, i)
 end
 =#
 
-
-function ModiaPlot.getRawSignal(m::SimulationModel, name)
+function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
     if m.save_x_in_solution 
         if name == "time"
-            return (false, m.solution.t)
+            return ([m.solution.t], [m.solution.t], ModiaResult.Independent)
         elseif haskey(m.equationInfo.x_dict, name)
             xe_info = m.equationInfo.x_info[ m.equationInfo.x_dict[name] ]
+            
             @assert(xe_info.length == 1)   # temporarily only scalars are supported
             xe_index = xe_info.startIndex
-            return (false, m.solution[xe_index,:])
+            return ([m.solution.t], [m.solution[xe_index,:]], ModiaResult.Continuous)
+            
+            #signal = ModiaResult.FlattendVector(m.solution.u, xe_info.startIndex, xe_info.startIndex+xe_info.length-1)
+            #return ([m.solution.t], [signal], ModiaResult.Continuous)
         end
         
         #else
-        #    error("getRawSignal(m, $name): only states can be inquired currently")
+        #    error("rawSignal(m, $name): only states can be inquired currently")
         #end
     end
     
-    if haskey(m.variables, name)
+    tIndex = m.variables["time"]
+    tsig   = ResultView(m.result, tIndex)      
+   
+   if haskey(m.variables, name)
         resIndex = m.variables[name]
         signal = ResultView(m.result, resIndex)       
         if name == "time" && !(m.options.desiredResultTimeUnit == NoUnits ||
@@ -436,19 +461,24 @@ function ModiaPlot.getRawSignal(m::SimulationModel, name)
             signal .= -signal
         end
 =#
-        return (false, signal)
+        return ([tsig], [signal], name == "time" ? ModiaResult.Independent : ModiaResult.Continuous)
         
     elseif name in m.zeroVariables
-        return (true, 0.0)
+        tsig2  = [tsig[1], tsig[end]]
+        signal = [0.0, 0.0] 
+        return ([tsig2], [signal], name == "time" ? ModiaResult.Independent : ModiaResult.Continuous)
 
     else
         value = get_value(m.evaluatedParameters, name)
         if ismissing(value)
-            error("ModiaPlot.getRawSignal: ", name, " not in result of model ", m.modelName)
+            error("ModiaResult.rawSignal: ", name, " not in result of model ", m.modelName)
         end
-        return (true, value)
+        tsig2  = [tsig[1], tsig[end]]
+        signal = [value, value]         
+        return ([tsig2], [signal], name == "time" ? ModiaResult.Independent : ModiaResult.Continuous)
     end
 end
+
 
 
 
@@ -464,7 +494,7 @@ get_leaveName(pathName::String) =
     end
 
 
-function ModiaPlot.getDefaultHeading(m::SimulationModel)
+function ModiaResult.defaultHeading(m::SimulationModel)
     FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
 
     if ismissing(m.algorithmType)
@@ -508,6 +538,9 @@ function ModiaPlot.getDefaultHeading(m::SimulationModel)
 end
 
 
+
+# For backwards compatibility
+
 """
     signal    = get_result(instantiatedModel, name; unit=true)
     dataFrame = get_result(instantiatedModel; onlyStates=false, extraNames=missing)
@@ -520,15 +553,15 @@ end
 - Second form: Return the **complete result** in form of a DataFrame object.
   Therefore, the whole functionality of package [DataFrames](https://dataframes.juliadata.org/stable/) 
   can be used, including storing the result on file in different formats.
-  Furthermore, also ModiaPlot.plot can be used on dataFrame.
-  Parameters and zero-value variables are stored as ModiaPlot.OneValueVector inside dataFrame
+  Furthermore, also plot can be used on dataFrame.
+  Parameters and zero-value variables are stored as ModiaResult.OneValueVector inside dataFrame
   (are treated as vectors, but actually only the value and the number
   of time points is stored). If `onlyStates=true`, then only the states and the signals
   identified with `extraNames::Vector{String}` are stored in `dataFrame`. 
   If `onlyStates=false` and `extraNames` given, then only the signals 
   identified with `extraNames` are stored in `dataFrame`.
   These keyword arguments are useful, if `dataFrame` shall be 
-  utilized as reference result used in ModiaPlot.compareResults(..).
+  utilized as reference result used in compareResults(..).
 
 In both cases, a **view** on the internal result memory is provided
 (so result data is not copied).
@@ -537,7 +570,7 @@ In both cases, a **view** on the internal result memory is provided
 
 ```julia
 using TinyModia
-using ModiaPlot
+@usingModiaPlot
 using Unitful
 
 include("\$(ModiaBase.path)/demos/models/Model_Pendulum.jl")
@@ -559,26 +592,25 @@ PyPlot.legend()
 
 # Get complete result and plot one signal
 result = get_result(pendulum)
-ModiaPlot.plot(result, "phi")
+plot(result, "phi")
 
 # Get only states to be used as reference and compare result with reference
 reference = get_result(pendulum, onlyStates=true)
 (success, diff, diff_names, max_error, within_tolerance) = 
-    ModiaPlot.compareResults(result, reference, tolerance=0.01)
+    ModiaResult.compareResults(result, reference, tolerance=0.01)
 println("Check results: success = $success")
 ```
 """
-function get_result(m::SimulationModel, name::String; unit=true)
-    #(xsig, xsigLegend, ysig, ysigLegend, yIsConstant) = ModiaPlot.getPlotSignal(m, "time", name)
+function get_result(m::SimulationModel, name::AbstractString; unit=true)
+    #(xsig, xsigLegend, ysig, ysigLegend, yIsConstant) = ModiaResult.getPlotSignal(m, "time", name)
 
     #resIndex = m.variables[name]
     #ysig = ResultView(m.result, abs(resIndex), resIndex < 0)
-        
-    (isConstant, ysig) = ModiaPlot.getRawSignal(m, name)
 
+    (tsig2, ysig2, ysigType) = ModiaResult.rawSignal(m, name)
+    ysig = ysig2[1]
     ysig = unit ? ysig : stripUnit.(ysig)
-
-
+    
     #=
     if yIsConstant
         if ndims(ysig) == 1
@@ -599,7 +631,7 @@ function setEvaluatedParametersInDataFrame!(obj::NamedTuple, variables, dataFram
         if typeof(value) <: NamedTuple
             setEvaluatedParametersInDataFrame!(value, variables, dataFrame, name, nResult)
         elseif !haskey(variables, name)
-            dataFrame[!,name] = ModiaPlot.OneValueVector(value,nResult)
+            dataFrame[!,name] = ModiaResult.OneValueVector(value,nResult)
         end
     end
     return nothing
@@ -634,7 +666,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
             end
         end
     
-        zeroVariable = ModiaPlot.OneValueVector(0.0, length(m.result))
+        zeroVariable = ModiaResult.OneValueVector(0.0, length(m.result))
         for name in m.zeroVariables
             dataFrame[!,name] = zeroVariable
         end

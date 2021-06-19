@@ -8,7 +8,7 @@ include("../models/Rotational.jl")
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 using Measurements
 
 export MotorControl2

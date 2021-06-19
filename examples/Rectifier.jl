@@ -2,7 +2,7 @@ module RectifierSimulation
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 setLogMerge(false)
 

@@ -2,7 +2,7 @@ module TestSource
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 
 

@@ -2,7 +2,8 @@ module TestAsynchronous
 
 #println("\nAsynchronousExamples: Demonstrating the ability to simulate models with asynchronous semantics")
 
-using TinyModia, ModiaPlot
+using TinyModia
+@usingModiaPlot
 using DifferentialEquations
 
 BooleanPulse1 = Model(

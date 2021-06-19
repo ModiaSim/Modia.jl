@@ -2,7 +2,7 @@ module TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 using MonteCarloMeasurements
 using Distributions
 using Unitful

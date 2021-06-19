@@ -2,7 +2,7 @@ module BouncingBallSimulation
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 BouncingBall = Model(
     e = 0.7,

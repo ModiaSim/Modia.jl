@@ -3,7 +3,7 @@ module CauerLowPassFilterModel
 using TinyModia
 
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 include("../models/Electric.jl")
 

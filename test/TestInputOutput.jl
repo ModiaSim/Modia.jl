@@ -2,7 +2,7 @@ module TestInputOutput
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 FirstOrder = Model(
     T = 0.2,

@@ -4,7 +4,7 @@ println("TestMechanics: Tests how 3D mechanics could be combined with TinyModia.
 
 using TinyModia
 using Unitful
-using ModiaPlot
+@usingModiaPlot
 using DifferentialEquations
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)

@@ -2,7 +2,7 @@ module TestFirstOrder
 
 using TinyModia
 using DifferentialEquations
-using ModiaPlot
+@usingModiaPlot
 
 # using RuntimeGeneratedFunctions
 # RuntimeGeneratedFunctions.init(@__MODULE__)

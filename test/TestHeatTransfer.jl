@@ -2,7 +2,7 @@ module TestHeatTransfer
 
 using TinyModia
 using Unitful
-using ModiaPlot
+@usingModiaPlot
 using DifferentialEquations
 
 include("$(TinyModia.path)/models/HeatTransfer.jl")
