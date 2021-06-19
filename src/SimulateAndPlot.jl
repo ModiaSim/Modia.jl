@@ -242,7 +242,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                     println(  "\nrequiredFinalStates = ", requiredFinalStates)
                     printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
                 end
-                @test finalStates == requiredFinalStates  #|| isapprox(finalStates, requiredFinalStates, rtol=1e-3)
+                @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
             end
         end
         return solution

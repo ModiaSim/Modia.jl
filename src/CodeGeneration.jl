@@ -98,7 +98,8 @@ end
 =#
 
 const BasicSimulationKeywordArguments = OrderedSet{Symbol}(
-        [:merge, :tolerance, :startTime, :stopTime, :interval, :interp_points, :adaptive, :log, :logStates, :logEvents, :logParameters, :logEvaluatedParameters, :requiredFinalStates])
+        [:merge, :tolerance, :startTime, :stopTime, :interval, :interp_points, :adaptive, :log, :logStates, :logEvents, 
+         :logParameters, :logEvaluatedParameters, :requiredFinalStates, :requiredFinalStates_rtol])
 const RegisteredExtraSimulateKeywordArguments = OrderedSet{Symbol}()
 
 function registerExtraSimulateKeywordArguments(keys)::Nothing
