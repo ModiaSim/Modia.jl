@@ -141,6 +141,7 @@ struct SimulationOptions{FloatType,TimeType}
     logParameters::Bool
     logEvaluatedParameters::Bool
     requiredFinalStates::Union{Nothing, Vector{FloatType}}
+    requiredFinalStates_rtol::Float64
     extra_kwargs::OrderedDict{Symbol,Any}
     
     function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}  
@@ -169,9 +170,9 @@ struct SimulationOptions{FloatType,TimeType}
         logStates     = get(kwargs, :logStates    , false)
         logEvents     = get(kwargs, :logEvents    , false)
         logParameters = get(kwargs, :logParameters, false)
-        logEvaluatedParameters = get(kwargs, :logEvaluatedParameters, false)
-        requiredFinalStates    = get(kwargs, :requiredFinalStates, nothing)
-
+        logEvaluatedParameters   = get(kwargs, :logEvaluatedParameters, false)
+        requiredFinalStates      = get(kwargs, :requiredFinalStates, nothing)
+        requiredFinalStates_rtol = get(kwargs, :requiredFinalStates_rtol, 1e-3)
         extra_kwargs = OrderedDict{Symbol,Any}()        
         for option in kwargs
             key = option.first
@@ -187,7 +188,7 @@ struct SimulationOptions{FloatType,TimeType}
 
         obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
                   adaptive, log, logStates, logEvents, logParameters, logEvaluatedParameters,
-                  requiredFinalStates, extra_kwargs)
+                  requiredFinalStates, requiredFinalStates_rtol, extra_kwargs)
         return success ? obj : nothing
     end
 

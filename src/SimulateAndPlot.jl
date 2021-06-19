@@ -229,7 +229,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             if length(finalStates) != length(requiredFinalStates)
                 success = false
             else
-                success = finalStates == requiredFinalStates || isapprox(finalStates, requiredFinalStates, rtol=1e-3)
+                success = finalStates == requiredFinalStates || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
             end
 
             if success
