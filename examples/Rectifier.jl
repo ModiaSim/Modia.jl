@@ -65,8 +65,10 @@ Rectifier2 = Model(
 )
 
 rectifier2 = @instantiateModel(Rectifier2, unitless=true)
-@time simulate!(rectifier2, Tsit5(), stopTime = 0.1, requiredFinalStates=[183.9899542497182])
+@time simulate!(rectifier2, Tsit5(), stopTime = 0.1, log=true, requiredFinalStates=[183.9899542497182])
 plot(rectifier2, [("V.v", "C.v"), "V.i"], figure=2)
 
+@time simulate!(rectifier2, stopTime = 0.1, log=true)  #, requiredFinalStates=[183.9899542497182])
+plot(rectifier2, [("V.v", "C.v"), "V.i"], figure=3)
 
 end

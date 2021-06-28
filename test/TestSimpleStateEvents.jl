@@ -14,6 +14,10 @@ SimpleStateEvents = Model(
     v    = Var(init = 0.0),
     equations = :[
         sPos = positive(s)
+        s2 = 2*s
+        sPos2 = positive(s2)
+        s3 = 3*s
+        sPos3 = positive(s3)
         f = if sPos; 0.0 else fmax end   # or: f = sPos ? 0.0 : fmax
         v = der(s)
         m*der(v) + d*v + k*s = f

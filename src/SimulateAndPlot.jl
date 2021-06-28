@@ -17,6 +17,7 @@ using  Measurements
 import MonteCarloMeasurements
 using  Unitful
 using  Test
+import Sundials
 import DifferentialEquations
 import DataFrames
 import ForwardDiff
@@ -30,18 +31,19 @@ import FiniteDiff
 """
     simulate!(instantiatedModel [, algorithm]; merge = nothing,
               tolerance = 1e-6, startTime = 0.0, stopTime = 1.0, interval = NaN,
-              interp_points = 0, adaptive = true, log = false, logStates = false,
+              interp_points = 0, dtmax = missing, adaptive = true, log = false, logStates = false,
               logEvents = false, logParameters = false, logEvaluatedParameters = false, 
               requiredFinalStates = nothing)
 
 Simulate `instantiatedModel::SimulationModel` with `algorithm`
 (= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)).
-If the `algorithm` argument is missing, a default algorithm will be chosen from DifferentialEquations
+
+If the `algorithm` argument is missing, `algorithm=Sundials.CVODE_BDF()` is used, provided
+instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
 
 The simulation results stored in `model` can be plotted with plot and the result values
 can be retrieved with [`get_result`](@ref).
-
 
 # Optional Arguments
 
@@ -55,6 +57,7 @@ can be retrieved with [`get_result`](@ref).
               If value is without unit, it is assumed to have unit [s].
 - `interp_points`: If crossing functions defined, number of additional interpolation points
               in one step.
+- `dtmax`: Maximum step size. If `dtmax==missing`, it is internally set to `100*interval`.
 - `adaptive`: = true, if the `algorithm` should use step-size control (if available).
               = false, if the `algorithm` should use a fixed step-size of `interval` (if available).
 - `log`: = true, to log the simulation.
@@ -124,12 +127,14 @@ function simulate!(m::Nothing, args...; kwargs...)
     return nothing
 end
 function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
-        empty!(m.result)
         options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
         if isnothing(options)
             return nothing
         end
         m.options = options
+        if ismissing(algorithm) && FloatType == Float64
+            algorithm = Sundials.CVODE_BDF()
+        end
 
         # Initialize/re-initialize SimulationModel
         if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
@@ -144,56 +149,83 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         if !success
             return nothing
         end
-            
-        if m.eventHandler.restart == Terminate
-            finalStates = m.x_init
-            terminate!(m, finalStates, m.options.startTime)
 
+        # Define problem and callbacks based on algorithm and model type
+        interval = m.options.interval
+        if  abs(m.options.stopTime - m.options.startTime) <= 0
+            interval = 1.0
+            tspan2   = [m.options.startTime]
+        elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
+            tspan2 = m.options.startTime:m.options.interval:m.options.stopTime 
         else
-            # Define problem and callbacks based on algorithm and model type
-            if abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
-                tspan2 = m.options.startTime:m.options.interval:m.options.stopTime
-            else
-                tspan2 = [m.options.startTime, m.options.stopTime]
-            end
-           	tspan   = (m.options.startTime, m.options.stopTime)            
-            abstol  = 0.1*m.options.tolerance
-            problem = DifferentialEquations.ODEProblem(derivatives!, m.x_init, tspan, m) 
-            
-            callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)   
-            eh = m.eventHandler            
-            if eh.nz > 0        
-                # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
-                # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
-                # A temporary fix is to use time events at the communication points, but this slows down simulation.
-                callback1 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)  
-                callback3 = DifferentialEquations.VectorContinuousCallback(stateEventCondition!, 
-                                 affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                       
-                callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)
-            else
-                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2, tdir=sign(m.options.stopTime-m.options.startTime))
-                callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
-            end
+            tspan2 = [m.options.startTime, m.options.stopTime]
+        end
+        tspan   = (m.options.startTime, m.options.stopTime)         
+        problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
+        
+        callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)   
+        eh = m.eventHandler            
+        if eh.nz > 0        
+            #println("\n!!! Callback set with crossing functions")
+            # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
+            # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
+            # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
+            # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
+            callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
+            callback3 = DifferentialEquations.VectorContinuousCallback(stateEventCondition!, 
+                             affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                                   
+            #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) 
+            callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
+        else
+            #println("\n!!! Callback set without crossing functions")        
+            callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2)
+            callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
+        end
     
-            # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-            dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
+        # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
+        if !ismissing(algorithm) && typeof(algorithm) <: Sundials.CVODE_BDF
+            cvode_bdf = true
+        else
+            cvode_bdf = false
+            dt    = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
+        end
+        
+        # Compute solution 
+        abstol = 0.1*m.options.tolerance
+        tstops = (m.eventHandler.nextEventTime,)
+
+        if ismissing(algorithm)
+            solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                   callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
+        elseif cvode_bdf
+            solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                   callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops)
+        else
+            solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                   callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
+        end
+        
+        # Compute and store outputs from last event until final time
+        sol_t = solution.t
+        sol_x = solution.u
+        m.storeResult = true        
+        for i = length(m.result_vars)+1:length(sol_t)
+            Base.invokelatest(m.getDerivatives!, m.der_x, sol_x[i], m, sol_t[i])
+        end
+        m.storeResult = false
     
-            # Compute solution 
-            tstops = (m.eventHandler.nextEventTime,)
-            solution = ismissing(algorithm) ? DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol,
-                                                save_everystep=false, save_start=false, save_end=true,
-                                                callback=callbacks, adaptive=m.options.adaptive, dt=dt, tstops = tstops) :
-                                            DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol,
-                                                save_everystep=false, save_start=false, save_end=true,
-                                                callback=callbacks, adaptive=m.options.adaptive, dt=dt, tstops = tstops)
-            m.solution = solution
-            if ismissing(algorithm)
-                m.algorithmType = typeof(solution.alg)
-            end
+        # Final update of instantiatedModel
+        m.result_x = solution
+        if ismissing(algorithm)
+            m.algorithmType = typeof(solution.alg)
+        end
     
-            # Terminate simulation
-            finalStates = solution[:,end]
-            terminate!(m, finalStates, solution.t[end])
+        # Terminate simulation
+        finalStates = solution.u[end]
+        finalTime   = solution.t[end]
+        terminate!(m, finalStates, finalTime)
+        if !m.success
+            return nothing
         end
         
         if m.options.log
@@ -201,21 +233,21 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             cpuTimeIntegration    = convert(Float64, (time_ns() - cpuStartIntegration) * 1e-9)
             cpuTime               = cpuTimeInitialization + cpuTimeIntegration
 
-            println("      Termination at time = ", solution.t[end], " s")
+            println("      Termination at time = ", finalTime, " s")
             println("        cpuTime         = ", round(cpuTime, sigdigits=3), " s")
             #println("        cpuTime         = ", round(cpuTime              , sigdigits=3), " s (init: ",
             #                                      round(cpuTimeInitialization, sigdigits=3), " s, integration: ",
             #                                      round(cpuTimeIntegration   , sigdigits=3), " s)")
-            println("        algorithm       = ", m.algorithmType == Nothing ? Nothing : solution.alg)
+            println("        algorithm       = ", get_algorithmName(m))
             println("        FloatType       = ", FloatType)
             println("        interval        = ", m.options.interval, " s")
             println("        tolerance       = ", m.options.tolerance, " (relative tolerance)")
             println("        nEquations      = ", length(m.x_start))
-            println("        nResults        = ", length(m.result))
+            println("        nResults        = ", length(m.result_x.t))
             println("        nAcceptedSteps  = ", solution.destats.naccept)
             println("        nRejectedSteps  = ", solution.destats.nreject)
             println("        nGetDerivatives = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
-            println("        nf              = ", solution.destats.nf, " (number of getDerivatives! calls from integrator)")
+            println("        nf              = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
             println("        nZeroCrossings  = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
             println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
             println("        nErrTestFails   = ", solution.destats.nreject)          
@@ -347,18 +379,18 @@ end
 #------------------------------------------------------------------------------------------------
 
 ModiaResult.timeSignalName(  m::SimulationModel) = "time"
-ModiaResult.hasOneTimeSignal(m::SimulationModel) = false
+ModiaResult.hasOneTimeSignal(m::SimulationModel) = true
 
 
 """
     hasSignal(instantiatedModel, name::AbstractString)
     
 Return true if parameter or time-varying variable `name` (for example `name = "a.b.c"`)
-is defined in the [`@instantiateModel`](@ref) that can be accessed and can be used for plotting.
+is defined in the instantiateModel that can be accessed and can be used for plotting.
 """
 ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = 
     # m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
-     haskey(m.variables, name) || name in m.zeroVariables || !ismissing(get_value(m.evaluatedParameters, name))
+     haskey(m.result_info, name) || !ismissing(get_value(m.evaluatedParameters, name))
 
 # For backwards compatibility
 hasName(m::SimulationModel, name::AbstractString) = ModiaResult.hasSignal(m,name)
@@ -377,8 +409,7 @@ function ModiaResult.signalNames(m::SimulationModel)
     #    append!(names, collect( keys(m.equationInfo.x_dict) ))
     #else
         all_names = get_names(m.evaluatedParameters)
-        append!(all_names, collect(m.zeroVariables))
-        append!(all_names, collect( keys(m.variables) ) )
+        append!(all_names, collect( keys(m.result_info) ) )
     #end
     sort!(all_names)
     return all_names 
@@ -387,19 +418,6 @@ end
 # For backwards compatibility
 getNames(m::SimulationModel) = ModiaResult.signalNames(m)
 
-
-
-struct ResultView{T} <: AbstractArray{T, 1}
-    v
-    index::Int
-    neg::Bool
-    ResultView{T}(v,i) where {T} = new(v,abs(i),i < 0)
-end
-ResultView(v,i) = ResultView{typeof(v[1][abs(i)])}(v,i)
-
-Base.getindex(sig::ResultView, i::Int) = sig.neg ? -sig.v[i][sig.index] : sig.v[i][sig.index]
-Base.size(sig::ResultView)             = (length(sig.v),)
-Base.IndexStyle(::Type{<:ResultView})  = IndexLinear()
 
 #=
 import ChainRules
@@ -416,66 +434,74 @@ end
 =#
 
 function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
-    if m.save_x_in_solution 
-        if name == "time"
-            return ([m.solution.t], [m.solution.t], ModiaResult.Independent)
-        elseif haskey(m.equationInfo.x_dict, name)
-            xe_info = m.equationInfo.x_info[ m.equationInfo.x_dict[name] ]
-            
-            @assert(xe_info.length == 1)   # temporarily only scalars are supported
-            xe_index = xe_info.startIndex
-            return ([m.solution.t], [m.solution[xe_index,:]], ModiaResult.Continuous)
-            
-            #signal = ModiaResult.FlattendVector(m.solution.u, xe_info.startIndex, xe_info.startIndex+xe_info.length-1)
-            #return ([m.solution.t], [signal], ModiaResult.Continuous)
+    tsig = m.result_x.t
+    if !m.unitless
+        tsig = tsig*u"s"
+        if !(m.options.desiredResultTimeUnit == NoUnits ||
+            m.options.desiredResultTimeUnit == u"s")
+            tsig = uconvert.(m.options.desiredResultTimeUnit, tsig)
         end
+    end
         
-        #else
-        #    error("rawSignal(m, $name): only states can be inquired currently")
-        #end
+    if name == "time"
+        return ([tsig], [tsig], ModiaResult.Independent)
     end
     
-    tIndex = m.variables["time"]
-    tsig   = ResultView(m.result, tIndex)      
-   
-   if haskey(m.variables, name)
-        resIndex = m.variables[name]
-        signal = ResultView(m.result, resIndex)       
-        if name == "time" && !(m.options.desiredResultTimeUnit == NoUnits ||
-                               m.options.desiredResultTimeUnit == u"s")
-            signal  = uconvert.(m.options.desiredResultTimeUnit, signal)
-        end
-#=        
-        negAlias = false
-        if resIndex < 0
-            resIndex = -resIndex
-            negAlias = true
-        end
-
-        value  = m.result[1][resIndex]
-        signal = Vector{typeof(value)}(undef, length(m.result))
-        for (i, value_i) in enumerate(m.result)
-            signal[i] = value_i[resIndex]
-        end
-        if negAlias
-            signal .= -signal
-        end
-=#
-        return ([tsig], [signal], name == "time" ? ModiaResult.Independent : ModiaResult.Continuous)
+    if haskey(m.result_info, name)
+        resInfo = m.result_info[name]
         
-    elseif name in m.zeroVariables
-        tsig2  = [tsig[1], tsig[end]]
-        signal = [0.0, 0.0] 
-        return ([tsig2], [signal], name == "time" ? ModiaResult.Independent : ModiaResult.Continuous)
+        if resInfo.store == RESULT_X
+            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index) 
+            if ibeg == iend
+                xSig = ModiaResult.FlattenedSignalView(m.result_x.u, ibeg, (), resInfo.negate)
+            else
+                xSig = ModiaResult.FlattenedSignalView(m.result_x.u, ibeg, (iend-ibeg+1,), resInfo.negate)
+            end
+            if !m.unitless && xunit != ""
+                xSig = xSig*uparse(xunit)
+            end
+            return ([tsig], [xSig], ModiaResult.Continuous)
+
+        elseif resInfo.store == RESULT_DER_X
+            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index) 
+            if ibeg == iend
+                derxSig = ModiaResult.FlattenedSignalView(m.result_der_x, ibeg, (), resInfo.negate)
+            else
+                derxSig = ModiaResult.FlattenedSignalView(m.result_der_x, ibeg, (iend-ibeg+1,), resInfo.negate)
+            end
+            if !m.unitless
+                if xunit == ""
+                    derxSig = derxSig/u"s"
+                else
+                    derxSig = derxSig*(uparse(xunit)/u"s")
+                end
+            end            
+            return ([tsig], [derxSig], ModiaResult.Continuous)   
+
+        elseif resInfo.store == RESULT_VARS
+            signal = ModiaResult.SignalView(m.result_vars, resInfo.index, resInfo.negate)
+            if length(signal) != length(tsig)
+                lens = length(signal)
+                lent = length(tsig)
+                error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\",\nlength(signal) = $lens, length(tsig) = $lent")
+            end
+            return ([tsig], [signal], ModiaResult.Continuous)
+            
+        elseif resInfo.store == RESULT_ZERO
+            signal = ModiaResult.OneValueVector(0.0, length(tsig))
+            return ([tsig], [signal], ModiaResult.Continuous)
+            
+        else
+            error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\", resInfo=$resInfo")
+        end  
 
     else
         value = get_value(m.evaluatedParameters, name)
         if ismissing(value)
-            error("ModiaResult.rawSignal: ", name, " not in result of model ", m.modelName)
+            error("rawSignal: \"$name\" not in result of model $(m.modelName))")
         end
-        tsig2  = [tsig[1], tsig[end]]
-        signal = [value, value]         
-        return ([tsig2], [signal], name == "time" ? ModiaResult.Independent : ModiaResult.Continuous)
+        signal = ModiaResult.OneValueVector(value, length(tsig))      
+        return ([tsig], [signal], ModiaResult.Continuous)    
     end
 end
 
@@ -494,9 +520,7 @@ get_leaveName(pathName::String) =
     end
 
 
-function ModiaResult.defaultHeading(m::SimulationModel)
-    FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
-
+function get_algorithmName(m::SimulationModel)::String
     if ismissing(m.algorithmType)
         algorithmName = "???"
     else
@@ -528,7 +552,14 @@ function ModiaResult.defaultHeading(m::SimulationModel)
             end
         end
     end
+    return algorithmName
+end
 
+
+function ModiaResult.defaultHeading(m::SimulationModel)
+    FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
+
+    algorithmName = get_algorithmName(m)
     if FloatType == "Float64"
         heading = m.modelName * " (" * algorithmName * ")"
     else
@@ -625,53 +656,47 @@ function get_result(m::SimulationModel, name::AbstractString; unit=true)
 end
 
 
-function setEvaluatedParametersInDataFrame!(obj::NamedTuple, variables, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing
+function setEvaluatedParametersInDataFrame!(obj::EvaluatedParType, result_info, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing where {EvaluatedParType}
     for (key,value) in zip(keys(obj), obj)
         name = appendName(path, key)
-        if typeof(value) <: NamedTuple
-            setEvaluatedParametersInDataFrame!(value, variables, dataFrame, name, nResult)
-        elseif !haskey(variables, name)
+        if typeof(value) <: EvaluatedParType
+            setEvaluatedParametersInDataFrame!(value, result_info, dataFrame, name, nResult)
+        elseif !haskey(result_info, name)
             dataFrame[!,name] = ModiaResult.OneValueVector(value,nResult)
         end
     end
     return nothing
 end
 
-function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
-    #if m.save_x_in_solution 
-    #    @error "get_result(instantiatedModel) not yet supported, if result is stored in DifferentialEquations.jl solution"
-    #end
-        
+function get_result(m::SimulationModel; onlyStates=false, extraNames=missing) 
     dataFrame = DataFrames.DataFrame()
-    
+
+    (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, "time")
+    dataFrame[!,"time"] = timeSignal[1]
+        
     if onlyStates || !ismissing(extraNames)
-        dataFrame[!,"time"] = get_result(m, "time")
         if onlyStates
-            for (name, dummy) in m.equationInfo.x_dict
-                dataFrame[!,name] = ResultView(m.result, m.variables[name])
+            for name in keys(m.equationInfo.x_dict)
+                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
+                dataFrame[!,name] = signal[1]
             end
         end
         if !ismissing(extraNames)
             for name in extraNames
-                dataFrame[!,name] = get_result(m, name)
+                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
+                dataFrame[!,name] = signal[1]
             end
         end
         
     else
-        for (name, resIndex) in m.variables
-            if name == "time"
-                dataFrame[!,name] = get_result(m, "time")  # Takes care of conversion to unit m.options.desiredResultTimeUnit
-            else
-                dataFrame[!,name] = ResultView(m.result, resIndex) 
+        for name in keys(m.result_info)
+            if name != "time"
+                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
+                dataFrame[!,name] = signal[1]
             end
         end
     
-        zeroVariable = ModiaResult.OneValueVector(0.0, length(m.result))
-        for name in m.zeroVariables
-            dataFrame[!,name] = zeroVariable
-        end
-    
-        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.variables, dataFrame, "", length(m.result))
+        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.result_info, dataFrame, "", length(timeSignal[1]))
     end
     return dataFrame
 end

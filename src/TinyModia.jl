@@ -60,7 +60,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.8.0-dev"
-const Date = "2021-06-19"
+const Date = "2021-06-27"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -719,13 +719,18 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     preVars = Symbol.(preVars)
     holdVars = Symbol[]  # fix this
     
+    # Variables added to result
+    extraResults = vcat(:time, setdiff([Symbol(u) for u in unknowns], 
+                                        Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
+                                        Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info]))
+    
     if logTiming
         println("Generate code")
 #        @time code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
     else
 #        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         @show mappedParameters
@@ -752,10 +757,10 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
     model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues, previousVars, preVars, holdVars,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
-                                         OrderedDict(:(_p) => mappedParameters ), vcat(:time, [Symbol(u) for u in unknowns]);
+                                         OrderedDict(:(_p) => mappedParameters ), extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
-                                         nz=nCrossingFunctions, nAfter=nAfter)
+                                         nz=nCrossingFunctions, nAfter=nAfter, unitless=unitless)
  
     if false # logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
