@@ -9,6 +9,8 @@ using  Measurements
 import MonteCarloMeasurements
 using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
+import DifferentialEquations
+import SciMLBase
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, previous, edge, after, reinit, pre
@@ -294,13 +296,14 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     isInitial::Bool    
     storeResult::Bool
     time::TimeType
-    nGetDerivatives::Int                    # Number of getDerivatives! calls
-    nf::Int                                 # Number of getDerivatives! calls from integrator (without zero-crossing calls)
-    x_start::Vector{FloatType}              # States x before first event iteration (before initialization)
-    x_init::Vector{FloatType}               # States x after initialization (and before integrator is started)
-    der_x::Vector{FloatType}                # Derivatives of states x or x_init 
-    algorithmType::Union{DataType,Missing}  # Type of integration algorithm (used in default-heading of plot)
-
+    nGetDerivatives::Int                        # Number of getDerivatives! calls
+    nf::Int                                     # Number of getDerivatives! calls from integrator (without zero-crossing calls)
+    x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
+    x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
+    der_x::Vector{FloatType}                    # Derivatives of states x or x_init 
+    algorithmType::Union{DataType,Missing}      # Type of integration algorithm (used in default-heading of plot)
+    addEventPointsDueToDEBug::Bool              # = true, if event points are explicitly stored for CVODE_BDF, due to bug in DifferentialEquations
+                                                #         (https://github.com/SciML/Sundials.jl/issues/309)
     result_info::OrderedDict{String,ResultInfo} # key  : Full path name of result variables
                                                 # value: Storage location and index into the storage. 
     result_vars::AbstractVector                 # result_vars[ti][j] is result of variable with index j at time instant ti
@@ -413,7 +416,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             pre, nextPre, pre_names, pre_dict,   
             hold, nextHold, hold_names, hold_dict,              
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
-            x_start, zeros(FloatType,nx), zeros(FloatType,nx), missing,
+            x_start, zeros(FloatType,nx), zeros(FloatType,nx), missing, false,
             result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
     end
     
@@ -444,7 +447,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
             deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,            
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
-            convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), missing,
+            convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), missing, false,
             m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)       
     end    
 end
@@ -1170,6 +1173,11 @@ function affectEvent!(integrator, stateEvent::Bool)::Nothing
     eh = m.eventHandler
     time = integrator.t
     #println("... begin affect: time = ", time, ", nextEventTime = ", eh.nextEventTime)
+
+    if m.addEventPointsDueToDEBug
+        push!(integrator.sol.t, deepcopy(integrator.t))
+        push!(integrator.sol.u, deepcopy(integrator.u))          
+    end
                         
     # Compute and store outputs before processing the event
     sol_t = integrator.sol.t
@@ -1213,6 +1221,11 @@ function affectEvent!(integrator, stateEvent::Bool)::Nothing
     end
     
     # Compute outputs and store them after the event occurred
+    if m.addEventPointsDueToDEBug
+        push!(integrator.sol.t, deepcopy(integrator.t))
+        push!(integrator.sol.u, deepcopy(integrator.u)) 
+    end
+    
     outputs!(integrator.u, time, integrator)
     if eh.restart == Terminate
         DifferentialEquations.terminate!(integrator)

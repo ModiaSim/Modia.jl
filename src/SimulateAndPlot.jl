@@ -3,7 +3,7 @@ export simulate!, linearize!, get_result
 export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
 export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
 export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
-
+  
 # For backwards compatibility
 export getNames, hasName
 
@@ -23,6 +23,9 @@ import DataFrames
 import ForwardDiff
 import FiniteDiff
 
+const  CVODE_BDF = Sundials.CVODE_BDF
+export CVODE_BDF
+
 #---------------------------------------------------------------------
 #                          Simulation
 #---------------------------------------------------------------------
@@ -41,6 +44,8 @@ Simulate `instantiatedModel::SimulationModel` with `algorithm`
 If the `algorithm` argument is missing, `algorithm=Sundials.CVODE_BDF()` is used, provided
 instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
+The symbol `CVODE_BDF` is exported from TinyModia, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
+can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.CVODE_BDF(), ...)`).
 
 The simulation results stored in `model` can be plotted with plot and the result values
 can be retrieved with [`get_result`](@ref).
@@ -187,8 +192,9 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             cvode_bdf = true
         else
             cvode_bdf = false
-            dt    = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
+            dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
         end
+        m.addEventPointsDueToDEBug = cvode_bdf
         
         # Compute solution 
         abstol = 0.1*m.options.tolerance
