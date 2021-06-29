@@ -10,7 +10,6 @@ import MonteCarloMeasurements
 using  DataStructures: OrderedDict, OrderedSet
 using  DataFrames
 import DifferentialEquations
-import SciMLBase
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, previous, edge, after, reinit, pre
