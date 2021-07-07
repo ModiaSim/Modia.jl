@@ -66,8 +66,8 @@ PartialAbsoluteSensor = Model(
 )
 
 # Ideal sensor to measure the absolute flange position and velocity
-SpeedSensor         = PartialAbsoluteSensor | Model(v = output, equations = :[v = der(flange.s)])
-UnitlessSpeedSensor = PartialAbsoluteSensor | Model(v = output, equations = :[v = der(flange.s)*u"m/s"])
+VelocitySensor         = PartialAbsoluteSensor | Model(v = output, equations = :[v = der(flange.s)])
+UnitlessVelocitySensor = PartialAbsoluteSensor | Model(v = output, equations = :[v = der(flange.s)*u"m/s"])
 
 PositionSensor         = PartialAbsoluteSensor | Model(s = output, equations = :[s = flange.s])
 UnitlessPositionSensor = PartialAbsoluteSensor | Model(s = output, equations = :[s = flange.s*u"m"])
