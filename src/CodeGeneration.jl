@@ -464,6 +464,8 @@ SimulationModel{Measurements.Measurement{T},ParType}(args...; kwargs...) where {
 SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType,ParType,T}(args...; kwargs...)
 SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType,ParType,T}(args...; kwargs...)
 
+timeType(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}) where {FloatType,ParType,EvaluatedParType,TimeType} = TimeType
+
 
 positive(m::SimulationModel, args...; kwargs...) = TinyModia.positive!(m.eventHandler, args...; kwargs...)
 negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHandler, args...; kwargs...)
@@ -643,7 +645,7 @@ If `unit=true` return the value with its unit, otherwise with stripped unit.
 If `name` is not known or no result values yet available, an info message is printed
 and the function returns `nothing`.
 """
-function get_lastValue(m::SimulationModel, name::String; unit::Bool=true)
+function get_lastValue(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, name::String; unit::Bool=true) where {FloatType,ParType,EvaluatedParType,TimeType}
     if haskey(m.result_info, name)
         # Time varying variable stored in m.result_xxx
         resInfo = m.result_info[name]
@@ -686,7 +688,7 @@ function get_lastValue(m::SimulationModel, name::String; unit::Bool=true)
         
         elseif resInfo.store == RESULT_ZERO
             # Type, size and unit is not known (needs to be fixed)
-            value = ModiaResult.OneValueVector(0.0, length(m.result_x.t))
+            value = convert(FloatType, 0)
 
         else
             error("Bug in get_lastValue(...), name = $name, resInfo.store = $resInfo.store.")
@@ -1415,7 +1417,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         preName = preVars[i]
         push!(code_pre, :( _m.nextPre[$i] = $preName ))        
     end
-    
+
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing

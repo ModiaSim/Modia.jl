@@ -762,12 +762,13 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
                                          var_name = (v)->string(unknownsWithEliminated[v]),
                                          nz=nCrossingFunctions, nAfter=nAfter, unitless=unitless)
  
-    if false # logExecution
+    if true # logExecution
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
 #        @time getDerivatives(derx, convertedStartValues, model, convert(FloatType, 0.0))
-        Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(FloatType, 0.0))
-
-        @show derx
+        TimeType = timeType(model)
+        @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
+        @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
+        #@show derx
     end
     return model
 end
@@ -802,7 +803,7 @@ See documentation of macro @instatiateModel
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
-    try
+    #try
         println("\nInstantiating model $modelModule.$modelName")
         resetEventCounters()
 
@@ -903,7 +904,8 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
             unitless, logStateSelection, logCode, logExecution, logTiming)
 
-    catch e
+   #= catch e
+   
         if isa(e, ErrorException)
             println()
             printstyled("Model error: ", bold=true, color=:red)  
@@ -914,8 +916,8 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         else
             Base.rethrow()
         end
-    end
-
+   # end
+=#
 end
 
 end

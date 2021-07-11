@@ -22,7 +22,7 @@ SimpleStateEvents = Model(
 
 model = @instantiateModel(SimpleStateEvents)
 
-simulate!(model, Tsit5(), stopTime = 10, log=true, logEvents=true, requiredFinalStates = [-0.3617373025974107]
+simulate!(model, Tsit5(), stopTime = 10, log=true, logEvents=true, requiredFinalStates = [1.1756992201144405, -0.5351307571761175])
 
 plot(model, ["s", "v", "sPos", "f"])
 

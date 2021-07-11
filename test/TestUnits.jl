@@ -15,7 +15,7 @@ UnitTest = Model(
     m = 10u"kg",
     F = 20u"N",
 
-    x = Var(init = 5500.0u"g"),
+    x = Var(init = 5.5u"kg"),    # 5500.0u"g"),
     v = Var(init = 1u"m/s"),
     equations = :[
         T*der(x) + x = u0
@@ -28,7 +28,7 @@ UnitTest = Model(
 
 model = @instantiateModel(UnitTest)
 
-simulate!(model, Tsit5(), stopTime = 1.0, requiredFinalStates = [5514.9625624219525, 2.9999999999999996])
+simulate!(model, Tsit5(), stopTime = 1.0, requiredFinalStates = [8.479786015016273, 2.999999999999999]) 
 
 #plot(model, ["T", "x", "der(x)", "y", "a", "der(v)"])
 plot(model, ["x", "der(x)", "y", "a", "der(v)"])
