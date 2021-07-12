@@ -249,17 +249,26 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             println("        interval        = ", m.options.interval, " s")
             println("        tolerance       = ", m.options.tolerance, " (relative tolerance)")
             println("        nEquations      = ", length(m.x_start))
-            println("        nResults        = ", length(m.result_x.t))
-            println("        nAcceptedSteps  = ", solution.destats.naccept)
-            println("        nRejectedSteps  = ", solution.destats.nreject)
+            println("        nResults        = ", length(m.result_x.t))          
             println("        nGetDerivatives = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
             println("        nf              = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
             println("        nZeroCrossings  = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
-            println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
-            println("        nErrTestFails   = ", solution.destats.nreject)          
+
+            if cvode_bdf && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
+                # statistics is wrong, due to a bug in the Sundials.jl interface
+                println("        nJac            = ??? (number of Jacobian computations)")
+                println("        nAcceptedSteps  = ???")
+                println("        nRejectedSteps  = ???")
+                println("        nErrTestFails   = ???")
+            else
+                println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
+                println("        nAcceptedSteps  = ", solution.destats.naccept)
+                println("        nRejectedSteps  = ", solution.destats.nreject)
+                println("        nErrTestFails   = ", solution.destats.nreject)
+            end
             println("        nTimeEvents     = ", eh.nTimeEvents)
             println("        nStateEvents    = ", eh.nStateEvents)
-            println("        nRestartEvents  = ", eh.nRestartEvents)      
+            println("        nRestartEvents  = ", eh.nRestartEvents)  
         end
 
         requiredFinalStates = m.options.requiredFinalStates
