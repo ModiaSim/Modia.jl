@@ -234,7 +234,6 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         finalTime   = solution.t[end]
         terminate!(m, finalStates, finalTime)
         if !m.success
-            @test false
             return nothing
         end
         
