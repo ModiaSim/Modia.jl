@@ -5,7 +5,7 @@ module Runtests
 using TinyModia
 using Test 
 
-@testset "Test TinyModia with simulation (without plots)" begin
+@time @testset verbose=true "TinyModia (with SilentNoPlot)" begin
     usePlotPackage("SilentNoPlot")
     include("include_all.jl")  
     usePreviousPlotPackage()

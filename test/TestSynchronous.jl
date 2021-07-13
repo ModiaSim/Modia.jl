@@ -33,7 +33,7 @@ SpeedControl = MassWithSpringDamper | Model(
 )
 
 speedControl = @instantiateModel(SpeedControl)
-simulate!(speedControl, Tsit5(), stopTime=1.5, log=true, logEvents=true)
+simulate!(speedControl, Tsit5(), stopTime=1.5, log=true, logEvents=true, requiredFinalStates = [133.3845202465569, 98.03694943140056] )
 plot(speedControl, [("v", "vd"), ("u","f")], heading="SpeedControl", figure=1)
 
 
@@ -62,7 +62,7 @@ SpeedControlPI = MassWithSpringDamper | Model(
 )
 
 speedControlPI = @instantiateModel(SpeedControlPI, log=true, logCode=true, logStateSelection=true)
-simulate!(speedControlPI, Tsit5(), stopTime=1.5, log=true, logEvents=true)
+simulate!(speedControlPI, Tsit5(), stopTime=1.5, log=true, logEvents=true, requiredFinalStates = [145.828878491462, 99.95723678839984])
 plot(speedControlPI, [("v", "vd"), ("u","f"), ("previous_intE", "intE")], heading="SpeedControlPI", figure=2)
 
 
