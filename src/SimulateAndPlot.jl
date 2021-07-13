@@ -129,11 +129,13 @@ simulate!(firstOrder, CVODE_BDF(), stopTime = 1.0)
 """
 function simulate!(m::Nothing, args...; kwargs...)
     @info "The call of simulate!(..) is ignored, since the first argument is nothing."
+    @test false
     return nothing
 end
 function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
         options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
         if isnothing(options)
+            @test false
             return nothing
         end
         m.options = options
@@ -152,6 +154,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         m.algorithmType = typeof(algorithm)       
         success = init!(m)
         if !success
+            @test false
             return nothing
         end
 
@@ -231,6 +234,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         finalTime   = solution.t[end]
         terminate!(m, finalStates, finalTime)
         if !m.success
+            @test false
             return nothing
         end
         
