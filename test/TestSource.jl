@@ -13,7 +13,7 @@ SineSource = Model(
 
 sineSource = @instantiateModel(SineSource, unitless=true)
 
-simulate!(sineSource, Tsit5(), stopTime = 1.0, log=true, logStates=true)
+simulate!(sineSource, Tsit5(), stopTime = 1.0, log=false, logStates=false)
 
 plot(sineSource, "y")
 

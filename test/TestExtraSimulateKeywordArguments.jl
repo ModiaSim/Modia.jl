@@ -29,7 +29,7 @@ FirstOrder = Model(
 
 firstOrder = @instantiateModel(FirstOrder, logCode=false)
 
-simulate!(firstOrder, Tsit5(), stopTime = 10, log=true, dummy1 = 2.0, dummy3 = "value changed",
+simulate!(firstOrder, Tsit5(), stopTime = 10, log=false, dummy1 = 2.0, dummy3 = "value changed",
           requiredFinalStates = [-0.3617373025974107])
 
 plot(firstOrder, ["u", "y"])

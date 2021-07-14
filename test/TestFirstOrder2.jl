@@ -20,10 +20,10 @@ FirstOrder1 = Model(
 
 FirstOrder2 = FirstOrder1 | Map(T = 0.3, x = Var(init=0.6))
 
-firstOrder = @instantiateModel(FirstOrder2, logCode=true)
+firstOrder = @instantiateModel(FirstOrder2, logCode=false)
 
 simulate!(firstOrder, Tsit5(), stopTime = 10, merge = Map(T = 0.4, x = 0.9), 
-          log=true, logParameters=true, logStates=true, 
+          log=false, logParameters=true, logStates=true, 
           requiredFinalStates = [-0.17964872595554535])
 
 # Test get_result(instantiatedModel)
@@ -64,7 +64,7 @@ FirstOrder3 = Model(
     equations = :[u = if after(1.5u"hr"); 1.0 else 0.0 end,
                   T * der(x) + x = u]
 )
-firstOrder3 = @instantiateModel(FirstOrder3, logCode=true)
+firstOrder3 = @instantiateModel(FirstOrder3, logCode=false)
 simulate!(firstOrder3, Tsit5(), stopTime = 10u"hr")
 plot(firstOrder3, [("u", "x"), "der(x)"], figure=2)
 

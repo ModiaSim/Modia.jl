@@ -28,12 +28,12 @@ SpeedControl = MassWithSpringDamper | Model(
     equations = :[ 
         vd = sample(v, Clock(0.1))    # speed sensor
         u  = K*(vref-vd)              # P controller for speed
-        f  = hold(u)                  # force actuator
+        f  = hold(u, Clock(0.1))      # force actuator
     ]
 )
 
 speedControl = @instantiateModel(SpeedControl)
-simulate!(speedControl, Tsit5(), stopTime=1.5, log=true, logEvents=true, requiredFinalStates = [133.3845202465569, 98.03694943140056] )
+simulate!(speedControl, Tsit5(), stopTime=1.5, logEvents=false, requiredFinalStates = [133.3845202465569, 98.03694943140056] )
 plot(speedControl, [("v", "vd"), ("u","f")], heading="SpeedControl", figure=1)
 
 
@@ -57,12 +57,12 @@ SpeedControlPI = MassWithSpringDamper | Model(
 		u = K*(e + intE/Ti)
 
 		# force actuator
-		f = hold(u)
+		f = hold(u, Clock(0.1))
     ]
 )
 
-speedControlPI = @instantiateModel(SpeedControlPI, log=true, logCode=true, logStateSelection=true)
-simulate!(speedControlPI, Tsit5(), stopTime=1.5, log=true, logEvents=true, requiredFinalStates = [145.828878491462, 99.95723678839984])
+speedControlPI = @instantiateModel(SpeedControlPI)
+simulate!(speedControlPI, Tsit5(), stopTime=1.5, logEvents=false, requiredFinalStates = [145.828878491462, 99.95723678839984])
 plot(speedControlPI, [("v", "vd"), ("u","f"), ("previous_intE", "intE")], heading="SpeedControlPI", figure=2)
 
 
