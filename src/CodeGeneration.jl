@@ -1171,11 +1171,12 @@ derivatives!(der_x, x, m, t) = begin
 
 
 """
-    affectEvent!(integrator, stateEvent)
+    affectEvent!(integrator, stateEvent, eventIndex)
     
-Called when a time event (stateEvent=false) or state event (stateEvent=true) is triggered   
+Called when a time event (stateEvent=false) or state event (stateEvent=true) is triggered.
+In case of stateEvent, eventIndex is the index of the crossing function that triggered the event.   
 """
-function affectEvent!(integrator, stateEvent::Bool)::Nothing
+function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
     m  = integrator.p
     eh = m.eventHandler
     time = integrator.t
@@ -1206,7 +1207,7 @@ function affectEvent!(integrator, stateEvent::Bool)::Nothing
     if stateEvent   
         # State event
         if eh.logEvents
-            println("\n      State event (zero-crossing) at time = ", time, " s")
+            println("\n      State event (zero-crossing) at time = ", time, " s (due to z[$eventIndex])")
         end
         eh.nStateEvents += 1      
     else
@@ -1224,7 +1225,11 @@ function affectEvent!(integrator, stateEvent::Bool)::Nothing
         eh.nRestartEvents += 1
     end
     if eh.logEvents
-        println("        restart = ", eh.restart)
+        if eh.restart == Restart
+            println("        restart = ", eh.restart)
+        else
+            printstyled("        restart = ", eh.restart, "\n", color=:red)
+        end
     end
     
     # Compute outputs and store them after the event occurred
@@ -1284,7 +1289,7 @@ end
     
 Called by integrator when a state event is triggered   
 """
-affectStateEvent!(integrator, event_index) = affectEvent!(integrator, true)
+affectStateEvent!(integrator, event_index) = affectEvent!(integrator, true, event_index)
 
 
 """
@@ -1308,7 +1313,7 @@ end
     
 Called by integrator when a time event is triggered   
 """
-affectTimeEvent!(integrator) = affectEvent!(integrator, false)
+affectTimeEvent!(integrator) = affectEvent!(integrator, false, 0)
 
 
 
