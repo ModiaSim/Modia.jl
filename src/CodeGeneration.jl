@@ -7,7 +7,7 @@ using  ModiaResult
 using  Unitful
 using  Measurements
 import MonteCarloMeasurements
-using  DataStructures: OrderedDict, OrderedSet
+using  OrderedCollections: OrderedDict, OrderedSet
 using  DataFrames
 import DifferentialEquations
 
@@ -139,7 +139,7 @@ convertTimeVariable(TimeType, t) = typeof(t) <: Unitful.AbstractQuantity ? conve
 
 
 struct SimulationOptions{FloatType,TimeType}
-    merge::NamedTuple
+    merge #::NamedTuple
     tolerance::Float64
     startTime::TimeType   # u"s"
     stopTime::TimeType    # u"s"
@@ -200,7 +200,8 @@ struct SimulationOptions{FloatType,TimeType}
             end
         end    
 
-        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
+#        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
+        obj = new(isnothing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
                   dtmax, adaptive, log, logStates, logEvents, logParameters, logEvaluatedParameters,
                   requiredFinalStates, requiredFinalStates_rtol, extra_kwargs)
         return success ? obj : nothing
@@ -452,12 +453,15 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
 end
 
 # Default constructors
+#=
 SimulationModel(args...; kwargs...) = SimulationModel{Float64,NamedTupe,NamedTuple,Float64}(args...; kwargs...)
 
 SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,NamedTuple,NamedTuple,FloatType}(args...; kwargs...)  
 SimulationModel{Measurements.Measurement{T}}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},NamedTuple,NamedTuple,T}(args...; kwargs...)
 SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.Particles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
 SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
+=#
+SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,OrderedDict,OrderedDict,FloatType}(args...; kwargs...)  
 
 SimulationModel{FloatType,ParType}(args...; kwargs...) where {FloatType,ParType} = SimulationModel{FloatType,ParType,ParType,FloatType}(args...; kwargs...)  
 SimulationModel{Measurements.Measurement{T},ParType}(args...; kwargs...) where {T,ParType} = SimulationModel{Measurements.Measurement{T},ParType,ParType,T}(args...; kwargs...)
@@ -559,7 +563,7 @@ hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
                           
                           
 """
-    get_value(obj::NamedTuple, name::String)
+    get_value(obj, name::String)
     
 Return the value identified by `name` from the potentially hierarchically 
 `NamedTuple obj`. If `name` is not in `obj`, the function returns `missing`.
@@ -575,7 +579,7 @@ s3 = (v3 = s2, v4 = s1)
 @show get_value(s3, "v3.v1.e")   # returns missing
 ```
 """
-function get_value(obj::NamedTuple, name::String)
+function get_value(obj #= ::NamedTuple =# , name::String)
     if length(name) == 0 || length(obj) == 0
         return missing
     end
@@ -618,18 +622,20 @@ s3 = (v3 = s2, v4 = s1)
 @show get_names(s3)
 ```
 """
-function get_names(obj::NamedTuple)
+function get_names(obj) # ::NamedTuple)
     names = String[]
     get_names!(obj, names, "")
     return names
 end
-function get_names!(obj::NamedTuple, names::Vector{String}, path::String)::Nothing
-    for (key,value) in zip(keys(obj), obj)
-        name = appendName(path, key)
-        if typeof(value) <: NamedTuple
-            get_names!(value, names, name)
-        else
-            push!(names, name)
+function get_names!(obj #= ::NamedTuple =# , names::Vector{String}, path::String)::Nothing
+    for (key,value) in obj # zip(keys(obj), obj)
+        if key != :_class
+            name = appendName(path, key)
+            if typeof(value) <: OrderedDict
+                get_names!(value, names, name)
+            else
+                push!(names, name)
+            end
         end
     end
     return nothing
@@ -985,8 +991,8 @@ function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}):
     m.der_x  .= 0
     
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters 
-    if !isnothing(merge)
-        m.parameters = recursiveMerge(m.parameters, m.options.merge)
+    if !isnothing(m.options.merge)
+        m.parameters = mergeModels(m.parameters, m.options.merge)
         m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, ParType, m.equationInfo, m.x_start, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
             return false
@@ -1417,7 +1423,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         preName = preVars[i]
         push!(code_pre, :( _m.nextPre[$i] = $preName ))        
     end
-
+    
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing
@@ -1442,3 +1448,4 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
             end
     return code
 end
+

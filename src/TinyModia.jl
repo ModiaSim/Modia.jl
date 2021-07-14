@@ -8,12 +8,19 @@ Main module of TinyModia.
 """
 module TinyModia
 
+# Defalut switch settings
+logStatistics = false
+logExecution = false
+logCalculations = false
+
+useNewCodeGeneration = false
+
 using Reexport
 
 export instantiateModel, @instantiateModel
 
 using Base.Meta: isexpr
-using DataStructures: OrderedDict
+using OrderedCollections: OrderedDict
 
 using ModiaBase.Symbolic
 using ModiaBase.Simplify
@@ -23,12 +30,15 @@ using ModiaBase.Differentiate
 using ModiaBase
 export ModiaBase
 
-# using RuntimeGeneratedFunctions
-# RuntimeGeneratedFunctions.init(@__MODULE__)
 @reexport using Unitful
 using  Measurements
 import MonteCarloMeasurements
 using JSON
+#using Profile
+using TimerOutputs
+using InteractiveUtils
+
+global to = TimerOutput()
 
 export stripUnit
 """
@@ -43,10 +53,11 @@ The function is defined as: `stripUnit(v) = ustrip(upreferred.(v))`.
 stripUnit(v) = ustrip.(upreferred.(v))
 
 
-include("NamedTupleModels.jl")
+include("ModelCollections.jl")
 include("EvaluateParameters.jl")
 include("EventHandler.jl")
 include("CodeGeneration.jl")
+# include("GenerateGetDerivatives.jl")
 include("Synchronous.jl")
 include("SimulateAndPlot.jl")
 include("ReverseDiffInterface.jl")
@@ -54,13 +65,14 @@ include("PathPlanning.jl")
 
 # include("IncidencePlot.jl")
 # using .IncidencePlot
+# Base.Experimental.@optlevel 0
 
 const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.8.0-dev"
-const Date = "2021-07-04"
+const Date = "2021-07-14"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -182,14 +194,14 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
 
     if logTiming
         println("\nCheck consistency of equations by matching extended equation set")
-        @time performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log)
+        @timeit to "performConsistencyCheck" performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log)
     else
         performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log)
     end
 
     if logTiming
         println("\nIndex reduction (Pantelides)")
-        @time assign, Avar, Bequ = pantelides!(G, length(Avar), Avar)
+        @timeit to "pantelides!" assign, Avar, Bequ = pantelides!(G, length(Avar), Avar)
     else
         assign, Avar, Bequ = pantelides!(G, length(Avar), Avar)
     end
@@ -240,13 +252,13 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
     vActive = [a == 0 for a in Avar]
     if logTiming
         println("Assign")
-        @time assign = matching(HG, length(Avar), vActive)
+        @timeit to "matching" assign = matching(HG, length(Avar), vActive)
     else
         assign = matching(HG, length(Avar), vActive)
     end
     if logTiming
         println("BLT")
-        @time bltComponents = BLT(HG, assign)
+        @timeit to "BLT" bltComponents = BLT(HG, assign)
     else
        bltComponents = BLT(HG, assign)
     end
@@ -295,6 +307,7 @@ function assignAndBLT(equations, unknowns, parameters, Avar, G, states, logDetai
 end
 
 function setAvar(unknowns)
+    variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
     Avar = fill(0, length(unknowns))
     states = []
     derivatives = []
@@ -303,7 +316,7 @@ function setAvar(unknowns)
         if isexpr(v, :call)
             push!(derivatives, v)
             x = v.args[2]
-            ix = findfirst(s -> s==x, unknowns)
+            ix = variablesIndices[x] 
             Avar[ix] = i
             push!(states, unknowns[ix])
         end
@@ -313,7 +326,7 @@ end
 
 mutable struct ModelStructure
     parameters::OrderedDict{Any,Any}
-    mappedParameters::NamedTuple
+    mappedParameters::OrderedDict{Any,Any} 
     init::OrderedDict{Any,Any}
     start::OrderedDict{Any,Any}
     variables::OrderedDict{Any,Any}
@@ -325,7 +338,7 @@ mutable struct ModelStructure
     equations::Array{Expr,1}
 end
 
-ModelStructure() = ModelStructure(OrderedDict(), (;), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[])
+ModelStructure() = ModelStructure(OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[])
 
 function printDict(label, d)
     if length(d) > 0
@@ -345,7 +358,7 @@ function printModelStructure(m; label="", log=false)
     if log
         println("ModelStructure ", label)
         printDict("  parameters:  ", m.parameters)
-        println("  mappedParameters:  ", m.mappedParameters)
+        printDict("  mappedParameters:  ", m.mappedParameters)
         printDict("  init:        ", m.init)
         printDict("  start:       ", m.start)
         printDict("  variables:   ", m.variables)
@@ -363,25 +376,17 @@ prependDict(dict, prefix) = OrderedDict([prepend(k, prefix) => prepend(v, prefix
 
 
 function mergeModelStructures(parent::ModelStructure, child::ModelStructure, prefix)
-    merge!(parent.parameters, prependDict(child.parameters, prefix))
-    if length(keys(child.parameters)) > 0
-#        @show parent.mappedParameters prefix typeof(prefix) child.mappedParameters child.parameters 
-        parent.mappedParameters = merge(parent.mappedParameters, (;prefix => (;child.mappedParameters...)) )
-#        @show parent.mappedParameters
-    end
-    merge!(parent.init, prependDict(child.init, prefix))
-    if length(keys(child.init)) > 0
-#        @show parent.mappedParameters prefix child.init 
-        parent.mappedParameters = recursiveMerge(parent.mappedParameters, (;prefix => (;child.mappedParameters...)) )
-    end
-    merge!(parent.start, prependDict(child.start, prefix))
-    if length(keys(child.start)) > 0
-        parent.mappedParameters = recursiveMerge(parent.mappedParameters, (;prefix => (;child.mappedParameters...)) )
-    end
-    merge!(parent.variables, prependDict(child.variables, prefix))
-    merge!(parent.flows, prependDict(child.flows, prefix))
-#    merge!(parent.inputs, prependDict(child.inputs, prefix))
-#    merge!(parent.outputs, prependDict(child.outputs, prefix))
+    merge!(parent.parameters, child.parameters)
+    parent.mappedParameters[prefix] = child.mappedParameters
+
+    merge!(parent.init, child.init)
+    parent.mappedParameters[prefix] = child.mappedParameters
+
+    merge!(parent.start, child.start)
+    parent.mappedParameters[prefix] = child.mappedParameters
+
+    merge!(parent.variables, child.variables)
+    merge!(parent.flows, child.flows)
 
     push!(parent.equations, prepend(child.equations, prefix)...)
 end
@@ -407,7 +412,7 @@ end
 
 function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 
-    variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
+    @timeit to "enumerate(unknowns)" variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
 
     linearVariables = []
     nonlinearVariables = []
@@ -416,14 +421,15 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     G = Vector{Int}[] # Array{Array{Int64,1},1}()
     Gint = Array{Array{Int64,1},1}()
     GcInt = Array{Array{Int64,1},1}()
-    for i in 1:length(equations)
+
+    @timeit to "build graph information" for i in 1:length(equations)
         e = equations[i]
         nameIncidence, coefficients, rest, linear = getCoefficients(e)
-        incidence = [variablesIndices[n] for n in nameIncidence if n in unknowns]
+        incidence = [variablesIndices[n] for n in nameIncidence if n in keys(variablesIndices)]
         unique!(incidence)
         push!(G, incidence)
 
-        if linear && all([c == 1 || c == -1 for c in coefficients]) && rest == 0 && all(n in unknowns for n in nameIncidence)
+        if linear && all([c == 1 || c == -1 for c in coefficients]) && rest == 0 && all(n in keys(variablesIndices) for n in nameIncidence)
             push!(linearVariables, nameIncidence...)
             push!(linearEquations, i)
             push!(Gint, incidence)
@@ -439,9 +445,9 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
         @show Avar
     end
 
-    unique!(linearVariables)
-    unique!(nonlinearVariables)
-    vSolveInLinearEquations = setdiff(linearVariables, nonlinearVariables)
+    @timeit to "unique!(linearVariables)" unique!(linearVariables)
+    @timeit to "unique!(nonlinearVariables)" unique!(nonlinearVariables)
+    @timeit to "setdiff" vSolveInLinearEquations = setdiff(linearVariables, nonlinearVariables)
     if logDetails
         printArray(linearVariables, "linearVariables:", number=false)
         printArray(equations[linearEquations], "linearEquations:", number=false)
@@ -452,7 +458,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 
     GCopy = deepcopy(G)
     AvarCopy = deepcopy(Avar)
-    (vEliminated, vProperty, nvArbitrary, redundantEquations) = simplifyLinearIntegerEquations!(GCopy, linearEquations, GcInt, AvarCopy)
+    @timeit to "simplifyLinearIntegerEquations!" (vEliminated, vProperty, nvArbitrary, redundantEquations) = simplifyLinearIntegerEquations!(GCopy, linearEquations, GcInt, AvarCopy)
 
     if logDetails
         @show vEliminated vProperty nvArbitrary redundantEquations
@@ -462,7 +468,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     end
 
     substitutions = OrderedDict()
-    if length(vEliminated) - nvArbitrary > 0
+    @timeit to "build substitutions" if length(vEliminated) - nvArbitrary > 0
         for v in vEliminated[nvArbitrary+1:end]
             if isZero(vProperty, v)
                 substitutions[unknowns[v]] = 0.0
@@ -474,12 +480,11 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
         end
     end
 
-    replaceLinearIntegerEquations(GCopy[linearEquations], linearEquations, GcInt, unknowns, equations)
+    @timeit to "replaceLinearIntegerEquations" replaceLinearIntegerEquations(GCopy[linearEquations], linearEquations, GcInt, unknowns, equations)
 #    printArray(equations, "new equations:", log=log)
 
     reducedEquations = []
-
-    for ei in 1:length(equations)
+    @timeit to "substitute" for ei in 1:length(equations)
         e = equations[ei]
         if e != :(0 = 0)
             push!(reducedEquations, substitute(substitutions, e))
@@ -495,10 +500,10 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 
     reducedVariablesIndices = OrderedDict(key => k for (k, key) in enumerate(reducedUnknowns))
     reducedG = Vector{Int}[] # Array{Array{Int64,1},1}()
-    for i in 1:length(reducedEquations)
+    @timeit to "build reducedG" for i in 1:length(reducedEquations)
         e = reducedEquations[i]
         nameIncidence, coefficients, rest, linear = getCoefficients(e)
-        incidence = [reducedVariablesIndices[n] for n in nameIncidence if n in reducedUnknowns]
+        incidence = [reducedVariablesIndices[n] for n in nameIncidence if n in keys(reducedVariablesIndices)]
         unique!(incidence)
         push!(reducedG, incidence)
     end
@@ -509,11 +514,14 @@ end
 
 
 function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
-    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
+    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false, evaluateParameters=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
 
     function getSolvedEquationAST(e, v)
         (solution, solved) = solveEquation(equations[e], unknowns[v])
+        unknown = solution.args[1]
+        expr = solution.args[2]
+###        solution = :(_variables[$(v+1)] = $unknown = $expr)
         equ = string(equations[e])
         @assert solved "Equation not solved for $(unknowns[v]): $(equations[e])"
 #        sol = string(solution)
@@ -530,8 +538,8 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
-        solution = makeDerVar(solution, keys(parameters), keys(inputs))
-        if logExecution
+        solution = makeDerVar(solution, parameters, inputs, evaluateParameters)
+        if logCalculations
             var = string(unknowns[v])
             solutionString = string(solution)
             return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", upreferred.($(solution.args[1]))))
@@ -543,10 +551,10 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     function getResidualEquationAST(e, residualName)
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
         eqs = sub(eq.args[2], eq.args[1])
-        resid = makeDerVar(:(ustrip($eqs)), keys(parameters), keys(inputs) )
+        resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
         residual = :($residualName = $resid)
         residString = string(resid)
-        if logExecution
+        if logCalculations
             return :(println("Calculating residual: ", $residString); $residualName = $resid; println("  Residual: ", $residualName) )
 #            return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
         else
@@ -572,10 +580,8 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
     function var_unit(v)
         var = unknowns[v]
-#        @show var init[var]
         if var in keys(init)
             value = eval(init[var])
-#            value = 0.0
         elseif var in keys(start)
             value = eval(start[var])
         else
@@ -607,7 +613,6 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         v = unknowns[v_original]
         if v in keys(init)
             value = eval(init[v])
-#            value = 0.0
             len = hasParticles(value) ? 1 : length(value)
         elseif v in keys(start)
             value = eval(start[v])
@@ -658,7 +663,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
     if logTiming
         println("Get sorted and solved AST")
-        @time (success,AST,equationInfo) = getSortedAndSolvedAST(
+        @timeit to "getSortedAndSolvedAST" (success,AST,equationInfo) = getSortedAndSolvedAST(
             G, Array{Array{Int64,1},1}(blt), assign, Avar, Bequ, stateSelectionFunctions;
             unitless, log = logStateSelection, modelName = name)
     else
@@ -670,6 +675,13 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     if ! success
         error("Aborting")
     end
+
+    if useNewCodeGeneration
+        AST, newFunctions = prepareGenerateGetDerivatives(AST, modelModule, functionSize, juliaVariables)
+    else
+        newFunctions = Vector{Expr}()
+    end
+
 #    @show AST
 #    @show equationInfo
 
@@ -714,23 +726,26 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     end
 
     # Generate code
-    nCrossingFunctions, nAfter, nClocks, nSamples, previousVars, preVars = getEventCounters()   
+    nCrossingFunctions, nAfter, nClocks, nSamples, previousVars, preVars, holdVars = getEventCounters()   
     previousVars = Symbol.(previousVars)
     preVars = Symbol.(preVars)
-    holdVars = Symbol[]  # fix this
+    holdVars = Symbol.(holdVars)
     
     # Variables added to result
     extraResults = vcat(:time, setdiff([Symbol(u) for u in unknowns], 
                                         Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
                                         Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info]))
     
-    if logTiming
-        println("Generate code")
-#        @time code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        @time code = generate_getDerivatives!(AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+    if true # logTiming
+#        println("Generate code")
+        if useNewCodeGeneration
+            @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+        else
+            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+        end
     else
 #        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivatives!(AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivatives!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         @show mappedParameters
@@ -739,43 +754,54 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
     # Compile code
 
-
 #    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)
     #getDerivatives = Core.eval(modelModule, code)
-    Core.eval(modelModule, code)
+
+    if logTiming
+        println("eval code")
+        @time @timeit to "eval(code)" Core.eval(modelModule, code)
+    else
+        Core.eval(modelModule, code)
+    end
     getDerivatives = modelModule.getDerivatives
 
     # If generatedFunction is not packed inside a function, DifferentialEquations.jl crashes
 #    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)
 
-    # Execute code
-    if logExecution
-        println("\nExecute getDerivatives")
-        @show startValues
-    end
     convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
+#    @show mappedParameters
 
-    model = SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, convertedStartValues, previousVars, preVars, holdVars,
+#    println("Build SimulationModel")
+
+    model = @timeit to "build SimulationModel" SimulationModel{FloatType, OrderedDict{Symbol,Any}}(modelModule, name, getDerivatives, equationInfo, convertedStartValues, previousVars, preVars, holdVars,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          OrderedDict(:(_p) => mappedParameters ), extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
-                                         nz=nCrossingFunctions, nAfter=nAfter, unitless=unitless)
- 
-    if true # logExecution
+                                         nz=nCrossingFunctions, nAfter=nAfter,  unitless=unitless)
+
+    # Execute code
+    if logExecution
+        println("\nExecute getDerivatives")
+    #    @show startValues
         derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
-#        @time getDerivatives(derx, convertedStartValues, model, convert(FloatType, 0.0))
-        TimeType = timeType(model)
-        @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
-        @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
-        #@show derx
+        println("First executions of getDerivatives")
+        @timeit to "execute getDerivatives" try
+            TimeType = timeType(model)
+            @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
+            @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
+#            @show derx
+        catch e
+            error("Failed: ", e)
+            return nothing
+        end
     end
     return model
 end
 
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
-        log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
+        log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=logExecution, logTiming=false)
 
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
 
@@ -802,10 +828,11 @@ end
 See documentation of macro @instatiateModel
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
-    log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
-    #try
+    log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=logExecution, logTiming=false, evaluateParameters=false)
+    try
         println("\nInstantiating model $modelModule.$modelName")
         resetEventCounters()
+        global to = TimerOutput()
 
         modelStructure = ModelStructure()
 
@@ -813,7 +840,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             model = eval(model) # model defined with macro
         end
 
-        if typeof(model) <: NamedTuple
+        if typeof(model) <: NamedTuple || typeof(model) <: Dict || typeof(model) <: OrderedDict
             if logModel
                 @showModel(model)
             end
@@ -821,15 +848,15 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
                 println("drawModel")
                 jsonDiagram = drawModel(modelName, model)
                 println()
-                println("jsonModel")
-                JSON.print(jsonDiagram, 2)
+#                println("jsonModel")
+#                JSON.print(jsonDiagram, 2)
             end
 
             if logTiming
                 println("Flatten")
-                @time flattenModelTuple!(model, modelStructure, modelName; unitless, log)
+                @timeit to "flatten" flattenModelTuple!(model, modelStructure, modelName, to; unitless, log)
             else
-                flattenModelTuple!(model, modelStructure, modelName; unitless, log)
+                flattenModelTuple!(model, modelStructure, modelName, to; unitless, log)
             end
             printModelStructure(modelStructure, log=logDetails)
             name = modelName
@@ -841,20 +868,21 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         allVariables = Incidence[]
         if logTiming
         println("Find incidence")
-            @time findIncidence!(modelStructure.equations, allVariables)
+            @timeit to "findIncidence!" findIncidence!(modelStructure.equations, allVariables)
         else
             findIncidence!(modelStructure.equations, allVariables)
         end
         unique!(allVariables)
-    #    @show allVariables
 
         unknowns = setdiff(allVariables, keys(modelStructure.parameters), keys(modelStructure.inputs), [:time, :instantiatedModel, :_leq_mode, :_x])
         Avar, states, derivatives = setAvar(unknowns)
         vActive = [a == 0 for a in Avar]
 
-        if log
+        if logStatistics
             println("Number of states:    ", length(states))
-            println("Number of unknowns:  ", length(unknowns)-length(states))
+            if length(unknowns)-length(states) != length(modelStructure.equations)
+                println("Number of unknowns:  ", length(unknowns)-length(states))
+            end
             println("Number of equations: ", length(modelStructure.equations))
         end
         printArray(modelStructure.parameters, "Parameters:", log=log)
@@ -873,7 +901,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
                 println("Perform alias elimination and remove singularities")
             end
             if logTiming
-                @time equations, unknowns, Avar, G, states, vEliminated, vProperty = performAliasReduction(unknowns, modelStructure.equations, Avar, logDetails, log)
+                @timeit to "performAliasReduction" equations, unknowns, Avar, G, states, vEliminated, vProperty = performAliasReduction(unknowns, modelStructure.equations, Avar, logDetails, log)
                 println("Number of reduced unknowns:  ", length(unknowns)-length(states))
                 println("Number of reduced equations: ", length(equations))
             else
@@ -887,10 +915,18 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             G = Vector{Int}[] # Array{Array{Int64,1},1}()
             variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
 
-            for i in 1:length(equations)
+            println("Build incidence matrix")
+            unknownsSet = Set(unknowns)
+            @timeit to "build incidence matrix" for i in 1:length(equations)
                 e = equations[i]
                 nameIncidence, coefficients, rest, linear = getCoefficients(e)
-                incidence = [variablesIndices[n] for n in nameIncidence if n in unknowns]
+
+                incidence = [] # [variablesIndices[n] for n in nameIncidence if n in unknownsSet]
+                for n in nameIncidence
+                    if n in keys(variablesIndices)
+                        push!(incidence, variablesIndices[n])
+                    end
+                end
                 unique!(incidence)
                 push!(G, incidence)
             end
@@ -900,12 +936,18 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         modStructure = assignAndBLT(equations, unknowns, modelStructure.parameters, Avar, G, states, logDetails, log, logTiming)
 
-        stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
+        inst = stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
             vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
-            unitless, logStateSelection, logCode, logExecution, logTiming)
+            unitless, logStateSelection, logCode, logExecution, logTiming, evaluateParameters)
 
-   #= catch e
-   
+        if logTiming
+            show(to, compact=true)
+            println()
+        end
+
+        inst
+
+    catch e
         if isa(e, ErrorException)
             println()
             printstyled("Model error: ", bold=true, color=:red)  
@@ -916,8 +958,11 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         else
             Base.rethrow()
         end
-   # end
-=#
+        show(to, compact=true)
+        println()
+    end
+    
+
 end
 
 end

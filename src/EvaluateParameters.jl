@@ -23,7 +23,7 @@ function propagate(model, environment=[])
     #println("\n... Propagate: ", model)
     current = OrderedDict()
     for (k,v) in zip(keys(model), model)
-        if k in [:class, :_Type]
+        if k in [:_class, :_Type]
             current[k] = v
         elseif typeof(v) <: NamedTuple
             current[k] = propagate(v, vcat(environment, [current]))
@@ -66,6 +66,7 @@ Recursively traverse the hierarchical collection `parameters` and perform the fo
 function propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
     map = propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+
     if isnothing(map)
         return nothing
     end
@@ -145,16 +146,16 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
     if log
         println("\n!!! instantiate objects of $path: ", parameters)
     end
-    current = OrderedDict()
+    current = OrderedDict{Any,Any}()
     
     # Determine, whether the "parameters" has a ":_constructor" key and handle this specially
     constructor = nothing
     usePath     = false
     if haskey(parameters, :_constructor)
-        # For example: obj = (class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
-        #          or: rev = (_constructor = (class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)    
+        # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
+        #          or: rev = (_constructor = (_class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)    
         v = parameters[:_constructor]
-        if typeof(v) <: ParType
+        if typeof(v) <: OrderedDict
             constructor = v[:value]
             if haskey(v, :_path)
                 usePath = v[:_path]
@@ -167,31 +168,31 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
         end
         
     elseif haskey(parameters, :value)
-        # For example: p1 = (class = :Var, parameter = true, value = 0.2)
-        #          or: p2 = (class = :Var, parameter = true, value = :(2*p1))
+        # For example: p1 = (_class = :Var, parameter = true, value = 0.2)
+        #          or: p2 = (_class = :Var, parameter = true, value = :(2*p1))
         v = parameters[:value]
         veval = Core.eval(modelModule, subst(v, vcat(environment, [current]), modelModule))
         return veval
     end
     
-    for (k,v) in zip(keys(parameters), parameters)
+    for (k,v) in parameters # zip(keys(parameters), parameters)
         if log
             println("    ... key = $k, value = $v")
         end
-        if k == :_constructor || k == :_path || (k == :class && !isnothing(constructor))
+        if k == :_constructor || k == :_path || (k == :_class && !isnothing(constructor))
             nothing
             
         elseif !isnothing(constructor) && (k == :value || k == :init || k == :start)
             error("value, init or start keys are not allowed in combination with a _constructor:\n$parameters")
             
-        elseif typeof(v) <: ParType   
-            if haskey(v, :class) && v[:class] == :Par && haskey(v, :value)
-                # For example: k = (class = :Par, value = 2.0) -> k = 2.0
-                #          or: k = (class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )   
-                #          or: k = (class = :Par, value = :(bar.frame0)) -> k = ref(bar.frame0)
+        elseif typeof(v) <: OrderedDict   
+            if haskey(v, :_class) && v[:_class] == :Par && haskey(v, :value)
+                # For example: k = (_class = :Par, value = 2.0) -> k = 2.0
+                #          or: k = (_class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )   
+                #          or: k = (_class = :Par, value = :(bar.frame0)) -> k = ref(bar.frame0)
                 subv = subst(v[:value], vcat(environment, [current]), modelModule)
                 if log
-                    println("    class & value: $k = $subv  # before eval")
+                    println("    _class & value: $k = $subv  # before eval")
                 end
                 current[k] = Core.eval(modelModule, subv)
                 if log
@@ -262,7 +263,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
     end 
     
     if isnothing(constructor)
-        return (; current...)
+        return current # (; current...)
     else
         if usePath
             obj = Core.eval(modelModule, :($constructor(; path = $path, $current...))) 
@@ -290,8 +291,8 @@ function getIdParameter(evaluatedParameters, ParType, id::Int, path::String="")
     if haskey(evaluatedParameters, :_id) && evaluatedParameters[:_id] == id
         return (evaluatedParameters, path)
     else
-        for (key,value) in zip(keys(evaluatedParameters), evaluatedParameters)
-            if typeof(value) <: ParType
+        for (key,value) in evaluatedParameters # zip(keys(evaluatedParameters), evaluatedParameters)
+            if typeof(value) <: OrderedDict # ParType
                 result = getIdParameter(value, ParType, id, appendKey(path,key))
                 if !isnothing(result[1])
                     return result
