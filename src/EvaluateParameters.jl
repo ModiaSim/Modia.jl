@@ -143,8 +143,9 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
                                            environment, path::String; log=false) where {FloatType}
+    log = true
     if log
-        println("\n!!! instantiate objects of $path: ", parameters)
+        println("\n 1: !!! instantiate objects of $path: ", parameters)
     end
     current = OrderedDict{Any,Any}()
     
@@ -177,7 +178,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
     
     for (k,v) in parameters # zip(keys(parameters), parameters)
         if log
-            println("    ... key = $k, value = $v")
+            println(" 2:    ... key = $k, value = $v")
         end
         if k == :_constructor || k == :_path || (k == :_class && !isnothing(constructor))
             nothing
@@ -190,13 +191,17 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
                 # For example: k = (_class = :Par, value = 2.0) -> k = 2.0
                 #          or: k = (_class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )   
                 #          or: k = (_class = :Par, value = :(bar.frame0)) -> k = ref(bar.frame0)
+                if log
+                    println(" 3a:    v[:value] = ", v[:value], ", typeof(v[:value]) = ", typeof(v[:value]))
+                    println("        vcat(environment, [current]) = ", vcat(environment, [current]))
+                end
                 subv = subst(v[:value], vcat(environment, [current]), modelModule)
                 if log
-                    println("    _class & value: $k = $subv  # before eval")
+                    println(" 3b:    _class & value: $k = $subv  # before eval")
                 end
                 current[k] = Core.eval(modelModule, subv)
                 if log
-                    println("                   $k = ", current[k])
+                    println(" 4:                   $k = ", current[k])
                 end
             else
                 # For example: k = (a = 2.0, b = :(2*Lx))
@@ -210,22 +215,22 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
             
         else
             if log
-                println("    else: typeof(v) = ", typeof(v))
+                println(" 5:    else: typeof(v) = ", typeof(v))
             end
             subv = subst(v, vcat(environment, [current]), modelModule)
             if log
-                println("          $k = $subv   # before eval")
+                println(" 6:          $k = $subv   # before eval")
             end
             current[k] = Core.eval(modelModule, subv)
             if log
-                println("          $k = ", current[k])
+                println(" 7:          $k = ", current[k])
             end
             
             # Set x_start
             full_key = appendKey(path, k) 
             if haskey(eqInfo.x_dict, full_key)
                 if log
-                    println("              (is stored in x_start)")
+                    println(" 8:              (is stored in x_start)")
                 end
                 j = eqInfo.x_dict[full_key]
                 xe_info = eqInfo.x_info[j]                
@@ -271,7 +276,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
             obj = Core.eval(modelModule, :($constructor(; $current...)))
         end
         if log
-            println("    +++ $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")    
+            println(" 9:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")    
         end
         return obj        
     end
