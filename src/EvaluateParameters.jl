@@ -148,9 +148,9 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)
     end
-    current = OrderedDict{Any,Any}()
-    
-    # Determine, whether the "parameters" has a ":_constructor" key and handle this specially
+    current = OrderedDict{Symbol,Any}()   # should be Map()
+       
+    # Determine, whether "parameters" has a ":_constructor" key and handle this specially
     constructor = nothing
     usePath     = false
     if haskey(parameters, :_constructor)
@@ -204,6 +204,15 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
                     if log
                         println(" 5:    _class & value: $k = $subv  # before eval")
                     end
+                    if typeof(subv) == Expr && subv.head == :(.) && (typeof(subv.args[1]) <: AbstractDict)
+                        if log
+                            println(" 5b:     change . to [] for ", subv.args[2])
+                        end
+                        subv.head = :ref
+                        if log
+                            println(" 5c:    _class & value: $k = $subv  # before eval")
+                        end                            
+                    end
                     current[k] = Core.eval(modelModule, subv)
                     if log
                         println(" 6:                   $k = ", current[k])
@@ -233,6 +242,15 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
             if log
                 println(" 10:          $k = $subv   # before eval")
             end
+            if typeof(subv) == Expr && subv.head == :(.) && (typeof(subv.args[1]) <: AbstractDict)
+                if log
+                    println(" 10b:     change . to [] for ", subv.args[2])
+                end
+                subv.head = :ref
+                if log
+                    println(" 10c:    _class & value: $k = $subv  # before eval")
+                end                            
+            end        
             current[k] = Core.eval(modelModule, subv)
             if log
                 println(" 11:          $k = ", current[k])
