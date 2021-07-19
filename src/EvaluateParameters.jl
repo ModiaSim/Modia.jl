@@ -143,7 +143,6 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
                                            environment, path::String; log=false) where {FloatType}
-    log = true
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)
     end
