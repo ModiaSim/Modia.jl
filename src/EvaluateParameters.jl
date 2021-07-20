@@ -139,6 +139,32 @@ function propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, eqIn
 end
 
 
+"""
+    firstName(ex::Expr)
+    
+If ex = :(a.b.c.d) -> firstName(ex) = :a
+"""
+function firstName(ex::Expr)
+    if ex.head == :(.)
+        if typeof(ex.args[1]) == Expr
+            firstName(ex.args[1])
+        else
+            return ex.args[1]
+        end
+    end
+end
+
+function changeDotToRef(ex)
+    if ex.head == :(.)
+        ex.head = :ref
+        if typeof(ex.args[1]) == Expr
+            changeDotToRef(ex.args[1])
+        end
+    end
+    return nothing
+end
+
+
 function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqInfo::ModiaBase.EquationInfo, 
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
@@ -203,15 +229,14 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
                     subv = subst(v[:value], vcat(environment, [current]), modelModule)
                     if log
                         println(" 5:    _class & value: $k = $subv  # before eval")
-                    end
-                    if typeof(subv) == Expr && subv.head == :(.) && (typeof(subv.args[1]) <: AbstractDict)
-                        if log
-                            println(" 5b:     change . to [] for ", subv.args[2])
+                    end                   
+                    if typeof(subv) == Expr && subv.head == :(.)
+                        if typeof(firstName(subv)) <: AbstractDict
+                            changeDotToRef(subv)
+                            if log
+                                println(" 5b:    _class & value: $k = $subv  # before eval")
+                            end 
                         end
-                        subv.head = :ref
-                        if log
-                            println(" 5c:    _class & value: $k = $subv  # before eval")
-                        end                            
                     end
                     current[k] = Core.eval(modelModule, subv)
                     if log
@@ -242,15 +267,14 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
             if log
                 println(" 10:          $k = $subv   # before eval")
             end
-            if typeof(subv) == Expr && subv.head == :(.) && (typeof(subv.args[1]) <: AbstractDict)
-                if log
-                    println(" 10b:     change . to [] for ", subv.args[2])
+            if typeof(subv) == Expr && subv.head == :(.)
+                if typeof(firstName(subv)) <: AbstractDict
+                    changeDotToRef(subv)
+                    if log
+                        println(" 10b:    _class & value: $k = $subv  # before eval")
+                    end 
                 end
-                subv.head = :ref
-                if log
-                    println(" 10c:    _class & value: $k = $subv  # before eval")
-                end                            
-            end        
+            end     
             current[k] = Core.eval(modelModule, subv)
             if log
                 println(" 11:          $k = ", current[k])
