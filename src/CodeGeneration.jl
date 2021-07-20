@@ -169,7 +169,7 @@ struct SimulationOptions{FloatType,TimeType}
         rawStopTime       = get(kwargs, :stopTime, 1.0)
         stopTime  = convertTimeVariable(TimeType, rawStopTime)
         interval  = convertTimeVariable(TimeType, get(kwargs, :interval , (stopTime - startTime)/500.0) )
-        dtmax     = convert(Float64, get(kwargs, :dtmax, 100*interval))
+        dtmax     = convert(Float64, get(kwargs, :dtmax, 100*getValue(interval)))
         desiredResultTimeUnit = unit(rawStopTime)          
         interp_points = get(kwargs, :interp_points, 0)
         if interp_points < 0

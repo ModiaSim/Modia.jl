@@ -42,7 +42,6 @@ using Measurements
 println("\n... Numerically linearize at stopTime = 10 with Float64 and Double64:")
 (A_10, x_10) = linearize!(pendulum2, stopTime=10) 
 
-@test_skip begin
 pendulum3 = SimulationModel{Measurement{Double64}}(pendulum2)
 (A_10_Double64, x_10_Double64) = linearize!(pendulum3, stopTime=10) 
 
@@ -50,6 +49,5 @@ xNames = get_xNames(pendulum2)
 @show xNames
 println(IOContext(stdout, :error_digits=>15), "A_10 = ", A_10, ", x_10 = ", x_10)
 println(IOContext(stdout, :error_digits=>15), "A_10_Double64 = ", A_10_Double64, ", x_10_Double64 = ", x_10_Double64)
-end
 
 end

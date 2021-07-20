@@ -21,6 +21,7 @@ should be used. Only in special cases, the other flags are useful.
 using  ForwardDiff
 getValue(v) = v
 getValue(v::ForwardDiff.Dual) = v.value
+getValue(v::Measurements.Measurement) = Measurements.value(v)
 
 
 const nClock = 100
