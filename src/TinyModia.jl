@@ -17,7 +17,7 @@ useNewCodeGeneration = false
 
 using Reexport
 
-export instantiateModel, @instantiateModel
+export instantiateModel, @instantiateModel, assert, stringifyDefinition
 
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
@@ -72,7 +72,7 @@ const drawIncidence = false
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
 const Version = "0.8.0-dev"
-const Date = "2021-07-14"
+const Date = "2021-07-21"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -87,6 +87,14 @@ printstyled("ia", bold=true, color=:red)
 
 println()
 println("Version $Version ($Date)")
+
+# ----------------------------------------------------------------------------------------------
+
+function assert(condition, message)
+    if ! condition
+        println("ASSERTION: ", message)
+    end
+end
 
 function printArray(array, heading; order=1:length(array), log=false, number=true, indent=false, spacing=" ")
     if length(array) > 0 && log
@@ -514,7 +522,7 @@ end
 
 
 function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
-    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false, evaluateParameters=false)
+    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
 
     function getSolvedEquationAST(e, v)
@@ -741,11 +749,11 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         if useNewCodeGeneration
             @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         else
-            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, extraResults), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         end
     else
-#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, [Symbol(u) for u in unknowns]), :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivatives!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, extraResults), :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivatives!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, extraResults), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         @show mappedParameters
@@ -801,7 +809,8 @@ end
 
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
-        log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=logExecution, logTiming=false)
+        log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, 
+        logExecution=logExecution, logCalculations=logCalculations, logTiming=false)
 
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
 
@@ -814,7 +823,8 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 * `logDetails`: Log internal data during the different phases of translation
 * `logStateSelection`: Log details during state selection
 * `logCode`: Log the generated code
-* `logExecution`: Log the execution of the generated code (useful for finding unit bugs)
+* `logExecution`: Log the execution of the generated code (useful for timing compilation)
+* `logCalculations`: Log the calculations of the generated code (useful for finding unit bugs)
 * `logTiming`: Log timing of different phases
 * `return modelInstance prepared for simulation`
 """
@@ -828,7 +838,8 @@ end
 See documentation of macro @instatiateModel
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
-    log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, logExecution=logExecution, logTiming=false, evaluateParameters=false)
+    log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, 
+    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false)
     try
         println("\nInstantiating model $modelModule.$modelName")
         resetEventCounters()
@@ -858,7 +869,13 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             else
                 flattenModelTuple!(model, modelStructure, modelName, to; unitless, log)
             end
-            printModelStructure(modelStructure, log=logDetails)
+            pars = OrderedDict{Symbol, Any}([(Symbol(k),v) for (k,v) in modelStructure.parameters])
+            if length(modelStructure.equations) > 0
+                flatModel = Model() | pars | Model(equations = [removeBlock(e) for e in modelStructure.equations])
+            else
+                flatModel = Model() | pars 
+            end
+            printModelStructure(modelStructure, log=false)
             name = modelName
         else
             @show model
@@ -867,7 +884,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         allVariables = Incidence[]
         if logTiming
-        println("Find incidence")
+            println("Find incidence")
             @timeit to "findIncidence!" findIncidence!(modelStructure.equations, allVariables)
         else
             findIncidence!(modelStructure.equations, allVariables)
@@ -938,14 +955,14 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         inst = stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
             vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
-            unitless, logStateSelection, logCode, logExecution, logTiming, evaluateParameters)
+            unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters)
 
         if logTiming
             show(to, compact=true)
             println()
         end
 
-        inst
+        inst #, flatModel
 
     catch e
         if isa(e, ErrorException)

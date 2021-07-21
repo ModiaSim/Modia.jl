@@ -59,13 +59,11 @@ TwoFilters = Model( f1 = Filter | Map( R = Map(R = 10.0u"Ω"), C = Cpar), f2 = F
 
 #setLogMerge(true)
 
-VoltageDividerAndFilter = TwoFilters | Map(f1 = Map(C = Redeclare | Resistor | (R = 20.0u"Ω", v = Var(start = 0u"V"))))
+VoltageDividerAndFilter = TwoFilters | Map(f1 = Map(C = redeclare | Resistor | (R = 2.0u"Ω", v = Map(start = 0u"V"))))
 
-#=
-model = @instantiateModel(VoltageDividerAndFilter, logModel=true, log=true, logCode=false)
-simulate!(model, Tsit5(), stopTime = 10, requiredFinalStates = [9.999550454584188]) 
+model = @instantiateModel(VoltageDividerAndFilter, unitless=true, logCalculations=false, evaluateParameters=true)
+simulate!(model, Tsit5(), stopTime = 10) 
 plot(model, [("f1.R.v", "f1.C.v"), ("f2.R.v", "f2.C.v")])
-=#
 
 n=10
 println("Build array of $n filters")

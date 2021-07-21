@@ -2,12 +2,13 @@
 Handles models and variables defined as dictionaries.
 
 * Developer: Hilding Elmqvist, Mogram AB
-* First version: January 2021
+* First version: June 2021
 * License: MIT (expat)
 
 =#
-export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, drawModel, Model, Map, Par, Var, setLogMerge,
-    constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define
+
+export mergeModels, recursiveMerge, redeclare, outer, showModel, @showModel, drawModel, Model, Map, Par, Var, setLogMerge,
+    constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define, stringifyDefinition
 
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
@@ -54,7 +55,8 @@ end
 
 isCollection(v) = (typeof(v) <: OrderedDict) && :_class in keys(v)
 
-function showModel(m, level=0)
+showModel(m, level=0) = println(m)
+function showModel(m::OrderedDict, level=0)
 #    @show m typeof(m)
     level += 1
     if isCollection(m)
@@ -211,11 +213,18 @@ function Var(values...; kwargs...)
     res
 end
 
+function Par(value; kwargs...)
+    res = newCollection(kwargs, :Par)
+    res[:value] = value
+    res
+end
+
 Integ(;kwargs...) = Var(kwargs)
 
 Boolean(;kwargs...) = Var(kwargs)
 
-Redeclare = Model( _redeclare = true)
+redeclare = Model( _redeclare = true)
+outer = Var( _outer = true)
 
 constant = Var(constant = true)
 parameter = Var(parameter = true)
@@ -231,6 +240,7 @@ macro info_str(text)
 end
 
 Base.:|(m::AbstractDict, n::AbstractDict) =  mergeModels(m, n) 
+Base.:|(m::Symbol, n::AbstractDict) =  mergeModels(eval(m), n) 
 Base.:|(m, n) = if !(typeof(n) <: AbstractDict); mergeModels(m, Var(value=n)) else mergeModels(n, Var(value=m)) end
 
 #mergeModels(x, ::Nothing) = x
@@ -435,11 +445,13 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
         else
             subMod = :($modelName.$k)
         end
-        if k == :_class
-        elseif typeof(v) in [Int64, Float64] || typeof(v) <: Unitful.Quantity || 
+        if k in [:_class, :_redeclare]
+            # skip them
+        elseif typeof(v) <: Number || typeof(v) <: Unitful.Quantity || 
                 typeof(v) in [Array{Int64,1}, Array{Int64,2}, Array{Float64,1}, Array{Float64,2}] || 
 				isCollection(v) && v[:_class] == :Par 
 #				typeof(v) <: AbstractDict && :parameter in keys(v) && v.parameter
+            # p = 5.0
             if unitless && !isCollection(v)
                 v = ustrip(v)
             end
@@ -470,14 +482,17 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
                 if unitless && typeof(s0) != Expr
                     s0 = ustrip(s0)
                 end
-                modelStructure.start[k] = s0
+                modelStructure.start[subMod] = s0
                 modelStructure.mappedParameters[k] = s0 
             end
             if :input in keys(v) && v[:input]
-                modelStructure.inputs[k] = v
+                modelStructure.inputs[subMod] = v
             end
             if :output in keys(v) && v[:output]
-                modelStructure.outputs[k] = v
+                modelStructure.outputs[subMod] = v
+            end
+            if :_outer in keys(v) && v[:_outer]
+                push!(modelStructure.equations, :($k = $(prepend(k, :up))))
             end
         elseif isCollection(v) # || typeof(v) == Symbol # instantiate
                 if typeof(v) == Symbol
@@ -507,7 +522,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
         elseif isexpr(v, :vect) || isexpr(v, :vcat) || isexpr(v, :hcat)
             arrayEquation = false
             for e in v.args
-                if isexpr(e, :(=))
+                if k == :equations || isexpr(e, :(=))
                     if unitless
                         e = removeUnits(e)
                     end
@@ -522,8 +537,8 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
                 end
             end
             if arrayEquation
-                push!(modelStructure.equations, removeBlock(:($k = $(prepend(v, :up)))))
-#                 push!(modelStructure.equations, removeBlock(:($k = $v)))
+                push!(modelStructure.equations, removeBlock(:($k = $(prepend(v, :up)))))  # Needed for TestStateSpace.SecondOrder1
+#                push!(modelStructure.equations, removeBlock(:($k = $v)))   # To handle assert
             end                    
         elseif isexpr(v, :(=)) # Single equation
             if unitless
@@ -542,7 +557,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
 #            @show modelStructure.equations
         end
     end
-    
+
 #    printModelStructure(modelStructure, "flattened")
     @timeit to "convert connections" connectEquations = convertConnections!(connections, extendedModel, modelName, log)
     push!(modelStructure.equations, connectEquations...)
