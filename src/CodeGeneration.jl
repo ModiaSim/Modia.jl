@@ -566,20 +566,20 @@ hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
     get_value(obj, name::String)
     
 Return the value identified by `name` from the potentially hierarchically 
-`NamedTuple obj`. If `name` is not in `obj`, the function returns `missing`.
+dictionary `obj`. If `name` is not in `obj`, the function returns `missing`.
 
 # Examples
 ```julia
-s1 = (a = 1, b = 2, c = 3)
-s2 = (v1 = s1, v2 = (d = 4, e = 5))
-s3 = (v3 = s2, v4 = s1)
+s1 = Map(a = 1, b = 2, c = 3)
+s2 = Map(v1 = s1, v2 = (d = 4, e = 5))
+s3 = Map(v3 = s2, v4 = s1)
 
 @show get_value(s3, "v3.v1.b")   # returns 2
 @show get_value(s3, "v3.v2.e")   # returns 5
 @show get_value(s3, "v3.v1.e")   # returns missing
 ```
 """
-function get_value(obj #= ::NamedTuple =# , name::String)
+function get_value(obj::OrderedDict, name::String)
     if length(name) == 0 || length(obj) == 0
         return missing
     end
@@ -591,7 +591,7 @@ function get_value(obj #= ::NamedTuple =# , name::String)
         return missing
     else
         key = Symbol(name[1:j-1])
-        if haskey(obj,key) && typeof(obj[key]) <: NamedTuple && length(name) > j
+        if haskey(obj,key) && typeof(obj[key]) <: OrderedDict && length(name) > j
             get_value(obj[key], name[j+1:end])
         else
             return missing
@@ -609,15 +609,15 @@ appendName(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    get_names(obj::NamedTuple)
+    get_names(obj)
     
 Return `Vector{String}` containing all the names present in `obj`
 
 # Examples
 ```julia
-s1 = (a = 1, b = 2, c = 3)
-s2 = (v1 = s1, v2 = (d = 4, e = 5))
-s3 = (v3 = s2, v4 = s1)
+s1 = Map(a = 1, b = 2, c = 3)
+s2 = Map(v1 = s1, v2 = (d = 4, e = 5))
+s3 = Map(v3 = s2, v4 = s1)
 
 @show get_names(s3)
 ```
