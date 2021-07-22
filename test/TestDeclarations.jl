@@ -28,7 +28,7 @@ Potential(; kwargs...) = Var(;potential=true, kwargs...)
 Flow(; kwargs...) = Var(;flow=true, kwargs...)
 
 using Base.Meta: isexpr
-using DataStructures: OrderedDict
+using OrderedCollections: OrderedDict
 using Unitful
 using ModiaBase.Symbolic: removeBlock
 

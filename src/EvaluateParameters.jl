@@ -9,7 +9,7 @@ Recursively instantiate dependent objects and propagate value in hierarchical Na
 =#
 
 
-using DataStructures: OrderedDict
+using OrderedCollections: OrderedDict
 
 
 subst(ex, environment, modelModule) = ex

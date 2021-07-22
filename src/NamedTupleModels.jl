@@ -10,7 +10,7 @@ export mergeModels, recursiveMerge, Redeclare, showModel, @showModel, drawModel,
     constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define
 
 using Base.Meta: isexpr
-using DataStructures: OrderedDict
+using OrderedCollections: OrderedDict
 using Unitful
 using ModiaBase.Symbolic: removeBlock, prepend
 
