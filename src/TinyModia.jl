@@ -749,11 +749,11 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         if useNewCodeGeneration
             @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         else
-            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(AST, equationInfo, [:(_p)], vcat(:time, extraResults), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         end
     else
-#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), vcat(:time, extraResults), :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivatives!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, extraResults), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), extraResults, :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivatives!(AST, newFunctions, modelModule, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         @show mappedParameters
