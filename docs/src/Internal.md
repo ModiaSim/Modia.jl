@@ -29,7 +29,9 @@ measurementToString
 isInitial
 isTerminal
 isEvent
+isFirstEventIteration
+isFirstEventIterationDirectlyAfterInitial
 isAfterSimulationStart
-computeEventIndicators
+isZeroCrossing
 storeResults
 ```

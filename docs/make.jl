@@ -1,4 +1,4 @@
-using Documenter, TinyModia
+using Documenter, TinyModia, ModiaResult, ModiaPlot_PyPlot
 
 makedocs(
   #modules  = [TinyModia],
@@ -7,8 +7,15 @@ makedocs(
   format = Documenter.HTML(prettyurls = false),
   pages    = [
      "Home"      => "index.md",
-	 "TinyModia Tutorial"  => "Tutorial.md",
+	 "Tutorial"  => [
+       "tutorial/Tutorial.md"
+       "tutorial/GettingStarted.md"
+       "tutorial/Modeling.md"
+       "tutorial/Simulation.md"
+       "tutorial/FloatingPointTypes.md"
+       "tutorial/Appendix.md"
+      ],
   	 "Functions" => "Functions.md",
      "Internal"  => "Internal.md"
-  ]
+  ]  
 )

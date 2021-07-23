@@ -1,11 +1,10 @@
 module Tutorial
 
-using Modia
-@usingModiaPlot
-
 # 1 Getting started
 
-using Modia
+using TinyModia
+using DifferentialEquations
+using Unitful
 @usingModiaPlot
 
 # Define model
@@ -31,7 +30,7 @@ plot(simpleModel, ("x", "der(x)"), figure=1)
 
 # 2.1 - Equation oriented models
 
-using Modia
+using TinyModia
 
 LowPassFilter = Model(
     T = 0.2,

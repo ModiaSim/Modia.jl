@@ -13,13 +13,30 @@ The package is registered and is installed with (Julia >= 1.5 is required):
 julia> ]add TinyModia
 ```
 
+Furthermore, one or more of the following packages should be installed in order 
+to be able to generate plots:
+
+```julia
+julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
+        add ModiaPlot_GLMakie       # if plotting with GLMakie desired
+        add ModiaPlot_WGLMakie      # if plotting with WGLMakie desired
+        add ModiaPlot_CairoMakie    # if plotting with CairoMakie desired
+```
+
 It is recommended to also add the following packages, in order that all tests and examples can be executed in your standard environment:
 
 ```julia
-julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloMeasurements, Distributions
+julia> ]add Unitful, DifferentialEquations, Measurements
+        add MonteCarloMeasurements, Distributions
 ```
 
 ## Release Notes
+
+
+### Version 0.8.0
+
+- xxx
+
 
 ### Version 0.7.3
 
@@ -51,7 +68,7 @@ julia> ]add ModiaPlot, Unitful, DifferentialEquations, Measurements, MonteCarloM
 
 - New (small) model library `TinyModia/models/HeatTransfer.jl`.
 
-- [TinyModia Tutorial](@ref) improved.
+- TinyModia Tutorial improved.
 
 - [Functions](@ref) docu improved.
 

@@ -48,7 +48,9 @@ The symbol `CVODE_BDF` is exported from TinyModia, so that `simulate!(instantiat
 can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.CVODE_BDF(), ...)`).
 
 The simulation results stored in `model` can be plotted with plot and the result values
-can be retrieved with [`get_result`](@ref).
+can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
+(for details see chapter [Results and Plotting](@ref)).
+
 
 # Optional Arguments
 
