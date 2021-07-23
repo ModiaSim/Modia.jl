@@ -29,7 +29,7 @@ SecondOrder1 = Model(
 
 
 secondOrder1 = @instantiateModel(SecondOrder1, unitless=true)
-simulate!(secondOrder1, merge=Map(D=0.3),
+simulate!(secondOrder1, stopTime=1.0, merge=Map(D=0.3),
           requiredFinalStates = [0.9974089572681231, 0.011808652820321723])
 plot(secondOrder1, [("sys.u", "sys.y"); "sys.x"], figure = 1)
 
@@ -46,11 +46,11 @@ SecondOrder2 = Model(
 )
 
 secondOrder2 = @instantiateModel(SecondOrder2, unitless=true)
-simulate!(secondOrder2, Tsit5(), merge=Map(sys=Map(A = [0.0 1.0; -400.0  -12.0])),
+simulate!(secondOrder2, Tsit5(), stopTime=1.0, merge=Map(sys=Map(A = [0.0 1.0; -400.0  -12.0])),
           requiredFinalStates = [0.9974089572681231, 0.011808652820321723])
 plot(secondOrder2, [("sys.u", "sys.y"); "sys.x"], figure = 2)
 
-simulate!(secondOrder2, Tsit5(), merge=Map(sys=Map(x=[1.0,1.0])),
+simulate!(secondOrder2, Tsit5(), stopTime=1.0, merge=Map(sys=Map(x=[1.0,1.0])),
           logParameters=true, logStates=true,
           requiredFinalStates = [1.0000295203337868, 0.0022367686372974493])
 plot(secondOrder2, [("sys.u", "sys.y"); "sys.x"], figure = 3)

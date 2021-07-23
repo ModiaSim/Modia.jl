@@ -12,6 +12,8 @@ import ModiaResult: @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, cur
 import ModiaResult: resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
 import ModiaResult: signalNames, timeSignalName, hasOneTimeSignal, hasSignal
 
+import TimerOutputs
+
 import ModiaBase
 using  Measurements
 import MonteCarloMeasurements
@@ -32,11 +34,23 @@ export CVODE_BDF
 
                    
 """
-    simulate!(instantiatedModel [, algorithm]; merge = nothing,
-              tolerance = 1e-6, startTime = 0.0, stopTime = 1.0, interval = NaN,
-              interp_points = 0, dtmax = missing, adaptive = true, log = false, logStates = false,
-              logEvents = false, logParameters = false, logEvaluatedParameters = false, 
-              requiredFinalStates = nothing)
+    simulate!(instantiatedModel [, algorithm]; 
+              merge         = missing,  # change parameter/init/start values
+              tolerance     = 1e-6,     # relative tolerance
+              startTime     = 0.0, 
+              stopTime      = 0.0,      # stopTime >= startTime required
+              interval      = missing,  # = (stopTime-startTime)/500
+              interp_points = 0, 
+              dtmax         = missing,  # = 100*interval
+              adaptive      = true, 
+              log           = false, 
+              logStates     = false,
+              logEvents     = false,
+              logTiming     = false,
+              logParameters = false, 
+              logEvaluatedParameters   = false, 
+              requiredFinalStates      = missing
+              requiredFinalStates_rtol = 1e-3)
 
 Simulate `instantiatedModel::SimulationModel` with `algorithm`
 (= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)).
@@ -59,7 +73,7 @@ can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
 - `tolerance`: Relative tolerance.
 - `startTime`: Start time. If value is without unit, it is assumed to have unit [s].
 - `stopTime`: Stop time. If value is without unit, it is assumed to have unit [s].
-- `interval`: Interval to store result. If `interval=NaN`, it is internally selected as
+- `interval`: Interval to store result. If `interval=missing`, it is internally selected as
               (stopTime-startTime)/500.
               If value is without unit, it is assumed to have unit [s].
 - `interp_points`: If crossing functions defined, number of additional interpolation points
@@ -70,18 +84,26 @@ can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
 - `log`: = true, to log the simulation.
 - `logStates`: = true, to log the states, its init/start values and its units.
 - `logEvents`: = true, to log events.
+- `logTiming`: = true, to log the timing with `instantiatedModel.timer` which is an instance
+               of [TimerOutputs](https://github.com/KristofferC/TimerOutputs.jl).TimerOutput.
+               A user function can include its timing via\\
+               `TimerOutputs.@timeit instantiatedModel.timer "My Timing" <statement>`.
 - `logParameters`: = true, to log parameters and init/start values defined in model.
-- `logEvaluatedParameters`: = true, to log the evaluated parameter and init/start values.
-- `requiredFinalStates`: is not `nothing`: Check whether the ODE state vector at the final time instant with `@test`
-              is in agreement to vector `requiredFinalStates` with respect to some tolerance. If this is not the case, print the
+- `logEvaluatedParameters`: = true, to log the evaluated parameter and init/start values that
+                            are used for initialization and during simulation.
+- `requiredFinalStates`: is not `missing`: Test with `@test` whether the ODE state vector at the 
+              final time instant is in agreement to vector `requiredFinalStates` with respect 
+              to some relative tolerance `requiredFinalStates_rtol`. If this is not the case, print the
               final state vector (so that it can be included with copy-and-paste in the simulate!(..) call).
+- `requiredFinalStates_rtol`: Relative tolerance used for `requiredFinalStates`.
 
 # Examples
 
 ```julia
 using TinyModia
 using DifferentialEquations
-using @usingModiaPlot
+using Unitful
+@usingModiaPlot
 
 # Define model
 inputSignal(t) = sin(t)
@@ -101,18 +123,21 @@ FirstOrder2 = FirstOrder | Map(T = 0.4, x = Var(init=0.6))
 firstOrder = @instantiateModel(FirstOrder2, logCode=true)
 
 
-# Simulate with automatically selected algorithm and 
-# modified parameter and initial values
+# Simulate with automatically selected algorithm (Sundials.CVODE_BDF())
+# and modified parameter and initial values
 simulate!(firstOrder, stopTime = 1.0, merge = Map(T = 0.6, x = 0.9), logEvaluatedParameters=true)
 
 # Plot variables "x", "u" in diagram 1, "der(x)" in diagram 2, both diagrams in figure 3
 plot(firstOrder, [("x","u"), "der(x)"], figure=3)
 
 # Retrieve "time" and "u" values:
-get_result(firstOrder, "time")
-get_result(firstOrder, "u")
-    
-    
+usig = getPlotSignal(firstOrder, "x")
+       # usig.xsig      : time vector
+       # usig.xsigLegend: legend for time vector
+       # usig.ysig      : "x" vector
+       # usig.ysigLegend: legend for "x" vector
+       # usig.ysigType  : ModiaResult.Continuous or ModiaResult.Clocked
+       
 # Simulate with Runge-Kutta 5/4 with step-size control
 simulate!(firstOrder, Tsit5(), stopTime = 1.0)
 
@@ -123,10 +148,6 @@ simulate!(firstOrder, RK4(), stopTime = 1.0, adaptive=false)
 # Verners Runge-Kutta 6/5 algorithm if non-stiff region and
 # Rosenbrock 4 (= A-stable method) if stiff region with step-size control
 simulate!(firstOrder, AutoVern6(Rodas4()), stopTime = 1.0)
-
-# Simulate with Sundials CVODE (BDF method with variable order 1-5) with step-size control
-using Sundials
-simulate!(firstOrder, CVODE_BDF(), stopTime = 1.0)
 ```
 """
 function simulate!(m::Nothing, args...; kwargs...)
@@ -135,6 +156,9 @@ function simulate!(m::Nothing, args...; kwargs...)
     return nothing
 end
 function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
+    enable_timer!(m.timer)
+    reset_timer!(m.timer)
+    TimerOutputs.@timeit m.timer "simulate!" begin 
         options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
         if isnothing(options)
             @test false
@@ -144,22 +168,19 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         if ismissing(algorithm) && FloatType == Float64
             algorithm = Sundials.CVODE_BDF()
         end
-
+    
         # Initialize/re-initialize SimulationModel
         if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
             println("... Simulate model ", m.modelName)
         end
         
-        cpuStart::UInt64 = time_ns()
-        cpuLast::UInt64  = cpuStart
-        cpuStartIntegration::UInt64 = cpuStart
         m.algorithmType = typeof(algorithm)       
-        success = init!(m)
+        TimerOutputs.@timeit m.timer "init!" success = init!(m)
         if !success
             @test false
             return nothing
         end
-
+    
         # Define problem and callbacks based on algorithm and model type
         interval = m.options.interval
         if  abs(m.options.stopTime - m.options.startTime) <= 0
@@ -171,7 +192,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             tspan2 = [m.options.startTime, m.options.stopTime]
         end
         tspan   = (m.options.startTime, m.options.stopTime)         
-        problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
+        TimerOutputs.@timeit m.timer "ODEProblem"  problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
         
         callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)   
         eh = m.eventHandler            
@@ -182,8 +203,8 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
             # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
             callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
-            callback3 = DifferentialEquations.VectorContinuousCallback(stateEventCondition!, 
-                             affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                                   
+            callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!, 
+                            affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                                   
             #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) 
             callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
         else
@@ -191,7 +212,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2)
             callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
         end
-    
+        
         # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
         if !ismissing(algorithm) && typeof(algorithm) <: Sundials.CVODE_BDF
             cvode_bdf = true
@@ -204,16 +225,16 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         # Compute solution 
         abstol = 0.1*m.options.tolerance
         tstops = (m.eventHandler.nextEventTime,)
-
+    
         if ismissing(algorithm)
-            solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                   callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
+            TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
         elseif cvode_bdf
-            solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                   callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops)
+            TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops)
         else
-            solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                   callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
+            TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
         end
         
         # Compute and store outputs from last event until final time
@@ -224,80 +245,81 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             Base.invokelatest(m.getDerivatives!, m.der_x, sol_x[i], m, sol_t[i])
         end
         m.storeResult = false
-    
+        
         # Final update of instantiatedModel
         m.result_x = solution
         if ismissing(algorithm)
             m.algorithmType = typeof(solution.alg)
         end
-    
+        
         # Terminate simulation
         finalStates = solution.u[end]
         finalTime   = solution.t[end]
         terminate!(m, finalStates, finalTime)
-        if !m.success
-            return nothing
+    end
+    disable_timer!(m.timer)  
+    
+    if !m.success
+        return nothing
+    end
+    
+    if m.options.log
+        println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
+        println("        cpuTime         = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
+        println("        allocated       = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")    
+        println("        algorithm       = ", get_algorithmName(m))
+        println("        FloatType       = ", FloatType)
+        println("        interval        = ", m.options.interval, " s")
+        println("        tolerance       = ", m.options.tolerance, " (relative tolerance)")
+        println("        nEquations      = ", length(m.x_start))
+        println("        nResults        = ", length(m.result_x.t))          
+        println("        nGetDerivatives = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
+        println("        nf              = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
+        println("        nZeroCrossings  = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
+
+        if cvode_bdf && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
+            # statistics is wrong, due to a bug in the Sundials.jl interface
+            println("        nJac            = ??? (number of Jacobian computations)")
+            println("        nAcceptedSteps  = ???")
+            println("        nRejectedSteps  = ???")
+            println("        nErrTestFails   = ???")
+        else
+            println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
+            println("        nAcceptedSteps  = ", solution.destats.naccept)
+            println("        nRejectedSteps  = ", solution.destats.nreject)
+            println("        nErrTestFails   = ", solution.destats.nreject)
         end
-        
-        if m.options.log
-            cpuTimeInitialization = convert(Float64, (cpuStartIntegration - cpuStart) * 1e-9)
-            cpuTimeIntegration    = convert(Float64, (time_ns() - cpuStartIntegration) * 1e-9)
-            cpuTime               = cpuTimeInitialization + cpuTimeIntegration
+        println("        nTimeEvents     = ", eh.nTimeEvents)
+        println("        nStateEvents    = ", eh.nStateEvents)
+        println("        nRestartEvents  = ", eh.nRestartEvents)  
+    end
+    if m.options.logTiming
+        println("\n... Timings for simulation of ", m.modelName,":")
+        TimerOutputs.print_timer(m.timer; title="xxx")   #Timings for simulation of "* m.modelName * ":")
+    end
 
-            println("      Termination at time = ", finalTime, " s")
-            println("        cpuTime         = ", round(cpuTime, sigdigits=3), " s")
-            #println("        cpuTime         = ", round(cpuTime              , sigdigits=3), " s (init: ",
-            #                                      round(cpuTimeInitialization, sigdigits=3), " s, integration: ",
-            #                                      round(cpuTimeIntegration   , sigdigits=3), " s)")
-            println("        algorithm       = ", get_algorithmName(m))
-            println("        FloatType       = ", FloatType)
-            println("        interval        = ", m.options.interval, " s")
-            println("        tolerance       = ", m.options.tolerance, " (relative tolerance)")
-            println("        nEquations      = ", length(m.x_start))
-            println("        nResults        = ", length(m.result_x.t))          
-            println("        nGetDerivatives = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
-            println("        nf              = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
-            println("        nZeroCrossings  = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
-
-            if cvode_bdf && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
-                # statistics is wrong, due to a bug in the Sundials.jl interface
-                println("        nJac            = ??? (number of Jacobian computations)")
-                println("        nAcceptedSteps  = ???")
-                println("        nRejectedSteps  = ???")
-                println("        nErrTestFails   = ???")
-            else
-                println("        nJac            = ", solution.destats.njacs, " (number of Jacobian computations)")
-                println("        nAcceptedSteps  = ", solution.destats.naccept)
-                println("        nRejectedSteps  = ", solution.destats.nreject)
-                println("        nErrTestFails   = ", solution.destats.nreject)
-            end
-            println("        nTimeEvents     = ", eh.nTimeEvents)
-            println("        nStateEvents    = ", eh.nStateEvents)
-            println("        nRestartEvents  = ", eh.nRestartEvents)  
+    requiredFinalStates = m.options.requiredFinalStates
+    if !ismissing(requiredFinalStates)
+        if length(finalStates) != length(requiredFinalStates)
+            success = false
+        else
+            success = finalStates == requiredFinalStates || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
         end
 
-        requiredFinalStates = m.options.requiredFinalStates
-        if !isnothing(requiredFinalStates)
-            if length(finalStates) != length(requiredFinalStates)
-                success = false
+        if success
+            @test success
+        else
+            if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
+                println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
+                printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
             else
-                success = finalStates == requiredFinalStates || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
+                println(  "\nrequiredFinalStates = ", requiredFinalStates)
+                printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
             end
-
-            if success
-                @test success
-            else
-                if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
-                    println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
-                    printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
-                else
-                    println(  "\nrequiredFinalStates = ", requiredFinalStates)
-                    printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
-                end
-                @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
-            end
+            @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
         end
-        return solution
+    end 
+    return solution
 end
 
 #get_x_startIndexAndLength(m::SimulationModel, name) = ModiaBase.get_x_startIndexAndLength(m.equationInfo, name)
