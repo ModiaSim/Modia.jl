@@ -38,7 +38,8 @@ for example to simulate or plot results:
 * `logDetails`: Log internal data during the different phases of translation.
 * `logStateSelection`: Log details during state selection.
 * `logCode`: Log the generated code.
-* `logExecution`: Log the execution of the generated code (useful for finding unit bugs).
+* `logExecution`: Log the execution of the generated code (useful for timing compilation)
+* `logCalculations`: Log the calculations of the generated code (useful for finding unit bugs)
 * `logTiming`: Log timing of different phases.
 * `return modelInstance prepared for simulation`
 

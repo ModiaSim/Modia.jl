@@ -152,7 +152,7 @@ equations = :[
 
 ## 2.4 Hierarchical modeling
 
-Sofar, the composition of models have resulted in named tuples with values being numeric values or quoted expressions. Hierarchical models are obtained if the values themself are named tuples. A model with two filters can, for example, be defined as follows:
+Sofar, the composition of models have resulted in dictionaries of key/value pairs with values being numeric values or quoted expressions. Hierarchical models are obtained if the values themself are `Models`, i.e. dictionaries. A model with two filters can, for example, be defined as follows:
 
 ```julia
 TwoFilters = (
@@ -161,7 +161,7 @@ TwoFilters = (
 )
 ```
 
-Note, that the previous definitions of HighPassFilter and LowPassFilter was used instead of making the defintions inline.
+Note, that the previous definitions of HighPassFilter and LowPassFilter was used instead of making the Model defintions inline.
 
 A band pass filter is a series connection of a high pass filter and a low pass filter and can be described as:
 
@@ -178,7 +178,7 @@ BandPassFilter = (
 )
 ```
 
-A new input has been defined which is propagated to `high.u`. The series connection itself is obtained by the equation `low.u = high.y`. Note, that dot-notation is allowed in equations.
+A new input, `u`, has been defined which is propagated to `high.u`. The series connection itself is obtained by the equation `low.u = high.y`. Note, that dot-notation is allowed in equations.
 
 The input and output for the BandPassFilter when using the same input definition as for the TestLowPassFilter
 
@@ -192,7 +192,7 @@ plot(bandPassFilter, ["u", "y"], figure=2)
 ```
 
 
- is shown below:
+is shown below:
 
 ![Band Pass Filter Plot](../../resources/images/BandPassFilterPlot.png)
 
@@ -203,7 +203,7 @@ Sofar, only signal flow modeling has been used, i.e. input/output blocks coupled
 
 ### 2.5.1 Connectors
 
-Models which contain any flow variable, i.e. a variable having an attribute `flow=true`, are considered connectors. Connectors must have equal number of flow and potential variables, i.e. variables having an attribute `potential=true`, and have matching array sizes. Connectors may not have any equations. An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.
+Models which contain any `flow` variable, i.e. a variable having an attribute `flow=true`, are considered connectors. Connectors must have equal number of flow and potential variables, i.e. variables having an attribute `potential=true`, and have matching array sizes. Connectors may not have any equations. An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.
 
 ```julia
 Pin = Model( v = potential, i = flow )
@@ -239,7 +239,7 @@ Electrical components such as resistors, capacitors and inductors are categorize
 OnePort = Model(
     p = Pin,
     n = Pin,
-    partialEquations = :[
+    equations = :[
         0 = p.i + n.i
         v = p.v - n.v
         i = p.i ] )
@@ -276,9 +276,8 @@ Resistor = Model(
       flow = true,
     ),
   ),
-  partialEquations = :([v = p.v - n.v; 0 = p.i + n.i; i = p.i]),
+  equations = :([v = p.v - n.v; 0 = p.i + n.i; i = p.i, R * i = v]),
   R = 1.0 Ω,
-  equations = :([R * i = v]),
 ),
 ```
 
@@ -300,7 +299,16 @@ Examples
     ]
 ```
 
-For connectors, all the potentials of the connectors in the same connect tuple are set equal and the sum of all incoming flows to the model are set equal to the sum of the flows into sub-components.
+For connectors, all the potentials of the connectors in the same connect tuple are set equal and the sum of all incoming flows to the model are set equal to the sum of the flows into sub-components. A Modelica inspired form of connections, i.e. connect-equations, are also supported:
+
+```julia
+    equations = :[
+      connect(V.p, R1.p)
+      connect(R1.n, p)
+      connect(C1.n, V.n, R2.p)
+      ...
+    ]
+```
 
 ### 2.5.5 Connected models
 
@@ -327,17 +335,17 @@ Filter = (
 The connect tuples are translated to:
 
 ```julia
-V.p.v = R.p.v
-    0 = V.p.i + R.p.i
-R.n.v = C.p.v
-    0 = R.n.i + C.p.i
-C.n.v = V.n.v
-    0 = C.n.i + V.n.i
+  V.p.v = R.p.v
+  0 = V.p.i + R.p.i
+  R.n.v = C.p.v
+  0 = R.n.i + C.p.i
+  C.n.v = V.n.v
+  0 = C.n.i + V.n.i
 ```
 
 ### 2.5.6 Parameter propagation
 
-Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters intoduced on a high level down in the hierarchy. The following Filter model defines three parameters, `r`, `c` and `v`. The `r` parameter is used to set the resistance of the resistor R: `Map(R=:r)`.
+Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters introduced on a high level down in the hierarchy. The following Filter model defines three parameters, `r`, `c` and `v`. The `r` parameter is used to set the resistance of the resistor R: `Map(R=:r)`.
 
 ```julia
 Filter2 = Model(
@@ -363,13 +371,13 @@ TwoFilters = Model( f1 = Filter | Map( r = 10.0, c = 2.0), f2 = Filter )
 
 ### 2.5.7 Redeclarations
 
-It is possible to reuse a particular model topology by redeclaring the model of particular components. For example, changing the filter `f1` to a voltage divider by changing C from a Capacitor to a Resistor. A predefined model `Redeclare` is used for this purpose.
+It is possible to reuse a particular model topology by redeclaring the model of particular components. For example, changing the filter `f1` to a voltage divider by changing C from a Capacitor to a Resistor. A predefined definition `redeclare` is used for this purpose.
 
 ```julia
-VoltageDividerAndFilter = TwoFilters | Map(f1 = Map(C = Redeclare | Resistor | Map(R = 20.0)))
+VoltageDividerAndFilter = TwoFilters | Map(f1 = Map(C = redeclare | Resistor | Map(R = 20.0)))
 ```
 
-By using `Redeclare`, a new model based on a Resistor is used for `C` and the usual merge semantics with the previously defined model of `C` is not used.
+By using `redeclare`, a new model based on a Resistor is used for `C` and the usual merge semantics with the previously defined model of `C` is not used.
 
 The above examples are available in file `FilterCircuit.jl`.
 
@@ -406,10 +414,10 @@ can be defined as:
 
 ```julia
 StateSpace = Model(
-    A = fill(0.0,0,0),
-    B = fill(0.0,0,0),
-    C = fill(0.0,0,0),
-    D = fill(0.0,0,0),
+    A = fill(0.0, 0, 0),
+    B = fill(0.0, 0, 0),
+    C = fill(0.0, 0, 0),
+    D = fill(0.0, 0, 0),
     u = input,
     y = output,
     x = Var(init = zeros(0)),

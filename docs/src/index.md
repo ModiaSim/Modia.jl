@@ -35,7 +35,10 @@ julia> ]add Unitful, DifferentialEquations, Measurements
 
 ### Version 0.8.0
 
-- xxx
+- Improved scalability by using OrderedDicts instead of named tuples for models, variables and parameter modifications.
+- Speed improvements for structural and symbolic algorithms.
+- Added support for time events and synchronous opeerators.
+- Support for linearization.
 
 
 ### Version 0.7.3
