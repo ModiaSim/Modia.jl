@@ -37,8 +37,38 @@ julia> ]add Unitful, DifferentialEquations, Measurements
 
 - Improved scalability by using OrderedDicts instead of named tuples for models, variables and parameter modifications.
 - Speed improvements for structural and symbolic algorithms.
-- Added support for time events and synchronous opeerators.
-- Support for linearization.
+- Added support for state events, time events and synchronous operators.
+- Added support for mixed linear equation systems having Real and Boolean unknowns.
+- Added support for user-defined components defined by structs and functions
+  (multibody modeling with Modia3D is based on this feature).
+  This makes it possible to utilize algorithms specialized for a component.
+- Added support for numerical and analytic linearization.
+- Added support for propagation of parameters (e.g. deep in a model, the value of a parameter can be defined as a function of some top level parameter and this parameter is changed before simulation starts).
+- New small model libraries Translational.jl and PathPlanning.jl added.
+- Result storage changed: `sol = simulate!(...)` calls internally `sol = solve(..)` from   DifferentialEquations.jl. `sol` contains time and the states at the communication time grid and
+  at events. This is now kept in simulate(..), so the return value of simulate!(..) can be exactly used as if `solve(..)` would have been used directly.
+- The plot(..) command now supports the following underlying plot packages: 
+  [PyPlot](https://github.com/JuliaPy/PyPlot.jl),
+  [GLMakie](https://github.com/JuliaPlots/GLMakie.jl),
+  [WGLMakie](https://github.com/JuliaPlots/WGLMakie.jl), and
+  [CairoMakie](https://github.com/JuliaPlots/CairoMakie.jl).
+  It is also possible to select `NoPlot`, to ignore `plot(..)` calls 
+  or `SilenNoPlot` to ignore `plot(..)` calls silently. The latter is useful for `runtests.jl`.
+  Note, often [PyPlot](https://github.com/JuliaPy/PyPlot.jl) is the best choice.
+
+Changes that are **not backwards compatible** to version 0.7.x:
+
+- Models are OrderedDicts and no longer NamedTuples.
+
+- simulate!(..): 
+  - If FloatType=Float64 and no algorithm is defined, then Sundials.CVODE\_BDF() is used
+    instead of the default algorithm of DifferentialEquations as in 0.7. The reason is that Modia models
+    are usually large and expensive to evaluate and have often stiff parts, so that multi-step
+    methods are often by far the best choice. CVODE_BDF() seems to be a good choice in many applications
+    (another algorithm should be used, if there are many events, highly oscillatory vibrations, or if all states are non-stiff). 
+  - The default value of `stopTime` is equal to `startTime` (which has a default value of 0.0 s), and is no longer 1.0 s.
+
+- Plotting is defined slightly differently (`@useModiaPlot`, instead of `using ModiaPlot`).
 
 
 ### Version 0.7.3
