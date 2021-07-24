@@ -12,8 +12,8 @@ using Unitful
 
 Generate a new path object to move as fast as possible from
 positions[i,:] to positions[i+1,:]. The `positions[i,:]` can be a set of translational
-positions in [m] (= absolute distances) and/or rotational positions in [rad]
-(= angles). In robotics such a movement is called PTP (Point-To-Point).
+positions in [m], that is absolute distances, and/or rotational positions in 
+[rad] that is angles. In robotics such a movement is called PTP (Point-To-Point).
 The signals are constructed in such a way that it is not possible
 to move faster, given the maximally allowed velocity `v_max[j]` and
 the maximally allowed acceleration `a_max[j]` for signal `names[j]`
