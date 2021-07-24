@@ -816,7 +816,8 @@ function eventIteration!(m::SimulationModel, x, t_event)::Nothing
     eh.event = true
     while !success && iter <= iter_max
         iter += 1
-        Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)      
+        #Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)  
+        invokelatest_getDerivatives!(m.der_x, x, m, t_event)
         success = terminateEventIteration!(m)
         
         if eh.firstEventIterationDirectlyAfterInitial
@@ -962,6 +963,8 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #    return nothing
 #end
 
+@inline invokelatest_getDerivatives!(der_x, x, m, t) = TimerOutputs.@timeit m.timer "getDerivatives!" Base.invokelatest(m.getDerivatives!, der_x, x, m, t)
+
 
 
 """
@@ -1101,7 +1104,8 @@ function check_vSolvedWithInitValuesAndUnit(m::SimulationModel)::Bool
     return true
 end    
     
-    
+
+
 """
     terminate!(m::SimulationModel, x, time)
 
@@ -1111,7 +1115,7 @@ function terminate!(m::SimulationModel, x, t)::Nothing
     #println("... terminate! called at time = $t")
     eh = m.eventHandler
     eh.terminal = true
-    Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+    invokelatest_getDerivatives!(m.der_x, x, m, t)
     eh.terminal = false
     return nothing
 end
@@ -1128,7 +1132,7 @@ function outputs!(x, t, integrator)::Nothing
     m = integrator.p
     m.storeResult = true
     #println("... Store result at time = $t")    
-    TimerOutputs.@timeit m.timer "outputs!" Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+    invokelatest_getDerivatives!(m.der_x, x, m, t)
     m.storeResult = false
     if !m.success
         m.result_x = integrator.sol
@@ -1153,7 +1157,7 @@ that is used to store results at communication points.
 function affect_outputs!(integrator)::Nothing
     m = integrator.p
     m.storeResult = true
-    Base.invokelatest(m.getDerivatives!, m.der_x, integrator.u, m, integrator.t)
+    getDerivatives!2(m.der_x, integrator.u, m, integrator.t)
     m.storeResult = false
     if m.eventHandler.restart == Terminate
         DifferentialEquations.terminate!(integrator)
@@ -1168,10 +1172,10 @@ end
 
 DifferentialEquations callback function to get the derivatives.
 """
-derivatives!(der_x, x, m, t) = begin
-                                    m.nf += 1
-                                    TimerOutputs.@timeit m.timer "derivatives!" Base.invokelatest(m.getDerivatives!, der_x, x, m, t)
-                               end
+@inline derivatives!(der_x, x, m, t) = begin
+                                         m.nf += 1
+                                         invokelatest_getDerivatives!(der_x, x, m, t)
+                                       end
 
 
 """
@@ -1182,88 +1186,87 @@ In case of stateEvent, eventIndex is the index of the crossing function that tri
 """
 function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
     m  = integrator.p
-    eh = m.eventHandler
-    TimerOutputs.@timeit m.timer "affectEvent!" begin
-        time = integrator.t
-        #println("... begin affect: time = ", time, ", nextEventTime = ", eh.nextEventTime)
+    eh = m.eventHandler  
+    time = integrator.t
+    #println("... begin affect: time = ", time, ", nextEventTime = ", eh.nextEventTime)
     
-        if m.addEventPointsDueToDEBug
-            push!(integrator.sol.t, deepcopy(integrator.t))
-            push!(integrator.sol.u, deepcopy(integrator.u))          
-        end
-                            
-        # Compute and store outputs before processing the event
-        sol_t = integrator.sol.t
-        sol_x = integrator.sol.u
-        ilast = length(sol_t)
-        for i = length(m.result_vars)+1:ilast    # -1
-            outputs!(sol_x[i], sol_t[i], integrator)
-        end
-        # A better solution is needed.
-        #if sol_t[ilast] == sol_t[ilast-1]
-        #    # Continuous time instant is present twice because "saveat" and "DiscreteCallback" occur at the same time instant
-        #    # Do not compute the model again
-        #    push!(m.result_vars , m.result_vars[end])
-        #    push!(m.result_der_x, m.result_der_x[end])
-        #else
-        #    outputs!(sol_x[ilast], sol_t[ilast], integrator)
-        #end
-        
-        if stateEvent   
-            # State event
-            if eh.logEvents
-                println("\n      State event (zero-crossing) at time = ", time, " s (due to z[$eventIndex])")
-            end
-            eh.nStateEvents += 1      
-        else
-            # Time event
-            if eh.logEvents
-                println("\n      Time event at time = ", time, " s")
-            end
-            eh.nTimeEvents += 1 
-        end
-        
-        # Event iteration 
-        eventIteration!(m, integrator.u, time)
+    if m.addEventPointsDueToDEBug
+        push!(integrator.sol.t, deepcopy(integrator.t))
+        push!(integrator.sol.u, deepcopy(integrator.u))          
+    end
+                        
+    # Compute and store outputs before processing the event
+    sol_t = integrator.sol.t
+    sol_x = integrator.sol.u
+    ilast = length(sol_t)
+    for i = length(m.result_vars)+1:ilast    # -1
+        outputs!(sol_x[i], sol_t[i], integrator)
+    end
+    # A better solution is needed.
+    #if sol_t[ilast] == sol_t[ilast-1]
+    #    # Continuous time instant is present twice because "saveat" and "DiscreteCallback" occur at the same time instant
+    #    # Do not compute the model again
+    #    push!(m.result_vars , m.result_vars[end])
+    #    push!(m.result_der_x, m.result_der_x[end])
+    #else
+    #    outputs!(sol_x[ilast], sol_t[ilast], integrator)
+    #end
     
-        if eh.restart == Restart || eh.restart == FullRestart
-            eh.nRestartEvents += 1
-        end
+    if stateEvent   
+        # State event
         if eh.logEvents
-            if eh.restart == Restart
-                println("        restart = ", eh.restart)
-            else
-                printstyled("        restart = ", eh.restart, "\n", color=:red)
-            end
+            println("\n      State event (zero-crossing) at time = ", time, " s (due to z[$eventIndex])")
         end
-        
-        # Compute outputs and store them after the event occurred
-        if m.addEventPointsDueToDEBug
-            push!(integrator.sol.t, deepcopy(integrator.t))
-            push!(integrator.sol.u, deepcopy(integrator.u)) 
+        eh.nStateEvents += 1      
+    else
+        # Time event
+        if eh.logEvents
+            println("\n      Time event at time = ", time, " s")
         end
-        
-        outputs!(integrator.u, time, integrator)
-        if eh.restart == Terminate
-            DifferentialEquations.terminate!(integrator)
-            return nothing
-        end
-        
-        # Adapt step size    
-        if eh.restart != NoRestart && supertype(typeof(integrator.alg)) == DifferentialEquations.OrdinaryDiffEq.OrdinaryDiffEqAdaptiveAlgorithm
-            DifferentialEquations.auto_dt_reset!(integrator)
-            DifferentialEquations.set_proposed_dt!(integrator, integrator.dt)
-        end
-        
-        # Set next time event
-        if abs(eh.nextEventTime - m.options.stopTime) < 1e-10
-            eh.nextEventTime = m.options.stopTime
-        end
-        #println("... end affect: time ", time,", nextEventTime = ", eh.nextEventTime)
-        if eh.nextEventTime <= m.options.stopTime
-            DifferentialEquations.add_tstop!(integrator, eh.nextEventTime) 
+        eh.nTimeEvents += 1 
+    end
+    
+    # Event iteration 
+    eventIteration!(m, integrator.u, time)
+    
+    if eh.restart == Restart || eh.restart == FullRestart
+        eh.nRestartEvents += 1
+    end
+    if eh.logEvents
+        if eh.restart == Restart
+            println("        restart = ", eh.restart)
+        else
+            printstyled("        restart = ", eh.restart, "\n", color=:red)
         end
     end
+    
+    # Compute outputs and store them after the event occurred
+    if m.addEventPointsDueToDEBug
+        push!(integrator.sol.t, deepcopy(integrator.t))
+        push!(integrator.sol.u, deepcopy(integrator.u)) 
+    end
+    
+    outputs!(integrator.u, time, integrator)
+    if eh.restart == Terminate
+        DifferentialEquations.terminate!(integrator)
+        return nothing
+    end
+    
+    # Adapt step size    
+    if eh.restart != NoRestart && supertype(typeof(integrator.alg)) == DifferentialEquations.OrdinaryDiffEq.OrdinaryDiffEqAdaptiveAlgorithm
+        DifferentialEquations.auto_dt_reset!(integrator)
+        DifferentialEquations.set_proposed_dt!(integrator, integrator.dt)
+    end
+    
+    # Set next time event
+    if abs(eh.nextEventTime - m.options.stopTime) < 1e-10
+        eh.nextEventTime = m.options.stopTime
+    end
+    #println("... end affect: time ", time,", nextEventTime = ", eh.nextEventTime)
+    if eh.nextEventTime <= m.options.stopTime
+        DifferentialEquations.add_tstop!(integrator, eh.nextEventTime) 
+    end
+
     return nothing
 end
 
@@ -1279,7 +1282,7 @@ function zeroCrossings!(z, x, t, integrator)::Nothing
     eh = m.eventHandler
     eh.nZeroCrossings += 1
     eh.crossing = true
-    TimerOutputs.@timeit m.timer "zeroCrossings!"  Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t)
+    invokelatest_getDerivatives!(m.der_x, x, m, t)
     eh.crossing = false
     for i = 1:eh.nz
         z[i] = eh.z[i]
@@ -1449,11 +1452,10 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_der_x...)
                     $(code_previous...)
                     $(code_pre...)
-
+    
                     if _m.storeResult
                         TinyModia.addToResult!(_m, _der_x, $(variables...))
                     end
-
                     return nothing
                 end
             end

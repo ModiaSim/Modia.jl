@@ -271,7 +271,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         println("        FloatType       = ", FloatType)
         println("        interval        = ", m.options.interval, " s")
         println("        tolerance       = ", m.options.tolerance, " (relative tolerance)")
-        println("        nEquations      = ", length(m.x_start))
+        println("        nStates         = ", length(m.x_start))
         println("        nResults        = ", length(m.result_x.t))          
         println("        nGetDerivatives = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
         println("        nf              = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
@@ -295,7 +295,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
     end
     if m.options.logTiming
         println("\n... Timings for simulation of ", m.modelName,":")
-        TimerOutputs.print_timer(m.timer; title="xxx")   #Timings for simulation of "* m.modelName * ":")
+        TimerOutputs.print_timer(TimerOutputs.flatten(m.timer)) 
     end
 
     requiredFinalStates = m.options.requiredFinalStates
