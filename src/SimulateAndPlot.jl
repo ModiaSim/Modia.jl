@@ -355,7 +355,7 @@ You can improve this situation, by using a larger
 
 # Output arguments
 
-- `A::Matrix`: Matrix A of the linear ODE: ``\\dot{\\Delta x} = A*\\Delta x``.
+- `A::Matrix`: Matrix A of the linear ODE: ``\\Delta \\dot{x} = A*\\Delta x``.
 
 - `finalStates::Vector`: Linearization point.
 

@@ -80,13 +80,13 @@ Functions of `DifferentialEquations` that operate on this return argument can th
 used on the return argument `sol` of `simulate!`.
 
 
-## 3.3 Plotting
+## 3.4 Plotting
 
 A short overview of the most important plot commands is given in section
 section [Results and Plotting](@ref)
 
 
-## 3.4 State selection (DAEs)
+## 3.5 State selection (DAEs)
 
 TinyModia has a sophisticated symbolic engine to transform high index DAEs
 (Differential Algebraic Equations) automatically to ODEs (Ordinary Differential Equations in

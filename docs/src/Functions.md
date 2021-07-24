@@ -18,6 +18,14 @@ instantiateModel
 simulate!
 ```
 
+
+## Linearization
+
+```@docs
+linearize!
+```
+
+
 ## Results and Plotting
 
 The simulation result of a model `instantiatedModel` supports the abstract interface
@@ -83,3 +91,15 @@ generates the following plot:
 ![Matrix-of-Plots](../resources/images/matrix-of-plots.png)
 
 
+## PathPlanning
+
+There are some pre-defined functions to define reference paths
+
+```@docs
+PTP_path
+pathEndTime
+getPosition!
+getPosition
+getIndex
+getPath
+```

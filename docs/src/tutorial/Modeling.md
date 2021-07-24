@@ -398,10 +398,7 @@ detailed model of a gearbox.
 
 ## 2.6 Arrays
 
-Model parameters and variables can be arrays. For example a linear state space system with
-$\boldsymbol{x}(t) \in \R^{n_x}, \boldsymbol{u}(t) \in \R^{n_u}, \boldsymbol{y}(t) \in \R^{n_y},
- \boldsymbol{A} \in \R^{n_x \times n_x}, \boldsymbol{B} \in \R^{n_x \times n_u},
- \boldsymbol{C} \in \R^{n_y \times n_x}, \boldsymbol{D} \in \R^{n_y \times n_u}$
+Model parameters and variables can be arrays. For example a linear state space system
 
 ```math
 \begin{aligned}
@@ -484,9 +481,11 @@ TinyModia provides a small set of pre-defined model components in directory
 
 - `AllModels.jl` - Include all model libraries
 - `Blocks.jl` - Input/output control blocks
-- `ELectric.jl` - Electric component models
+- `Electric.jl` - Electric component models
 - `HeatTransfer.jl` - 1D heat transfer component models
 - `Rotational.jl` - 1D rotational, mechanical component models
+- `Translational.jl` - 1D translational, mechanical component models
+- [PathPlanning](@ref) - Defining reference trajectories and access them.
 
 These models are included in package `TinyModia`, but are not exported, so must
 be access with `TinyModia.xxx".
