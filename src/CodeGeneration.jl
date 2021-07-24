@@ -168,7 +168,7 @@ struct SimulationOptions{FloatType,TimeType}
             success = false 
         end
         startTime   = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
-        rawStopTime = get(kwargs, :stopTime, 0.0)
+        rawStopTime = get(kwargs, :stopTime, startTime)
         stopTime    = convertTimeVariable(TimeType, rawStopTime)
         interval    = convertTimeVariable(TimeType, get(kwargs, :interval , (stopTime - startTime)/500.0) )
         dtmax       = convert(Float64, get(kwargs, :dtmax, 100*getValue(interval)))
