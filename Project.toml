@@ -1,7 +1,7 @@
 name = "ModiaLang"
 uuid = "34b37210-eaa3-4b48-8781-0b87bf559981"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
-version = "0.8.0"
+version = "0.8.1"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
