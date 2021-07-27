@@ -1,11 +1,11 @@
 module TestHeatTransfer
 
-using TinyModia
+using ModiaLang
 using Unitful
 @usingModiaPlot
 using DifferentialEquations
 
-include("$(TinyModia.path)/models/HeatTransfer.jl")
+include("$(ModiaLang.path)/models/HeatTransfer.jl")
 
 SimpleRod = Model(
     fixedT = FixedTemperature | Map(T = 393.15u"K"),

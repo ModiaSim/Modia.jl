@@ -8,7 +8,7 @@ Modia module with electric component models (inspired from Modelica Standard Lib
 """
 #module Electric
 
-using TinyModia
+using ModiaLang
 using Unitful
 
 Var(args...; kwargs...) = (;args..., kwargs...)

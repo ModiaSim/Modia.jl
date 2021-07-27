@@ -1,6 +1,6 @@
 module TestStateSelection
 
-using TinyModia
+using ModiaLang
 using Test
 
 function checkStateSelection(model, x_names, linearEquations=[])

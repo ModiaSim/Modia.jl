@@ -1,6 +1,6 @@
 module TestFilterCircuit
 
-using TinyModia
+using ModiaLang
 
 using DifferentialEquations
 @usingModiaPlot

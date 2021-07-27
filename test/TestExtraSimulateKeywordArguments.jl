@@ -1,6 +1,6 @@
 module TestExtraSimulateKeywordArguments
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 

@@ -1,6 +1,6 @@
 module TestUnitsAndUncertainites
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 using Measurements

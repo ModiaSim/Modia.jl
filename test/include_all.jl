@@ -37,7 +37,3 @@ Test.@testset "Test events, etc." begin
     include("TestExtraSimulateKeywordArguments.jl")
     Test.@test_skip include("TestBouncingBall.jl")    
 end
-
-Test.@testset "Test examples" begin
-    include("../examples/runexamples.jl")    
-end

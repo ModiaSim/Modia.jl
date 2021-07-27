@@ -58,7 +58,7 @@ Simulate `instantiatedModel::SimulationModel` with `algorithm`
 If the `algorithm` argument is missing, `algorithm=Sundials.CVODE_BDF()` is used, provided
 instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
-The symbol `CVODE_BDF` is exported from TinyModia, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
+The symbol `CVODE_BDF` is exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
 can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.CVODE_BDF(), ...)`).
 
 The simulation results stored in `model` can be plotted with plot and the result values
@@ -100,7 +100,7 @@ can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
 # Examples
 
 ```julia
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 using Unitful
 @usingModiaPlot
@@ -363,7 +363,7 @@ You can improve this situation, by using a larger
 # Example
 
 ```julia
-using TinyModia
+using ModiaLang
 using DoubleFloats
 using Measurements
 
@@ -642,7 +642,7 @@ In both cases, a **view** on the internal result memory is provided
 # Example
 
 ```julia
-using TinyModia
+using ModiaLang
 @usingModiaPlot
 using Unitful
 

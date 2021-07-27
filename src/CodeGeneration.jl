@@ -94,7 +94,7 @@ function get_x_start!(FloatType, equationInfo, parameters)
             printstyled("Model error: ", bold=true, color=:red)  
             printstyled("Length of ", xe_info.x_name, " shall be changed from ",
                         xe_info.length, " to $len\n",
-                        "This is currently not support in TinyModia.", bold=true, color=:red)
+                        "This is currently not support in ModiaLang.", bold=true, color=:red)
             return false
         end        
         startIndex += xe_info.length
@@ -262,7 +262,7 @@ end
   that is evaluation of expressions in the environment of the user.
 - `modelName::String`: Name of the model
 - `getDerivatives::Function`: Function that is used to evaluate the model equations,
-  typically generated with [`TinyModia.generate_getDerivatives!`].
+  typically generated with [`ModiaLang.generate_getDerivatives!`].
 - `equationInfo::ModiaBase.EquationInfo`: Information about the states and the equations.
 - `x_startValues`:: Deprecated (is no longer used).
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
@@ -475,11 +475,11 @@ SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType}(args...; kw
 timeType(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}) where {FloatType,ParType,EvaluatedParType,TimeType} = TimeType
 
 
-positive(m::SimulationModel, args...; kwargs...) = TinyModia.positive!(m.eventHandler, args...; kwargs...)
-negative(m::SimulationModel, args...; kwargs...) = TinyModia.negative!(m.eventHandler, args...; kwargs...)
-change(  m::SimulationModel, args...; kwargs...) = TinyModia.change!(  m.eventHandler, args...; kwargs...)
-edge(    m::SimulationModel, args...; kwargs...) = TinyModia.edge!(    m.eventHandler, args...; kwargs...)
-after(   m::SimulationModel, args...; kwargs...) = TinyModia.after!(   m.eventHandler, args...; kwargs...)
+positive(m::SimulationModel, args...; kwargs...) = ModiaLang.positive!(m.eventHandler, args...; kwargs...)
+negative(m::SimulationModel, args...; kwargs...) = ModiaLang.negative!(m.eventHandler, args...; kwargs...)
+change(  m::SimulationModel, args...; kwargs...) = ModiaLang.change!(  m.eventHandler, args...; kwargs...)
+edge(    m::SimulationModel, args...; kwargs...) = ModiaLang.edge!(    m.eventHandler, args...; kwargs...)
+after(   m::SimulationModel, args...; kwargs...) = ModiaLang.after!(   m.eventHandler, args...; kwargs...)
 pre(     m::SimulationModel, i)                  = m.pre[i]
 
 
@@ -1398,7 +1398,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 push!(code_x, :( $x_name = _x[$indexRange]*@u_str($x_unit)) )
             end
             if hasUnits
-                push!(code_der_x, :( _der_x[$indexRange] = TinyModia.stripUnit( $der_x_name )) )
+                push!(code_der_x, :( _der_x[$indexRange] = ModiaLang.stripUnit( $der_x_name )) )
             else
                 push!(code_der_x, :( _der_x[$indexRange] = $der_x_name ))
             end
@@ -1424,7 +1424,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
             push!(code_previous2, :( _m.nextPrevious[$i] = $previousName ))        
         end
         code_previous3 = quote
-             if TinyModia.isFirstEventIteration(_m) && !TinyModia.isInitial(_m)
+             if ModiaLang.isFirstEventIteration(_m) && !ModiaLang.isInitial(_m)
                  $(code_previous2...)
              end
         end
@@ -1441,7 +1441,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing
-                    _m.time = TinyModia.getValue(_time)
+                    _m.time = ModiaLang.getValue(_time)
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
                     _p = _m.evaluatedParameters
@@ -1454,7 +1454,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_pre...)
     
                     if _m.storeResult
-                        TinyModia.addToResult!(_m, _der_x, $(variables...))
+                        ModiaLang.addToResult!(_m, _der_x, $(variables...))
                     end
                     return nothing
                 end

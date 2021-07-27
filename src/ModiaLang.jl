@@ -1,12 +1,12 @@
 """
-Main module of TinyModia.
+Main module of ModiaLang.
 
 * Developer: Hilding Elmqvist, Mogram AB
 * First version: December 2020
 * License: MIT (expat)
 
 """
-module TinyModia
+module ModiaLang
 
 # Defalut switch settings
 logStatistics = false
@@ -729,7 +729,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         if haskey(init, nameAsExpr)
             vSolvedWithInitValuesAndUnit[name] = eval( init[nameAsExpr] )
         else
-            @warn "Internal issue of TinyModia: $name is assumed to have an init-value, but it is not found."
+            @warn "Internal issue of ModiaLang: $name is assumed to have an init-value, but it is not found."
         end
     end
 

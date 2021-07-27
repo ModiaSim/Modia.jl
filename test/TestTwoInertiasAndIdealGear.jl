@@ -1,6 +1,6 @@
 module TestTwoInertiasAndIdealGear
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 using Unitful

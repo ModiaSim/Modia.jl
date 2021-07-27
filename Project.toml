@@ -1,7 +1,7 @@
-name = "TinyModia"
-uuid = "0169e107-af13-440d-89df-ca21e82123ce"
+name = "ModiaLang"
+uuid = "34b37210-eaa3-4b48-8781-0b87bf559981"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
-version = "0.8.0-dev"
+version = "0.8.0"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -22,6 +22,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
+DataFrames = "0.22, 0.21, 0.20, 0.19"
 DifferentialEquations = "6.17, 6.16"
 FiniteDiff = "2.8, 2.7, 2.6, 2.5"
 ForwardDiff = "0.10"

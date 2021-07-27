@@ -1,6 +1,6 @@
 module TestTwoInertiasAndIdealGearWithMonteCarlo
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 using MonteCarloMeasurements

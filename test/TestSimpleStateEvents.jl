@@ -1,6 +1,6 @@
 module TestSimpleStateEvents
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 

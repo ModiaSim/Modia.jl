@@ -1,10 +1,10 @@
 module TestStateSpace
 
-using TinyModia
+using ModiaLang
 @usingModiaPlot
 using DifferentialEquations
 
-include("$(TinyModia.path)/models/Blocks.jl")
+include("$(ModiaLang.path)/models/Blocks.jl")
 
 
 # Second order system:

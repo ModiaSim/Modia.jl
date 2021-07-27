@@ -1,6 +1,6 @@
 module TestBouncingBall
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 

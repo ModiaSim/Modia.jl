@@ -1,6 +1,6 @@
 module TestUncertainties
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 

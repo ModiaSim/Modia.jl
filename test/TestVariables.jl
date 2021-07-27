@@ -1,6 +1,6 @@
 module TestVariables
 
-using TinyModia
+using ModiaLang
 @usingModiaPlot
 using Measurements
 using StaticArrays

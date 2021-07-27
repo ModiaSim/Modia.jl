@@ -1,9 +1,9 @@
 module TestParameter
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
-include("$(TinyModia.path)/models/Blocks.jl")
+include("$(ModiaLang.path)/models/Blocks.jl")
 
 
 inputSignal(t) = sin(t)

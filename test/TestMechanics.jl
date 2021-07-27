@@ -1,21 +1,21 @@
 module TestMechanics
 
-println("TestMechanics: Tests how 3D mechanics could be combined with TinyModia.")
+println("TestMechanics: Tests how 3D mechanics could be combined with ModiaLang.")
 
-using TinyModia
+using ModiaLang
 using Unitful
 @usingModiaPlot
 using DifferentialEquations
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-# TinyModia models
-include("$(TinyModia.path)/models/Blocks.jl")
-include("$(TinyModia.path)/models/Electric.jl")
-include("$(TinyModia.path)/models/Rotational.jl")
+# ModiaLang models
+include("$(ModiaLang.path)/models/Blocks.jl")
+include("$(ModiaLang.path)/models/Electric.jl")
+include("$(ModiaLang.path)/models/Rotational.jl")
 
 
-# Generic TinyModia3D model stubs (always available)
+# Generic ModiaLang3D model stubs (always available)
 RevoluteStub = Model(
     flange = Flange,
 
@@ -52,7 +52,7 @@ function Pendulum_f1(_m::TestMechanics.SimulationModel3D, phi, w, tau, m, L, g)
 end
 
 
-# TinyModia model for the system
+# ModiaLang model for the system
 Pendulum = Model(
     model3D = SimulationModel3D(),
     
@@ -64,7 +64,7 @@ Pendulum = Model(
     # 3D model stubs
     rev = RevoluteStub | Map(init = Map(phi=1.5u"rad", w=2u"rad/s")),
 
-    # Standard TinyModia models
+    # Standard ModiaLang models
     damper  = Damper | Map(d=0.4u"N*m*s/rad"),
 	support = Fixed,
 

@@ -1,6 +1,6 @@
 module TestSingularLRRL
 
-using TinyModia
+using ModiaLang
 using DifferentialEquations
 @usingModiaPlot
 

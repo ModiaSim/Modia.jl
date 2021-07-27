@@ -1,6 +1,6 @@
 module TestPath
 
-using TinyModia
+using ModiaLang
 using Measurements
 @usingModiaPlot
 

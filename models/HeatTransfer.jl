@@ -6,7 +6,7 @@ Copyright 2021, DLR Institute of System Dynamics and Control
 License: MIT (expat)
 =#
 
-using TinyModia
+using ModiaLang
 using Unitful
 
 HeatPort = Model( T = potential,   # Absolute temperature

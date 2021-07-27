@@ -294,7 +294,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
                     printstyled("Model error: ", bold=true, color=:red)  
                     printstyled("Length of ", xe_info.x_name, " shall be changed from ",
                                 xe_info.length, " to $len\n",
-                                "This is currently not support in TinyModia.", bold=true, color=:red)
+                                "This is currently not support in ModiaLang.", bold=true, color=:red)
                     return nothing
                 end                    
                 x_found[j] = true
