@@ -1,7 +1,7 @@
 module StateSpaceSimulation
 
-using Modia, ModiaPlot
-
+using Modia
+@usingModiaPlot
 
 # Second order system:
 #     w = 1.0

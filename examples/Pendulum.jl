@@ -1,6 +1,8 @@
 module PendulumSimulation
 
-using Modia, ModiaPlot, Measurements
+using Modia
+@usingModiaPlot
+using Test
 
 Pendulum = Model(
    L = 0.8u"m",
@@ -17,12 +19,11 @@ Pendulum = Model(
 )
 
 
-pendulum1 = @instantiateModel(Pendulum)
-simulate!(pendulum1, Tsit5(), stopTime = 10.0u"s", log=true, 
-          requiredFinalStates = [-0.04808768814816799, -0.02484926198404018])
-plot(pendulum1, [("phi", "w"); "r"], figure = 1)
+pendulum = @instantiateModel(Pendulum)
+simulate!(pendulum, Tsit5(), stopTime = 10.0u"s", log=true)
+plot(pendulum, [("phi", "w"); "r"])
 
-
+using Measurements
 PendulumWithUncertainties = Pendulum | Map(L = (0.8 ± 0.2)u"m",
                                            m = (1.0 ± 0.2)u"kg",
                                            d = (0.5 ± 0.2)u"N*m*s/rad")
@@ -30,9 +31,22 @@ PendulumWithUncertainties = Pendulum | Map(L = (0.8 ± 0.2)u"m",
 pendulum2 =  @instantiateModel(PendulumWithUncertainties,
                                FloatType = Measurement{Float64})
 
-simulate!(pendulum2, Tsit5(), stopTime = 10.0u"s", 
-          requiredFinalStates = Measurements.Measurement{Float64}[-0.0480877836976501 ± 0.5039394725344267, -0.024849277709984924 ± 0.049301962043600225] )
+simulate!(pendulum2, Tsit5(), stopTime = 10.0u"s")
 plot(pendulum2, [("phi", "w"); "r"], figure = 2)
 
+
+# Linearize
+using DoubleFloats
+using Measurements
+println("\n... Numerically linearize at stopTime = 10 with Float64 and Double64:")
+(A_10, x_10) = linearize!(pendulum2, stopTime=10) 
+
+pendulum3 = SimulationModel{Measurement{Double64}}(pendulum2)
+(A_10_Double64, x_10_Double64) = linearize!(pendulum3, stopTime=10) 
+
+xNames = get_xNames(pendulum2)
+@show xNames
+println(IOContext(stdout, :error_digits=>15), "A_10 = ", A_10, ", x_10 = ", x_10)
+println(IOContext(stdout, :error_digits=>15), "A_10_Double64 = ", A_10_Double64, ", x_10_Double64 = ", x_10_Double64)
 
 end

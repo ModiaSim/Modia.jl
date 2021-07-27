@@ -1,4 +1,4 @@
-using Documenter, Modia, ModiaLang, ModiaPlot
+using Documenter, Modia, ModiaLang, ModiaResult, ModiaPlot_PyPlot
 
 makedocs(
   #modules  = [Modia],
@@ -7,14 +7,15 @@ makedocs(
   format = Documenter.HTML(prettyurls = false),
   pages    = [
      "Home"      => "index.md",
-	 "Modia Tutorial"  => Any[
-                              "tutorial/GettingStarted.md",
-                              "tutorial/Modeling.md",
-                              "tutorial/Simulation.md",
-                              "tutorial/FloatingPointTypes.md",
-                              "tutorial/Appendix.md"
-                          ],
+	 "Tutorial"  => [
+       "tutorial/Tutorial.md"
+       "tutorial/GettingStarted.md"
+       "tutorial/Modeling.md"
+       "tutorial/Simulation.md"
+       "tutorial/FloatingPointTypes.md"
+       "tutorial/Appendix.md"
+      ],
   	 "Functions" => "Functions.md",
      "Internal"  => "Internal.md"
-  ]
+  ]  
 )

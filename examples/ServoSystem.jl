@@ -2,18 +2,23 @@ module ServoSystemSimulation
 
 println("\nServoSystem: Demonstrating the ability to simulate hierarchical mixed domain models")
 
-using Modia, ModiaPlot
+using Modia
+@usingModiaPlot
+
+include("$(Modia.modelsPath)/Blocks.jl")
+include("$(Modia.modelsPath)/Electric.jl")
+include("$(Modia.modelsPath)/Rotational.jl")
 
 setLogMerge(false)
 
 Gear = Model(
-    flange_a = Modia.Flange,
-    flange_b = Modia.Flange,
-    gear     = Modia.IdealGear_withSupport | Map(ratio = 105.0),
-    fixed    = Modia.Fixed,
-    spring   = Modia.Spring | Map(c=5.84e5u"N*m/rad"),
-    damper1  = Modia.Damper | Map(d=500.0u"N*m*s/rad"),
-    damper2  = Modia.Damper | Map(d=100.0u"N*m*s/rad"), 
+    flange_a = Flange,
+    flange_b = Flange,
+    gear     = IdealGear_withSupport | Map(ratio = 105.0),
+    fixed    = Fixed,
+    spring   = Spring | Map(c=5.84e5u"N*m/rad"),
+    damper1  = Damper | Map(d=500.0u"N*m*s/rad"),
+    damper2  = Damper | Map(d=100.0u"N*m*s/rad"), 
 
     connect = :[
         (flange_a     , gear.flange_a)
@@ -24,18 +29,18 @@ Gear = Model(
 
 
 ControlledMotor = Model(
-  refCurrent    = input,
-  flange        = Modia.Flange,
-  feedback      = Modia.Feedback,
-  PI            = Modia.PI | Map(k=30, T=1.0u"s"),
-  firstOrder    = Modia.FirstOrder | Map(k=1.0, T=0.001u"s"),
-  signalVoltage = Modia.UnitlessSignalVoltage,
-  resistor      = Modia.Resistor | Map(R=13.8u"Ω"),
-  inductor      = Modia.Inductor | Map(L=0.061u"H"),
-  emf           = Modia.EMF | Map(k=1.016u"N*m/A"),
-  ground        = Modia.Ground,
-  currentSensor = Modia.UnitlessCurrentSensor,
-  motorInertia  = Modia.Inertia | Map(J=0.0025u"kg*m^2"),
+  refCurrent = input,
+  flange = Flange,
+  feedback      = Feedback,
+  PI            = PI | Map(k=30, T=1.0u"s"),
+  firstOrder    = FirstOrder | Map(k=1.0, T=0.001u"s"),
+  signalVoltage = UnitlessSignalVoltage,
+  resistor      = Resistor | Map(R=13.8u"Ω"),
+  inductor      = Inductor | Map(L=0.061u"H"),
+  emf           = EMF | Map(k=1.016u"N*m/A"),
+  ground        = Ground,
+  currentSensor = UnitlessCurrentSensor,
+  motorInertia  = Inertia | Map(J=0.0025u"kg*m^2"),
 
   connect = :[
     (refCurrent, feedback.u1)
@@ -56,12 +61,12 @@ ControlledMotor = Model(
 
 
 SpeedController = Model(
-    refSpeed   = input, 
+    refSpeed = input, 
     motorSpeed = input,
     refCurrent = output,
-    gain       = Modia.Gain | Map(k=105.0),
-    PI         = Modia.PI | Map(T=1.0u"s", k=1.0),
-    feedback   = Modia.Feedback,
+    gain     = Gain | Map(k=105.0),
+    PI       = PI | Map(T=1.0u"s", k=1.0),
+    feedback = Feedback,
 
     connect = :[
         (refSpeed  , gain.u)
@@ -74,13 +79,13 @@ SpeedController = Model(
 
 Servo = Model(
     refSpeed        = input,
-    flange_b        = Modia.Flange,
+    flange_b        = Flange,
     speedController = SpeedController | Map(ks=1.0, Ts=1.0u"s", ratio=105.0),
     motor           = ControlledMotor | Map(km=30.0, Tm=0.005u"s"),
     gear            = Gear | Map(ratio=105.0),
-    speedSensor1    = Modia.UnitlessSpeedSensor,
-    speedSensor2    = Modia.UnitlessSpeedSensor,
-    speedError      = Modia.Feedback,
+    speedSensor1    = UnitlessSpeedSensor,
+    speedSensor2    = UnitlessSpeedSensor,
+    speedError      = Feedback,
 
     connect = :[
         (refSpeed                  , speedController.refSpeed, speedError.u1)
@@ -95,9 +100,9 @@ Servo = Model(
 TestServo = Model(
     ks    = 0.8,
     Ts    = 0.08u"s",
-    ramp  = Modia.Ramp  | Map(duration=1.18u"s", height=2.95),
+    ramp  = Ramp  | Map(duration=1.18u"s", height=2.95),
     servo = Servo | Map(ks=:(up.ks), Ts=:(up.Ts)),
-    load  = Modia.Inertia | Map(J=170u"kg*m^2"),
+    load  = Inertia | Map(J=170u"kg*m^2"),
     equations =:[load.flange_b.tau = 0u"N*m"],
     connect = :[
         (ramp.y        , servo.refSpeed)
@@ -138,4 +143,3 @@ plot(testServo3, plotVariables, figure=3)
 
 
 end
-

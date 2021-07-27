@@ -1,10 +1,10 @@
-# 4 Floating point types
+# 4 Floating Point Types
 
 The types of the floating point numbers in a Modia model can be
 parameterized with argument `FloatType` of macro [`@instantiateModel`](@ref):
 
 ```julia
-    filter = @instantiateModel(Filter; FloatType = Float64)
+filter = @instantiateModel(Filter; FloatType = Float64)
 ```
 
 By default, a floating point number has type `Float64`.
@@ -48,8 +48,8 @@ used for model and integrator and utilizing a Runge-Kutta integrator of
 order 4 with a fixed step size of 0.01 s:
 
 ```julia
-    filter = @instantiateModel(Filter, FloatType = Float32)
-    simulate!(filter, RK4(), adaptive=false, stopTime=10.0, interval=0.01)
+filter = @instantiateModel(Filter, FloatType = Float32)
+simulate!(filter, RK4(), adaptive=false, stopTime=10.0, interval=0.01)
 ```
 
 

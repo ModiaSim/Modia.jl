@@ -53,58 +53,68 @@ v = output | interval(0.0,1.0) | Var(start = zeros(3)u"N*m") | info"An output va
 ```
 
 
-## A.2 Named tuples and quoted expressions
+## A.2 Dictionaries and quoted expressions
 
-The fundamental mechanism for defining models in Modia are named tuples which is a list of key/value pairs enclosed in parentheses:
+The fundamental mechanism for defining models, variables and parameter modifications in Modia are ordered dictionaries, i.e. a list of key/value pairs:
 
 ```julia
-julia> S=(p=5, q=10)
-(p = 5, q = 10)
+julia> using OrderedCollections
 
-julia> typeof(S)
-NamedTuple{(:p, :q),Tuple{Int64,Int64}}
+julia> S = OrderedDict(:p=>5, :q=>10)
+OrderedDict{Symbol, Int64} with 2 entries:
+  :p => 5
+  :q => 10
 ```
 
-Named tuples are conceptually similar to dictionaries (Dict), but the constructor syntax is simpler. Note that if only one key/value pair is given, a comma must preceed the final parentheses: `(p = 5, )`. It is also possible to define named tuples using a keyword argument list, i.e. a list starting with a semi-colon: `z=(;p=5)`.
+It is also possible to define a constructor `Model` with keyword arguments which creates the ordered dictionary:
+
+```julia
+julia> Model(; kwargs...) = OrderedDict{Symbol, Any}(kwargs)
+Model (generic function with 1 method)
+
+julia> T=Model(q=100, r=200)
+OrderedDict{Symbol, Any} with 2 entries:
+  :q => 100
+  :r => 200
+```
 
 The values can also be a quoted expression, i.e. an expression enclosed in `:( )`, an array of quoted expressions encloded in `:[ ]` or just a quoted symbol, `:x`. This mechanism is used to encode equations and expressions of the model which needs to be manipulated before the model can be simulated.
 
-Julia defines a very useful merge operation between named tuples (and dictionaries):
+Julia defines a very useful merge operation between dictionaries:
 
 ```julia
-julia> T=(q=100, r=200)
-(q = 100, r = 200)
-
 julia> merge(S, T)
-(p = 5, q = 100, r = 200)
+OrderedDict{Symbol, Any} with 3 entries:
+  :p => 5
+  :q => 100
+  :r => 200
 ```
 
-If a key already exists `q` in the first named tuple, it's value is overwritten otherwise it's added, `r`. Such a merge semantics allows for unification of parameter modifications and inheritance as will be demonstrated below.
+If a key already exists `q` in the first dictionary, it's value is overwritten otherwise it's added, `r`. Such a merge semantics allows for unification of parameter modifications and inheritance as will be demonstrated below.
 
 ## A.3 MergeModels algorithm
 
-The `mergeModels` algorithm is defined as follows (without logging):
+The basics of the `mergeModels` algorithm and the merge operator `|` are defined as follows (without logging):
 
 ```julia
-function mergeModels(m1::NamedTuple, m2::NamedTuple, env=Symbol())
-    mergedModels = OrderedDict{Symbol,Any}(pairs(m1)) # Convert the named tuple m1 to an OrderedDict
-    for (k,v) in collect(pairs(m2))
-        if typeof(v) <: NamedTuple
-            if k in keys(mergedModels) && ! (:_redeclare in keys(v))
-                mergedModels[k] = mergeModels(mergedModels[k], v, k)
+function mergeModels(m1::OrderedDict, m2::OrderedDict, env=Symbol())
+    result = deepcopy(m1)
+    for (k,v) in m2)
+        if typeof(v) <: OrderedDict
+            if k in keys(result) && ! (:_redeclare in keys(v))
+                result[k] = mergeModels(result[k], v, k)
             else
-                mergedModels[k] = v
+                result[k] = v
             end
         elseif v === nothing
-            delete!(mergedModels, k)
+            delete!(result, k)
         else
-            mergedModels[k] = v
+            result[k] = v
         end
     end
-    return (; mergedModels...) # Transform OrderedDict to named tuple
+    return result
 end
 
-|(m::NamedTuple, n::NamedTuple) =  mergeModels(m, n)
+|(m::OrderedDict, n::OrderedDict) =  mergeModels(m, n)
 
-Redeclare = ( _redeclare = true, )
 ```

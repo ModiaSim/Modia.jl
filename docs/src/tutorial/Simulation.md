@@ -3,12 +3,15 @@
 A particular model is instantiated, simulated and results plotted with the commands:
 
 ```julia
-    using Modia, ModiaPlot
+using Modia
+using DifferentialEquations
+@usingModiaPlot
 
-    filter = @instantiateModel(Filter)
-    simulate!(filter, stopTime=10.0)
-    plot(filter, "y", figure=1)
+filter = @instantiateModel(Filter)
+simulate!(filter, stopTime=10.0)
+plot(filter, "y", figure=1)
 ```
+
 
 ## 3.1 Instantiating
 
@@ -35,7 +38,8 @@ for example to simulate or plot results:
 * `logDetails`: Log internal data during the different phases of translation.
 * `logStateSelection`: Log details during state selection.
 * `logCode`: Log the generated code.
-* `logExecution`: Log the execution of the generated code (useful for finding unit bugs).
+* `logExecution`: Log the execution of the generated code (useful for timing compilation)
+* `logCalculations`: Log the calculations of the generated code (useful for finding unit bugs)
 * `logTiming`: Log timing of different phases.
 * `return modelInstance prepared for simulation`
 
@@ -47,11 +51,13 @@ that this package automatically selects and stores the result in `modelInstance`
  It is also possible to specify the integrator as second argument of `simulate!`:
 
 ```julia
-    using Modia, ModiaPlot
+using Modia
+using DifferentialEquations
+@usingModiaPlot
 
-    filter = @instantiateModel(Filter)
-    simulate!(filter, Tsit5(), stopTime=10.0, merge=Map(T=0.5, x=0.8))
-    plot(filter, ["y", "x"], figure=1)
+filter = @instantiateModel(Filter)
+sol = simulate!(filter, Tsit5(), stopTime=10.0, merge=Map(T=0.5, x=0.8))
+plot(filter, ["y", "x"], figure=1)
 ```
 
 Integrator `DifferentialEquations.Tsit5` is an
@@ -62,28 +68,25 @@ Parameters and init/start values can be changed with the `merge` keyword.
 The effect is the same, as if the filter would have been instantiated with:
 
 ```julia
-    filter = @instantiateModel(Filter | Map(T=0.5, x=Var(init=0.8))
+filter = @instantiateModel(Filter | Map(T=0.5, x=Var(init=0.8))
 ```
 
 Note, with the `merge` keyword in simulate!, init/start values are directly
 given as a value (`x = 0.8`) and are not defined with `Var(..)`.
 
-Function `simulate!` returns the value that is returned by function
+Function `simulate!` returns `sol` which is the value that is returned by function
 [DifferentialEquations.solve](https://diffeq.sciml.ai/stable/features/ensemble/#Solving-the-Problem).
 Functions of `DifferentialEquations` that operate on this return argument can therefore also be
-used on the return argument of `simulate!`.
+used on the return argument `sol` of `simulate!`.
 
 
-## 3.3 Plotting
-
-The [plot](https://modiasim.github.io/ModiaPlot.jl/stable/Functions.html#ModiaPlot.plot) function
-generates a line plot with [GLMakie](https://github.com/JuliaPlots/GLMakie.jl).
+## 3.4 Plotting
 
 A short overview of the most important plot commands is given in section
-section [Plotting](@ref)
+section [Results and Plotting](@ref)
 
 
-## 3.4 State selection (DAEs)
+## 3.5 State selection (DAEs)
 
 Modia has a sophisticated symbolic engine to transform high index DAEs
 (Differential Algebraic Equations) automatically to ODEs (Ordinary Differential Equations in

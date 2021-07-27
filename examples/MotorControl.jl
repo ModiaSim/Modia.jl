@@ -2,28 +2,35 @@ module MotorControl
 
 println("\nMotorControl: Demonstrating the ability to simulate hierarchical mixed domain models")
 
-using Modia, ModiaPlot, Measurements
-
+using Modia
+@usingModiaPlot
+using Measurements
 export MotorControl2
 
+include("$(Modia.modelsPath)/Blocks.jl")  
+include("$(Modia.modelsPath)/Electric.jl")  
+include("$(Modia.modelsPath)/Rotational.jl")  
+
+
+
 MotorControl1 = Model(
-    step = Modia.Step | Map(height=4.7*u"A", offset=0u"A"),
-    feedback = Modia.Feedback,
-    PI = Modia.PI | Map(T=0.005u"s", k=30, x = Var(init=0.0u"A")),
-    firstOrder = Modia.FirstOrder | Map(k=1u"V/A", T=0.001u"s", x = Var(init=0.0u"V")),
+    step = Step | Map(height=4.7*u"A", offset=0u"A"),
+    feedback = Feedback,
+    PI = PI | Map(T=0.005u"s", k=30, x = Var(init=0.0u"A")),
+    firstOrder = FirstOrder | Map(k=1u"V/A", T=0.001u"s", x = Var(init=0.0u"V")),
 
-    signalVoltage = Modia.SignalVoltage,
-    resistor = Modia.Resistor | Map(R=13.8u"Ω"),
-    inductor = Modia.Inductor | Map(L=0.061u"H"),
-    emf = Modia.EMF | Map(k=1.016u"N*m/A"),
-    ground = Modia.Ground,
-    currentSensor = Modia.CurrentSensor,
+    signalVoltage = SignalVoltage,
+    resistor = Resistor | Map(R=13.8u"Ω"),
+    inductor = Inductor | Map(L=0.061u"H"),
+    emf = EMF | Map(k=1.016u"N*m/A"),
+    ground = Ground,
+    currentSensor = CurrentSensor,
 
-    motorInertia = Modia.Inertia | Map(J=0.0025u"kg*m^2"),
-    idealGear = Modia.IdealGear | Map(ratio=105),
-    springDamper = Modia.SpringDamper | Map(c=5.0e5u"N*m/rad", d=500u"N*m*s/rad"),
-    loadInertia = Modia.Inertia | Map(J=100u"kg*m^2"),
-    tload = Modia.Torque,
+    motorInertia = Inertia | Map(J=0.0025u"kg*m^2"),
+    idealGear = IdealGear | Map(ratio=105),
+    springDamper = SpringDamper | Map(c=5.0e5u"N*m/rad", d=500u"N*m*s/rad"),
+    loadInertia = Inertia | Map(J=100u"kg*m^2"),
+    tload = Torque,
 
     equations = :[
       tload.tau = 0.0u"N*m",
@@ -60,19 +67,19 @@ plot(model, [("currentSensor.i", "step.y"), "loadInertia.w"], figure=1)
 
 ControlledMotor = Model(
   refCurrent = input,
-  feedback = Modia.Feedback,
-  PI = Modia.PI | Map(T=0.005u"s", k=30, x = Var(init=0.0u"A")),
-  firstOrder = Modia.FirstOrder | Map(k=1u"V/A", T=0.001u"s", x = Var(init=0.0u"V")),
+  feedback = Feedback,
+  PI = PI | Map(T=0.005u"s", k=30, x = Var(init=0.0u"A")),
+  firstOrder = FirstOrder | Map(k=1u"V/A", T=0.001u"s", x = Var(init=0.0u"V")),
 
-  signalVoltage = Modia.SignalVoltage,
-  resistor = Modia.Resistor | Map(R=13.8u"Ω"),
-  inductor = Modia.Inductor | Map(L=0.061u"H"),
-  emf = Modia.EMF | Map(k=1.016u"N*m/A"),
-  ground = Modia.Ground,
-  currentSensor = Modia.CurrentSensor,
+  signalVoltage = SignalVoltage,
+  resistor = Resistor | Map(R=13.8u"Ω"),
+  inductor = Inductor | Map(L=0.061u"H"),
+  emf = EMF | Map(k=1.016u"N*m/A"),
+  ground = Ground,
+  currentSensor = CurrentSensor,
 
-  motorInertia = Modia.Inertia | Map(J=0.0025u"kg*m^2"),
-  flange = Modia.Flange,
+  motorInertia = Inertia | Map(J=0.0025u"kg*m^2"),
+  flange = Flange,
 
   connect = :[
     (refCurrent, feedback.u1)
@@ -92,14 +99,14 @@ ControlledMotor = Model(
 )
 
 MotorControl2 = Model(
-  step = Modia.Step | Map(height=4.7*u"A", offset=0u"A"),
+  step = Step | Map(height=4.7*u"A", offset=0u"A"),
 
   controlledMotor = ControlledMotor,
 
-  idealGear = Modia.IdealGear | Map(ratio=105),
-  springDamper = Modia.SpringDamper | Map(c=5.0e5u"N*m/rad", d=500u"N*m*s/rad"),
-  loadInertia = Modia.Inertia | Map(J=100.0u"kg*m^2"),
-  tload = Modia.Torque,
+  idealGear = IdealGear | Map(ratio=105),
+  springDamper = SpringDamper | Map(c=5.0e5u"N*m/rad", d=500u"N*m*s/rad"),
+  loadInertia = Inertia | Map(J=100.0u"kg*m^2"),
+  tload = Torque,
 
   equations = :[
     tload.tau = 0.0u"N*m",
@@ -135,7 +142,7 @@ end
 #=
 module MotorControlModuleMonteCarlo
 
-using ModiaBase.ModiaLang
+using ModiaBase.Modia
 using Unitful
 using Main.MotorControlModule
 include("../test/SimulateAndPlot.jl")
