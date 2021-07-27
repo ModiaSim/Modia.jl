@@ -8,7 +8,7 @@ export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
 export getNames, hasName
 
 import ModiaResult
-import ModiaResult: @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
+import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
 import ModiaResult: resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
 import ModiaResult: signalNames, timeSignalName, hasOneTimeSignal, hasSignal
 
@@ -27,6 +27,36 @@ import FiniteDiff
 
 const  CVODE_BDF = Sundials.CVODE_BDF
 export CVODE_BDF
+
+
+macro usingModiaPlot()
+    if haskey(ENV, "MODIA_PLOT")
+        ModiaPlotPackage = ENV["MODIA_PLOT"]
+        if !(ModiaPlotPackage in ModiaResult.AvailableModiaPlotPackages)
+            @warn "ENV[\"MODIA_PLOT\"] = \"$ModiaPlotPackage\" is not supported!. Using \"NoPlot\"."
+            @goto USE_NO_PLOT
+        elseif ModiaPlotPackage == "NoPlot"
+            @goto USE_NO_PLOT
+        elseif ModiaPlotPackage == "SilentNoPlot"
+            expr = :( import ModiaLang.ModiaResult.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            return esc( expr )           
+        else
+            ModiaPlotPackage = Symbol("ModiaPlot_" * ModiaPlotPackage)
+            expr = :(using $ModiaPlotPackage)
+            println("$expr")            
+            return esc( :(using $ModiaPlotPackage) )
+        end
+        
+    else
+        @warn "No plot package activated. Using \"NoPlot\"."
+        @goto USE_NO_PLOT
+    end
+    
+    @label USE_NO_PLOT
+    expr = :( import ModiaLang.ModiaResult.NoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+    println("$expr")
+    return esc( expr )
+end
 
 #---------------------------------------------------------------------
 #                          Simulation
@@ -100,9 +130,7 @@ can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
 # Examples
 
 ```julia
-using ModiaLang
-using DifferentialEquations
-using Unitful
+using Modia
 @usingModiaPlot
 
 # Define model
