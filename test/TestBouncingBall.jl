@@ -1,8 +1,10 @@
-module BouncingBallSimulation
+module TestBouncingBall
 
 using TinyModia
 using DifferentialEquations
 @usingModiaPlot
+
+# Does not work: edge(..) appears in a linear equation system
 
 BouncingBall = Model(
     e = 0.7,
@@ -14,7 +16,7 @@ BouncingBall = Model(
         # desired: 
         #   flying = edge(-h) ? reinit(v, -e*v) : pre(flying)
         flying = edge(instantiatedModel, 1, -h, "-h", _leq_mode) ?
-                    !reinit(instantiatedModel, _x, 2, -e*v, _leq_mode) : pre(instantiatedModel, 1),
+                    !reinit(instantiatedModel, _x, 2, -e*v, _leq_mode) : pre(flying),
         der(h) = v,
         der(v) = flying ? -g : 0.0
     ]
