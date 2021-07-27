@@ -5,33 +5,34 @@
 
 The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/tutorial/GettingStarted.html) provides an introduction to Modia. Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
 
-Modia is a Julia package for modeling and simulation of multidomain engineering systems
-described by differential equations, algebraic equations, and (space-discretized) partial differential equations. It shares many powerful features of the [Modelica language](https://www.modelica.org/modelicalanguage), together with features not available in Modelica. 
-
-A user defines a model on a high level with model components (like an electrical resistance, a rotational inertia, a rod with heat transfer, a PI controller etc.) that are physically connected together. A model component is constructed by "expression = expression" equations. The defined model is symbolically transformed to ODE form dx/dt = f(x,t). For example, equations might be analytically differentiated, ODE states selected, linear equation systems numerically solved when evaluating the transformed model. From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations](https://github.com/SciML/DifferentialEquations.jl). Simulation results can be plotted with [ModiaPlot](https://github.com/ModiaSim/ModiaPlot.jl), that provides a convenient interface to [GLMakie](https://github.com/JuliaPlots/GLMakie.jl) line plots.
-
-Other packages from the Julia eco-systems that are specially supported:
-
-- [Unitful](https://github.com/PainterQubits/Unitful.jl) to define and process physical units.
-- [Measurements](https://github.com/JuliaPhysics/Measurements.jl) to perform simulations with uncertain parameters and initial values with linear propagation theory.
-- [MonteCarloMeasurements](https://github.com/baggepinnen/MonteCarloMeasurements.jl) to perform simulations with uncertain parameters and initial values with particle theory.
-
+[Modia](https://github.com/ModiaSim/Modia.jl) is a minimalistic environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by "expression = expression" equations. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
+The basic type of the floating point variables is usually `Float64`, but can be set to any
+type `FloatType<:AbstractFloat` via `@instantiateModel(..., FloatType = xxx)`, for example
+it can be set to `Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}`.
 
 ## Installation
 
-Modia and ModiaPlot are registered and are installed with (Julia >= 1.5 is required):
+The package is registered and is installed with (Julia >= 1.5 is required):
 
 ```julia
-julia> ]add Modia, ModiaPlot
+julia> ]add Modia
+```
+
+Furthermore, one or more of the following packages should be installed in order 
+to be able to generate plots:
+
+```julia
+julia> ]add ModiaPlot_PyPlot      # if plotting with PyPlot desired
+        add ModiaPlot_GLMakie     # if plotting with GLMakie desired
+        add ModiaPlot_WGLMakie    # if plotting with WGLMakie desired
+        add ModiaPlot_CairoMakie  # if plotting with CairoMakie desired
 ```
 
 It is recommended to also add the following packages, in order that all tests and examples can be executed in your standard environment:
 
 ```julia
-julia> ]add Measurements 
-        add MonteCarloMeasurements
-        add Distributions
-        add Interpolations
+julia> ]add Unitful, DifferentialEquations, Measurements
+        add MonteCarloMeasurements, Distributions
 ```
 
 ## Examples
@@ -45,7 +46,9 @@ where *phi* is the rotation angle, *omega* the angular velocity, *m* the mass, *
 (note, you can define models also without units, or remove units before the model is processed):
 
 ```julia
-using Modia, ModiaPlot
+using Modia
+@usingModiaPlot  # Use plot package defined with 
+                 # ENV["MODIA_PLOT"] or Modia.usePlotPackage(..)
 
 Pendulum = Model(
    L = 0.8u"m",
