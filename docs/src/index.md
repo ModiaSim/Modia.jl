@@ -46,7 +46,8 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ### Version 0.5.0
 
-- Using and rexporting ModiaLang 0.8.1 (see [release notes](https://modiasim.github.io/ModiaLang.jl/stable/)).
+- Using and reexporting ModiaLang 0.8.1 (see [release notes](https://modiasim.github.io/ModiaLang.jl/stable/)).
+- Using and partially reexporting Modia3D 0.5.0 (see [release notes](file:///D:/otter/home/.julia/dev/Modia3D/docs/build/index.html#Release-Notes)).
 - New plot package interface via [ModiaResult](https://github.com/ModiaSim/ModiaResult.jl). Additional support for PyPlot, WGLMakie, CairoMakie (besides GLMakie).
 
 
