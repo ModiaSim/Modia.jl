@@ -19,7 +19,7 @@ Example videos:
 
 - [YouBot robots with gripping](https://modiasim.github.io/Modia3D.jl/resources/videos/YouBotsGripping.mp4)
 - [Billiard table with 16 balls](https://modiasim.github.io/Modia3D.jl/resources/videos/Billard16Balls.mp4)
-
+- [Benchmark model](https://modiasim.github.io/Modia3D.jl/resources/videos/Mobile8.mp4) - Recursively defined having about 900 solids, 380 joints and 380 equation-based damper models (a corresponding Modelica model has about 135000 scalar equations/unknowns)
 
 ## Installation
 
