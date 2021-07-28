@@ -1,4 +1,4 @@
-using Documenter, Modia, ModiaLang, ModiaResult, ModiaPlot_PyPlot
+using Documenter, Modia, Modia.ModiaLang, Modia.ModiaLang.ModiaResult, ModiaPlot_PyPlot
 
 makedocs(
   #modules  = [Modia],

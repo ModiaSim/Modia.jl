@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.5.0"
-const Date = "2021-07-27"
+const Date = "2021-07-28"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
@@ -28,9 +28,10 @@ println("Version $Version ($Date)")
 using Reexport
 
 @reexport using ModiaLang
-@reexport using Unitful
-@reexport using DifferentialEquations
-
+@reexport using ModiaLang.Unitful
+@reexport using ModiaLang.DifferentialEquations
 const modelsPath = joinpath(ModiaLang.path, "models")
+
+include("Modia3D_Interface.jl")
 
 end
