@@ -1,7 +1,6 @@
 module Runtests
 
 using Modia
-using Modia.ModiaLang
 using Test 
 
 @time begin
