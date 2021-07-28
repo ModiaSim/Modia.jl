@@ -8,7 +8,7 @@ on a high level, symbolically transforming these models into ODEs
 Note, all examples in this tutorial can be executed with\
 `using Modia; include("$(Modia.path)/examples/Tutorial.jl")`
 
-Modeling of 3D components is explained in the [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/)
+Modeling of 3D components is explained in the [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/tutorial/Tutorial.html#Modia3D-Tutorial)
 
 !!! info
     Modia has an interface to various plot packages. A plot package can be

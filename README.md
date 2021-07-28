@@ -3,7 +3,9 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://modiasim.github.io/Modia.jl/stable)
 [![The MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/ModiaSim/Modia.jl/blob/master/LICENSE)
 
-The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/tutorial/GettingStarted.html) provides an introduction to Modia. Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
+The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/tutorial/GettingStarted.html) provides an introduction to Modia.\
+The [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/tutorial/Tutorial.html#Modia3D-Tutorial) provides and introduction to use 3D components in Modia.\
+Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
 
 [Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined Modia **3D-mechanical components**. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
 The basic type of the floating point variables is usually `Float64`, but can be set to any
@@ -13,7 +15,11 @@ it can be set to `Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Fl
 Modia includes a multibody program and 3D shapes for visualization and collision handling. It is then, for example, possible to model the 3D mechanical part of a robot with Modia multibody components and the electrical motors and gearboxes that are driving the joints with equation-based Modia components. Collision handling with elastic response calculation is performed for shapes that are defined with a contact material and have a convex geometry or are approximated by the convex hull of a concave geometry.
 The multibody program supports currently tree-structured multibody systems, but does not (yet) support kinematic loops.
 
-Example videos: xxx
+Example videos:
+
+- [YouBot robots with gripping](https://modiasim.github.io/Modia3D.jl/resources/videos/YouBotsGripping.mp4)
+- [Billiard table with 16 balls](https://modiasim.github.io/Modia3D.jl/resources/videos/Billard16Balls.mp4)
+
 
 ## Installation
 
