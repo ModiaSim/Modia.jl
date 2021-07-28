@@ -45,8 +45,7 @@ julia> ]add ModiaPlot_PyPlot      # if plotting with PyPlot desired
 It is recommended to also add the following packages, in order that all tests and examples can be executed in your standard environment:
 
 ```julia
-julia> ]add Unitful, DifferentialEquations, Measurements
-        add MonteCarloMeasurements, Distributions
+julia> ]add Measurements, MonteCarloMeasurements, Distributions
 ```
 
 ## Examples
