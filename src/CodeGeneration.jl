@@ -305,6 +305,8 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
     der_x::Vector{FloatType}                    # Derivatives of states x or x_init 
+    odeIntegrator::Bool                         # = true , if ODE integrator used
+                                                # = false, if DAE integrator used
     algorithmType::Union{DataType,Missing}      # Type of integration algorithm (used in default-heading of plot)
     addEventPointsDueToDEBug::Bool              # = true, if event points are explicitly stored for CVODE_BDF, due to bug in DifferentialEquations
                                                 #         (https://github.com/SciML/Sundials.jl/issues/309)
@@ -420,7 +422,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             pre, nextPre, pre_names, pre_dict,   
             hold, nextHold, hold_names, hold_dict,              
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
-            x_start, zeros(FloatType,nx), zeros(FloatType,nx), missing, false,
+            x_start, zeros(FloatType,nx), zeros(FloatType,nx), true, missing, false,
             result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
     end
     
@@ -451,7 +453,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
             deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,            
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
-            convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), missing, false,
+            convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), true, missing, false,
             m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)       
     end    
 end
@@ -1179,6 +1181,20 @@ DifferentialEquations callback function to get the derivatives.
 
 
 """
+    DAEresidualsForODE!(residuals, derx, x, m, t)
+    
+DifferentialEquations callback function for DAE integrator for ODE model
+"""
+function DAEresidualsForODE!(residuals, derx, x, m, t)::Nothing
+    m.nf += 1
+    invokelatest_getDerivatives!(residuals, x, m, t)  # model computes derx and stores it in residuals   
+    residuals .-= derx  # residuals = model-derx(= residuals) - integrator-derx (= derx)
+    return nothing
+end
+
+
+
+"""
     affectEvent!(integrator, stateEvent, eventIndex)
     
 Called when a time event (stateEvent=false) or state event (stateEvent=true) is triggered.
@@ -1323,6 +1339,7 @@ end
 Called by integrator when a time event is triggered   
 """
 affectTimeEvent!(integrator) = affectEvent!(integrator, false, 0)
+
 
 
 

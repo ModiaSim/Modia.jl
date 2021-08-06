@@ -56,4 +56,8 @@ simulate!(filterCircuitLow, RK4(), adaptive=false, stopTime=10.0, interval=0.01,
 plot(filterCircuitLow, [("R.v", "C.v"), ("R.R", "ground.p.i")], figure=2)
 
 
+# Simulate with DAE integrator
+println("\n... Simulate with DAE integrator")
+simulate!(filterCircuit, IDA(), stopTime = 10, merge = Map(R = Map(R = 5u"Ω"), C = Map(v = 3.0u"V")), requiredFinalStates = [7.424843902110655]) 
+          
 end

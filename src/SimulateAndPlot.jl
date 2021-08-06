@@ -28,6 +28,9 @@ import FiniteDiff
 const  CVODE_BDF = Sundials.CVODE_BDF
 export CVODE_BDF
 
+const  IDA = Sundials.IDA
+export IDA
+
 
 macro usingModiaPlot()
     if haskey(ENV, "MODIA_PLOT")
@@ -219,11 +222,22 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         else
             tspan2 = [m.options.startTime, m.options.stopTime]
         end
-        tspan   = (m.options.startTime, m.options.stopTime)         
-        TimerOutputs.@timeit m.timer "ODEProblem"  problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
+        tspan = (m.options.startTime, m.options.stopTime)       
+
+        eh = m.eventHandler  
+        if m.algorithmType <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
+            # DAE integrator
+            m.odeIntegrator = false
+            nx = length(m.x_init)
+            differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549       
+            TimerOutputs.@timeit m.timer "DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
+        else
+            # ODE integrator
+            m.odeIntegrator = true
+            TimerOutputs.@timeit m.timer "ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
+        end
         
-        callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)   
-        eh = m.eventHandler            
+        callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)             
         if eh.nz > 0        
             #println("\n!!! Callback set with crossing functions")
             # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
@@ -242,13 +256,14 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         end
         
         # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-        if !ismissing(algorithm) && typeof(algorithm) <: Sundials.CVODE_BDF
-            cvode_bdf = true
+        if !ismissing(algorithm) && (m.algorithmType <: Sundials.SundialsODEAlgorithm || 
+                                     m.algorithmType <: Sundials.SundialsDAEAlgorithm)
+            sundials = true
         else
-            cvode_bdf = false
+            sundials = false
             dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
         end
-        m.addEventPointsDueToDEBug = cvode_bdf
+        m.addEventPointsDueToDEBug = sundials
         
         # Compute solution 
         abstol = 0.1*m.options.tolerance
@@ -256,15 +271,18 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
     
         if ismissing(algorithm)
             TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
-        elseif cvode_bdf
+                                                    callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
+                                                    initializealg = DifferentialEquations.NoInit())
+        elseif sundials
             TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops)
+                                                    callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops,
+                                                    initializealg = DifferentialEquations.NoInit())
         else
             TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops)
+                                                    callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
+                                                    initializealg = DifferentialEquations.NoInit())
         end
-        
+                                                    
         # Compute and store outputs from last event until final time
         sol_t = solution.t
         sol_x = solution.u
@@ -305,7 +323,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         println("        nf              = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
         println("        nZeroCrossings  = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
 
-        if cvode_bdf && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
+        if sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
             # statistics is wrong, due to a bug in the Sundials.jl interface
             println("        nJac            = ??? (number of Jacobian computations)")
             println("        nAcceptedSteps  = ???")
