@@ -13,7 +13,7 @@ MassWithSpringDamper = Model(
     d = 0.1,           # damping coefficient
     x = Var(init=0.0), # Position
     v = Var(init=5.0), # Velocity
-    equations1 = :[
+    equations = :[
         der(x) = v
         m*der(v) = f - k*x - d*v
     ]

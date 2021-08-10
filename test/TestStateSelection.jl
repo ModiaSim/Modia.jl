@@ -209,7 +209,7 @@ AbsoluteDamper = Model(
     flange = Flange,
     d = 1.0u"N*m*s/rad", # (info = "Damping constant"),
     phi = Var(init=0.0u"rad"),
-    equation = :[
+    equations = :[
         phi = flange.phi
         w   = der(phi)
         flange.tau = d * w ]

@@ -53,7 +53,7 @@ macro define(modelDef)
     return esc(res)
 end
 
-isCollection(v) = (typeof(v) <: OrderedDict) && :_class in keys(v)
+isCollection(v) = (typeof(v) <: AbstractDict) && :_class in keys(v)
 
 showModel(m, level=0) = println(m)
 function showModel(m::OrderedDict, level=0)
@@ -65,18 +65,23 @@ function showModel(m::OrderedDict, level=0)
         print("OrderedDict")
     end
     println("(")
-    if typeof(m) <: NamedTuple
-        iterator = zip(keys(m), m)
-    else
-        iterator = m
-    end
-    for (k, v) in iterator
+    for (k, v) in m
         if isCollection(v) 
             print("  "^level, k, " = ")
             showModel(v, level)
-        elseif typeof(v) <: AbstractDict 
-            print("  "^level, k, " = ")
-            showModel(v, level)
+        elseif k == :equations
+            println("  "^level, "equations = :[")  
+            for e in v.args
+                println("  "^(level+1), e)
+            end
+            println("  "^level, "]")
+        elseif typeof(v) <: AbstractArray
+            println("  "^level, k, " = [")  
+            for e in v
+                print("  "^(level+1))
+                showModel(e, level+1)
+            end
+            println("  "^level, "]")
         elseif k != :_class
             println("  "^level, k, " = ", stringifyDefinition(v), ",")
         end
@@ -265,21 +270,31 @@ function unpackPath(path, sequence)
     end
 end
 
-function collectConnector(model)
+isVar(v, kind) = isCollection(v) && v[:_class] == :Var && kind in keys(v) && v[kind]
+
+function collectConnector(name, model)
     potentials = []
     flows = []
+    inputs = OrderedDict{Any,Any}()
+    outputs = OrderedDict{Any,Any}()
+    potentialPotentials = []
     for (k,v) in model
-        if isCollection(v) && v[:_class] == :Var 
-            if :potential in keys(v) && v[:potential]
-                push!(potentials, k)
-            elseif :flow in keys(v) && v[:flow]
-                push!(flows, k)
-            else
-                push!(potentials, k)
-            end
+        if isVar(v, :potential)
+            push!(potentials, k)
+        elseif isVar(v, :flow)
+            push!(flows, k)
+            push!(potentials, potentialPotentials...)
+        elseif isVar(v, :input)
+            inputs[prepend(k, name)] = v 
+        elseif isVar(v, :output)
+            outputs[prepend(k, name)] = v
+        elseif isCollection(v) && v[:_class] == :Var
+#            println("Non potential or flow variable: $k = $v")
+            push!(potentialPotentials, k)
         end
     end
-    return potentials, flows 
+#    @show potentials flows inputs outputs
+    return potentials, flows, inputs, outputs
 end
 
 function mergeConnections!(connections)
@@ -352,7 +367,7 @@ function convertConnections!(connections, model, modelName, logging=false)
                             end
                             connectedOutput = con
                         end
-                    elseif mod[:_class] == :Var
+                    elseif :_class in keys(mod) && mod[:_class] == :Var
 #                        println("\nConnect vars: ", connected)
 #                        dump(connected)
                         if length(fullPotentials1) > 0
@@ -362,7 +377,7 @@ function convertConnections!(connections, model, modelName, logging=false)
                         push!(fullPotentials1, con)
                     else
 #                        @show mod typeof(mod)
-                        potentials, flows = collectConnector(mod)
+                        potentials, flows = collectConnector("", mod)
                         # Deprecated
                         if :potentials in keys(mod)
                             potentials = vcat(potentials, mod.potentials.args)
@@ -439,7 +454,6 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
     extendedModel = deepcopy(model)
 
     for (k,v) in model 
-#        @show k v typeof(v)
         if typeof(modelName) == String
             subMod = k
         else
@@ -458,17 +472,17 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
             modelStructure.parameters[subMod] = v
             modelStructure.mappedParameters[k] = v
         elseif (isCollection(v) && v[:_class] in [:Par, :Var] ||
-                isCollection(v) && :parameter in keys(v) && v.parameter) &&
+                isCollection(v) && :parameter in keys(v) && v[:parameter]) &&
                 :value in keys(v)
             v = v[:value]
             if typeof(v) in [Expr, Symbol]
                 push!(modelStructure.equations, removeBlock(:($k = $v)))
             else
-                modelStructure.parameters[k] = v
+                modelStructure.parameters[subMod] = v
                 modelStructure.mappedParameters[k] = v
             end
          elseif isCollection(v) && v[:_class] in [:Var] ||
-            typeof(v) <: AbstractDict && :variable in keys(v) && v.variable
+            typeof(v) <: AbstractDict && :variable in keys(v) && v[:variable]
             if :init in keys(v)
                 x0 = v[:init]
                 if unitless && typeof(x0) != Expr
@@ -522,7 +536,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
         elseif isexpr(v, :vect) || isexpr(v, :vcat) || isexpr(v, :hcat)
             arrayEquation = false
             for e in v.args
-                if k == :equations || isexpr(e, :(=))
+                if k == :equations && isexpr(e, :(=))
                     if unitless
                         e = removeUnits(e)
                     end
@@ -558,7 +572,8 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
         end
     end
 
-#    printModelStructure(modelStructure, "flattened")
     @timeit to "convert connections" connectEquations = convertConnections!(connections, extendedModel, modelName, log)
     push!(modelStructure.equations, connectEquations...)
+
+    printModelStructure(modelStructure, "flattened", log=false)
 end
