@@ -206,7 +206,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         end
 
         m.algorithmType = typeof(algorithm)
-        sizesOfLinearEquationSystems = ModiaBase.get_equationSizes(m.equationInfo)
+        sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
         TimerOutputs.@timeit m.timer "init!" success = init!(m)
         if !success
             @test false
