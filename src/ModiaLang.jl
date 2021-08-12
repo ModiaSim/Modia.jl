@@ -572,14 +572,16 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         rhs = eq.args[2]
         if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args)
             eqs = rhs
+        elseif typeof(lhs) <: NTuple && all(a == 0 for a in lhs)
+            eqs = rhs
         else
             eqs = sub(rhs, lhs)
         end
         if isexpr(eqs, :call) && eqs.args[1] == :_DUPLICATEEQUATION
-            return :(append!(_leq_mode.residuals, []))
+            return nothing
         end
         resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
-        residual = :(append!(_leq_mode.residuals, $resid))
+        residual = :(appendResidual!(_leq_mode.residuals, $resid))
         residString = string(resid)
         if logCalculations
             return :(println("Calculating residual: ", $residString); $residualName = $resid; println("  Residual: ", $residualName) )
@@ -829,8 +831,14 @@ end
 function duplicateMultiReturningEquations!(equations)
     duplicatedEquations = []
     for e in equations
-        if isexpr(e, :(=)) && isexpr(e.args[1], :tuple)
-            nargs = length(e.args[1].args)
+        if isexpr(e, :(=)) && isexpr(e.args[1], :tuple) || typeof(e.args[1]) <: NTuple
+            lhs = e.args[1]
+            if typeof(lhs) <: NTuple
+                nargs = length(lhs)
+            else
+                nargs = length(lhs.args)
+            end
+
             nameIncidence, coefficients, rest, linear = getCoefficients(e)
             rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence...)
             newE = :(0 = $rhs)

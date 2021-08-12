@@ -143,57 +143,57 @@ end
 # ---------------------------------------------------------
 
 function mergeModels(m1::AbstractDict, m2::AbstractDict, env=Symbol())
-#    println("mergedModels")
+#    println("mergeModels")
 #    @show m1 m2
-    mergedModels = deepcopy(m1) 
+    result = deepcopy(m1) 
     for (k,v) in m2 
         if k == :_class
         elseif typeof(v) <: AbstractDict
-            if k in keys(mergedModels) && ! (:_redeclare in keys(v))
+            if k in keys(result) && ! (:_redeclare in keys(v))
                 if logMerge; print("In $k: ") end
-#                @show mergedModels[k] v k
-                if typeof(mergedModels[k]) <: AbstractDict
-                    m = mergeModels(mergedModels[k], v, k)
-                    mergedModels[k] = m
+#                @show result[k] v k
+                if typeof(result[k]) <: AbstractDict
+                    m = mergeModels(result[k], v, k)
+                    result[k] = m
                 else
-#                    mergedModels[k] = v
+#                    result[k] = v
                 end
             elseif :_redeclare in keys(v)
                 if logMerge; println("Redeclaring: $k = $v") end
-                mergedModels[k] = v
+                result[k] = v
             elseif nothing in values(v) # TODO: Refine
 
             else
-                if !(:_redeclare in keys(mergedModels))
+                if !(:_redeclare in keys(result))
                     if logMerge; print("Adding: $k = "); showModel(v, 2) end
                 end
-                mergedModels[k] = v
+                result[k] = v
             end
         elseif v === nothing
             if logMerge; println("Deleting: $k") end
-            delete!(mergedModels, k)
-        elseif k in keys(mergedModels) && k == :equations
-            equa = copy(mergedModels[k])
+            delete!(result, k)
+        elseif k in keys(result) && k == :equations
+            equa = copy(result[k])
             push!(equa.args, v.args...)
-            mergedModels[k] = equa
+            result[k] = equa
             if logMerge
                 println("Adding equations: ", v)
             end
         else
             if logMerge
-                if k in keys(mergedModels)
-                    if mergedModels[k] != v
-                        println("Changing: $k = $(stringifyDefinition(mergedModels[k])) to $k = $(stringifyDefinition(v))")
+                if k in keys(result)
+                    if result[k] != v
+                        println("Changing: $k = $(stringifyDefinition(result[k])) to $k = $(stringifyDefinition(v))")
                     end
-                elseif !(:_redeclare in keys(mergedModels))
+                elseif !(:_redeclare in keys(result))
                     println("Adding: $k = $(stringifyDefinition(v))")
                 end
             end
-            mergedModels[k] = v
+            result[k] = v
         end
     end
-#    delete!(mergedModels, :_class)
-    return mergedModels 
+#    delete!(result, :_class)
+    return result 
 end
 
 function newCollection(kwargs, kind)
