@@ -53,8 +53,6 @@ ThreeCoupledInertias = Model(
     
 threeCoupledInertias = @instantiateModel(ThreeCoupledInertias, unitless=true, log=false, logDetails=false, logCode=true, logStateSelection=false)
 
-threeCoupledInertias.getDerivatives!=getDerivatives
-
 simulate!(threeCoupledInertias, stopTime = 2.0, log=true, 
           requiredFinalStates=[0.3029735305821086, 0.3933746028781303, 0.39337460287813036, 0.3029735305821086])
 
