@@ -53,59 +53,6 @@ ThreeCoupledInertias = Model(
     
 threeCoupledInertias = @instantiateModel(ThreeCoupledInertias, unitless=true, log=false, logDetails=false, logCode=true, logStateSelection=false)
 
-
-    function getDerivatives(_der_x, _x, _m, _time)::Nothing
-        _m.time = ModiaLang.getValue(_time)
-        _m.nGetDerivatives += 1
-        instantiatedModel = _m
-        _p = _m.evaluatedParameters
-        _leq_mode = nothing
-        time = _time * upreferred(u"s")
-        phi2 = _x[1]
-        w2 = _x[2]
-        tau = if time < 1 * u"s"
-                _p[:tau_max]
-            else
-                if time < 2 * u"s"
-                    0
-                else
-                    if time < 3 * u"s"
-                        -(_p[:tau_max])
-                    else
-                        0
-                    end
-                end
-            end
-        phi1 = _p[:r] * phi2
-        var"der(phi2)" = w2
-        var"der(phi1)" = _p[:r] * var"der(phi2)"
-        w1 = var"der(phi1)"
-        begin
-            local tau2, var"der(w2)", var"der(der(phi2))", var"der(der(phi1))", var"der(w1)", tau1
-            _leq_mode = _m.linearEquations[1]
-            _leq_mode.mode = -3
-             ModiaBase.TimerOutputs.@timeit _m.timer "LinearEquationsIteration" while ModiaBase.LinearEquationsIteration(_leq_mode, _m.isInitial, _m.solve_leq, _m.storeResult, _m.time, _m.timer, useAppend = true)
-                    tau2 = _leq_mode.x[1]
-                    var"der(w2)" = tau2 / _p[:J2]
-                    var"der(der(phi2))" = var"der(w2)"
-                    var"der(der(phi1))" = _p[:r] * var"der(der(phi2))"
-                    var"der(w1)" = var"der(der(phi1))"
-                    tau1 = tau2 / _p[:r]
-                    v = ustrip((tau - tau1) - _p[:J1] * var"der(w1)")
-                    @show typeof(v)
-                    append!(_leq_mode.residuals, v)
-                end
-            _leq_mode = nothing
-        end
-        _der_x[1] = ModiaLang.stripUnit(var"der(phi2)")
-        _der_x[2] = ModiaLang.stripUnit(var"der(w2)")
-        if _m.storeResult
-            ModiaLang.addToResult!(_m, _der_x, time, tau, w1, var"der(phi1)", phi1, var"der(w1)", tau1, tau2, var"der(der(phi1))", var"der(der(phi2))")
-        end
-        return nothing
-    end
-end
-
 threeCoupledInertias.getDerivatives!=getDerivatives
 
 simulate!(threeCoupledInertias, stopTime = 2.0, log=true, 
