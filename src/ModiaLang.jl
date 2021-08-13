@@ -581,7 +581,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
             return nothing
         end
         resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
-        residual = :(appendResidual!(_leq_mode.residuals, $resid))
+        residual = :(ModiaBase.appendResidual!(_leq_mode.residuals, $resid))
         residString = string(resid)
         if logCalculations
             return :(println("Calculating residual: ", $residString); $residualName = $resid; println("  Residual: ", $residualName) )
