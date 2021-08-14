@@ -839,8 +839,11 @@ function duplicateMultiReturningEquations!(equations)
                 nargs = length(lhs.args)
             end
 
-            nameIncidence, coefficients, rest, linear = getCoefficients(e)
-            rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence...)
+#            nameIncidence, coefficients, rest, linear = getCoefficients(e)
+#            rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence...)
+            rhs = copy(e.args[2])
+            rhs.args[1] = :_DUPLICATEEQUATION
+
             newE = :(0 = $rhs)
             for i in 1:(nargs-1)
                 push!(duplicatedEquations, newE)
