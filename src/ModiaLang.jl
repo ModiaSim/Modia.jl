@@ -570,15 +570,19 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
         lhs = eq.args[1]
         rhs = eq.args[2]
+        if isexpr(rhs, :call) && rhs.args[1] == :_DUPLICATEEQUATION
+            return nothing
+        end
         if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args)
             eqs = rhs
         elseif typeof(lhs) <: NTuple && all(a == 0 for a in lhs)
             eqs = rhs
+        elseif isexpr(lhs, :tuple)
+            eqs = sub(rhs, Expr(:call, :SVector, lhs.args...))
+        elseif typeof(lhs) <: NTuple
+            eqs = sub(rhs, Expr(:call, :SVector, lhs...))
         else
             eqs = sub(rhs, lhs)
-        end
-        if isexpr(eqs, :call) && eqs.args[1] == :_DUPLICATEEQUATION
-            return nothing
         end
         resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
         residual = :(ModiaBase.appendResidual!(_leq_mode.residuals, $resid))
@@ -844,7 +848,7 @@ function duplicateMultiReturningEquations!(equations)
             rhs = copy(e.args[2])
             rhs.args[1] = :_DUPLICATEEQUATION
 
-            newE = :(0 = $rhs)
+            newE = :($lhs = $rhs)
             for i in 1:(nargs-1)
                 push!(duplicatedEquations, newE)
             end
