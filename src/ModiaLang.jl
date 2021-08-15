@@ -295,23 +295,6 @@ function assignAndBLT(model, modelName, modelModule, equations, unknowns, modelS
         showIncidence(equations, unknowns, HG, vActive, [], assign, assignedVar, bltComponents, sortVariables=true)
     end
 
-    for b in bltComponents
-        if length(b) > 1 && logDetails
-            println("\nTearing of BLT block")
-            @show b
-            es::Array{Int64,1} = b
-            assignedVar, unAssigned = invertAssign(assign)
-            vs = assignedVar[b]
-            td = TearingSetup(HG, length(unknowns))
-            (eSolved, vSolved, eResidue, vTear) = tearEquations!(td, (e,v) -> v in HG[e], es, vs)
-            @show vTear eResidue vSolved eSolved
-            printArray(unknowns[vTear], "torn variables:", log=logDetails)
-            printArray(equations[eResidue], "residue equations:", log=logDetails)
-            printArray(unknowns[vSolved], "solved variables:", log=logDetails)
-            printArray(equations[eSolved], "solved equations:", log=logDetails)
-        end
-    end
-
     blt = Vector{Int}[]  # TODO: Change type
     for c in bltComponents
         push!(blt, originalEquationIndex[c])
@@ -531,9 +514,10 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
+function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
+    Goriginal = deepcopy(G)
 
     function getSolvedEquationAST(e, v)
         (solution, solved) = solveEquation(equations[e], unknowns[v])
@@ -578,9 +562,9 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         elseif typeof(lhs) <: NTuple && all(a == 0 for a in lhs)
             eqs = rhs
         elseif isexpr(lhs, :tuple)
-            eqs = sub(rhs, Expr(:call, :SVector, lhs.args...))
+            eqs = sub(rhs, Expr(:call, :(ModiaBase.StaticArrays.SVector), lhs.args...))
         elseif typeof(lhs) <: NTuple
-            eqs = sub(rhs, Expr(:call, :SVector, lhs...))
+            eqs = sub(rhs, Expr(:call, :(ModiaBase.StaticArrays.SVector), lhs...))
         else
             eqs = sub(rhs, lhs)
         end
@@ -697,11 +681,11 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     if logTiming
         println("Get sorted and solved AST")
         @timeit to "getSortedAndSolvedAST" (success,AST,equationInfo) = getSortedAndSolvedAST(
-            G, Array{Array{Int64,1},1}(blt), assign, Avar, Bequ, stateSelectionFunctions;
+            Goriginal, Gexplicit, Array{Array{Int64,1},1}(blt), assign, Avar, Bequ, stateSelectionFunctions;
             unitless, log = logStateSelection, modelName = name)
     else
         (success,AST,equationInfo) = getSortedAndSolvedAST(
-            G, Array{Array{Int64,1},1}(blt), assign, Avar, Bequ, stateSelectionFunctions;
+            Goriginal, Gexplicit, Array{Array{Int64,1},1}(blt), assign, Avar, Bequ, stateSelectionFunctions;
             unitless, log = logStateSelection, modelName = name)
     end
 
@@ -1019,9 +1003,39 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         end
 
         modStructure = assignAndBLT(model, modelName, modelModule, equations, unknowns, modelStructure, Avar, G, states, logDetails, log, logTiming)
+        (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
+        
+        Gexplicit = Vector{Int}[]
+        variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
+        @timeit to "build explicit incidence matrix" for i in 1:length(equations)
+            e = equations[i]
+            if isexpr(e.args[2], :call) && e.args[2].args[1] == :implicitDependency
+                e.args[2] = e.args[2].args[2]
+                nameIncidence, coefficients, rest, linear = getCoefficients(e)
 
+                incidence = [] # [variablesIndices[n] for n in nameIncidence if n in unknownsSet]
+                for n in nameIncidence
+                    if n in keys(variablesIndices)
+                        push!(incidence, variablesIndices[n])
+                    end
+                end
+                unique!(incidence)
+                push!(Gexplicit, incidence)
+                equations[i] = e
+            else
+                push!(Gexplicit, G[i])
+            end                
+        end
+
+        println("Explicit equations:")
+        for e in equations
+            println(e)
+        end
+
+        @show G Gexplicit
+        
         if ! experimentalTranslation
-            inst = stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
+            inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
                 vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
                 unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters)
         else
