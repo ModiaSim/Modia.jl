@@ -830,7 +830,11 @@ function duplicateMultiReturningEquations!(equations)
 #            nameIncidence, coefficients, rest, linear = getCoefficients(e)
 #            rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence...)
             rhs = copy(e.args[2])
-            rhs.args[1] = :_DUPLICATEEQUATION
+            if rhs.args[1] != :implicitDependency
+                rhs.args[1] = :_DUPLICATEEQUATION
+            else
+                rhs.args[1] = :_DUPLICATIMPLICITDEPENDENCY
+            end
 
             newE = :($lhs = $rhs)
             for i in 1:(nargs-1)
@@ -1009,8 +1013,14 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
         @timeit to "build explicit incidence matrix" for i in 1:length(equations)
             e = equations[i]
-            if isexpr(e.args[2], :call) && e.args[2].args[1] == :implicitDependency
-                e.args[2] = e.args[2].args[2]
+            if isexpr(e.args[2], :call) && e.args[2].args[1] in [:implicitDependency, :_DUPLICATIMPLICITDEPENDENCY]
+                if e.args[2].args[1] == :_DUPLICATIMPLICITDEPENDENCY
+                    e.args[2] = e.args[2].args[2]
+                    e.args[2].args[1] = :_DUPLICATEEQUATION
+                else
+                    e.args[2] = e.args[2].args[2]
+                end
+
                 nameIncidence, coefficients, rest, linear = getCoefficients(e)
 
                 incidence = [] # [variablesIndices[n] for n in nameIncidence if n in unknownsSet]
@@ -1027,12 +1037,14 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             end                
         end
 
-        println("Explicit equations:")
-        for e in equations
-            println(e)
-        end
+        if false
+            println("Explicit equations:")
+            for e in equations
+                println(e)
+            end
 
-        @show G Gexplicit
+            @show G Gexplicit
+        end
         
         if ! experimentalTranslation
             inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
