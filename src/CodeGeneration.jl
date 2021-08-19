@@ -312,6 +312,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     isInitial::Bool
     solve_leq::Bool                         # = true, if linear equations 0 = A*x-b shall be solved
                                             # = false, if leq.x is provided by DAE solver and leq.residuals is used by the DAE solver.
+    odeMode::Bool                           # = false: copy der(x) into linear equation systems that have leq.odeMode=false and do not solve these equation systems
     storeResult::Bool
     time::TimeType
     nGetDerivatives::Int                        # Number of getDerivatives! calls
@@ -437,7 +438,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             previous, nextPrevious, previous_names, previous_dict,
             pre, nextPre, pre_names, pre_dict,
             hold, nextHold, hold_names, hold_dict,
-            separateObjects, isInitial, solve_leq, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+            separateObjects, isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             x_start, zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
     end
@@ -469,7 +470,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
             deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
             deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,
-            separateObjects, isInitial, solve_leq, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+            separateObjects, isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)
     end
@@ -1151,7 +1152,26 @@ function outputs!(x, t, integrator)::Nothing
     m = integrator.p
     m.storeResult = true
     #println("... Store result at time = $t")
-    invokelatest_getDerivatives!(m.der_x, x, m, t)
+    if m.odeMode                            
+        invokelatest_getDerivatives!(m.der_x, x, m, t)
+    else
+        if t==m.options.startTime
+            m.der_x .= copy(integrator.du)   # Since IDA gives an error for integrator(t, Val{1]}) at the initial time instant
+        else
+            integrator(m.der_x, t, Val{1})  # Compute derx
+        end
+        
+        # Copy derx to linearEquations
+        for copyInfo in m.daeCopyInfo
+            leq = m.linearEquations[ copyInfo.ileq ]
+            for i in 1:length(copyInfo.index)
+                leq.x[i] = m.der_x[ copyInfo.index[i] ]
+            end
+        end
+        m.solve_leq = false
+        invokelatest_getDerivatives!(m.der_x, x, m, t)
+        m.solve_leq = true
+    end
     m.storeResult = false
     if !m.success
         m.result_x = integrator.sol
@@ -1176,7 +1196,9 @@ that is used to store results at communication points.
 function affect_outputs!(integrator)::Nothing
     m = integrator.p
     m.storeResult = true
+    m.solve_leq = false
     getDerivatives!2(m.der_x, integrator.u, m, integrator.t)
+    m.solve_leq = true
     m.storeResult = false
     if m.eventHandler.restart == Terminate
         DifferentialEquations.terminate!(integrator)

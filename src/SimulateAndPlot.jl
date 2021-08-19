@@ -206,12 +206,12 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         end
 
         m.algorithmType = typeof(algorithm)
-        sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
         TimerOutputs.@timeit m.timer "init!" success = init!(m)
         if !success
             @test false
             return nothing
         end
+        sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
 
         # Define problem and callbacks based on algorithm and model type
         interval = m.options.interval
@@ -226,6 +226,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         tspan = (m.options.startTime, m.options.stopTime)
 
         eh = m.eventHandler
+        m.odeMode   = true
         m.solve_leq = true
         if m.algorithmType <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
             # DAE integrator
@@ -245,6 +246,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                        length(intersect(leq.x_names,der_x_names)) == length(leq.x_names)
                         # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
                         leq.odeMode = false
+                        m.odeMode   = false                        
                         leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
                         for ix in 1:length(leq.x_names)
                             x_name   = leq.x_names[ix]

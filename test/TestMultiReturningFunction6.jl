@@ -55,7 +55,7 @@ Pendulum = Model(
     ]
 )
 
-pendulum = @instantiateModel(Pendulum , unitless=true, log=true, logDetails=true, logCode=true, logStateSelection=true)
+pendulum = @instantiateModel(Pendulum , unitless=true, log=false, logDetails=false, logCode=true, logStateSelection=true)
 
 simulate!(pendulum, stopTime = 2.0, log=true)
 
