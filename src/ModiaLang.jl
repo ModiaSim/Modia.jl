@@ -503,7 +503,8 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     reducedG = Vector{Int}[] # Array{Array{Int64,1},1}()
     @timeit to "build reducedG" for i in 1:length(reducedEquations)
         e = reducedEquations[i]
-        nameIncidence, coefficients, rest, linear = getCoefficients(e)
+        nameIncidence = Incidence[]
+        findIncidence!(e, nameIncidence)
         incidence = [reducedVariablesIndices[n] for n in nameIncidence if n in keys(reducedVariablesIndices)]
         unique!(incidence)
         push!(reducedG, incidence)
@@ -827,17 +828,27 @@ function duplicateMultiReturningEquations!(equations)
                 nargs = length(lhs.args)
             end
 
-#            nameIncidence, coefficients, rest, linear = getCoefficients(e)
-#            rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence...)
-            rhs = copy(e.args[2])
-            if rhs.args[1] != :implicitDependency
-                rhs.args[1] = :_DUPLICATEEQUATION
+            if e.args[2].args[1] != :implicitDependency
+                func = :_DUPLICATEEQUATION
             else
-                rhs.args[1] = :_DUPLICATIMPLICITDEPENDENCY
+                func = :_DUPLICATIMPLICITDEPENDENCY
             end
 
-            newE = :($lhs = $rhs)
+            nameIncidence = Incidence[]
+            findIncidence!(e, nameIncidence, false)
+            bandWidth = length(nameIncidence)-nargs+2
+            @show length(nameIncidence) bandWidth
             for i in 1:(nargs-1)
+                if false
+                    rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence...)
+                else
+                    indices =[]
+                    for j in 1:bandWidth
+                        push!(indices, mod(j+i-1,length(nameIncidence))+1)
+                    end
+                    rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence[indices]...)
+                end
+                newE = :(0 = $rhs)
                 push!(duplicatedEquations, newE)
             end
         end
@@ -1021,7 +1032,8 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
                     e.args[2] = e.args[2].args[2]
                 end
 
-                nameIncidence, coefficients, rest, linear = getCoefficients(e)
+                nameIncidence = Incidence[]
+                findIncidence!(e, nameIncidence)
 
                 incidence = [] # [variablesIndices[n] for n in nameIncidence if n in unknownsSet]
                 for n in nameIncidence
