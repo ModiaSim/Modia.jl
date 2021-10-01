@@ -30,7 +30,7 @@ include("$(ModiaLang.path)/models/Translational.jl")
 include("$(Modia3D.path)/src/ModiaInterface/buildModia3D.jl")
 
 Object3D(        ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Object3D), _path = true, kwargs...)
-Scene(           ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.SceneOptions)          , kwargs...)
+Scene(           ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Scene)                 , kwargs...)
 Visual(          ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Visual)                , kwargs...)
 Solid(           ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Solid)                 , kwargs...)
 Box(             ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Box)                   , kwargs...)
