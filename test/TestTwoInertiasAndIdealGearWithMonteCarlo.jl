@@ -35,7 +35,7 @@ TwoInertiasAndIdealGearWithMonteCarlo = Model(
     ]
 )
 
-twoInertiasAndIdealGearWithMonteCarlo = @instantiateModel(TwoInertiasAndIdealGearWithMonteCarlo,
+twoInertiasAndIdealGearWithMonteCarlo = @instantiateModel(TwoInertiasAndIdealGearWithMonteCarlo, unitless=true,
                                                           FloatType = StaticParticles{Float64,nparticles})
 
 simulate!(twoInertiasAndIdealGearWithMonteCarlo, Tsit5(), stopTime = 4.0,

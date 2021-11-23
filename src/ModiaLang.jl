@@ -581,15 +581,27 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
     function isSolvableEquation(e_original, v_original)
         equ = equations[e_original]
         var = unknowns[v_original]
-        (solution, solved) = solveEquation(equ, var)
-        return solved
+        #(solution, solved) = solveEquation(equ, var)
+        #return solved        
+        (rest, factor, linear) = ModiaBase.linearFactor(equ, var)
+        return linear && (typeof(factor) <: Number && factor != 0)         
     end
 
     hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
                           typeof(value) <: MonteCarloMeasurements.Particles
 
+    invAvar = ModiaBase.revertAssociation(Avar)
+    
     function var_unit(v)
-        var = unknowns[v]
+        int_v = invAvar[v]
+        if int_v > 0
+            # v is a derivative variable
+            var = unknowns[int_v]
+        else
+            # v is a non-differentiated variable
+            var = unknowns[v]
+        end
+
         if var in keys(init)
             value = eval(init[var])
         elseif var in keys(start)
@@ -599,6 +611,9 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         end
         if hasParticles(value)  # Units not yet support for particles
             return ""
+        end
+        if int_v > 0
+            value = value / u"s"
         end
         # if length(value) == 1
         if ! (typeof(value) <: Array)        

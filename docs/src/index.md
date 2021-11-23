@@ -35,6 +35,13 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ### Version 0.8.2
 
+- Issue with tearing fixed: Variables are only explicitly solved, if linear factor is a non-zero literal number
+  (previously a division by zero could occur, if the linear factor became zero during simulation).
+
+- Issue with unit of tearing variable fixed, if it is a derivative of a variable
+  (previously, the generated code for unitless=false was wrong, if the tearing variable was
+   a derivative, since the unit was not taken into account).
+
 - simulate!(..): 
   - Support DAE integrators, especially IDA() from Sundials.
   - New keyword `useRecursiveFactorizationUptoSize=0`: Linear equation systems A*v=b are solved with
@@ -49,6 +56,8 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
     RecursiveFactorization.jl is used for the respective system.
     
 - Test for RecursiveFactorization.jl added in TestTwoInertiasAndIdealGear.jl
+
+- Some test models corrected (since leading to errors with the above changes).
 
 - Updated Project.toml and Manifest.toml with newest versions of packages
   (including MonteCarloMeasurements, version >= 1)

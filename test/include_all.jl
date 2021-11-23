@@ -7,6 +7,7 @@ Test.@testset "Test basic functionality" begin
     include("TestSource.jl")         
     include("TestStateSelection.jl") 
     include("TestFilterCircuit.jl")
+    include("TestFilterCircuit2.jl")    
 end
 
 Test.@testset "Test units, uncertainties" begin

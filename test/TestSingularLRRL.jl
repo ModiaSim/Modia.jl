@@ -61,7 +61,7 @@ SingularLRRL = Model(
         V_v = v0 ]
 )
 
-singularLRRL = @instantiateModel(SingularLRRL)
+singularLRRL = @instantiateModel(SingularLRRL, unitless=true)
 
 simulate!(singularLRRL, Tsit5(), stopTime = 1.0, requiredFinalStates = [1.4999999937318995])
 
@@ -85,7 +85,7 @@ SingularLRRL2 = Model(
 )
 
 #=
-singularLRRL2 = @instantiateModel(SingularLRRL2, log=true, logCode=true, logExecution=true)
+singularLRRL2 = @instantiateModel(SingularLRRL2, unitless=true, log=true, logCode=true, logExecution=true)
 
 simulate!(singularLRRL2, Tsit5(), stopTime = 1.0)
 

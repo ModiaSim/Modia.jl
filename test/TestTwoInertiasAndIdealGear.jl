@@ -34,8 +34,8 @@ TwoInertiasAndIdealGearTooManyInits = Model(
 
 TwoInertiasAndIdealGear = TwoInertiasAndIdealGearTooManyInits | Map(phi1 = Var(init=nothing), w1=Var(init=nothing))
 
-twoInertiasAndIdealGearTooManyInits = @instantiateModel(TwoInertiasAndIdealGearTooManyInits)
-twoInertiasAndIdealGear             = @instantiateModel(TwoInertiasAndIdealGear)
+twoInertiasAndIdealGearTooManyInits = @instantiateModel(TwoInertiasAndIdealGearTooManyInits, unitless=true)
+twoInertiasAndIdealGear             = @instantiateModel(TwoInertiasAndIdealGear, unitless=true)
 
 println("Next simulate! should result in an error:\n")
 simulate!(twoInertiasAndIdealGearTooManyInits, Tsit5(), stopTime = 4.0, log=true)
