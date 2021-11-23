@@ -33,6 +33,28 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.8.2
+
+- simulate!(..): 
+  - Support DAE integrators, especially IDA() from Sundials.
+  - New keyword `useRecursiveFactorizationUptoSize=0`: Linear equation systems A*v=b are solved with
+    [RecursiveFactorization.jl](https://github.com/YingboMa/RecursiveFactorization.jl) instead of 
+    the default `lu!(..)` and `ldiv!(..)`, if
+    `length(v) <= useRecursiveFactorizationUptoSize`.
+    According to `RecursiveFactorization.jl` docu, it is faster as `lu!(..)` with OpenBLAS,
+    for `length(v) <= 500` (typically, more as a factor of two). 
+    Since there had been some cases where `lu!(..)!` was successful,
+    but `RecursiveFactorization.jl` failed due to a singular system, the default is to use `lu!(..)!`.
+  - If log=true, sizes of linear equation systems are listed, as well as whether 
+    RecursiveFactorization.jl is used for the respective system.
+    
+- Test for RecursiveFactorization.jl added in TestTwoInertiasAndIdealGear.jl
+
+- Updated Project.toml and Manifest.toml with newest versions of packages
+  (including MonteCarloMeasurements, version >= 1)
+  and improved Project.toml file to reduce issues with package constraints
+
+
 ### Version 0.8.1
 
 - Added a minimal documentation, including release notes.

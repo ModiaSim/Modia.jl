@@ -111,7 +111,8 @@ end
 
 const BasicSimulationKeywordArguments = OrderedSet{Symbol}(
         [:merge, :tolerance, :startTime, :stopTime, :interval, :interp_points, :dtmax, :adaptive, :log, :logStates, :logEvents, 
-         :logTiming, :logParameters, :logEvaluatedParameters, :requiredFinalStates, :requiredFinalStates_rtol])
+         :logTiming, :logParameters, :logEvaluatedParameters, :requiredFinalStates, :requiredFinalStates_rtol,
+         :useRecursiveFactorizationUptoSize])
 const RegisteredExtraSimulateKeywordArguments = OrderedSet{Symbol}()
 
 function registerExtraSimulateKeywordArguments(keys)::Nothing
@@ -157,6 +158,7 @@ struct SimulationOptions{FloatType,TimeType}
     logEvaluatedParameters::Bool
     requiredFinalStates::Union{Missing, Vector{FloatType}}
     requiredFinalStates_rtol::Float64
+    useRecursiveFactorizationUptoSize::Int
     extra_kwargs::OrderedDict{Symbol,Any}
     
     function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}  
@@ -190,6 +192,7 @@ struct SimulationOptions{FloatType,TimeType}
         logEvaluatedParameters   = get(kwargs, :logEvaluatedParameters  , false)
         requiredFinalStates      = get(kwargs, :requiredFinalStates     , missing)
         requiredFinalStates_rtol = get(kwargs, :requiredFinalStates_rtol, 1e-3)
+        useRecursiveFactorizationUptoSize = get(kwargs, :useRecursiveFactorizationUptoSize, 0)
         extra_kwargs = OrderedDict{Symbol,Any}()        
         for option in kwargs
             key = option.first
@@ -206,7 +209,7 @@ struct SimulationOptions{FloatType,TimeType}
 #        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
         obj = new(ismissing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
                   dtmax, adaptive, log, logStates, logEvents, logTiming, logParameters, logEvaluatedParameters,
-                  requiredFinalStates, requiredFinalStates_rtol, extra_kwargs)
+                  requiredFinalStates, requiredFinalStates_rtol, useRecursiveFactorizationUptoSize, extra_kwargs)
         return success ? obj : nothing
     end
 
