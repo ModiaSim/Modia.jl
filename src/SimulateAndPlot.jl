@@ -215,7 +215,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         
         useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
         for leq in m.linearEquations
-            leq.useRecursiveFactorization = length(leq.vTear_value) <= useRecursiveFactorizationUptoSize
+            leq.useRecursiveFactorization = length(leq.vTear_value) <= useRecursiveFactorizationUptoSize && length(leq.vTear_value) > 1
         end         
         
         m.algorithmType = typeof(algorithm)       
