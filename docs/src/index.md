@@ -44,6 +44,13 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 ## Release Notes
 
 
+### Version 0.5.1
+
+- Using and reexporting ModiaLang 0.8.3 (see [release notes 0.8.3 and 0.8.2](https://github.com/ModiaSim/ModiaLang.jl/releases)).
+- Using and partially reexporting Modia3D 0.5.1 (see [release notes 0.5.1](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.5.1)).
+
+
+
 ### Version 0.5.0
 
 - Using and reexporting ModiaLang 0.8.1 (see [release notes](https://modiasim.github.io/ModiaLang.jl/stable/)).
