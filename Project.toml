@@ -1,7 +1,7 @@
 name = "Modia"
 uuid = "cb905087-75eb-5f27-8515-1ce0ec8e839e"
-authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
-version = "0.5.1-dev"
+authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>", "Andrea Neumayr <andrea.neumayr@dlr.de>", "Gerhard Hippmann <gerhard.hippmann@dlr.de>"]
+version = "0.5.1"
 
 [deps]
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
@@ -13,10 +13,10 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-DifferentialEquations = "6.18, 6.17, 6.16"
-Modia3D = "0.5"
-ModiaLang = "0.8"
+DifferentialEquations = "6"
+Modia3D = "0.5.1"
+ModiaLang = "0.8.3"
 OrderedCollections = "1"
 Reexport = "1.0, 0.2"
 Unitful = "1"
-julia = "1"
+julia = "1.5"
