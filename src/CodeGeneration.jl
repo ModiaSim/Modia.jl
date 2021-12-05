@@ -1152,7 +1152,7 @@ function outputs!(x, t, integrator)::Nothing
     m = integrator.p
     m.storeResult = true
     #println("... Store result at time = $t")
-    if m.odeMode                            
+    if m.odeMode
         invokelatest_getDerivatives!(m.der_x, x, m, t)
     else
         if t==m.options.startTime
@@ -1160,7 +1160,7 @@ function outputs!(x, t, integrator)::Nothing
         else
             integrator(m.der_x, t, Val{1})  # Compute derx
         end
-        
+
         # Copy derx to linearEquations
         for copyInfo in m.daeCopyInfo
             leq = m.linearEquations[ copyInfo.ileq ]
