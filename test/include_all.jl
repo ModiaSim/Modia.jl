@@ -42,7 +42,7 @@ Test.@testset "Test events, etc." begin
 end
 
 
-Test.@testset "Multi returning functions" begin
+Test.@testset "Test multi returning functions" begin
     include("TestMultiReturningFunction.jl")
     include("TestMultiReturningFunction4A.jl")
     include("TestMultiReturningFunction5A.jl")
