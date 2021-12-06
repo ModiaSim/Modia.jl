@@ -51,14 +51,14 @@ end
                 J2_tau + J1_tau = 0]
         )
         twoCoupledInertias = @instantiateModel(TwoCoupledInertias)
-        checkStateSelection(twoCoupledInertias, ["J1_w", "J1_phi"], [(["J1_tau"], [1], 1, 1)])
+        checkStateSelection(twoCoupledInertias, ["J1_w", "J1_phi"], [(["der(J1_w)"], [1], 1, 1)])
     end
 
 
     @testset "... Test ODE with linear equations 1" begin
         ODEwithLinearEquations1 = Model(
-            p1=4,
-            p2=2,
+            p1 = 4.0,
+            p2 = 2,
             x6 = Var(start=1.0),
             equations = :[
                          x1 = sin(time)
@@ -141,10 +141,7 @@ end
         checkStateSelection(freeFlyingMass, ["v", "r"], [])
     end
 
-
-#=
-
-
+#= Does not yet work, because Pantelides does not yet support arrays 
     @testset "... Test sliding mass" begin
         SlidingMass = Model(
             m = 1.0,

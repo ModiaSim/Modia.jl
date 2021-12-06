@@ -83,15 +83,17 @@ end
               logParameters = false,
               logEvaluatedParameters   = false,
               requiredFinalStates      = missing
-              requiredFinalStates_rtol = 1e-3)
+              requiredFinalStates_rtol = 1e-3,
+              useRecursiveFactorizationUptoSize = 0)
 
 Simulate `instantiatedModel::SimulationModel` with `algorithm`
-(= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)).
+(= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/) or
+or [DAE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/dae_solve/)).
 
 If the `algorithm` argument is missing, `algorithm=Sundials.CVODE_BDF()` is used, provided
 instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
-The symbol `CVODE_BDF` is exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
+The symbols `CVODE_BDF` and `IDA` are exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
 can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.CVODE_BDF(), ...)`).
 
 The simulation results stored in `model` can be plotted with plot and the result values
@@ -129,6 +131,13 @@ can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
               to some relative tolerance `requiredFinalStates_rtol`. If this is not the case, print the
               final state vector (so that it can be included with copy-and-paste in the simulate!(..) call).
 - `requiredFinalStates_rtol`: Relative tolerance used for `requiredFinalStates`.
+- `useRecursiveFactorizationUptoSize`: = 0: Linear equation systems A*v=b are solved with
+               `RecursiveFactorization.jl` instead of the default `lu!(..)` and `ldiv!(..)`, if
+               `length(v) <= useRecursiveFactorizationUptoSize`.
+               According to `RecursiveFactorization.jl` docu, it is faster as `lu!(..)` with OpenBLAS,
+               for `length(v) <= 500` (typically, more as a factor of two).
+               Since there had been some cases where `lu!(..)!` was successful,
+               but `RecursiveFactorization.jl` failed due to a singular system, the default is to use `lu!(..)!`.
 
 # Examples
 
@@ -205,6 +214,11 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             println("... Simulate model ", m.modelName)
         end
 
+        useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
+        for leq in m.linearEquations
+            leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
+        end
+
         m.algorithmType = typeof(algorithm)
         TimerOutputs.@timeit m.timer "init!" success = init!(m)
         if !success
@@ -246,7 +260,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                        length(intersect(leq.x_names,der_x_names)) == length(leq.x_names)
                         # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
                         leq.odeMode = false
-                        m.odeMode   = false                        
+                        m.odeMode   = false
                         leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
                         for ix in 1:length(leq.x_names)
                             x_name   = leq.x_names[ix]
@@ -342,36 +356,37 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
     end
 
     if m.options.log
+        useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
         println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
-        println("        cpuTime              = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
-        println("        allocated            = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")
-        println("        algorithm            = ", get_algorithmName(m))
-        println("        FloatType            = ", FloatType)
-        println("        interval             = ", m.options.interval, " s")
-        println("        tolerance            = ", m.options.tolerance, " (relative tolerance)")
-        println("        nStates              = ", length(m.x_start))
-        println("        nLinearSystems       = ", sizesOfLinearEquationSystems)
-        println("        odeModeLinearSystems = ", Bool[leq.odeMode for leq in m.linearEquations])
-        println("        nResults             = ", length(m.result_x.t))
-        println("        nGetDerivatives      = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
-        println("        nf                   = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
-        println("        nZeroCrossings       = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
+        println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
+        println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")
+        println("        algorithm                 = ", get_algorithmName(m))
+        println("        FloatType                 = ", FloatType)
+        println("        interval                  = ", m.options.interval, " s")
+        println("        tolerance                 = ", m.options.tolerance, " (relative tolerance)")
+        println("        nStates                   = ", length(m.x_start))
+        println("        linearSystemSizes         = ", sizesOfLinearEquationSystems)
+        println("        useRecursiveFactorization = ", useRecursiveFactorization)
+        println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])
+        println("        nResults                  = ", length(m.result_x.t))
+        println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
+        println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
 
         if sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
             # statistics is wrong, due to a bug in the Sundials.jl interface
-            println("        nJac                 = ??? (number of Jacobian computations)")
-            println("        nAcceptedSteps       = ???")
-            println("        nRejectedSteps       = ???")
-            println("        nErrTestFails        = ???")
+            println("        nJac                      = ??? (number of Jacobian computations)")
+            println("        nAcceptedSteps            = ???")
+            println("        nRejectedSteps            = ???")
+            println("        nErrTestFails             = ???")
         else
-            println("        nJac                 = ", solution.destats.njacs, " (number of Jacobian computations)")
-            println("        nAcceptedSteps       = ", solution.destats.naccept)
-            println("        nRejectedSteps       = ", solution.destats.nreject)
-            println("        nErrTestFails        = ", solution.destats.nreject)
+            println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
+            println("        nAcceptedSteps            = ", solution.destats.naccept)
+            println("        nRejectedSteps            = ", solution.destats.nreject)
+            println("        nErrTestFails             = ", solution.destats.nreject)
         end
-        println("        nTimeEvents          = ", eh.nTimeEvents)
-        println("        nStateEvents         = ", eh.nStateEvents)
-        println("        nRestartEvents       = ", eh.nRestartEvents)
+        println("        nTimeEvents               = ", eh.nTimeEvents)
+        println("        nStateEvents              = ", eh.nStateEvents)
+        println("        nRestartEvents            = ", eh.nRestartEvents)
     end
     if m.options.logTiming
         println("\n... Timings for simulation of ", m.modelName,":")
@@ -380,23 +395,33 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
 
     requiredFinalStates = m.options.requiredFinalStates
     if !ismissing(requiredFinalStates)
+        rtol = m.options.requiredFinalStates_rtol
         if length(finalStates) != length(requiredFinalStates)
             success = false
+            dimensionMisMatch = true
         else
-            success = finalStates == requiredFinalStates || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
+            success = isapprox(finalStates, requiredFinalStates, rtol=rtol)
+            dimensionMisMatch = false
         end
 
         if success
             @test success
         else
+            println("\nrequiredFinalStates_rtol = $rtol")
             if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
                 println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
-                printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
+                printstyled("finalStates         = ", measurementToString(finalStates), "\n", bold=true, color=:red)
+                if !dimensionMisMatch
+                    printstyled("difference          = ", measurementToString(requiredFinalStates-finalStates), "\n\n", bold=true, color=:red)
+                end
             else
                 println(  "\nrequiredFinalStates = ", requiredFinalStates)
-                printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
+                printstyled("finalStates         = ", finalStates, "\n", bold=true, color=:red)
+                if !dimensionMisMatch
+                    printstyled("difference          = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)
+                end
             end
-            @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
+            @test finalStates == isapprox(finalStates, requiredFinalStates, rtol=rtol)
         end
     end
     return solution

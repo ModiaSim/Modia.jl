@@ -44,9 +44,9 @@ global to = TimerOutput()
 export stripUnit
 """
     stripUnit(v)
-    
+
 Convert the unit of `v` to the preferred units (default are the SI units),
-and then strip the unit. For details see `upreferred` and `preferunits` in 
+and then strip the unit. For details see `upreferred` and `preferunits` in
 [Unitful](https://painterqubits.github.io/Unitful.jl/stable/conversion/)
 
 The function is defined as: `stripUnit(v) = ustrip(upreferred.(v))`.
@@ -73,8 +73,8 @@ const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
-const Version = "0.8.0-dev"
-const Date = "2021-08-10"
+const Version = "0.9.0-dev"
+const Date = "2021-12-06"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 #=
@@ -146,8 +146,8 @@ function performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states,
         else
             printstyled("\nThe DAE has no unique solution, because it is structurally inconsistent\n" *
                         "  (the number of equations is identical to the number of unknowns)\n", bold=true, color=:red)
-        end 
-        
+        end
+
         singular = true
         hequ = []
         # Create dummy equations for printing: integrate(x, der(x)) = 0
@@ -174,10 +174,10 @@ function performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states,
             error("Aborting, because $missingEquations equation(s) missing!")
         elseif nEquations > nUnknowns
             tooManyEquations = nEquations - nUnknowns
-            error("Aborting, because $tooManyEquations equation(s) too many!")   
+            error("Aborting, because $tooManyEquations equation(s) too many!")
         else
             error("Aborting, because DAE is structurally inconsistent")
-        end                
+        end
     elseif log
         println("  The DAE is structurally nonsingular.")
     end
@@ -317,7 +317,7 @@ function setAvar(unknowns)
         if isexpr(v, :call)
             push!(derivatives, v)
             x = v.args[2]
-            ix = variablesIndices[x] 
+            ix = variablesIndices[x]
             Avar[ix] = i
             push!(states, unknowns[ix])
         end
@@ -327,7 +327,7 @@ end
 
 mutable struct ModelStructure
     parameters::OrderedDict{Any,Any}
-    mappedParameters::OrderedDict{Any,Any} 
+    mappedParameters::OrderedDict{Any,Any}
     init::OrderedDict{Any,Any}
     start::OrderedDict{Any,Any}
     variables::OrderedDict{Any,Any}
@@ -589,15 +589,27 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     function isSolvableEquation(e_original, v_original)
         equ = equations[e_original]
         var = unknowns[v_original]
-        (solution, solved) = solveEquation(equ, var)
-        return solved
+        #(solution, solved) = solveEquation(equ, var)
+        #return solved
+        (rest, factor, linear) = ModiaBase.linearFactor(equ, var)
+        return linear && (typeof(factor) <: Number && factor != 0)
     end
 
     hasParticles(value) = typeof(value) <: MonteCarloMeasurements.StaticParticles ||
                           typeof(value) <: MonteCarloMeasurements.Particles
 
+    invAvar = ModiaBase.revertAssociation(Avar)
+
     function var_unit(v)
-        var = unknowns[v]
+        int_v = invAvar[v]
+        if int_v > 0
+            # v is a derivative variable
+            var = unknowns[int_v]
+        else
+            # v is a non-differentiated variable
+            var = unknowns[v]
+        end
+
         if var in keys(init)
             value = eval(init[var])
         elseif var in keys(start)
@@ -608,8 +620,11 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if hasParticles(value)  # Units not yet support for particles
             return ""
         end
+        if int_v > 0
+            value = value / u"s"
+        end
         # if length(value) == 1
-        if ! (typeof(value) <: Array)        
+        if ! (typeof(value) <: Array)
             un = unit(value)
         else
             un = unit.(value)   # un = [unit(v) for v in value]  # unit.(value) does not work for MonteCarloMeasurements
@@ -634,7 +649,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             len = hasParticles(value) ? 1 : length(value)
         elseif v in keys(start)
             value = eval(start[v])
-            len = hasParticles(value) ? 1 : length(value)            
+            len = hasParticles(value) ? 1 : length(value)
         else
             len = 1
         end
@@ -744,16 +759,16 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     end
 
     # Generate code
-    nCrossingFunctions, nAfter, nClocks, nSamples, previousVars, preVars, holdVars = getEventCounters()   
+    nCrossingFunctions, nAfter, nClocks, nSamples, previousVars, preVars, holdVars = getEventCounters()
     previousVars = Symbol.(previousVars)
     preVars = Symbol.(preVars)
     holdVars = Symbol.(holdVars)
-    
+
     # Variables added to result
-    extraResults = vcat(:time, setdiff([Symbol(u) for u in unknowns], 
+    extraResults = vcat(:time, setdiff([Symbol(u) for u in unknowns],
                                         Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
                                         Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info]))
-    
+
     if true # logTiming
 #        println("Generate code")
         if useNewCodeGeneration
@@ -837,7 +852,7 @@ function duplicateMultiReturningEquations!(equations)
             nameIncidence = Incidence[]
             findIncidence!(e, nameIncidence, false)
             bandWidth = length(nameIncidence)-nargs+2
-            @show length(nameIncidence) bandWidth
+            #@show length(nameIncidence) bandWidth
             for i in 1:(nargs-1)
                 if false
                     rhs = Expr(:call, :_DUPLICATEEQUATION, nameIncidence...)
@@ -858,7 +873,7 @@ end
 
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
-        log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, 
+        log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
         logExecution=logExecution, logCalculations=logCalculations, logTiming=false)
 
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
@@ -889,7 +904,7 @@ end
 See documentation of macro @instatiateModel
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
-    log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, 
+    log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
     logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false)
     try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
@@ -925,12 +940,12 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             if experimentalTranslation
                 interface = buildInterface(model, modelStructure)
             end
-            
+
             pars = OrderedDict{Symbol, Any}([(Symbol(k),v) for (k,v) in modelStructure.parameters])
             if length(modelStructure.equations) > 0
                 flatModel = Model() | pars | Model(equations = [removeBlock(e) for e in modelStructure.equations])
             else
-                flatModel = Model() | pars 
+                flatModel = Model() | pars
             end
             printModelStructure(modelStructure, log=false)
             name = modelName
@@ -1019,7 +1034,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         modStructure = assignAndBLT(model, modelName, modelModule, equations, unknowns, modelStructure, Avar, G, states, logDetails, log, logTiming)
         (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
-        
+
         Gexplicit = Vector{Int}[]
         variablesIndices = OrderedDict(key => k for (k, key) in enumerate(unknowns))
         @timeit to "build explicit incidence matrix" for i in 1:length(equations)
@@ -1046,7 +1061,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
                 equations[i] = e
             else
                 push!(Gexplicit, G[i])
-            end                
+            end
         end
 
         if false
@@ -1057,7 +1072,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
             @show G Gexplicit
         end
-        
+
         if ! experimentalTranslation
             inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
                 vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
@@ -1078,9 +1093,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
     catch e
         if isa(e, ErrorException)
             println()
-            printstyled("Model error: ", bold=true, color=:red)  
-            printstyled(e.msg, "\n", bold=true, color=:red) 
-            printstyled("Aborting instantiateModel for $modelName in $modelModule\n", bold=true, color=:red)             
+            printstyled("Model error: ", bold=true, color=:red)
+            printstyled(e.msg, "\n", bold=true, color=:red)
+            printstyled("Aborting instantiateModel for $modelName in $modelModule\n", bold=true, color=:red)
             println()
 #            Base.rethrow()
         else
@@ -1091,7 +1106,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             println()
         end
     end
-    
+
 
 end
 

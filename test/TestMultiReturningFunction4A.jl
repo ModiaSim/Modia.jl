@@ -1,6 +1,6 @@
-module TestMultiReturningFunction4
+module TestMultiReturningFunction4A
 
-using StaticArrays
+using ModiaBase.StaticArrays
 using ModiaLang
 @usingModiaPlot
 
@@ -41,9 +41,9 @@ ThreeCoupledInertias = Model(
     ]
 )
     
-threeCoupledInertias = @instantiateModel(ThreeCoupledInertias, unitless=true, log=true, logDetails=false, logCode=true, logStateSelection=false)
+threeCoupledInertias = @instantiateModel(ThreeCoupledInertias, unitless=true, log=false, logDetails=false, logCode=false, logStateSelection=false)
 
-simulate!(threeCoupledInertias, stopTime = 2.0, log=true)
+simulate!(threeCoupledInertias, stopTime = 2.0, log=true, requiredFinalStates=[0.3933746028781301, 0.3029735305821084])
 
 plot(threeCoupledInertias, [("phi1", "phi2", "phi3"), 
                             ("w1","w2","w3"), 

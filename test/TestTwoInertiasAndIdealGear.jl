@@ -34,19 +34,23 @@ TwoInertiasAndIdealGearTooManyInits = Model(
 
 TwoInertiasAndIdealGear = TwoInertiasAndIdealGearTooManyInits | Map(phi1 = Var(init=nothing), w1=Var(init=nothing))
 
-twoInertiasAndIdealGearTooManyInits = @instantiateModel(TwoInertiasAndIdealGearTooManyInits)
-twoInertiasAndIdealGear             = @instantiateModel(TwoInertiasAndIdealGear)
+twoInertiasAndIdealGearTooManyInits = @instantiateModel(TwoInertiasAndIdealGearTooManyInits, unitless=true)
+twoInertiasAndIdealGear             = @instantiateModel(TwoInertiasAndIdealGear, unitless=true)
 
 println("Next simulate! should result in an error:\n")
 simulate!(twoInertiasAndIdealGearTooManyInits, Tsit5(), stopTime = 4.0, log=true)
 
-simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0, log=false,
+simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0, log=true,
           logParameters=true, logStates=true,
           requiredFinalStates=[1.5628074713622309, -6.878080753044174e-5])
           
 plot(twoInertiasAndIdealGear, ["phi2", "w2"])
 
-
+simulate!(twoInertiasAndIdealGear, stopTime = 4.0,
+          useRecursiveFactorizationUptoSize = 500,
+          log=true, logParameters=true, logStates=true,
+          requiredFinalStates=missing)
+#=          
 # Linearize
 println("\n... Linearize at stopTime = 0 and 4")
 (A_0, x_0) = linearize!(twoInertiasAndIdealGear, stopTime=0, analytic = true)
@@ -60,5 +64,6 @@ xNames = get_xNames(twoInertiasAndIdealGear)
 @show A_4_numeric, x_4_numeric
 @test isapprox(A_0,[0.0 1.0; 0.0 0.0])
 @test isapprox(A_0, A_4)
+=#
 
 end

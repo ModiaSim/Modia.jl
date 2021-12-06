@@ -1,4 +1,4 @@
-module TestMultiReturningFunction6
+module TestMultiReturningFunction7A
 
 using StaticArrays
 using ModiaLang
@@ -53,9 +53,10 @@ Pendulum = Model(
     ]
 )
 
-pendulum = @instantiateModel(Pendulum , unitless=true, log=true, logDetails=false, logCode=true, logStateSelection=false)
+pendulum = @instantiateModel(Pendulum , unitless=true, log=false, logDetails=false, logCode=false, logStateSelection=false)
 
-simulate!(pendulum, stopTime = 2.0, log=true)
+simulate!(pendulum, stopTime = 2.0, log=true,
+          requiredFinalStates=[-1.399248030722412, -0.20564002545046062, -0.7148846477289476, -0.2742354977425878])
 
 plot(pendulum, ("phi1", "w1", "phi2", "w2"))
 
