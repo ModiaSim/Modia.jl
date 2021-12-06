@@ -5,7 +5,7 @@ module Runtests
 using ModiaLang
 using Test 
 
-@time @testset verbose=true "ModiaLang (with SilentNoPlot)" begin
+@time @testset verbose=true "ModiaLang (with SilentNoPlot)   " begin
     usePlotPackage("SilentNoPlot")
     include("include_all.jl")  
     usePreviousPlotPackage()
