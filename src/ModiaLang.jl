@@ -624,7 +624,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             value = value / u"s"
         end
         # if length(value) == 1
-        if ! (typeof(value) <: Array)
+        if ! (typeof(value) <: AbstractArray)
             un = unit(value)
         else
             un = unit.(value)   # un = [unit(v) for v in value]  # unit.(value) does not work for MonteCarloMeasurements
