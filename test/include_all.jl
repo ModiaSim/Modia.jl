@@ -48,5 +48,5 @@ Test.@testset "Test multi returning functions" begin
     include("TestMultiReturningFunction5A.jl")
     include("TestMultiReturningFunction6.jl")
     include("TestMultiReturningFunction7A.jl")
-
+    include("TestMultiReturningFunction10.jl")    
 end

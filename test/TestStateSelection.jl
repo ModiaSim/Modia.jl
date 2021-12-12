@@ -51,7 +51,7 @@ end
                 J2_tau + J1_tau = 0]
         )
         twoCoupledInertias = @instantiateModel(TwoCoupledInertias)
-        checkStateSelection(twoCoupledInertias, ["J1_w", "J1_phi"], [(["der(J1_w)"], [1], 1, 1)])
+        checkStateSelection(twoCoupledInertias, ["J1_w", "J1_phi"], [(["der(J1_w)"], [], [1], 1, 1)])
     end
 
 
@@ -69,7 +69,7 @@ end
                     der(x6) = -x5*x6]
         )
         oDEwithLinearEquations1 = @instantiateModel(ODEwithLinearEquations1, unitless=true)
-        checkStateSelection(oDEwithLinearEquations1, ["x6"], [(["x5"], [1], 1, 1)])
+        checkStateSelection(oDEwithLinearEquations1, ["x6"], [(["x5"], [], [1], 1, 1)])
     end
 
 
@@ -87,7 +87,7 @@ end
                   3*der(x6) = -5*x3 - 2*x4]
         )
         oDEwithLinearEquations2 = @instantiateModel(ODEwithLinearEquations2, unitless=true)
-        checkStateSelection(oDEwithLinearEquations2, ["x6"], [(["x5"], [1], 1, 1)])
+        checkStateSelection(oDEwithLinearEquations2, ["x6"], [(["x5"], [], [1], 1, 1)])
     end
 
 
@@ -119,11 +119,11 @@ end
         multiIndexDAE = @instantiateModel(MultiIndexDAE, unitless=true)
         #@show multiIndexDAE.equationInfo.linearEquations
         checkStateSelection(multiIndexDAE, ["x2", "x2d"],
-                            [(["x7"], [1], 1, 1),
-                             (["der(x7)"], [1], 1, 1),
-                             (["der(der(x7))"], [1], 1, 1),
-                             (["der(der(der(x7)))"], [1], 1, 1),
-                             (["der(x2d)"], [1], 1, 1)])
+                            [(["x7"], [], [1], 1, 1),
+                             (["der(x7)"], [], [1], 1, 1),
+                             (["der(der(x7))"], [], [1], 1, 1),
+                             (["der(der(der(x7)))"], [], [1], 1, 1),
+                             (["der(x2d)"], [], [1], 1, 1)])
     end
 
 

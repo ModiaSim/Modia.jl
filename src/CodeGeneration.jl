@@ -14,7 +14,7 @@ import TimerOutputs
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, previous, edge, after, reinit, pre
-export initial, terminal, isInitial, isTerminal
+export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames
 export registerExtraSimulateKeywordArguments
 export get_extraSimulateKeywordArgumentsDict
@@ -1026,6 +1026,8 @@ function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}):
         if isnothing(m.evaluatedParameters)
             return false
         end
+        # Resize linear equation systems if dimensions of vector valued tearing variables changed
+        resizeLinearEquations!(m, m.options.log)
     end
 
     # Re-initialize dictionary of separate objects
@@ -1403,6 +1405,64 @@ Called by integrator when a time event is triggered
 affectTimeEvent!(integrator) = affectEvent!(integrator, false, 0)
 
 
+"""
+    leq = initLinearEquationsIteration!(m::SimulationModel, leq_index::Int)
+    
+Initialize iteration over linear equations system of index `leq_index` and return a reference to it
+that can be used in the while-loop to construct and solve the linear equation system.
+"""
+initLinearEquationsIteration!(m::SimulationModel, leq_index::Int) = begin
+    leq      = m.linearEquations[leq_index]
+    leq.mode = -3
+    return leq
+end
+
+
+"""
+    resizeLinearEquations!(instantiatedModel)
+    
+Inspect all linear equations inside the instantiatedModel and resize the
+internal storage, of the length of vector-valued elements of the iteration variables
+has changed due to changed parameter values.
+"""
+function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothing where {FloatType}
+    for (i,leq) in enumerate(m.linearEquations)
+        nx_vec = length(leq.x_names) - leq.nx_scalars 
+        if nx_vec > 0
+            j = 0
+            for i = leq.nx_scalars+1:length(leq.x_names)
+                # Length  of element is determined by start or init value
+                xi_name  = leq.x_names[i]
+                xi_param = get_value(m.evaluatedParameters, xi_name)
+                if ismissing(xi_param)
+                    @error "resizeLinearEquations!(instantiatedModel,$i): $xi_name is not part of the evaluated parameters."
+                    return nothing;
+                end
+                leq.x_lengths[i] = length(xi_param) 
+                j += 1
+                if length(leq.x_vec[j]) != leq.x_lengths[i]
+                    if log
+                        println("      Resize memory for $xi_name from ", length(leq.x_vec[j]), " to ", leq.x_lengths[i] )
+                    end
+                    resize!(leq.x_vec[j], leq.x_lengths[i])
+                end
+            end
+            nx = sum(leq.x_lengths)
+            if length(leq.x) != nx
+                # Resize internal arrays
+                resize!(leq.x        , nx)
+                resize!(leq.b        , nx)
+                resize!(leq.pivots   , nx)
+                resize!(leq.residuals, nx)
+                leq.A = zeros(FloatType,nx,nx)
+                leq.useRecursiveFactorization = nx <= leq.useRecursiveFactorizationUptoSize  
+            end
+        end
+    end
+    
+    return nothing    
+end 
+
 
 
 """
@@ -1517,6 +1577,15 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         push!(code_pre, :( _m.nextPre[$i] = $preName ))
     end
 
+    # Code for deepcopy of vectors with pre-allocated memory
+    code_copy = Expr[]
+    for leq_tuple in equationInfo.linearEquations
+        x_vec_julia_names = leq_tuple[2]
+        for name in x_vec_julia_names
+            push!(code_copy, :( $name = deepcopy($name) ))
+        end
+    end
+    
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing
@@ -1533,6 +1602,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_pre...)
 
                     if _m.storeResult
+                        $(code_copy...)
                         ModiaLang.addToResult!(_m, _der_x, $(variables...))
                     end
                     return nothing
