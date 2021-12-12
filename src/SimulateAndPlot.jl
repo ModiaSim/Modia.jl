@@ -556,7 +556,7 @@ function ModiaResult.signalNames(m::SimulationModel)
     #    append!(names, collect( keys(m.equationInfo.x_dict) ))
     #else
         all_names = get_names(m.evaluatedParameters)
-        append!(all_names, collect( keys(m.result_info) ) )
+        append!(all_names, setdiff(collect( keys(m.result_info) ), all_names) )
     #end
     sort!(all_names)
     return all_names
