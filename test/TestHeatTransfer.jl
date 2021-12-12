@@ -24,19 +24,18 @@ plot(simpleRod, ("fixedT.port.T", "C.T"), figure=1)
 
 HeatedRod = Model(
     fixedT     = FixedTemperature | Map(T = 493.15u"K"),
-    fixedQflow = FixedHeatFlow, 
-    rod = InsulatedRod | Map(T = Map(init = fill(293.15u"K", 5))),
+    fixedQflow = FixedHeatFlow,
+    rod = InsulatedRod | Map(T = Var(init = fill(293.15,5)u"K")),
     connect = :[
         (fixedT.port, rod.port_a),
         (rod.port_b , fixedQflow.port)
     ]
 )
 
-using Test
-@test_skip begin
-heatedRod = @instantiateModel(HeatedRod, evaluateParameters=true, unitless=true, logExecution=true)
-simulate!(heatedRod, Tsit5(), stopTime = 1e5, 
+
+heatedRod = @instantiateModel(HeatedRod)
+simulate!(heatedRod, stopTime = 1e5, log=true,
           requiredFinalStates = [492.9629728925529, 492.607421697723, 492.30480548105595, 492.0850627579106, 491.9694736486912])
-plot(heatedRod, ("fixedT.port.T", "rod.T"), figure=2)
-end    
+plot(heatedRod, [("fixedT.port.T", "rod.T"), "der(rod.T)"], figure=2)
+
 end

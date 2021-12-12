@@ -184,7 +184,7 @@ struct SimulationOptions{FloatType,TimeType}
             # DifferentialEquations.jl crashes
             interp_points = 2
         end
-        nlinearMinForDAE = max(1, get(kwargs, :nlinearMinForDAE, 1))   # >= 1
+        nlinearMinForDAE = max(1, get(kwargs, :nlinearMinForDAE, 10))   # >= 10
         adaptive         = get(kwargs, :adaptive     , true)
         log              = get(kwargs, :log          , false)
         logStates        = get(kwargs, :logStates    , false)

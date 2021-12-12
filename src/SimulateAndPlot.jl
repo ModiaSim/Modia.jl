@@ -68,43 +68,49 @@ end
 
 """
     simulate!(instantiatedModel [, algorithm];
-              merge         = missing,  # change parameter/init/start values
-              tolerance     = 1e-6,     # relative tolerance
-              startTime     = 0.0,
-              stopTime      = 0.0,      # stopTime >= startTime required
-              interval      = missing,  # = (stopTime-startTime)/500
-              interp_points = 0,
-              dtmax         = missing,  # = 100*interval
-              adaptive      = true,
-              log           = false,
-              logStates     = false,
-              logEvents     = false,
-              logTiming     = false,
-              logParameters = false,
+              merge            = missing,  # change parameter/init/start values
+              tolerance        = 1e-6,     # relative tolerance
+              startTime        = 0.0,
+              stopTime         = 0.0,      # stopTime >= startTime required
+              interval         = missing,  # = (stopTime-startTime)/500
+              interp_points    = 0,
+              dtmax            = missing,  # = 100*interval
+              adaptive         = true,
+              nlinearMinForDAE = 10,
+              log              = false,
+              logStates        = false,
+              logEvents        = false,
+              logTiming        = false,
+              logParameters    = false,
               logEvaluatedParameters   = false,
               requiredFinalStates      = missing
               requiredFinalStates_rtol = 1e-3,
               useRecursiveFactorizationUptoSize = 0)
 
 Simulate `instantiatedModel::SimulationModel` with `algorithm`
-(= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/) or
+(= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)
 or [DAE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/dae_solve/)).
 
 If the `algorithm` argument is missing, `algorithm=Sundials.CVODE_BDF()` is used, provided
 instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
 The symbols `CVODE_BDF` and `IDA` are exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
-can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.CVODE_BDF(), ...)`).
+and `simulate!(instantiatedModel, IDA(), ...)`
+can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.xxx(), ...)`).
 
-The simulation results stored in `model` can be plotted with plot and the result values
-can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
-(for details see chapter [Results and Plotting](@ref)).
+The simulation results stored in `instantiatedModel` can be plotted with
+`plot(instantiatedModel, ...)` and the result values
+can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`. `printResultInfo(instantiatedModel)`
+prints information about the signals in the result file.
+For more details, see chapter [Results and Plotting](@ref)).
 
 
 # Optional Arguments
 
 - `merge`: Define parameters and init/start values that shall be merged with the previous values
-           stored in `model`, before simulation is started.
+           stored in `model`, before simulation is started. If, say, an init value `phi = Var(init=1.0)`
+           is defined in the model, a different init value can be provided with
+           `merge = Map(phi=2.0)`.
 - `tolerance`: Relative tolerance.
 - `startTime`: Start time. If value is without unit, it is assumed to have unit [s].
 - `stopTime`: Stop time. If value is without unit, it is assumed to have unit [s].
@@ -116,6 +122,12 @@ can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
 - `dtmax`: Maximum step size. If `dtmax==missing`, it is internally set to `100*interval`.
 - `adaptive`: = true, if the `algorithm` should use step-size control (if available).
               = false, if the `algorithm` should use a fixed step-size of `interval` (if available).
+- `nlinearMinForDAE`: If `algorithm` is a DAE integrator (e.g. `IDA()`) and the size of a linear equation system
+              is `>= nlinearMinForDAE` and the iteration variables of this equation system are a subset of the
+              DAE state derivatives, then during continuous integration (but not at events, including
+              initialization) this equation system is not locally solved but is solved via the DAE integrator.
+              Typically, for large linear equation systems, simulation efficiency is considerably improved
+              in such a case.f
 - `log`: = true, to log the simulation.
 - `logStates`: = true, to log the states, its init/start values and its units.
 - `logEvents`: = true, to log events.
@@ -131,7 +143,7 @@ can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
               to some relative tolerance `requiredFinalStates_rtol`. If this is not the case, print the
               final state vector (so that it can be included with copy-and-paste in the simulate!(..) call).
 - `requiredFinalStates_rtol`: Relative tolerance used for `requiredFinalStates`.
-- `useRecursiveFactorizationUptoSize`: = 0: Linear equation systems A*v=b are solved with
+- `useRecursiveFactorizationUptoSize`: Linear equation systems A*v=b are solved with
                `RecursiveFactorization.jl` instead of the default `lu!(..)` and `ldiv!(..)`, if
                `length(v) <= useRecursiveFactorizationUptoSize`.
                According to `RecursiveFactorization.jl` docu, it is faster as `lu!(..)` with OpenBLAS,
@@ -600,9 +612,12 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
         if resInfo.store == RESULT_X
             (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
             if ibeg == iend
-                xSig = ModiaResult.FlattenedSignalView(m.result_x.u, ibeg, (), resInfo.negate)
+                xSig = [v[ibeg] for v in m.result_x.u]
             else
-                xSig = ModiaResult.FlattenedSignalView(m.result_x.u, ibeg, (iend-ibeg+1,), resInfo.negate)
+                xSig = [v[ibeg:iend] for v in m.result_x.u]
+            end
+            if resInfo.negate
+                xSig *= -1
             end
             if !m.unitless && xunit != ""
                 xSig = xSig*uparse(xunit)
@@ -612,10 +627,14 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
         elseif resInfo.store == RESULT_DER_X
             (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
             if ibeg == iend
-                derxSig = ModiaResult.FlattenedSignalView(m.result_der_x, ibeg, (), resInfo.negate)
+                derxSig = [v[ibeg] for v in m.result_der_x]
             else
-                derxSig = ModiaResult.FlattenedSignalView(m.result_der_x, ibeg, (iend-ibeg+1,), resInfo.negate)
+                derxSig = [v[ibeg:iend] for v in m.result_der_x]
             end
+            if resInfo.negate
+                derxSig *= -1
+            end
+
             if !m.unitless
                 if xunit == ""
                     derxSig = derxSig/u"s"
