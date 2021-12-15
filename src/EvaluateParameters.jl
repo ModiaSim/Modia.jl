@@ -325,9 +325,9 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
         return current # (; current...)
     else
         if usePath
-            obj = Core.eval(modelModule, :($constructor(; path = $path, $current...))) 
+            obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...))) 
         else
-            obj = Core.eval(modelModule, :($constructor(; $current...)))
+            obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; $current...)))
         end
         if log
             println(" 13:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")    
