@@ -33,6 +33,24 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.8.4
+
+- FloatType is included in the name space of Core.eval when evaluating parameters.
+
+- Version and Date updated
+
+- Included Version in printout of runtests.jl and runtests_withPlot.jl
+
+- Print difference of finalStates and requiredFinalStates in case they do not match with the given tolerance.
+
+
+### Version 0.8.3
+
+- Project.toml, Manifest.toml updated: Require newest version 0.7.7 of ModiaBase (containing a bug fix)
+
+- Minor correction of simulate!(log=true) output
+
+
 ### Version 0.8.2
 
 - Issue with tearing fixed: Variables are only explicitly solved, if linear factor is a non-zero literal number
