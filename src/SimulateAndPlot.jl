@@ -195,198 +195,214 @@ function simulate!(m::Nothing, args...; kwargs...)
     return nothing
 end
 function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
-    enable_timer!(m.timer)
-    reset_timer!(m.timer)
-    TimerOutputs.@timeit m.timer "simulate!" begin 
-        options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
-        if isnothing(options)
-            @test false
+    try
+        enable_timer!(m.timer)
+        reset_timer!(m.timer)
+        
+        TimerOutputs.@timeit m.timer "simulate!" begin 
+            options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
+            if isnothing(options)
+                @test false
+                return nothing
+            end
+       
+            m.options = options
+            if ismissing(algorithm) && FloatType == Float64
+                algorithm = Sundials.CVODE_BDF()
+            end            
+        
+            # Initialize/re-initialize SimulationModel
+            if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
+                println("... Simulate model ", m.modelName)
+            end
+            
+            useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
+            for leq in m.linearEquations
+                leq.useRecursiveFactorization = length(leq.vTear_value) <= useRecursiveFactorizationUptoSize && length(leq.vTear_value) > 1
+            end         
+            
+            m.algorithmType = typeof(algorithm)       
+            TimerOutputs.@timeit m.timer "init!" success = init!(m)
+            if !success
+                @test false
+                return nothing
+            end
+            sizesOfLinearEquationSystems = Int[length(leq.vTear_value) for leq in m.linearEquations]
+        
+            # Define problem and callbacks based on algorithm and model type
+            interval = m.options.interval
+            if  abs(m.options.stopTime - m.options.startTime) <= 0
+                interval = 1.0
+                tspan2   = [m.options.startTime]
+            elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
+                tspan2 = m.options.startTime:m.options.interval:m.options.stopTime 
+            else
+                tspan2 = [m.options.startTime, m.options.stopTime]
+            end
+            tspan = (m.options.startTime, m.options.stopTime)       
+    
+            eh = m.eventHandler  
+            if m.algorithmType <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
+                # DAE integrator
+                m.odeIntegrator = false
+                nx = length(m.x_init)
+                differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549       
+                TimerOutputs.@timeit m.timer "DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
+            else
+                # ODE integrator
+                m.odeIntegrator = true
+                TimerOutputs.@timeit m.timer "ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
+            end
+            
+            callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)             
+            if eh.nz > 0        
+                #println("\n!!! Callback set with crossing functions")
+                # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
+                # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
+                # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
+                # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
+                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
+                callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!, 
+                                affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                                   
+                #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) 
+                callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
+            else
+                #println("\n!!! Callback set without crossing functions")        
+                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2)
+                callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
+            end
+            
+            # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
+            if !ismissing(algorithm) && (m.algorithmType <: Sundials.SundialsODEAlgorithm || 
+                                        m.algorithmType <: Sundials.SundialsDAEAlgorithm)
+                sundials = true
+            else
+                sundials = false
+                dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
+            end
+            m.addEventPointsDueToDEBug = sundials
+            
+            # Compute solution 
+            abstol = 0.1*m.options.tolerance
+            tstops = (m.eventHandler.nextEventTime,)
+        
+            if ismissing(algorithm)
+                TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
+                                                        initializealg = DifferentialEquations.NoInit())
+            elseif sundials
+                TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops,
+                                                        initializealg = DifferentialEquations.NoInit())
+            else
+                TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
+                                                        initializealg = DifferentialEquations.NoInit())
+            end
+                                                        
+            # Compute and store outputs from last event until final time
+            sol_t = solution.t
+            sol_x = solution.u
+            m.storeResult = true        
+            for i = length(m.result_vars)+1:length(sol_t)
+                Base.invokelatest(m.getDerivatives!, m.der_x, sol_x[i], m, sol_t[i])
+            end
+            m.storeResult = false
+            
+            # Final update of instantiatedModel
+            m.result_x = solution
+            if ismissing(algorithm)
+                m.algorithmType = typeof(solution.alg)
+            end
+            
+            # Terminate simulation
+            finalStates = solution.u[end]
+            finalTime   = solution.t[end]
+            terminate!(m, finalStates, finalTime)      
+        end
+        disable_timer!(m.timer)  
+        
+        if !m.success
             return nothing
         end
-        m.options = options
-        if ismissing(algorithm) && FloatType == Float64
-            algorithm = Sundials.CVODE_BDF()
-        end            
+        
+        if m.options.log
+            useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]            
+            println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
+            println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
+            println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")    
+            println("        algorithm                 = ", get_algorithmName(m))
+            println("        FloatType                 = ", FloatType)
+            println("        interval                  = ", m.options.interval, " s")
+            println("        tolerance                 = ", m.options.tolerance, " (relative tolerance)")
+            println("        nStates                   = ", length(m.x_start))
+            println("        linearSystemSizes         = ", sizesOfLinearEquationSystems)
+            println("        useRecursiveFactorization = ", useRecursiveFactorization)        
+            println("        nResults                  = ", length(m.result_x.t))          
+            println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
+            println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
+            println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
     
-        # Initialize/re-initialize SimulationModel
-        if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
-            println("... Simulate model ", m.modelName)
+            if sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
+                # statistics is wrong, due to a bug in the Sundials.jl interface
+                println("        nJac                      = ??? (number of Jacobian computations)")
+                println("        nAcceptedSteps            = ???")
+                println("        nRejectedSteps            = ???")
+                println("        nErrTestFails             = ???")
+            else       
+                println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
+                println("        nAcceptedSteps            = ", solution.destats.naccept)
+                println("        nRejectedSteps            = ", solution.destats.nreject)
+                println("        nErrTestFails             = ", solution.destats.nreject)
+            end     
+            println("        nTimeEvents               = ", eh.nTimeEvents)
+            println("        nStateEvents              = ", eh.nStateEvents)
+            println("        nRestartEvents            = ", eh.nRestartEvents)  
         end
-        
-        useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
-        for leq in m.linearEquations
-            leq.useRecursiveFactorization = length(leq.vTear_value) <= useRecursiveFactorizationUptoSize && length(leq.vTear_value) > 1
-        end         
-        
-        m.algorithmType = typeof(algorithm)       
-        TimerOutputs.@timeit m.timer "init!" success = init!(m)
-        if !success
-            @test false
-            return nothing
+        if m.options.logTiming
+            println("\n... Timings for simulation of ", m.modelName,":")
+            TimerOutputs.print_timer(TimerOutputs.flatten(m.timer)) 
         end
-        sizesOfLinearEquationSystems = Int[length(leq.vTear_value) for leq in m.linearEquations]
     
-        # Define problem and callbacks based on algorithm and model type
-        interval = m.options.interval
-        if  abs(m.options.stopTime - m.options.startTime) <= 0
-            interval = 1.0
-            tspan2   = [m.options.startTime]
-        elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
-            tspan2 = m.options.startTime:m.options.interval:m.options.stopTime 
-        else
-            tspan2 = [m.options.startTime, m.options.stopTime]
-        end
-        tspan = (m.options.startTime, m.options.stopTime)       
-
-        eh = m.eventHandler  
-        if m.algorithmType <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
-            # DAE integrator
-            m.odeIntegrator = false
-            nx = length(m.x_init)
-            differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549       
-            TimerOutputs.@timeit m.timer "DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
-        else
-            # ODE integrator
-            m.odeIntegrator = true
-            TimerOutputs.@timeit m.timer "ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
-        end
-        
-        callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)             
-        if eh.nz > 0        
-            #println("\n!!! Callback set with crossing functions")
-            # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
-            # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
-            # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
-            # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
-            callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
-            callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!, 
-                            affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                                   
-            #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) 
-            callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
-        else
-            #println("\n!!! Callback set without crossing functions")        
-            callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2)
-            callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
-        end
-        
-        # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-        if !ismissing(algorithm) && (m.algorithmType <: Sundials.SundialsODEAlgorithm || 
-                                     m.algorithmType <: Sundials.SundialsDAEAlgorithm)
-            sundials = true
-        else
-            sundials = false
-            dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
-        end
-        m.addEventPointsDueToDEBug = sundials
-        
-        # Compute solution 
-        abstol = 0.1*m.options.tolerance
-        tstops = (m.eventHandler.nextEventTime,)
+        requiredFinalStates = m.options.requiredFinalStates
+        if !ismissing(requiredFinalStates)
+            rtol = m.options.requiredFinalStates_rtol
+            if length(finalStates) != length(requiredFinalStates)
+                success = false
+            else
+                success = isapprox(finalStates, requiredFinalStates, rtol=rtol)
+            end
     
-        if ismissing(algorithm)
-            TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                    callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
-                                                    initializealg = DifferentialEquations.NoInit())
-        elseif sundials
-            TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                    callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops,
-                                                    initializealg = DifferentialEquations.NoInit())
+            if success
+                @test success
+            else
+                println("\nrequiredFinalStates_rtol = $rtol")
+                if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
+                    println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
+                    printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
+                    printstyled("difference          = ", measurementToString(requiredFinalStates-finalStates), "\n\n", bold=true, color=:red)
+                else
+                    println(  "\nrequiredFinalStates = ", requiredFinalStates)
+                    printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
+                    printstyled("difference          = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)                
+                end
+                @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
+            end
+        end 
+        return solution        
+        
+    catch e
+        if isa(e, ErrorException)
+            println()
+            printstyled("Error during simulation at time = $(m.time) s:\n\n", bold=true, color=:red)  
+            printstyled(e.msg, "\n", bold=true, color=:red) 
+            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)             
+            println()
         else
-            TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                    callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
-                                                    initializealg = DifferentialEquations.NoInit())
+            Base.rethrow()
         end
-                                                    
-        # Compute and store outputs from last event until final time
-        sol_t = solution.t
-        sol_x = solution.u
-        m.storeResult = true        
-        for i = length(m.result_vars)+1:length(sol_t)
-            Base.invokelatest(m.getDerivatives!, m.der_x, sol_x[i], m, sol_t[i])
-        end
-        m.storeResult = false
-        
-        # Final update of instantiatedModel
-        m.result_x = solution
-        if ismissing(algorithm)
-            m.algorithmType = typeof(solution.alg)
-        end
-        
-        # Terminate simulation
-        finalStates = solution.u[end]
-        finalTime   = solution.t[end]
-        terminate!(m, finalStates, finalTime)
-    end
-    disable_timer!(m.timer)  
-    
-    if !m.success
         return nothing
     end
-    
-    if m.options.log
-        useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]            
-        println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
-        println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
-        println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")    
-        println("        algorithm                 = ", get_algorithmName(m))
-        println("        FloatType                 = ", FloatType)
-        println("        interval                  = ", m.options.interval, " s")
-        println("        tolerance                 = ", m.options.tolerance, " (relative tolerance)")
-        println("        nStates                   = ", length(m.x_start))
-        println("        linearSystemSizes         = ", sizesOfLinearEquationSystems)
-        println("        useRecursiveFactorization = ", useRecursiveFactorization)        
-        println("        nResults                  = ", length(m.result_x.t))          
-        println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
-        println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
-        println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
-
-        if sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
-            # statistics is wrong, due to a bug in the Sundials.jl interface
-            println("        nJac                      = ??? (number of Jacobian computations)")
-            println("        nAcceptedSteps            = ???")
-            println("        nRejectedSteps            = ???")
-            println("        nErrTestFails             = ???")
-        else       
-            println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
-            println("        nAcceptedSteps            = ", solution.destats.naccept)
-            println("        nRejectedSteps            = ", solution.destats.nreject)
-            println("        nErrTestFails             = ", solution.destats.nreject)
-        end     
-        println("        nTimeEvents               = ", eh.nTimeEvents)
-        println("        nStateEvents              = ", eh.nStateEvents)
-        println("        nRestartEvents            = ", eh.nRestartEvents)  
-    end
-    if m.options.logTiming
-        println("\n... Timings for simulation of ", m.modelName,":")
-        TimerOutputs.print_timer(TimerOutputs.flatten(m.timer)) 
-    end
-
-    requiredFinalStates = m.options.requiredFinalStates
-    if !ismissing(requiredFinalStates)
-        rtol = m.options.requiredFinalStates_rtol
-        if length(finalStates) != length(requiredFinalStates)
-            success = false
-        else
-            success = isapprox(finalStates, requiredFinalStates, rtol=rtol)
-        end
-
-        if success
-            @test success
-        else
-            println("\nrequiredFinalStates_rtol = $rtol")
-            if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
-                println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
-                printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
-                printstyled("difference          = ", measurementToString(requiredFinalStates-finalStates), "\n\n", bold=true, color=:red)
-            else
-                println(  "\nrequiredFinalStates = ", requiredFinalStates)
-                printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
-                printstyled("difference          = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)                
-            end
-            @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
-        end
-    end 
-    return solution
 end
 
 #get_x_startIndexAndLength(m::SimulationModel, name) = ModiaBase.get_x_startIndexAndLength(m.equationInfo, name)
