@@ -195,18 +195,18 @@ function simulate!(m::Nothing, args...; kwargs...)
     return nothing
 end
 function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
+    options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
+    if isnothing(options)
+        @test false
+        return nothing
+    end
+    m.options = options
+    
     try
         enable_timer!(m.timer)
         reset_timer!(m.timer)
         
         TimerOutputs.@timeit m.timer "simulate!" begin 
-            options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
-            if isnothing(options)
-                @test false
-                return nothing
-            end
-       
-            m.options = options
             if ismissing(algorithm) && FloatType == Float64
                 algorithm = Sundials.CVODE_BDF()
             end            
@@ -398,12 +398,14 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             printstyled(e.msg, "\n", bold=true, color=:red) 
             printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)             
             println()
-            @test false
         else
             Base.rethrow()
         end
-        return nothing
     end
+    
+    # Its only possible to arrive here via the catch statement.
+    @test false
+    return nothing    
 end
 
 #get_x_startIndexAndLength(m::SimulationModel, name) = ModiaBase.get_x_startIndexAndLength(m.equationInfo, name)

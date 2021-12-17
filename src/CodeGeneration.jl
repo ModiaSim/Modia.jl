@@ -191,6 +191,9 @@ struct SimulationOptions{FloatType,TimeType}
         logParameters = get(kwargs, :logParameters, false)
         logEvaluatedParameters   = get(kwargs, :logEvaluatedParameters  , false)
         requiredFinalStates      = get(kwargs, :requiredFinalStates     , missing)
+        if isnothing(requiredFinalStates)
+            requiredFinalStates = missing
+        end
         requiredFinalStates_rtol = get(kwargs, :requiredFinalStates_rtol, 1e-3)
         useRecursiveFactorizationUptoSize = get(kwargs, :useRecursiveFactorizationUptoSize, 0)
         extra_kwargs = OrderedDict{Symbol,Any}()        
