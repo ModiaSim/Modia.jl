@@ -398,6 +398,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             printstyled(e.msg, "\n", bold=true, color=:red) 
             printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)             
             println()
+            @test false
         else
             Base.rethrow()
         end
