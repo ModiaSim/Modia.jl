@@ -159,7 +159,7 @@ struct SimulationOptions{FloatType,TimeType}
     logEvaluatedParameters::Bool
     requiredFinalStates::Union{Missing, Vector{FloatType}}
     requiredFinalStates_rtol::Float64
-    useRecursiveFactorizationUptoSize::Int    
+    useRecursiveFactorizationUptoSize::Int
     extra_kwargs::OrderedDict{Symbol,Any}
 
     function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}
@@ -194,7 +194,7 @@ struct SimulationOptions{FloatType,TimeType}
         logEvaluatedParameters   = get(kwargs, :logEvaluatedParameters  , false)
         requiredFinalStates      = get(kwargs, :requiredFinalStates     , missing)
         requiredFinalStates_rtol = get(kwargs, :requiredFinalStates_rtol, 1e-3)
-        useRecursiveFactorizationUptoSize = get(kwargs, :useRecursiveFactorizationUptoSize, 0)        
+        useRecursiveFactorizationUptoSize = get(kwargs, :useRecursiveFactorizationUptoSize, 0)
         extra_kwargs = OrderedDict{Symbol,Any}()
         for option in kwargs
             key = option.first
@@ -319,6 +319,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     time::TimeType
     nGetDerivatives::Int                        # Number of getDerivatives! calls
     nf::Int                                     # Number of getDerivatives! calls from integrator (without zero-crossing calls)
+    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of state vector element equationInfo.x_info[equationInfo.nxFixedLength+i]
     x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
     der_x::Vector{FloatType}                    # Derivatives of states x or x_init
@@ -349,9 +350,6 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
                                         var_name::Function       = v -> nothing) where {FloatType,ParType,EvaluatedParType,TimeType}
-        # Build dictionaries of x_names, der_x_names and set start indices of x-vector
-        ModiaBase.updateEquationInfo!(equationInfo)
-
         # Construct result dictionary
         result_info = OrderedDict{String, ResultInfo}()
         vSolvedWithInitValuesAndUnit2 = OrderedDict{String,Any}( [(string(key),vSolvedWithInitValuesAndUnit[key]) for key in keys(vSolvedWithInitValuesAndUnit)] )
@@ -403,18 +401,21 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
         #parameterValues = [eval(p) for p in values(parameters)]
         #@show typeof(parameterValues)
         #@show parameterValues
-        parameters::ParType = deepcopy(parameterDefinition[:_p])
+        parameters::ParType = deepcopy(parameterDefinition)
 
         # Determine x_start and previous values
-        nx = equationInfo.nx
-        x_start = zeros(FloatType,nx)
-        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, equationInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold)
+        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
         if isnothing(evaluatedParameters)
             return nothing
         end
+        x_start      = initialStateVector(equationInfo, FloatType)
+        nx           = length(x_start)
         nextPrevious = deepcopy(previous)
         nextPre      = deepcopy(pre)
         nextHold     = deepcopy(hold)
+        
+        # Provide storage for x_vec
+        x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)]
 
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
@@ -441,7 +442,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             pre, nextPre, pre_names, pre_dict,
             hold, nextHold, hold_names, hold_dict,
             separateObjects, isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
-            x_start, zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
+            x_vec, x_start, zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
     end
 
@@ -472,7 +473,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
             deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
             deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,
-            separateObjects, isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+            separateObjects, isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, deepcopy(m.x_vec),
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)
     end
@@ -985,8 +986,25 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #    return nothing
 #end
 
-@inline invokelatest_getDerivatives!(der_x, x, m, t) = TimerOutputs.@timeit m.timer "getDerivatives!" Base.invokelatest(m.getDerivatives!, der_x, x, m, t)
-
+@inline invokelatest_getDerivatives!(der_x, x, m, t) = TimerOutputs.@timeit m.timer "getDerivatives!" begin
+    if length(m.x_vec) > 0
+        # copy vector-valued x-elements from x to m.x_vec
+        eqInfo = m.equationInfo
+        x_vec  = m.x_vec
+        j      = 0
+        for i in eqInfo.nxFixedLength+1:length(eqInfo.x_info)
+            j     += 1        
+            xe     = eqInfo.x_info[i]
+            xe_vec = x_vec[j]
+            i1     = 0
+            for i2 in xe.startIndex:(xe.startIndex+xe.length-1)
+                i1 += 1
+                xe_vec[i1] = x[i2]
+            end
+        end
+    end
+    Base.invokelatest(m.getDerivatives!, der_x, x, m, t)
+end
 
 
 """
@@ -1015,20 +1033,29 @@ function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}):
     eh = m.eventHandler
     reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
 
-    # Initialize auxiliary arrays for event iteration
-    m.x_init .= 0
-    m.der_x  .= 0
-
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if !isnothing(m.options.merge)
         m.parameters = mergeModels(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, ParType, m.equationInfo, m.x_start, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, ParType, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
             return false
         end
+
         # Resize linear equation systems if dimensions of vector valued tearing variables changed
         resizeLinearEquations!(m, m.options.log)
+        
+        # Resize state vector memory
+        m.x_start = updateEquationInfo!(m.equationInfo, FloatType)
+        nx = length(m.x_start)
+        resize!(m.x_init, nx)
+        resize!(m.der_x, nx)
+        eqInfo = m.equationInfo
+        m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nxFixedLength+1:length(eqInfo.x_info)]
     end
+    
+    # Initialize auxiliary arrays for event iteration
+    m.x_init .= 0
+    m.der_x  .= 0    
 
     # Re-initialize dictionary of separate objects
     empty!(m.separateObjects)
@@ -1407,7 +1434,7 @@ affectTimeEvent!(integrator) = affectEvent!(integrator, false, 0)
 
 """
     leq = initLinearEquationsIteration!(m::SimulationModel, leq_index::Int)
-    
+
 Initialize iteration over linear equations system of index `leq_index` and return a reference to it
 that can be used in the while-loop to construct and solve the linear equation system.
 """
@@ -1420,25 +1447,24 @@ end
 
 """
     resizeLinearEquations!(instantiatedModel)
-    
+
 Inspect all linear equations inside the instantiatedModel and resize the
 internal storage, of the length of vector-valued elements of the iteration variables
 has changed due to changed parameter values.
 """
 function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothing where {FloatType}
     for (i,leq) in enumerate(m.linearEquations)
-        nx_vec = length(leq.x_names) - leq.nx_scalars 
+        nx_vec = length(leq.x_names) - leq.nx_fixedLength
         if nx_vec > 0
             j = 0
-            for i = leq.nx_scalars+1:length(leq.x_names)
+            for i = leq.nx_fixedLength+1:length(leq.x_names)
                 # Length  of element is determined by start or init value
                 xi_name  = leq.x_names[i]
                 xi_param = get_value(m.evaluatedParameters, xi_name)
                 if ismissing(xi_param)
                     @error "resizeLinearEquations!(instantiatedModel,$i): $xi_name is not part of the evaluated parameters."
-                    return nothing;
                 end
-                leq.x_lengths[i] = length(xi_param) 
+                leq.x_lengths[i] = length(xi_param)
                 j += 1
                 if length(leq.x_vec[j]) != leq.x_lengths[i]
                     if log
@@ -1455,13 +1481,13 @@ function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothi
                 resize!(leq.pivots   , nx)
                 resize!(leq.residuals, nx)
                 leq.A = zeros(FloatType,nx,nx)
-                leq.useRecursiveFactorization = nx <= leq.useRecursiveFactorizationUptoSize  
+                leq.useRecursiveFactorization = nx <= leq.useRecursiveFactorizationUptoSize
             end
         end
     end
-    
-    return nothing    
-end 
+
+    return nothing
+end
 
 
 
@@ -1520,29 +1546,68 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         # Explicitly solved pure algebraic variables. Introduce dummy equation
         push!(code_der_x, :( _der_x[1] = -_x[1] ))
     else
-        i1 = 0
-        i2 = 0
-        for (i, xe) in enumerate(x_info)
-            i1 = i2 + 1
-            i2 = i1 + xe.length - 1
-            indexRange = i1 == i2 ? :($i1) :  :( $i1:$i2 )
+        i1 = 1
+        for i in 1:equationInfo.nxFixedLength
+            xe = x_info[i]
             x_name     = xe.x_name_julia
             der_x_name = xe.der_x_name_julia
             # x_name     = Meta.parse("m."*xe.x_name)
             # der_x_name = Meta.parse("m."*replace(xe.der_x_name, r"der\(.*\)" => s"var\"\g<0>\""))
-            if !hasUnits || xe.unit == ""
-                push!(code_x, :( $x_name = _x[$indexRange] ) )
+            if xe.scalar
+                # x-element is a scalar
+                if !hasUnits || xe.unit == ""
+                    push!(code_x, :( $x_name = _x[$i1] ) )
+                else
+                    x_unit = xe.unit
+                    push!(code_x, :( $x_name = _x[$i1]*@u_str($x_unit)) )
+                end
+                if hasUnits
+                    push!(code_der_x, :( _der_x[$i1] = ModiaLang.stripUnit( $der_x_name )) )
+                else
+                    push!(code_der_x, :( _der_x[$i1] = $der_x_name ))
+                end
+                i1 += 1
             else
-                x_unit = xe.unit
-                push!(code_x, :( $x_name = _x[$indexRange]*@u_str($x_unit)) )
-            end
-            if hasUnits
-                push!(code_der_x, :( _der_x[$indexRange] = ModiaLang.stripUnit( $der_x_name )) )
-            else
-                push!(code_der_x, :( _der_x[$indexRange] = $der_x_name ))
+                # x-element is a static vector 
+                i2 = i1 + xe.length - 1
+                if !hasUnits || xe.unit == ""
+                    push!(code_x, :( $x_name = SVector{$v_length}(_x[$i1:$i2])) )
+                else
+                    x_unit = xe.unit
+                    push!(code_x, :( $x_name = SVector{$v_length}(_x[$i1:$i2])*@u_str($x_unit)) )
+                end
+                if hasUnits
+                    push!(code_der_x, :( _der_x[$i1:$i2] = ModiaLang.stripUnit( $der_x_name )) )
+                else
+                    push!(code_der_x, :( _der_x[$i1:$i2] = $der_x_name ))
+                end 
+                i1 = i2 + 1                
             end
         end
+        
+        i1 = 0
+        for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)
+            # x-element is a vector (length can change before initialization)
+            xe         = x_info[i]
+            x_name     = xe.x_name_julia
+            der_x_name = xe.der_x_name_julia
+            i1         += 1
+            if !hasUnits || xe.unit == ""
+                push!(code_x, :( $x_name = _m.x_vec[$i1]) )
+            else
+                x_unit = xe.unit
+                push!(code_x, :( $x_name = _m.x_vec[$i1]*@u_str($x_unit)) )
+            end
+            push!(code_der_x, :(_xe_info  = _m.equationInfo.x_info[$i]))
+            push!(code_der_x, :(_endIndex = _xe_info.startIndex + _xe_info.length- 1))
+            if hasUnits
+                push!(code_der_x, :( _der_x[_xe_info.startIndex:_endIndex] = ModiaLang.stripUnit( $der_x_name )) )
+            else
+                push!(code_der_x, :( _der_x[_xe_info.startIndex:_endIndex] = $der_x_name ))
+            end             
+        end
     end
+                
     #for (i,pi) in enumerate(parameters)
     #    push!(code_p, :( $pi = _m.p[$i] ) )
     #end
@@ -1585,7 +1650,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
             push!(code_copy, :( $name = deepcopy($name) ))
         end
     end
-    
+
     # Generate code of the function
     code = quote
                 function $functionName(_der_x, _x, _m, _time)::Nothing

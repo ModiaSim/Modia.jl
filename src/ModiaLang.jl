@@ -570,7 +570,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             eqs = sub(rhs, lhs)
         end
         resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
-        residual = :(ModiaBase.appendResidual!(_leq_mode.residuals, $resid))
+        residual = :(ModiaBase.appendVariable!(_leq_mode.residuals, $resid))
         residString = string(resid)
         if logCalculations
             return :(println("Calculating residual: ", $residString); $residualName = $resid; println("  Residual: ", $residualName) )
@@ -634,26 +634,17 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         return replace(string(un), " " => "*") # Fix since Unitful removes * in unit strings
     end
 
-    function var_has_start(v_original)
-        return unknowns[v_original] in keys(init) || unknowns[v_original] in keys(start)
-    end
-
-    function var_fixed(v_original)
-        return unknowns[v_original] in keys(init)
-    end
-
-    function var_length(v_original)
+    function var_startInitFixed(v_original)
         v = unknowns[v_original]
+        value::Any  = nothing
+        fixed::Bool = false
         if v in keys(init)
             value = eval(init[v])
-            len = hasParticles(value) ? 1 : length(value)
+            fixed = true
         elseif v in keys(start)
             value = eval(start[v])
-            len = hasParticles(value) ? 1 : length(value)
-        else
-            len = 1
         end
-        return len
+        return (value, fixed)
     end
 
     function eq_equation(e)
@@ -669,16 +660,14 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     allEquations    = equations
     #    @show stringVariables equations G blt assign Avar Bequ Gsolvable
 
-
+         
     stateSelectionFunctions = StateSelectionFunctions(
         var_name               = v -> stringVariables[v],
         var_julia_name         = v -> juliaVariables[v],
         var_unit               = var_unit,
-        var_has_start          = var_has_start,
-        var_fixed              = var_fixed,
+        var_startInitFixed     = var_startInitFixed,
         var_nominal            = v_original -> NaN,
         var_unbounded          = v_original -> false,
-        var_length             = var_length,
         equation               = eq_equation,
         isSolvableEquation     = isSolvableEquation,
         isLinearEquation       = isLinearEquation,
@@ -718,6 +707,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 #    @show AST
 #    @show equationInfo
 
+#=
     selectedStates = [v.x_name_julia for v in equationInfo.x_info]
 
     startValues = []
@@ -746,6 +736,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     if logCode
         println("startValues = ", startValues)
     end
+=#    
 
     vSolvedWithInit = equationInfo.vSolvedWithFixedTrue
     vSolvedWithInitValuesAndUnit = OrderedDict{String,Any}()
@@ -801,14 +792,15 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     # If generatedFunction is not packed inside a function, DifferentialEquations.jl crashes
 #    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)
 
-    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
+#    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
-
+     x_startValues = initialStateVector(equationInfo, FloatType)
+     
 #    println("Build SimulationModel")
 
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType, OrderedDict{Symbol,Any}}(modelModule, name, getDerivatives, equationInfo, convertedStartValues, previousVars, preVars, holdVars,
+    model = @timeit to "build SimulationModel" SimulationModel{FloatType, OrderedDict{Symbol,Any}}(modelModule, name, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
-                                         OrderedDict(:(_p) => mappedParameters ), extraResults;
+                                         mappedParameters, extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
                                          nz=nCrossingFunctions, nAfter=nAfter,  unitless=unitless)
@@ -821,8 +813,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         println("First executions of getDerivatives")
         @timeit to "execute getDerivatives" try
             TimeType = timeType(model)
-            @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
-            @time Base.invokelatest(getDerivatives, derx, convertedStartValues, model, convert(TimeType, 0.0))
+            @time Base.invokelatest(getDerivatives, derx, x_start, model, convert(TimeType, 0.0))
+            @time Base.invokelatest(getDerivatives, derx, x_start, model, convert(TimeType, 0.0))
 #            @show derx
         catch e
             error("Failed: ", e)
@@ -906,7 +898,7 @@ See documentation of macro @instatiateModel
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
     logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false)
-    try
+    #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
         println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
         resetEventCounters()
@@ -1088,7 +1080,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         end
 
         inst #, flatModel
-
+#=
 
     catch e
         if isa(e, ErrorException)
@@ -1106,7 +1098,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             println()
         end
     end
-
+=#
 
 end
 
