@@ -50,7 +50,7 @@ simulate!(twoInertiasAndIdealGear, stopTime = 4.0,
           useRecursiveFactorizationUptoSize = 500,
           log=true, logParameters=true, logStates=true,
           requiredFinalStates=missing)
-#=          
+        
 # Linearize
 println("\n... Linearize at stopTime = 0 and 4")
 (A_0, x_0) = linearize!(twoInertiasAndIdealGear, stopTime=0, analytic = true)
@@ -64,6 +64,5 @@ xNames = get_xNames(twoInertiasAndIdealGear)
 @show A_4_numeric, x_4_numeric
 @test isapprox(A_0,[0.0 1.0; 0.0 0.0])
 @test isapprox(A_0, A_4)
-=#
 
 end

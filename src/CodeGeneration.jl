@@ -840,7 +840,7 @@ function eventIteration!(m::SimulationModel, x, t_event)::Nothing
     while !success && iter <= iter_max
         iter += 1
         #Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)
-        invokelatest_getDerivatives!(m.der_x, x, m, t_event)
+        invokelatest_getDerivatives_without_der_x!(x, m, t_event)
         success = terminateEventIteration!(m)
 
         if eh.firstEventIterationDirectlyAfterInitial
@@ -986,24 +986,26 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #    return nothing
 #end
 
-@inline invokelatest_getDerivatives!(der_x, x, m, t) = TimerOutputs.@timeit m.timer "getDerivatives!" begin
+invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.timer "getDerivatives!" begin
     if length(m.x_vec) > 0
         # copy vector-valued x-elements from x to m.x_vec
         eqInfo = m.equationInfo
         x_vec  = m.x_vec
         j      = 0
         for i in eqInfo.nxFixedLength+1:length(eqInfo.x_info)
-            j     += 1        
-            xe     = eqInfo.x_info[i]
-            xe_vec = x_vec[j]
-            i1     = 0
-            for i2 in xe.startIndex:(xe.startIndex+xe.length-1)
-                i1 += 1
-                xe_vec[i1] = x[i2]
-            end
+            j += 1        
+            xe = eqInfo.x_info[i]
+            x_vec[j] .= x[xe.startIndex:(xe.startIndex+xe.length-1)]
         end
     end
-    Base.invokelatest(m.getDerivatives!, der_x, x, m, t)
+    empty!(m.der_x)
+    Base.invokelatest(m.getDerivatives!, x, m, t)
+    @assert(length(m.der_x) == m.equationInfo.nx)
+end
+
+invokelatest_getDerivatives!(der_x, x, m, t) = begin
+    invokelatest_getDerivatives_without_der_x!(x, m, t)
+    der_x .= m.der_x
 end
 
 
@@ -1166,7 +1168,7 @@ function terminate!(m::SimulationModel, x, t)::Nothing
     #println("... terminate! called at time = $t")
     eh = m.eventHandler
     eh.terminal = true
-    invokelatest_getDerivatives!(m.der_x, x, m, t)
+    invokelatest_getDerivatives_without_der_x!(x, m, t)
     eh.terminal = false
     return nothing
 end
@@ -1184,10 +1186,10 @@ function outputs!(x, t, integrator)::Nothing
     m.storeResult = true
     #println("... Store result at time = $t")
     if m.odeMode
-        invokelatest_getDerivatives!(m.der_x, x, m, t)
+        invokelatest_getDerivatives_without_der_x!(x, m, t)
     else
         if t==m.options.startTime
-            m.der_x .= copy(integrator.du)   # Since IDA gives an error for integrator(t, Val{1]}) at the initial time instant
+            m.der_x .= integrator.du   # Since IDA gives an error for integrator(t, Val{1]}) at the initial time instant
         else
             integrator(m.der_x, t, Val{1})  # Compute derx
         end
@@ -1200,7 +1202,7 @@ function outputs!(x, t, integrator)::Nothing
             end
         end
         m.solve_leq = false
-        invokelatest_getDerivatives!(m.der_x, x, m, t)
+        invokelatest_getDerivatives_without_der_x!(x, m, t)
         m.solve_leq = true
     end
     m.storeResult = false
@@ -1244,10 +1246,10 @@ end
 
 DifferentialEquations callback function to get the derivatives.
 """
-@inline derivatives!(der_x, x, m, t) = begin
-                                         m.nf += 1
-                                         invokelatest_getDerivatives!(der_x, x, m, t)
-                                       end
+derivatives!(der_x, x, m, t) = begin
+                                    m.nf += 1
+                                    invokelatest_getDerivatives!(der_x, x, m, t)
+                               end
 
 
 """
@@ -1267,9 +1269,9 @@ function DAEresidualsForODE!(residuals, derx, x, m, t)::Nothing
     end
 
     m.solve_leq = false
-    invokelatest_getDerivatives!(residuals, x, m, t)  # model computes derx and stores it in residuals
+    invokelatest_getDerivatives_without_der_x!(x, m, t)
     m.solve_leq = true
-    residuals .-= derx  # residuals = model_derx(= residuals) - integrator_derx (= derx)
+    residuals .= m.der_x .- derx
 
     # Get residuals from linearEquations
     for copyInfo in m.daeCopyInfo
@@ -1388,7 +1390,7 @@ function zeroCrossings!(z, x, t, integrator)::Nothing
     eh.nZeroCrossings += 1
     eh.crossing = true
     m.solve_leq = false # has only an effect for DAE integrators
-    invokelatest_getDerivatives!(m.der_x, x, m, t)
+    invokelatest_getDerivatives_without_der_x!(x, m, t)
     m.solve_leq = true
     eh.crossing = false
     for i = 1:eh.nz
@@ -1497,9 +1499,9 @@ end
 Add `variableValues...` to `simulationModel::SimulationModel`.
 It is assumed that the first variable in `variableValues` is `time`.
 """
-function addToResult!(m::SimulationModel, der_x, variableValues...)::Nothing
+function addToResult!(m::SimulationModel, variableValues...)::Nothing
     push!(m.result_vars , variableValues)
-    push!(m.result_der_x, deepcopy(der_x))
+    push!(m.result_der_x, deepcopy(m.der_x))
     return nothing
 end
 
@@ -1544,13 +1546,12 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     if length(x_info) == 1 && x_info[1].x_name == "_dummy_x" && x_info[1].der_x_name == "der(_dummy_x)"
         # Explicitly solved pure algebraic variables. Introduce dummy equation
-        push!(code_der_x, :( _der_x[1] = -_x[1] ))
+        push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, -_x[1]) ))
     else
         i1 = 1
         for i in 1:equationInfo.nxFixedLength
             xe = x_info[i]
-            x_name     = xe.x_name_julia
-            der_x_name = xe.der_x_name_julia
+            x_name = xe.x_name_julia
             # x_name     = Meta.parse("m."*xe.x_name)
             # der_x_name = Meta.parse("m."*replace(xe.der_x_name, r"der\(.*\)" => s"var\"\g<0>\""))
             if xe.scalar
@@ -1560,11 +1561,6 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 else
                     x_unit = xe.unit
                     push!(code_x, :( $x_name = _x[$i1]*@u_str($x_unit)) )
-                end
-                if hasUnits
-                    push!(code_der_x, :( _der_x[$i1] = ModiaLang.stripUnit( $der_x_name )) )
-                else
-                    push!(code_der_x, :( _der_x[$i1] = $der_x_name ))
                 end
                 i1 += 1
             else
@@ -1576,35 +1572,31 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     x_unit = xe.unit
                     push!(code_x, :( $x_name = SVector{$v_length}(_x[$i1:$i2])*@u_str($x_unit)) )
                 end
-                if hasUnits
-                    push!(code_der_x, :( _der_x[$i1:$i2] = ModiaLang.stripUnit( $der_x_name )) )
-                else
-                    push!(code_der_x, :( _der_x[$i1:$i2] = $der_x_name ))
-                end 
                 i1 = i2 + 1                
             end
         end
         
         i1 = 0
         for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)
-            # x-element is a vector (length can change before initialization)
-            xe         = x_info[i]
-            x_name     = xe.x_name_julia
-            der_x_name = xe.der_x_name_julia
-            i1         += 1
+            # x-element is a dynamic vector (length can change before initialization)
+            xe     = x_info[i]
+            x_name = xe.x_name_julia
+            i1    += 1
             if !hasUnits || xe.unit == ""
                 push!(code_x, :( $x_name = _m.x_vec[$i1]) )
             else
                 x_unit = xe.unit
                 push!(code_x, :( $x_name = _m.x_vec[$i1]*@u_str($x_unit)) )
-            end
-            push!(code_der_x, :(_xe_info  = _m.equationInfo.x_info[$i]))
-            push!(code_der_x, :(_endIndex = _xe_info.startIndex + _xe_info.length- 1))
+            end         
+        end
+        
+        for xe in equationInfo.x_info
+            der_x_name = xe.der_x_name_julia
             if hasUnits
-                push!(code_der_x, :( _der_x[_xe_info.startIndex:_endIndex] = ModiaLang.stripUnit( $der_x_name )) )
+                push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, ModiaLang.stripUnit( $der_x_name )) ))
             else
-                push!(code_der_x, :( _der_x[_xe_info.startIndex:_endIndex] = $der_x_name ))
-            end             
+                push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, $der_x_name) ))
+            end           
         end
     end
                 
@@ -1653,7 +1645,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     # Generate code of the function
     code = quote
-                function $functionName(_der_x, _x, _m, _time)::Nothing
+                function $functionName(_x, _m, _time)::Nothing
                     _m.time = ModiaLang.getValue(_time)
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
@@ -1668,7 +1660,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
                     if _m.storeResult
                         $(code_copy...)
-                        ModiaLang.addToResult!(_m, _der_x, $(variables...))
+                        ModiaLang.addToResult!(_m, $(variables...))
                     end
                     return nothing
                 end

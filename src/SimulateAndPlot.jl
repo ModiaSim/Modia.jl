@@ -346,7 +346,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         sol_x = solution.u
         m.storeResult = true
         for i = length(m.result_vars)+1:length(sol_t)
-            Base.invokelatest(m.getDerivatives!, m.der_x, sol_x[i], m, sol_t[i])
+            invokelatest_getDerivatives_without_der_x!(sol_x[i], m, sol_t[i])
         end
         m.storeResult = false
 
@@ -512,18 +512,24 @@ end
 function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType},
                     algorithm=missing;
                     merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,ParType,EvaluatedParType,TimeType}
+    if analytic
+        @info "linearize!(.., analytic=true) of model $(m.modelName) \nis modified to analytic=false, because analytic=true is currently not supported!"
+        analytic = false
+    end
+    
     solution = simulate!(m, algorithm; merge=merge, stopTime=stopTime, kwargs...)
     finalStates = solution[:,end]
 
     # Function that shall be linearized
     function modelToLinearize!(der_x, x)
-        Base.invokelatest(m.getDerivatives!, der_x, x, m, m.options.startTime)
+        invokelatest_getDerivatives!(der_x, x, m, m.options.startTime)
         return nothing
     end
 
     # Linearize
     if analytic
-        A = ForwardDiff.jacobian(modelToLinearize!, m.der_x, finalStates)
+        der_x = zeros(FloatType, length(finalStates))
+        A = ForwardDiff.jacobian(modelToLinearize!, der_x, finalStates)
     else
         A = zeros(FloatType, length(finalStates), length(finalStates))
         FiniteDiff.finite_difference_jacobian!(A, modelToLinearize!, finalStates)
