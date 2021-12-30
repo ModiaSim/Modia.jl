@@ -8,6 +8,7 @@ Test.@testset "Test basic functionality" begin
     include("TestStateSelection.jl")
     include("TestFilterCircuit.jl")
     include("TestFilterCircuit2.jl")
+    include("TestArrays.jl")    
 end
 
 
