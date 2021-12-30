@@ -1566,6 +1566,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
             else
                 # x-element is a static vector 
                 i2 = i1 + xe.length - 1
+                v_length = xe.length
                 if !hasUnits || xe.unit == ""
                     push!(code_x, :( $x_name = SVector{$v_length}(_x[$i1:$i2])) )
                 else
