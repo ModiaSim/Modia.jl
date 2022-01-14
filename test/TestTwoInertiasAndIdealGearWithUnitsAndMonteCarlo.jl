@@ -23,8 +23,6 @@ TwoInertiasAndIdealGearWithUnitsAndMonteCarlo = Model(
     w2   = Var(start = 0.0u"rad/s"),
     tau2 = Var(start = 0u"N*m"),   
 
-    start = Map(phi2 = 0.5u"rad", w2 = 0.0u"rad/s", tau2 = 0.0u"N*m", tau=0.0u"N*m"),
-
     equations = :[
         tau = if time < 1u"s"; tau_max elseif time < 2u"s"; 0.0u"N*m" elseif time < 3u"s"; -tau_max else 0.0u"N*m" end,
 
