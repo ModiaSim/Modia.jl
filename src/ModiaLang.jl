@@ -41,6 +41,11 @@ using InteractiveUtils
 global to = TimerOutput()
 
 export stripUnit
+
+Unitful.unit(      v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = unit(T)
+Unitful.upreferred(v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = uconvert(upreferred(unit(v)), v)
+
+
 """
     stripUnit(v)
     
@@ -609,9 +614,9 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         else
             value = 0.0
         end
-        if hasParticles(value)  # Units not yet support for particles
-            return ""
-        end
+        #if hasParticles(value)  # Units not yet support for particles
+        #    return ""
+        #end
         if int_v > 0
             value = value / u"s"
         end

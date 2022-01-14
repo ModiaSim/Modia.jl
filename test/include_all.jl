@@ -7,7 +7,7 @@ Test.@testset "Test basic functionality" begin
     include("TestSource.jl")         
     include("TestStateSelection.jl") 
     include("TestFilterCircuit.jl")
-    include("TestFilterCircuit2.jl")    
+    include("TestFilterCircuit2.jl")     
 end
 
 Test.@testset "Test units, uncertainties" begin
@@ -20,6 +20,7 @@ Test.@testset "Test units, uncertainties" begin
     include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")   
     include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")   
     Test.@test_skip include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")  # MonteCarlo and Unitful do not yet work together
+    include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")    
 end
 
 
