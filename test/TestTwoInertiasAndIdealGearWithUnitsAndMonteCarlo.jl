@@ -18,6 +18,10 @@ TwoInertiasAndIdealGearWithUnitsAndMonteCarlo = Model(
     J2 = uniform(50.0, 170.0)u"kg*m^2",
     r  = 105.0,
     tau_max = 1.0u"N*m",
+    
+    phi2 = Var(start = 0.5u"rad"), 
+    w2   = Var(start = 0.0u"rad/s"),
+    tau2 = Var(start = 0u"N*m"),   
 
     start = Map(phi2 = 0.5u"rad", w2 = 0.0u"rad/s", tau2 = 0.0u"N*m", tau=0.0u"N*m"),
 
@@ -39,7 +43,7 @@ TwoInertiasAndIdealGearWithUnitsAndMonteCarlo = Model(
 )
 
 twoInertiasAndIdealGear = @instantiateModel(TwoInertiasAndIdealGearWithUnitsAndMonteCarlo,
-                                            FloatType = StaticParticles{Float64,nparticles})
+                                            FloatType = StaticParticles{Float64,nparticles}, logCode=true)
 
 simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0)
 

@@ -19,7 +19,7 @@ Test.@testset "Test units, uncertainties" begin
     include("TestTwoInertiasAndIdealGearWithUnits.jl")   
     include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")   
     include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")   
-    Test.@test_skip include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")  # MonteCarlo and Unitful do not yet work together
+    include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl") 
     include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")    
 end
 
