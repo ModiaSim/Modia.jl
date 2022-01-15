@@ -614,17 +614,13 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
         else
             value = 0.0
         end
-        #if hasParticles(value)  # Units not yet support for particles
-        #    return ""
-        #end
         if int_v > 0
             value = value / u"s"
         end
-        # if length(value) == 1
         if ! (typeof(value) <: Array)        
             un = unit(value)
         else
-            un = unit.(value)   # un = [unit(v) for v in value]  # unit.(value) does not work for MonteCarloMeasurements
+            un = unit.(value)
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
         end
