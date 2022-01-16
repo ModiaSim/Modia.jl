@@ -3,7 +3,7 @@ export simulate!, linearize!, get_result
 export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
 export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
 export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
-  
+
 # For backwards compatibility
 export getNames, hasName
 
@@ -42,19 +42,19 @@ macro usingModiaPlot()
             @goto USE_NO_PLOT
         elseif ModiaPlotPackage == "SilentNoPlot"
             expr = :( import ModiaLang.ModiaResult.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
-            return esc( expr )           
+            return esc( expr )
         else
             ModiaPlotPackage = Symbol("ModiaPlot_" * ModiaPlotPackage)
             expr = :(using $ModiaPlotPackage)
-            println("$expr")            
+            println("$expr")
             return esc( :(using $ModiaPlotPackage) )
         end
-        
+
     else
         @warn "No plot package activated. Using \"NoPlot\"."
         @goto USE_NO_PLOT
     end
-    
+
     @label USE_NO_PLOT
     expr = :( import ModiaLang.ModiaResult.NoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
     println("$expr")
@@ -65,25 +65,26 @@ end
 #                          Simulation
 #---------------------------------------------------------------------
 
-                   
+
 """
-    simulate!(instantiatedModel [, algorithm]; 
+    simulate!(instantiatedModel [, algorithm];
               merge         = missing,  # change parameter/init/start values
               tolerance     = 1e-6,     # relative tolerance
-              startTime     = 0.0, 
+              startTime     = 0.0,
               stopTime      = 0.0,      # stopTime >= startTime required
               interval      = missing,  # = (stopTime-startTime)/500
-              interp_points = 0, 
+              interp_points = 0,
               dtmax         = missing,  # = 100*interval
-              adaptive      = true, 
-              log           = false, 
+              adaptive      = true,
+              log           = false,
               logStates     = false,
               logEvents     = false,
               logTiming     = false,
-              logParameters = false, 
-              logEvaluatedParameters   = false, 
+              logParameters = false,
+              logEvaluatedParameters   = false,
               requiredFinalStates      = missing
               requiredFinalStates_rtol = 1e-3,
+              requiredFinalStates_atol = 0.0,
               useRecursiveFactorizationUptoSize = 0)
 
 Simulate `instantiatedModel::SimulationModel` with `algorithm`
@@ -104,7 +105,7 @@ A simulation run can be aborted with `<CTRL> C` (SIGINT).
 # Optional Arguments
 
 - `merge`: Define parameters and init/start values that shall be merged with the previous values
-           stored in `model`, before simulation is started.  
+           stored in `model`, before simulation is started.
 - `tolerance`: Relative tolerance.
 - `startTime`: Start time. If value is without unit, it is assumed to have unit [s].
 - `stopTime`: Stop time. If value is without unit, it is assumed to have unit [s].
@@ -126,16 +127,17 @@ A simulation run can be aborted with `<CTRL> C` (SIGINT).
 - `logParameters`: = true, to log parameters and init/start values defined in model.
 - `logEvaluatedParameters`: = true, to log the evaluated parameter and init/start values that
                             are used for initialization and during simulation.
-- `requiredFinalStates`: is not `missing`: Test with `@test` whether the ODE state vector at the 
-              final time instant is in agreement to vector `requiredFinalStates` with respect 
+- `requiredFinalStates`: is not `missing`: Test with `@test` whether the ODE state vector at the
+              final time instant is in agreement to vector `requiredFinalStates` with respect
               to some relative tolerance `requiredFinalStates_rtol`. If this is not the case, print the
               final state vector (so that it can be included with copy-and-paste in the simulate!(..) call).
 - `requiredFinalStates_rtol`: Relative tolerance used for `requiredFinalStates`.
+- `requiredFinalStates_atol`: Absolute tolerance used for `requiredFinalStates` (see atol in `?isapprox`)
 - `useRecursiveFactorizationUptoSize`: = 0: Linear equation systems A*v=b are solved with
                `RecursiveFactorization.jl` instead of the default `lu!(..)` and `ldiv!(..)`, if
                `length(v) <= useRecursiveFactorizationUptoSize`.
                According to `RecursiveFactorization.jl` docu, it is faster as `lu!(..)` with OpenBLAS,
-               for `length(v) <= 500` (typically, more as a factor of two). 
+               for `length(v) <= 500` (typically, more as a factor of two).
                Since there had been some cases where `lu!(..)!` was successful,
                but `RecursiveFactorization.jl` failed due to a singular system, the default is to use `lu!(..)!`.
 
@@ -177,14 +179,14 @@ usig = getPlotSignal(firstOrder, "x")
        # usig.ysig      : "x" vector
        # usig.ysigLegend: legend for "x" vector
        # usig.ysigType  : ModiaResult.Continuous or ModiaResult.Clocked
-       
+
 # Simulate with Runge-Kutta 5/4 with step-size control
 simulate!(firstOrder, Tsit5(), stopTime = 1.0)
 
 # Simulate with Runge-Kutta 4 with fixed step size
 simulate!(firstOrder, RK4(), stopTime = 1.0, adaptive=false)
 
-# Simulate with algorithm that switches between 
+# Simulate with algorithm that switches between
 # Verners Runge-Kutta 6/5 algorithm if non-stiff region and
 # Rosenbrock 4 (= A-stable method) if stiff region with step-size control
 simulate!(firstOrder, AutoVern6(Rodas4()), stopTime = 1.0)
@@ -202,79 +204,79 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         return nothing
     end
     m.options = options
-    
+
     try
         enable_timer!(m.timer)
         reset_timer!(m.timer)
-        
-        TimerOutputs.@timeit m.timer "simulate!" begin 
+
+        TimerOutputs.@timeit m.timer "simulate!" begin
             if ismissing(algorithm) && FloatType == Float64
                 algorithm = Sundials.CVODE_BDF()
-            end            
-        
+            end
+
             # Initialize/re-initialize SimulationModel
             if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
                 println("... Simulate model ", m.modelName)
             end
-            
+
             useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
             for leq in m.linearEquations
                 leq.useRecursiveFactorization = length(leq.vTear_value) <= useRecursiveFactorizationUptoSize && length(leq.vTear_value) > 1
-            end         
-            
-            m.algorithmType = typeof(algorithm)       
+            end
+
+            m.algorithmType = typeof(algorithm)
             TimerOutputs.@timeit m.timer "init!" success = init!(m)
             if !success
                 @test false
                 return nothing
             end
             sizesOfLinearEquationSystems = Int[length(leq.vTear_value) for leq in m.linearEquations]
-        
+
             # Define problem and callbacks based on algorithm and model type
             interval = m.options.interval
             if  abs(m.options.stopTime - m.options.startTime) <= 0
                 interval = 1.0
                 tspan2   = [m.options.startTime]
             elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
-                tspan2 = m.options.startTime:m.options.interval:m.options.stopTime 
+                tspan2 = m.options.startTime:m.options.interval:m.options.stopTime
             else
                 tspan2 = [m.options.startTime, m.options.stopTime]
             end
-            tspan = (m.options.startTime, m.options.stopTime)       
-    
-            eh = m.eventHandler  
+            tspan = (m.options.startTime, m.options.stopTime)
+
+            eh = m.eventHandler
             if m.algorithmType <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
                 # DAE integrator
                 m.odeIntegrator = false
                 nx = length(m.x_init)
-                differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549       
+                differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
                 TimerOutputs.@timeit m.timer "DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
             else
                 # ODE integrator
                 m.odeIntegrator = true
-                TimerOutputs.@timeit m.timer "ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m) 
+                TimerOutputs.@timeit m.timer "ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
             end
-            
-            callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)             
-            if eh.nz > 0        
+
+            callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)
+            if eh.nz > 0
                 #println("\n!!! Callback set with crossing functions")
                 # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
                 # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
                 # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
                 # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
                 callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
-                callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!, 
-                                affectStateEvent!, eh.nz, interp_points=m.options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)                                   
-                #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) 
+                callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!,
+                                affectStateEvent!, eh.nz, interp_points=m.options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)
+                #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)
                 callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
             else
-                #println("\n!!! Callback set without crossing functions")        
+                #println("\n!!! Callback set without crossing functions")
                 callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2)
                 callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
             end
-            
+
             # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-            if !ismissing(algorithm) && (m.algorithmType <: Sundials.SundialsODEAlgorithm || 
+            if !ismissing(algorithm) && (m.algorithmType <: Sundials.SundialsODEAlgorithm ||
                                         m.algorithmType <: Sundials.SundialsDAEAlgorithm)
                 sundials = true
             else
@@ -282,11 +284,11 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                 dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
             end
             m.addEventPointsDueToDEBug = sundials
-            
-            # Compute solution 
+
+            # Compute solution
             abstol = 0.1*m.options.tolerance
             tstops = (m.eventHandler.nextEventTime,)
-        
+
             if ismissing(algorithm)
                 TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
                                                         callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
@@ -300,84 +302,86 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                                                         callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
                                                         initializealg = DifferentialEquations.NoInit())
             end
-                                                        
+
             # Compute and store outputs from last event until final time
             sol_t = solution.t
             sol_x = solution.u
-            m.storeResult = true        
+            m.storeResult = true
             for i = length(m.result_vars)+1:length(sol_t)
                 Base.invokelatest(m.getDerivatives!, m.der_x, sol_x[i], m, sol_t[i])
             end
             m.storeResult = false
-            
+
             # Final update of instantiatedModel
             m.result_x = solution
             if ismissing(algorithm)
                 m.algorithmType = typeof(solution.alg)
             end
-            
+
             # Terminate simulation
             finalStates = solution.u[end]
             finalTime   = solution.t[end]
-            terminate!(m, finalStates, finalTime)      
+            terminate!(m, finalStates, finalTime)
         end
-        disable_timer!(m.timer)  
-        
+        disable_timer!(m.timer)
+
         if !m.success
             return nothing
         end
-        
+
         if m.options.log
-            useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]            
+            useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
             println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
             println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
-            println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")    
+            println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")
             println("        algorithm                 = ", get_algorithmName(m))
             println("        FloatType                 = ", FloatType)
             println("        interval                  = ", m.options.interval, " s")
             println("        tolerance                 = ", m.options.tolerance, " (relative tolerance)")
             println("        nStates                   = ", length(m.x_start))
             println("        linearSystemSizes         = ", sizesOfLinearEquationSystems)
-            println("        useRecursiveFactorization = ", useRecursiveFactorization)        
-            println("        nResults                  = ", length(m.result_x.t))          
+            println("        useRecursiveFactorization = ", useRecursiveFactorization)
+            println("        nResults                  = ", length(m.result_x.t))
             println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
             println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
             println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
-    
+
             if sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
                 # statistics is wrong, due to a bug in the Sundials.jl interface
                 println("        nJac                      = ??? (number of Jacobian computations)")
                 println("        nAcceptedSteps            = ???")
                 println("        nRejectedSteps            = ???")
                 println("        nErrTestFails             = ???")
-            else       
+            else
                 println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
                 println("        nAcceptedSteps            = ", solution.destats.naccept)
                 println("        nRejectedSteps            = ", solution.destats.nreject)
                 println("        nErrTestFails             = ", solution.destats.nreject)
-            end     
+            end
             println("        nTimeEvents               = ", eh.nTimeEvents)
             println("        nStateEvents              = ", eh.nStateEvents)
-            println("        nRestartEvents            = ", eh.nRestartEvents)  
+            println("        nRestartEvents            = ", eh.nRestartEvents)
         end
         if m.options.logTiming
             println("\n... Timings for simulation of ", m.modelName,":")
-            TimerOutputs.print_timer(TimerOutputs.flatten(m.timer)) 
+            TimerOutputs.print_timer(TimerOutputs.flatten(m.timer))
         end
-    
+
         requiredFinalStates = m.options.requiredFinalStates
         if !ismissing(requiredFinalStates)
             rtol = m.options.requiredFinalStates_rtol
+            atol = m.options.requiredFinalStates_atol
             if length(finalStates) != length(requiredFinalStates)
                 success = false
             else
-                success = isapprox(finalStates, requiredFinalStates, rtol=rtol)
+                success = isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
             end
-    
+
             if success
                 @test success
             else
                 println("\nrequiredFinalStates_rtol = $rtol")
+                println("\nrequiredFinalStates_atol = $atol")
                 if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
                     println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
                     printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
@@ -385,33 +389,33 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                 else
                     println(  "\nrequiredFinalStates = ", requiredFinalStates)
                     printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
-                    printstyled("difference          = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)                
+                    printstyled("difference          = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)
                 end
                 @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
             end
-        end 
-        return solution        
-        
+        end
+        return solution
+
     catch e
         if isa(e, ErrorException)
             println()
-            printstyled("Error during simulation at time = $(m.time) s:\n\n", bold=true, color=:red)  
-            printstyled(e.msg, "\n", bold=true, color=:red) 
-            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)             
+            printstyled("Error during simulation at time = $(m.time) s:\n\n", bold=true, color=:red)
+            printstyled(e.msg, "\n", bold=true, color=:red)
+            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)
             println()
         elseif isa(e, InterruptException)
             println()
-            printstyled("<ctrl> C interrupt during simulation at time = $(m.time) s.", bold=true, color=:red)  
-            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)             
-            println()       
+            printstyled("<ctrl> C interrupt during simulation at time = $(m.time) s.", bold=true, color=:red)
+            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)
+            println()
         else
             Base.rethrow()
         end
     end
-    
+
     # Its only possible to arrive here via the catch statement.
     @test false
-    return nothing    
+    return nothing
 end
 
 #get_x_startIndexAndLength(m::SimulationModel, name) = ModiaBase.get_x_startIndexAndLength(m.equationInfo, name)
@@ -426,13 +430,13 @@ end
                                   stopTime = 0.0,
                                   analytic = false,
                                   <all other keyword arguments of simulate!>)
-    
+
 Simulate until `stopTime` and linearize `instantiatedModel` at `finalStates`.
 The names of the state vector can be inquired by `get_xNames(instantiatedModel)`.
 
 By default, linearization is performed numerically with a central finite difference
 approximation using package [FiniteDiff](https://github.com/JuliaDiff/FiniteDiff.jl).
-When setting `analytic = true`, linearization is preformed analytically with package 
+When setting `analytic = true`, linearization is preformed analytically with package
 [ForwardDiff](https://github.com/JuliaDiff/ForwardDiff.jl),
 so is computed by symbolically differentiating the model.
 `ForwardDiff` might not be compatible with some floating point types, such as
@@ -484,18 +488,18 @@ function linearize!(m::Nothing, args...; kwargs...)
     @info "The call of linearize!(..) is ignored, since the first argument is nothing."
     return   nothing
 end
-function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, 
+function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType},
                     algorithm=missing;
                     merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,ParType,EvaluatedParType,TimeType}
     solution = simulate!(m, algorithm; merge=merge, stopTime=stopTime, kwargs...)
     finalStates = solution[:,end]
-    
+
     # Function that shall be linearized
     function modelToLinearize!(der_x, x)
         Base.invokelatest(m.getDerivatives!, der_x, x, m, m.options.startTime)
         return nothing
     end
-    
+
     # Linearize
     if analytic
         A = ForwardDiff.jacobian(modelToLinearize!, m.der_x, finalStates)
@@ -503,7 +507,7 @@ function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTy
         A = zeros(FloatType, length(finalStates), length(finalStates))
         FiniteDiff.finite_difference_jacobian!(A, modelToLinearize!, finalStates)
     end
-    
+
     return (A, finalStates)
 end
 
@@ -518,11 +522,11 @@ ModiaResult.hasOneTimeSignal(m::SimulationModel) = true
 
 """
     hasSignal(instantiatedModel, name::AbstractString)
-    
+
 Return true if parameter or time-varying variable `name` (for example `name = "a.b.c"`)
 is defined in the instantiateModel that can be accessed and can be used for plotting.
 """
-ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = 
+ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) =
     # m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
      haskey(m.result_info, name) || !ismissing(get_value(m.evaluatedParameters, name))
 
@@ -533,12 +537,12 @@ hasName(m::SimulationModel, name::AbstractString) = ModiaResult.hasSignal(m,name
 
 """
     signalNames(instantiatedModel)
-    
+
 Return the variable names (parameters, time-varying variables) of an
 [`@instantiateModel`](@ref) that can be accessed and can be used for plotting.
 """
 function ModiaResult.signalNames(m::SimulationModel)
-    #if m.save_x_in_solution 
+    #if m.save_x_in_solution
     #    names = ["time"]
     #    append!(names, collect( keys(m.equationInfo.x_dict) ))
     #else
@@ -546,7 +550,7 @@ function ModiaResult.signalNames(m::SimulationModel)
         append!(all_names, collect( keys(m.result_info) ) )
     #end
     sort!(all_names)
-    return all_names 
+    return all_names
 end
 
 # For backwards compatibility
@@ -558,11 +562,11 @@ import ChainRules
 
 function ChainRules.rrule(::typeof(ResultView), v, i)
     y = ResultView(v,i)
-    
+
     function ResultView_pullback(ȳ)
         return ChainRules.NO_FIELDS, collect(y)...
     end
-    
+
     return y, ResultView_pullback
 end
 =#
@@ -576,16 +580,16 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
             tsig = uconvert.(m.options.desiredResultTimeUnit, tsig)
         end
     end
-        
+
     if name == "time"
         return ([tsig], [tsig], ModiaResult.Independent)
     end
-    
+
     if haskey(m.result_info, name)
         resInfo = m.result_info[name]
-        
+
         if resInfo.store == RESULT_X
-            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index) 
+            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
             if ibeg == iend
                 xSig = ModiaResult.FlattenedSignalView(m.result_x.u, ibeg, (), resInfo.negate)
             else
@@ -597,7 +601,7 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
             return ([tsig], [xSig], ModiaResult.Continuous)
 
         elseif resInfo.store == RESULT_DER_X
-            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index) 
+            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
             if ibeg == iend
                 derxSig = ModiaResult.FlattenedSignalView(m.result_der_x, ibeg, (), resInfo.negate)
             else
@@ -609,8 +613,8 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
                 else
                     derxSig = derxSig*(uparse(xunit)/u"s")
                 end
-            end            
-            return ([tsig], [derxSig], ModiaResult.Continuous)   
+            end
+            return ([tsig], [derxSig], ModiaResult.Continuous)
 
         elseif resInfo.store == RESULT_VARS
             signal = ModiaResult.SignalView(m.result_vars, resInfo.index, resInfo.negate)
@@ -620,22 +624,22 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
                 error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\",\nlength(signal) = $lens, length(tsig) = $lent")
             end
             return ([tsig], [signal], ModiaResult.Continuous)
-            
+
         elseif resInfo.store == RESULT_ZERO
             signal = ModiaResult.OneValueVector(0.0, length(tsig))
             return ([tsig], [signal], ModiaResult.Continuous)
-            
+
         else
             error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\", resInfo=$resInfo")
-        end  
+        end
 
     else
         value = get_value(m.evaluatedParameters, name)
         if ismissing(value)
             error("rawSignal: \"$name\" not in result of model $(m.modelName))")
         end
-        signal = ModiaResult.OneValueVector(value, length(tsig))      
-        return ([tsig], [signal], ModiaResult.Continuous)    
+        signal = ModiaResult.OneValueVector(value, length(tsig))
+        return ([tsig], [signal], ModiaResult.Continuous)
     end
 end
 
@@ -716,16 +720,16 @@ end
   If `unit=false`, the signal is returned, **without unit**.
 
 - Second form: Return the **complete result** in form of a DataFrame object.
-  Therefore, the whole functionality of package [DataFrames](https://dataframes.juliadata.org/stable/) 
+  Therefore, the whole functionality of package [DataFrames](https://dataframes.juliadata.org/stable/)
   can be used, including storing the result on file in different formats.
   Furthermore, also plot can be used on dataFrame.
   Parameters and zero-value variables are stored as ModiaResult.OneValueVector inside dataFrame
   (are treated as vectors, but actually only the value and the number
   of time points is stored). If `onlyStates=true`, then only the states and the signals
-  identified with `extraNames::Vector{String}` are stored in `dataFrame`. 
-  If `onlyStates=false` and `extraNames` given, then only the signals 
+  identified with `extraNames::Vector{String}` are stored in `dataFrame`.
+  If `onlyStates=false` and `extraNames` given, then only the signals
   identified with `extraNames` are stored in `dataFrame`.
-  These keyword arguments are useful, if `dataFrame` shall be 
+  These keyword arguments are useful, if `dataFrame` shall be
   utilized as reference result used in compareResults(..).
 
 In both cases, a **view** on the internal result memory is provided
@@ -761,7 +765,7 @@ plot(result, "phi")
 
 # Get only states to be used as reference and compare result with reference
 reference = get_result(pendulum, onlyStates=true)
-(success, diff, diff_names, max_error, within_tolerance) = 
+(success, diff, diff_names, max_error, within_tolerance) =
     ModiaResult.compareResults(result, reference, tolerance=0.01)
 println("Check results: success = $success")
 ```
@@ -775,7 +779,7 @@ function get_result(m::SimulationModel, name::AbstractString; unit=true)
     (tsig2, ysig2, ysigType) = ModiaResult.rawSignal(m, name)
     ysig = ysig2[1]
     ysig = unit ? ysig : stripUnit.(ysig)
-    
+
     #=
     if yIsConstant
         if ndims(ysig) == 1
@@ -785,7 +789,7 @@ function get_result(m::SimulationModel, name::AbstractString; unit=true)
         end
     end
     =#
-    
+
     return ysig
 end
 
@@ -802,12 +806,12 @@ function setEvaluatedParametersInDataFrame!(obj::EvaluatedParType, result_info, 
     return nothing
 end
 
-function get_result(m::SimulationModel; onlyStates=false, extraNames=missing) 
+function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
     dataFrame = DataFrames.DataFrame()
 
     (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, "time")
     dataFrame[!,"time"] = timeSignal[1]
-        
+
     if onlyStates || !ismissing(extraNames)
         if onlyStates
             for name in keys(m.equationInfo.x_dict)
@@ -821,7 +825,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
                 dataFrame[!,name] = signal[1]
             end
         end
-        
+
     else
         for name in keys(m.result_info)
             if name != "time"
@@ -829,7 +833,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
                 dataFrame[!,name] = signal[1]
             end
         end
-    
+
         setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.result_info, dataFrame, "", length(timeSignal[1]))
     end
     return dataFrame
