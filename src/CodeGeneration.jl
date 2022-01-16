@@ -163,11 +163,15 @@ struct SimulationOptions{FloatType,TimeType}
     
     function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}  
         success   = true       
-        #merge     = get(kwargs, :merge, NamedTuple())
-        tolerance = get(kwargs, :tolerance, 1e-6)
+        adaptive  = get(kwargs, :adaptive, true)        
+        tolerance = get(kwargs, :tolerance, max(100*eps(FloatType), 1e-6))
         if tolerance <= 0.0
             printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) must be > 0\n\n", bold=true, color=:red)
             success = false 
+        elseif tolerance < 100*eps(FloatType) && adaptive
+            printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) is too small for FloatType = $FloatType (eps(FloatType) = $(eps(FloatType))).\n" *
+                                            "tolerance >= $(100*eps(FloatType)) required!\n\n", bold=true, color=:red)
+            success = false         
         end
         startTime   = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
         rawStopTime = get(kwargs, :stopTime, startTime)
@@ -183,7 +187,6 @@ struct SimulationOptions{FloatType,TimeType}
             # DifferentialEquations.jl crashes
             interp_points = 2
         end 
-        adaptive      = get(kwargs, :adaptive     , true)
         log           = get(kwargs, :log          , false)
         logStates     = get(kwargs, :logStates    , false)
         logEvents     = get(kwargs, :logEvents    , false)
