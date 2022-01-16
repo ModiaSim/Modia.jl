@@ -264,7 +264,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                 # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
                 callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
                 callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!, 
-                                affectStateEvent!, eh.nz, interp_points=m.options.interp_points)                                   
+                                affectStateEvent!, eh.nz, interp_points=m.options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)                                   
                 #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) 
                 callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
             else
