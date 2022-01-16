@@ -99,6 +99,7 @@ The simulation results stored in `model` can be plotted with plot and the result
 can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
 (for details see chapter [Results and Plotting](@ref)).
 
+A simulation run can be aborted with `<CTRL> C` (SIGINT).
 
 # Optional Arguments
 
@@ -398,6 +399,11 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             printstyled(e.msg, "\n", bold=true, color=:red) 
             printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)             
             println()
+        elseif isa(e, InterruptException)
+            println()
+            printstyled("<ctrl> C interrupt during simulation at time = $(m.time) s.", bold=true, color=:red)  
+            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)             
+            println()       
         else
             Base.rethrow()
         end
