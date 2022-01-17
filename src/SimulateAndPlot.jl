@@ -204,6 +204,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         return nothing
     end
     m.options = options
+    solution = nothing
 
     try
         enable_timer!(m.timer)
@@ -394,7 +395,6 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                 @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
             end
         end
-        return solution
 
     catch e
         if isa(e, ErrorException)
@@ -413,9 +413,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         end
     end
 
-    # Its only possible to arrive here via the catch statement.
-    @test false
-    return nothing
+    return solution
 end
 
 #get_x_startIndexAndLength(m::SimulationModel, name) = ModiaBase.get_x_startIndexAndLength(m.equationInfo, name)
