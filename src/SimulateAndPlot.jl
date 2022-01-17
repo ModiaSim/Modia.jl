@@ -382,7 +382,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                 @test success
             else
                 println("\nrequiredFinalStates_rtol = $rtol")
-                println("\nrequiredFinalStates_atol = $atol")
+                println("requiredFinalStates_atol = $atol")
                 if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
                     println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
                     printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
@@ -392,7 +392,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                     printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
                     printstyled("difference          = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)
                 end
-                @test finalStates == requiredFinalStates  || isapprox(finalStates, requiredFinalStates, rtol=m.options.requiredFinalStates_rtol)
+                @test isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
             end
         end
 
