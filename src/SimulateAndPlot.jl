@@ -407,7 +407,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             m.lastMessage = deepcopy(e.msg)
         elseif isa(e, InterruptException)
             println()
-            m.lastMessage = "<ctrl> C interrupt during simulation at time = $(m.time) s."
+            m.lastMessage = "<ctrl> C interrupt during simulation at time = $(m.time) s.\n"
             printstyled(m.lastMessage, bold=true, color=:red)
             printstyled("\nAborting simulate!(..) for model $(m.modelName) instantiated in file\n$(m.modelFile).", bold=true, color=:red)
             println()
