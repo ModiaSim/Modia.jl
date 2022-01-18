@@ -528,7 +528,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
+function stateSelectionAndCodeGeneration(modStructure, name, modelModule, modelFile, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
 
@@ -799,7 +799,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatT
 
 #    println("Build SimulationModel")
 
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType, OrderedDict{Symbol,Any}}(modelModule, name, getDerivatives, equationInfo, convertedStartValues, previousVars, preVars, holdVars,
+    model = @timeit to "build SimulationModel" SimulationModel{FloatType, OrderedDict{Symbol,Any}}(modelModule, modelFile, name, getDerivatives, equationInfo, convertedStartValues, previousVars, preVars, holdVars,
 #                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          OrderedDict(:(_p) => mappedParameters ), extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
@@ -848,7 +848,8 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 """
 macro instantiateModel(model, kwargs...)
     modelName = string(model)
-    code = :( instantiateModel($model; modelName=$modelName, modelModule=@__MODULE__, source=@__FILE__, $(kwargs...) ) )
+    modelFile = string(__source__.file)
+    code = :( instantiateModel($model; modelName=$modelName, modelModule=@__MODULE__, source=$modelFile, $(kwargs...) ) )
     return esc(code)
 end
 
@@ -971,7 +972,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         modStructure = assignAndBLT(equations, unknowns, modelStructure.parameters, Avar, G, states, logDetails, log, logTiming)
 
-        inst = stateSelectionAndCodeGeneration(modStructure, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
+        inst = stateSelectionAndCodeGeneration(modStructure, name, modelModule, source, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
             vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
             unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters)
 
@@ -987,7 +988,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             println()
             printstyled("Model error: ", bold=true, color=:red)  
             printstyled(e.msg, "\n", bold=true, color=:red) 
-            printstyled("Aborting instantiateModel for $modelName in $modelModule\n", bold=true, color=:red)             
+            printstyled("Aborting @instantiateModel($modelName,...) in file\n$source.", bold=true, color=:red)             
             println()
 #            Base.rethrow()
         else

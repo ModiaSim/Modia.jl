@@ -204,6 +204,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         return nothing
     end
     m.options = options
+    m.lastMessage = ""
     solution = nothing
 
     try
@@ -401,12 +402,14 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             println()
             printstyled("Error during simulation at time = $(m.time) s:\n\n", bold=true, color=:red)
             printstyled(e.msg, "\n", bold=true, color=:red)
-            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)
+            printstyled("\nAborting simulate!(..) for model $(m.modelName) instantiated in file\n$(m.modelFile).\n", bold=true, color=:red)
             println()
+            m.lastMessage = deepcopy(e.msg)
         elseif isa(e, InterruptException)
             println()
-            printstyled("<ctrl> C interrupt during simulation at time = $(m.time) s.", bold=true, color=:red)
-            printstyled("\nAborting simulate!(..) for $(m.modelName) in $(m.modelModule)\n", bold=true, color=:red)
+            m.lastMessage = "<ctrl> C interrupt during simulation at time = $(m.time) s."
+            printstyled(m.lastMessage, bold=true, color=:red)
+            printstyled("\nAborting simulate!(..) for model $(m.modelName) instantiated in file\n$(m.modelFile).", bold=true, color=:red)
             println()
         else
             Base.rethrow()
@@ -524,9 +527,13 @@ ModiaResult.hasOneTimeSignal(m::SimulationModel) = true
 Return true if parameter or time-varying variable `name` (for example `name = "a.b.c"`)
 is defined in the instantiateModel that can be accessed and can be used for plotting.
 """
-ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) =
+ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
     # m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
-     haskey(m.result_info, name) || !ismissing(get_value(m.evaluatedParameters, name))
+    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_vars) || ismissing(m.result_der_x)
+        return false
+    end
+    haskey(m.result_info, name) || !ismissing(get_value(m.evaluatedParameters, name))
+end
 
 # For backwards compatibility
 hasName(m::SimulationModel, name::AbstractString) = ModiaResult.hasSignal(m,name)

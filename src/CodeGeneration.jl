@@ -281,6 +281,7 @@ end
 """
 mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     modelModule::Module
+    modelFile::String
     modelName::String
     timer::TimerOutputs.TimerOutput
     options::SimulationOptions
@@ -330,9 +331,10 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
                                                 # = false, either before first outputs!(..) call or at first outputs!(..) after init!(..) and
                                                 #          an error was triggered and simulate!(..) should be returned with nothing.
     unitless::Bool                              # = true, if simulation is performed without units.
+    lastMessage::String                         # Message text of last catched exception.
 
 
-    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(modelModule, modelFile, modelName, getDerivatives!, equationInfo, x_startValues,
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
                                         unitless=true,
@@ -426,7 +428,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
         nGetDerivatives = 0
         nf = 0
 
-        new(modelModule, modelName, TimerOutputs.TimerOutput(), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
+        new(modelModule, modelFile, modelName, TimerOutputs.TimerOutput(), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
             equationInfo, linearEquations, eventHandler,
             vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters, #parameterValues,
             previous, nextPrevious, previous_names, previous_dict,
@@ -434,7 +436,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             hold, nextHold, hold_names, hold_dict,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             x_start, zeros(FloatType,nx), zeros(FloatType,nx), true, missing, false,
-            result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
+            result_info, Tuple[], missing, Vector{FloatType}[], false, unitless, "")
     end
 
 
@@ -457,7 +459,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
         nf = 0
         nx = m.equationInfo.nx
 
-         new(m.modelModule, m.modelName, TimerOutputs.TimerOutput(), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
+         new(m.modelModule, m.modelFile, m.modelName, TimerOutputs.TimerOutput(), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
             eventHandler,
             m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
             deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
@@ -465,7 +467,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
             deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,
             separateObjects, isInitial, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), true, missing, false,
-            m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)
+            m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless, "")
     end
 end
 
