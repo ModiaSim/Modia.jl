@@ -204,10 +204,9 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
         return nothing
     end
     m.options = options
-    m.lastMessage = ""
     solution = nothing
 
-    try
+    #try
         enable_timer!(m.timer)
         reset_timer!(m.timer)
 
@@ -397,6 +396,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             end
         end
 
+    #=
     catch e
         if isa(e, ErrorException)
             println()
@@ -405,6 +405,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             printstyled("\nAborting simulate!(..) for model $(m.modelName) instantiated in file\n$(m.modelFile).\n", bold=true, color=:red)
             println()
             m.lastMessage = deepcopy(e.msg)
+            #@test false
         elseif isa(e, InterruptException)
             println()
             m.lastMessage = "<ctrl> C interrupt during simulation at time = $(m.time) s.\n"
@@ -412,10 +413,12 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             printstyled("\nAborting simulate!(..) for model $(m.modelName) instantiated in file\n$(m.modelFile).", bold=true, color=:red)
             println()
         else
+            println("... in else branch")
             Base.rethrow()
         end
     end
-
+    =#
+    
     return solution
 end
 
