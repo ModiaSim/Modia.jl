@@ -859,7 +859,7 @@ See documentation of macro @instatiateModel
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false, 
     logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false)
-    try
+    #try
         println("\nInstantiating model $modelModule.$modelName")
         resetEventCounters()
         global to = TimerOutput()
@@ -983,6 +983,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         inst #, flatModel
 
+#=
     catch e
         if isa(e, ErrorException)
             println()
@@ -997,7 +998,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         show(to, compact=true)
         println()
     end
-    
+=#    
 
 end
 
