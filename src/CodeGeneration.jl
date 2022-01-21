@@ -1069,6 +1069,9 @@ function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}):
     m.isInitial   = false
     m.storeResult = false
     eh.afterSimulationStart = true
+    if m.options.log
+        println("      Initialization finished")
+    end    
     return true
 end
 
