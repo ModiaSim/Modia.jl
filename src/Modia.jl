@@ -53,7 +53,19 @@ module Dummy
     export SpringShape
     export TextShape
     export Font
-   # export VisualMaterial
+    # second PR
+    export VisualMaterial
+    export Visual
+    export Solid
+    export MassPropertiesFromShapeAndMass
+    export MassPropertiesFromShape
+    export MassProperties
+    export SpringDamperPtP
+    export Bushing
+    export Fix
+    export Scene
+    export Object3D
+    export UniformGravityField
 end
 @reexport using .Dummy
 

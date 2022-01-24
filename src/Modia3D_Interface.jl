@@ -1,12 +1,3 @@
-export Object3D, Scene, Visual, Solid
-export Box, Beam, Cylinder, Sphere, Ellipsoid
-export Cone, Capsule, GearWheel, Grid, SpringShape
-export CoordinateSystem, FileMesh
-export Font, TextShape, ModelicaShape
-export VisualMaterial
-export MassProperties, MassPropertiesFromShape
-export MassPropertiesFromShapeAndMass
-export UniformGravityField
 export RefPath, ptpJointSpace, scheduleReferenceMotion
 export calculateRobotMovement
 export getRefPathPosition, getRefPathInitPosition, getVariables
@@ -29,22 +20,6 @@ include("$(ModiaLang.path)/models/Translational.jl")
 
 include("$(Modia3D.path)/src/ModiaInterface/buildModia3D.jl")
 
-Object3D(        ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Object3D{FloatType}), _path = true, kwargs...)
-Scene(           ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Scene{FloatType})                 , kwargs...)
-Visual(          ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Visual)                           , kwargs...)
-Solid(           ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Solid{FloatType})                 , kwargs...)
-
-VisualMaterial(  ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Shapes.VisualMaterial)                   , kwargs...)
-MassProperties(  ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.MassProperties{FloatType})        , kwargs...)
-
-
-Fix(             ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Fix{FloatType})                   , kwargs...)
-Bushing(         ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.Bushing{FloatType})               , kwargs...)
-SpringDamperPtP( ; kwargs...) = Par(; _constructor = :(Modia.Modia3D.SpringDamperPtP{FloatType})       , kwargs...)
-
-MassPropertiesFromShape()              = Par(; _constructor = :(Modia.Modia3D.MassPropertiesFromShape{FloatType}))
-MassPropertiesFromShapeAndMass(; mass) = Par(; _constructor = :(Modia.Modia3D.MassPropertiesFromShapeAndMass{FloatType}), mass = mass)
-UniformGravityField(; kwargs...)       = Par(; _constructor = :(Modia.Modia3D.UniformGravityField), kwargs...)
 
 RefPath(; kwargs...)                 = Modia3D.ReferencePath(; kwargs...)
 ptpJointSpace(; kwargs...)           = Modia3D.ptpJointSpace(; kwargs...)
