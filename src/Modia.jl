@@ -30,7 +30,33 @@ using Reexport
 @reexport using ModiaLang
 @reexport using ModiaLang.Unitful
 @reexport using ModiaLang.DifferentialEquations
+#@reexport using Modia3D
+
 const modelsPath = joinpath(ModiaLang.path, "models")
+
+# temporarily, the following code lines need to be deleted
+module Dummy
+    import Modia3D
+    using Modia3D.ModiaInterface
+    export Cone
+    export Beam
+    export Capsule
+    export Cylinder
+    export Box
+    export Ellipsoid
+    export Sphere
+    export ModelicaShape
+    export FileMesh
+    export Grid
+    export CoordinateSystem
+    export GearWheel
+    export SpringShape
+    export TextShape
+    export Font
+   # export VisualMaterial
+end
+@reexport using .Dummy
+
 
 include("Modia3D_Interface.jl")
 
