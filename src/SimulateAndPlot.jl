@@ -67,7 +67,7 @@ end
 
 
 """
-    simulate!(instantiatedModel [, algorithm];
+    solution = simulate!(instantiatedModel [, algorithm];
               merge         = missing,  # change parameter/init/start values
               tolerance     = 1e-6,     # relative tolerance
               startTime     = 0.0,
@@ -96,9 +96,14 @@ instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will
 The symbol `CVODE_BDF` is exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
 can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.CVODE_BDF(), ...)`).
 
-The simulation results stored in `model` can be plotted with plot and the result values
+The simulation results are stored in `instantiatedModel` and can be plotted with plot and the result values
 can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
 (for details see chapter [Results and Plotting](@ref)).
+
+The (optional) return argument `solution` is the return argument from `DifferentialEquations.solve(..)` and
+therefore all post-processing functionality from `DifferentialEqautions.jl` can be used. Especially,
+- solution.t[i] # time-instant at storage point i (solution.t[end] = stopTime)
+- solution.u[i] # states at storage point i
 
 A simulation run can be aborted with `<CTRL> C` (SIGINT).
 
