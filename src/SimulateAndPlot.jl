@@ -65,6 +65,28 @@ end
 #                          Simulation
 #---------------------------------------------------------------------
 
+function getAlgorithmName(algorithm)::String
+    algorithmType = typeof(algorithm)
+    if algorithmType == Missing
+        return "???"
+    end
+    name = string(algorithmType)
+    
+    if algorithmType <: DifferentialEquations.OrdinaryDiffEq.QNDF 
+        if algorithm.kappa == tuple(0//1,0//1,0//1,0//1,0//1)
+            name = replace(name, "QNDF" => "QBDF")
+        end
+        
+    elseif algorithmType <: DifferentialEquations.OrdinaryDiffEq.QNDF1 ||
+           algorithmType <: DifferentialEquations.OrdinaryDiffEq.QNDF2
+        if algorithm.kappa == 0
+            name = replace(name, "QNDF" => "QBDF")
+        end  
+    end
+    return name
+end
+
+ 
 
 """
     solution = simulate!(instantiatedModel [, algorithm];
@@ -219,7 +241,8 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             if ismissing(algorithm) && FloatType == Float64
                 algorithm = Sundials.CVODE_BDF()
             end
-
+            m.algorithmName = getAlgorithmName(algorithm)
+            
             # Initialize/re-initialize SimulationModel
             if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
                 println("... Simulate model ", m.modelName)
@@ -230,7 +253,6 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                 leq.useRecursiveFactorization = length(leq.vTear_value) <= useRecursiveFactorizationUptoSize && length(leq.vTear_value) > 1
             end
 
-            m.algorithmType = typeof(algorithm)
             TimerOutputs.@timeit m.timer "init!" success = init!(m)
             if !success
                 @test false
@@ -251,7 +273,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             tspan = (m.options.startTime, m.options.stopTime)
 
             eh = m.eventHandler
-            if m.algorithmType <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
+            if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
                 # DAE integrator
                 m.odeIntegrator = false
                 nx = length(m.x_init)
@@ -282,8 +304,8 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             end
 
             # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-            if !ismissing(algorithm) && (m.algorithmType <: Sundials.SundialsODEAlgorithm ||
-                                        m.algorithmType <: Sundials.SundialsDAEAlgorithm)
+            if !ismissing(algorithm) && (typeof(algorithm) <: Sundials.SundialsODEAlgorithm ||
+                                         typeof(algorithm) <: Sundials.SundialsDAEAlgorithm)
                 sundials = true
             else
                 sundials = false
@@ -321,7 +343,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             # Final update of instantiatedModel
             m.result_x = solution
             if ismissing(algorithm)
-                m.algorithmType = typeof(solution.alg)
+                m.algorithmName = getAlgorithmName(solution.alg)
             end
 
             # Terminate simulation
@@ -340,7 +362,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
             println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
             println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")
-            println("        algorithm                 = ", get_algorithmName(m))
+            println("        algorithm                 = ", get_algorithmName_for_heading(m))
             println("        FloatType                 = ", FloatType)
             println("        interval                  = ", m.options.interval, " s")
             println("        tolerance                 = ", m.options.tolerance, " (relative tolerance)")
@@ -671,11 +693,11 @@ get_leaveName(pathName::String) =
     end
 
 
-function get_algorithmName(m::SimulationModel)::String
-    if ismissing(m.algorithmType)
+function get_algorithmName_for_heading(m::SimulationModel)::String
+    if ismissing(m.algorithmName)
         algorithmName = "???"
     else
-        algorithmName = string(m.algorithmType)
+        algorithmName = m.algorithmName
         i1 = findfirst("CompositeAlgorithm", algorithmName)
         if !isnothing(i1)
             i2 = findfirst("Vern" , algorithmName)
@@ -710,7 +732,7 @@ end
 function ModiaResult.defaultHeading(m::SimulationModel)
     FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
 
-    algorithmName = get_algorithmName(m)
+    algorithmName = get_algorithmName_for_heading(m)
     if FloatType == "Float64"
         heading = m.modelName * " (" * algorithmName * ")"
     else

@@ -319,7 +319,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     der_x::Vector{FloatType}                    # Derivatives of states x or x_init
     odeIntegrator::Bool                         # = true , if ODE integrator used
                                                 # = false, if DAE integrator used
-    algorithmType::Union{DataType,Missing}      # Type of integration algorithm (used in default-heading of plot)
+    algorithmName::Union{String,Missing}        # Name of integration algorithm as string (used in default-heading of plot)
     addEventPointsDueToDEBug::Bool              # = true, if event points are explicitly stored for CVODE_BDF, due to bug in DifferentialEquations
                                                 #         (https://github.com/SciML/Sundials.jl/issues/309)
     result_info::OrderedDict{String,ResultInfo} # key  : Full path name of result variables
