@@ -32,6 +32,9 @@ const  IDA = Sundials.IDA
 export IDA
 
 
+#DifferentialEquations.DiffEqBase.check_error(integrator::Sundials.CVODE_BDF) =
+#    Sundials.interpret_sundials_retcode(integrator.flag)
+
 macro usingModiaPlot()
     if haskey(ENV, "MODIA_PLOT")
         ModiaPlotPackage = ENV["MODIA_PLOT"]
@@ -345,7 +348,12 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             if ismissing(algorithm)
                 m.algorithmName = getAlgorithmName(solution.alg)
             end
-
+            
+            # Raise an error, if simulation was not successful
+            if !ismissing(solution) && !(solution.retcode == :Default || solution.retcode == :Success)
+                error("\nsimulate!(", m.modelName, ", ...) failed with error flag = $(solution.retcode) from DifferentialEquations.solve.\n")
+            end
+            
             # Terminate simulation
             finalStates = solution.u[end]
             finalTime   = solution.t[end]
