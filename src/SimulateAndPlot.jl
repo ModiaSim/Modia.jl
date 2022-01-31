@@ -351,7 +351,7 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             
             # Raise an error, if simulation was not successful
             if !ismissing(solution) && !(solution.retcode == :Default || solution.retcode == :Success)
-                error("\nsimulate!(", m.modelName, ", ...) failed with error flag = $(solution.retcode) from DifferentialEquations.solve.\n")
+                error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = $(solution.retcode).\n")
             end
             
             # Terminate simulation
