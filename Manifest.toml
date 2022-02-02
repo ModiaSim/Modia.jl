@@ -627,9 +627,9 @@ version = "8.3.2"
 
 [[ModiaBase]]
 deps = ["DataFrames", "DiffRules", "LinearAlgebra", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "RecursiveFactorization", "TimerOutputs", "Unitful"]
-git-tree-sha1 = "f32b6d8af60426591cd83b80a94edc5358418e38"
+git-tree-sha1 = "1c83cb70553af7a22a34b1ee8a6eff0b53ff32b4"
 uuid = "ec7bf1ca-419d-4510-bbab-199861c55244"
-version = "0.7.7"
+version = "0.7.8"
 
 [[ModiaResult]]
 deps = ["DataFrames", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "Pkg", "Tables", "Unitful"]
