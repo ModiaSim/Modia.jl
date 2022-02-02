@@ -1,7 +1,7 @@
 name = "ModiaLang"
 uuid = "34b37210-eaa3-4b48-8781-0b87bf559981"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
-version = "0.8.5"
+version = "0.8.6"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -29,7 +29,7 @@ ForwardDiff = "0.10"
 JSON = "0.21"
 Measurements = "2"
 ModiaBase = "0.7.8"
-ModiaResult = "0.3.8"
+ModiaResult = "0.3.9"
 MonteCarloMeasurements = "1, 0.10"
 OrderedCollections = "1"
 Reexport = "1.0, 0.2"
