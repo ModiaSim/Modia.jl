@@ -633,9 +633,9 @@ version = "0.7.8"
 
 [[ModiaResult]]
 deps = ["DataFrames", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "Pkg", "Tables", "Unitful"]
-git-tree-sha1 = "ee6d91d6a41d4d43b741575761f0227c2322ab21"
+git-tree-sha1 = "2c8a7118daf30c135921fa12d9b9075963285300"
 uuid = "16a87621-1533-42f6-8e19-4a825980cec2"
-version = "0.3.9"
+version = "0.3.10"
 
 [[MonteCarloMeasurements]]
 deps = ["Distributed", "Distributions", "LinearAlgebra", "MacroTools", "Random", "RecipesBase", "Requires", "SLEEFPirates", "StaticArrays", "Statistics", "StatsBase", "Test"]
@@ -1115,9 +1115,9 @@ version = "0.5.21"
 
 [[Transducers]]
 deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "Setfield", "SplittablesBase", "Tables"]
-git-tree-sha1 = "45279315fe060fce0fe57826986044e29f083a85"
+git-tree-sha1 = "6378ddbd95d1da05ecc67e4f6de205a0732cb6e7"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
-version = "0.4.70"
+version = "0.4.71"
 
 [[TreeViews]]
 deps = ["Test"]
