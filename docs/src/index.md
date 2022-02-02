@@ -33,6 +33,17 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.8.7
+
+- Require ModiaResult, version 0.3.10
+
+
+### Version 0.8.6
+
+- Require ModiaResult, version 0.3.9
+- Project.toml/Manifest.toml updated
+
+
 ### Version 0.8.5
 
 - simulate!(..): 
