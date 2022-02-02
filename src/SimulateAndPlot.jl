@@ -350,8 +350,8 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
             end
             
             # Raise an error, if simulation was not successful
-            if !ismissing(solution) && !(solution.retcode == :Default || solution.retcode == :Success)
-                error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = $(solution.retcode).\n")
+            if !ismissing(solution) && !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
+                error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode).\n")
             end
             
             # Terminate simulation
