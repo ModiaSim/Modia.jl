@@ -1,6 +1,6 @@
 module TestVar
 
-using Measurements
+using ModiaLang.Measurements
 using StaticArrays
 
 Var(;kwargs...) = (;kwargs...)

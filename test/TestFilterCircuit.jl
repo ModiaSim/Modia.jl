@@ -2,7 +2,7 @@ module TestFilterCircuit
 
 using ModiaLang
 
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
 using Test
 

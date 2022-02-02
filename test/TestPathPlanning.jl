@@ -1,7 +1,7 @@
 module TestPath
 
 using ModiaLang
-using Measurements
+using ModiaLang.Measurements
 @usingModiaPlot
 
 const ptp_path = PTP_path(["angle1", "angle2", "angle3"],

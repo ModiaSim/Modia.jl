@@ -1,11 +1,11 @@
 module TestTwoInertiasAndIdealGearWithMonteCarlo
 
 using ModiaLang
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
-using MonteCarloMeasurements
-using Distributions
-using Unitful
+using ModiaLang.MonteCarloMeasurements
+using ModiaLang.MonteCarloMeasurements.Distributions
+using ModiaLang.Unitful
 
 # The number of particles must be the same as for FloatType
 const nparticles = 100

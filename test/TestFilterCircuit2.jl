@@ -1,9 +1,9 @@
 module TestFilterCircuit2
 
 using ModiaLang
-using Unitful
+using ModiaLang.Unitful
 
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
 using Test
 

@@ -2,10 +2,10 @@ module TestTwoInertiasAndIdealGearWithUnitsAndUncertainties
 
 
 using ModiaLang
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
-using Measurements
-using Unitful
+using ModiaLang.Measurements
+using ModiaLang.Unitful
 
 
 

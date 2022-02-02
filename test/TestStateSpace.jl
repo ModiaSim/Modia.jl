@@ -2,7 +2,7 @@ module TestStateSpace
 
 using ModiaLang
 @usingModiaPlot
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 
 include("$(ModiaLang.path)/models/Blocks.jl")
 

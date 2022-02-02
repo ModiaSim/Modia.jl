@@ -1,7 +1,7 @@
 module TestExtraSimulateKeywordArguments
 
 using ModiaLang
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
 
 # Register extra simulate! keyword arguments

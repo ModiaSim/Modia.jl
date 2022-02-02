@@ -1,7 +1,7 @@
 module TestFirstOrder2
 
 using ModiaLang
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
 using Test
 

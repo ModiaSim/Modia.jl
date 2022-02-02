@@ -1,6 +1,6 @@
 module TestDeclarations
 
-using Unitful
+using ModiaLang.Unitful
 using BenchmarkTools
 
 struct Var
@@ -29,7 +29,7 @@ Flow(; kwargs...) = Var(;flow=true, kwargs...)
 
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
-using Unitful
+using ModiaLang.Unitful
 using ModiaBase.Symbolic: removeBlock
 
 

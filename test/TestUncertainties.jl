@@ -1,10 +1,10 @@
 module TestUncertainties
 
 using ModiaLang
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
 
-using Measurements
+using ModiaLang.Measurements
 
 
 TestModel = Model(

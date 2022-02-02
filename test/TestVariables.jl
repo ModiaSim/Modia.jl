@@ -2,7 +2,7 @@ module TestVariables
 
 using ModiaLang
 @usingModiaPlot
-using Measurements
+using ModiaLang.Measurements
 using StaticArrays
 using Test
 

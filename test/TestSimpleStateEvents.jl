@@ -1,7 +1,7 @@
 module TestSimpleStateEvents
 
 using ModiaLang
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
 
 

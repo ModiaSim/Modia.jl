@@ -1,7 +1,7 @@
 module TestParameter
 
 using ModiaLang
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 @usingModiaPlot
 include("$(ModiaLang.path)/models/Blocks.jl")
 

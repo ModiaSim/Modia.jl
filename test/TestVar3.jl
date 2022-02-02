@@ -1,8 +1,8 @@
 module TestVar
 
-using Measurements
+using ModiaLang.Measurements
 using StaticArrays
-using Unitful
+using ModiaLang.Unitful
 
 struct nnnVar
 	var::NamedTuple

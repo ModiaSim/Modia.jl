@@ -3,9 +3,9 @@ module TestMechanics
 println("TestMechanics: Tests how 3D mechanics could be combined with ModiaLang.")
 
 using ModiaLang
-using Unitful
+using ModiaLang.Unitful
 @usingModiaPlot
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

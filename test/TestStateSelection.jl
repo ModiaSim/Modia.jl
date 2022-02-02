@@ -170,7 +170,7 @@ end
 
 
 
-using Unitful
+using ModiaLang.Unitful
 include("../models/AllModels.jl")
 
 #=
@@ -229,7 +229,7 @@ Drive2 = Drive | Map(damper = Map(phi=Var(init=1.0u"rad")))
 drive1 = @instantiateModel(Drive)
 drive2 = @instantiateModel(Drive2)
 
-using DifferentialEquations
+using ModiaLang.DifferentialEquations
 simulate!(drive1, Tsit5(), stopTime = 4.0)
 
 println("Next simulate! should result in an error:\n")
