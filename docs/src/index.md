@@ -33,6 +33,23 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.8.5
+
+- simulate!(..): 
+  - Trigger an error, if simulation is not successful (retcode is neither :Default nor :Success nor :Terminate)
+  - Use RightRootFind for zero crossings (improves state events based on new DifferentialEquations option)
+  - New keyword argument requiredFinalStates_atol=0.0.
+  - Improve docu (e.g. add return argument solution).  
+  - Show correct integrator name QBDF in simulation log (instead of QNDF)
+  - Raise an error, if (relative) tolerance is too small for FloatType
+  - Use FloatType for zero crossing hysteresis, instead of Float64
+  - If log=true print info about end of initialization.
+
+- Support of MonteCarloMeasurements with units + new test model TestLinearEquationSystemWithUnitsAndMonteCarlo.jl
+
+- Fixing and activating the deactivated test TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl.
+ 
+
 ### Version 0.8.4
 
 - FloatType is included in the name space of Core.eval when evaluating parameters.
