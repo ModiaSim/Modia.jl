@@ -25,7 +25,7 @@ julia> ]add ModiaBase, ModiaLang, Modia
 Modia exports all exported symbols of [ModiaLang](https://github.com/ModiaSim/ModiaLang.jl), [DifferentialEquations](https://github.com/SciML/DifferentialEquations.jl) and of [Unitful](https://github.com/PainterQubits/Unitful.jl)
 and the essential exported symbols fo [Modia3D](https://github.com/ModiaSim/Modia3D.jl).
 
-Furthermore, one or more of the following packages should be installed in order 
+Furthermore, one or more of the following packages should be installed in order
 to be able to generate plots:
 
 ```julia
@@ -43,6 +43,9 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.5.2
+
+- Fully reexporting Modia3D and removing duplicate ModiaInterface (see [Modia3D release notes 0.6.0](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.6.0)).
 
 ### Version 0.5.1
 
@@ -70,7 +73,7 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 - [Hilding Elmqvist](mailto:Hilding.Elmqvist@Mogram.net), [Mogram](http://www.mogram.net/).
 - [Martin Otter](https://rmc.dlr.de/sr/en/staff/martin.otter/),
   [DLR - Institute of System Dynamics and Control](https://www.dlr.de/sr/en).
-  
+
 ### Modia3D
 
 [Andrea Neumayr](mailto:andrea.neumayr@dlr.de),
