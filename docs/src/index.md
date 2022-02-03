@@ -43,6 +43,10 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.6.0
+
+- Use Julia 1.7 and manifest_format 2.0.
+
 ### Version 0.5.2
 
 - Fully reexporting Modia3D and removing duplicate ModiaInterface (see [Modia3D release notes 0.6.0](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.6.0)).
