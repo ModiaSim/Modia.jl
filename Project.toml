@@ -1,7 +1,7 @@
 name = "ModiaLang"
 uuid = "34b37210-eaa3-4b48-8781-0b87bf559981"
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
-version = "0.9.1"
+version = "0.9.2-dev"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -23,7 +23,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 DataFrames = "1, 0.22, 0.21, 0.20, 0.19"
-DifferentialEquations = "6"
+DifferentialEquations = "6.21"
 FiniteDiff = "2"
 ForwardDiff = "0.10"
 JSON = "0.21"
