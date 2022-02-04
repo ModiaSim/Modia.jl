@@ -45,7 +45,9 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ### Version 0.6.0
 
-- Use Julia 1.7 and manifest_format 2.0.
+- Modia is restricted to Julia 1.7
+- cyclic dependencies with Modia3D package are removed
+
 
 ### Version 0.5.2
 

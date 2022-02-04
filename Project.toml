@@ -14,8 +14,8 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 DifferentialEquations = "6"
-Modia3D = "0.7, 0.6, 0.5.1"
-ModiaLang = "0.8.7"
+Modia3D = "0.7"
+ModiaLang = "0.9"
 OrderedCollections = "1"
 Reexport = "1.0, 0.2"
 Unitful = "1"
