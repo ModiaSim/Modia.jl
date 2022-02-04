@@ -37,6 +37,7 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 - New function plotPath to plot a PTP_path
 - Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
+- Include time in error message, if simulation failed
 
 
 ### Version 0.9.0
