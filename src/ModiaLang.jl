@@ -566,7 +566,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, modelF
     function getResidualEquationAST(e, residualName)
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
         eqs = sub(eq.args[2], eq.args[1])
-        resid = makeDerVar(:(ustrip.($eqs)), parameters, inputs, evaluateParameters)
+        resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
         residual = :($residualName = $resid)
         residString = string(resid)
         if logCalculations
