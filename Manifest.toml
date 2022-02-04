@@ -711,27 +711,27 @@ version = "8.3.2"
 
 [[deps.Modia3D]]
 deps = ["Colors", "DataFrames", "DoubleFloats", "FileIO", "JSON", "Libdl", "LinearAlgebra", "Measurements", "MeshIO", "ModiaLang", "MonteCarloMeasurements", "OrderedCollections", "Printf", "Reexport", "StaticArrays", "Test", "TimerOutputs", "UUIDs", "Unitful"]
-git-tree-sha1 = "9ba0f3a8d3aeefe82824757ac44beb7cd79753e0"
+git-tree-sha1 = "f1ac5be3587397bb9fe5160465c7707442d40daa"
 uuid = "07f2c1e0-90b0-56cf-bda7-b44b56e34eed"
-version = "0.6.0"
+version = "0.7.0"
 
 [[deps.ModiaBase]]
 deps = ["DataFrames", "DiffRules", "LinearAlgebra", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "RecursiveFactorization", "TimerOutputs", "Unitful"]
-git-tree-sha1 = "1c83cb70553af7a22a34b1ee8a6eff0b53ff32b4"
+git-tree-sha1 = "2f5e4c0c291d8a578f571fa8624d281784341188"
 uuid = "ec7bf1ca-419d-4510-bbab-199861c55244"
-version = "0.7.8"
+version = "0.8.0"
 
 [[deps.ModiaLang]]
 deps = ["DataFrames", "DifferentialEquations", "FiniteDiff", "ForwardDiff", "InteractiveUtils", "JSON", "Measurements", "ModiaBase", "ModiaResult", "MonteCarloMeasurements", "OrderedCollections", "Reexport", "Sundials", "Test", "TimerOutputs", "Unitful"]
-git-tree-sha1 = "ba0ee2f42988151af5371d53cf4429dccd6e9d4b"
+git-tree-sha1 = "afc245bbc8daeb24515eeda43c78614e5f4be9a8"
 uuid = "34b37210-eaa3-4b48-8781-0b87bf559981"
-version = "0.8.7"
+version = "0.9.0"
 
 [[deps.ModiaResult]]
 deps = ["DataFrames", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "Pkg", "Tables", "Unitful"]
-git-tree-sha1 = "2c8a7118daf30c135921fa12d9b9075963285300"
+git-tree-sha1 = "873662063386e6c31cdf554ecf0a5458fc718805"
 uuid = "16a87621-1533-42f6-8e19-4a825980cec2"
-version = "0.3.10"
+version = "0.4.0"
 
 [[deps.MonteCarloMeasurements]]
 deps = ["Distributed", "Distributions", "LinearAlgebra", "MacroTools", "Random", "RecipesBase", "Requires", "SLEEFPirates", "StaticArrays", "Statistics", "StatsBase", "Test"]
@@ -824,9 +824,9 @@ version = "1.4.1"
 
 [[deps.OrdinaryDiffEq]]
 deps = ["Adapt", "ArrayInterface", "DataStructures", "DiffEqBase", "DocStringExtensions", "ExponentialUtilities", "FastClosures", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "LinearSolve", "Logging", "LoopVectorization", "MacroTools", "MuladdMacro", "NLsolve", "NonlinearSolve", "Polyester", "PreallocationTools", "RecursiveArrayTools", "Reexport", "SparseArrays", "SparseDiffTools", "StaticArrays", "UnPack"]
-git-tree-sha1 = "1475c25a9dc4de848a5234543f2cb8601ada67d4"
+git-tree-sha1 = "df82fa0f9f90f669cc3cf9e3f0400e431e0704ac"
 uuid = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
-version = "6.6.5"
+version = "6.6.6"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
@@ -1076,9 +1076,9 @@ version = "1.20.0"
 
 [[deps.SpecialFunctions]]
 deps = ["ChainRulesCore", "IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "e6bf188613555c78062842777b116905a9f9dd49"
+git-tree-sha1 = "a4116accb1c84f0a8e1b9932d873654942b2364b"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.1.0"
+version = "2.1.1"
 
 [[deps.SplittablesBase]]
 deps = ["Setfield", "Test"]
