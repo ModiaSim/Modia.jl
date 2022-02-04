@@ -349,15 +349,15 @@ function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeTyp
                 m.algorithmName = getAlgorithmName(solution.alg)
             end
             
-            # Raise an error, if simulation was not successful
-            if !ismissing(solution) && !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
-                error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode).\n")
-            end
-            
             # Terminate simulation
             finalStates = solution.u[end]
-            finalTime   = solution.t[end]
+            finalTime   = solution.t[end]         
             terminate!(m, finalStates, finalTime)
+            
+            # Raise an error, if simulation was not successful
+            if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
+                error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
+            end            
         end
         disable_timer!(m.timer)
 
