@@ -35,7 +35,7 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ### Version 0.9.2
 
-- Require DifferentialEquations.jl version 6.21 (there are errors with 6.18).
+- Require DifferentialEquations.jl version 7.
 
 
 ### Version 0.9.1

@@ -23,7 +23,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 DataFrames = "1, 0.22, 0.21, 0.20, 0.19"
-DifferentialEquations = "6.21"
+DifferentialEquations = "7"
 FiniteDiff = "2"
 ForwardDiff = "0.10"
 JSON = "0.21"
