@@ -33,6 +33,11 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.9.2
+
+- Require DifferentialEquations.jl version 6.21 (there are errors with 6.18).
+
+
 ### Version 0.9.1
 
 - New function plotPath to plot a PTP_path
