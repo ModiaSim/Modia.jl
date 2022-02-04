@@ -53,7 +53,7 @@ Convert the unit of `v` to the preferred units (default are the SI units),
 and then strip the unit. For details see `upreferred` and `preferunits` in 
 [Unitful](https://painterqubits.github.io/Unitful.jl/stable/conversion/)
 
-The function is defined as: `stripUnit(v) = ustrip(upreferred.(v))`.
+The function is defined as: `stripUnit(v) = ustrip.(upreferred.(v))`.
 """
 stripUnit(v) = ustrip.(upreferred.(v))
 
@@ -566,7 +566,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, modelF
     function getResidualEquationAST(e, residualName)
         eq = equations[e] # prepend(makeDerivativeVar(equations[e], components), :m)
         eqs = sub(eq.args[2], eq.args[1])
-        resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
+        resid = makeDerVar(:(ustrip.($eqs)), parameters, inputs, evaluateParameters)
         residual = :($residualName = $resid)
         residString = string(resid)
         if logCalculations
@@ -794,7 +794,7 @@ function stateSelectionAndCodeGeneration(modStructure, name, modelModule, modelF
     # If generatedFunction is not packed inside a function, DifferentialEquations.jl crashes
 #    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)
 
-    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
+    convertedStartValues = convert(Vector{FloatType}, [ustrip.(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
 
 #    println("Build SimulationModel")
