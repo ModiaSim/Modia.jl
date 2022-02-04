@@ -33,9 +33,26 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.9.1
+
+- New function plotPath to plot a PTP_path
+- Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
+
+
+### Version 0.9.0
+
+- Require Julia 1.7
+- Upgrade Manifest.toml to version 2.0
+- Update Project.toml/Manifest.toml
+
+
+
 ### Version 0.8.7
 
-- Require ModiaResult, version 0.3.10
+- Packages used in test models, prefixed with ModiaLang. to avoid missing package errors.
+- Deactivating test with DoubleFloats, since not in Project.toml
+- Version/date updated
+
 
 
 ### Version 0.8.6
