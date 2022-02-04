@@ -1,7 +1,7 @@
 # License for this file: MIT (expat)
 # Copyright 2017-2021, DLR Institute of System Dynamics and Control
 
-export PTP_path, pathEndTime, getPosition!, getPosition, getIndex, getPath
+export PTP_path, pathEndTime, getPosition!, getPosition, getIndex, getPath, plotPath
 
 using OrderedCollections
 using Unitful
@@ -414,4 +414,91 @@ function getPath(path::PTP_path{FloatType}; names=path.names,
     end
 
     return series
+end
+
+
+"""
+    plotPath(path, plot::Function;
+             names=path.names, heading="PTP plots",
+             tend=1.1*path.Tend, figure=1, ntime=101, onlyPositions=true)
+
+Given a `path::PTP_path`, plot the path over `time` up to `tend` for all points
+identified by the vector or tuple `names` to figure `figure`
+using `ntime` time points. 
+
+# Example
+
+```julia
+using ModiaLang
+@usingModiaPlot
+
+const ptp_path = PTP_path(["angle1", "angle2", "angle3"],
+                          positions = [0.0 2.0 3.0;  # angle1=0.0, angle2=2.0, angle3=3.0
+                                       0.5 3.0 4.0;
+                                       0.8 1.5 0.3;
+                                       0.2 1.5 0.8],
+                          startTime = 0.1,
+                          v_max = 2*ones(3),
+                          a_max = 3*ones(3))
+angles = zeros(3)
+getPosition!(ptp_path, 0.5, angles)   # angles = [0.12, 2.24, 3.24]
+plotPath(ptp_path, plot)   # use plot(..) defined with @usingModiaPlot
+```
+"""
+function plotPath(path::PTP_path{FloatType}, plot::Function; names=path.names, heading="PTP plots", figure=1,
+                  ntime=101, tend = 1.1*path.Tend, onlyPositions=true)::Nothing where {FloatType}
+    time = range(0u"s",(tend)u"s",length=ntime)
+    indices = indexin(names, path.names)
+    names2  = deepcopy(names)
+    for i in eachindex(indices)
+        if isnothing(i)
+            @warn "plotPath(path, ...): \""*names[i]*"\" is ignored, because not in path"
+            deleteat!(indices,i)
+            deleteat!(names2,i)
+        end
+    end
+
+    np   = length(indices)
+    q    = zeros(FloatType, length(time), np)
+    qt   = zeros(FloatType, length(path.names))
+
+    series = Dict{AbstractString,Any}()
+    series["time"] = time
+
+    if onlyPositions
+        for i in eachindex(time)
+            getPosition!(path, time[i], qt)
+            q[i,:] = qt[indices]
+        end
+
+        for i in eachindex(names2)
+            series[names2[i]] = q[:,i]
+        end
+
+        plot(series, Tuple(names2), heading=heading, figure=figure)
+    else
+        der_names2  = "der(" .* names2 .* ")"
+        der2_names2 = "der2(" .* names2 .* ")"
+        qd   = zeros(FloatType, length(time), np)
+        qdd  = zeros(FloatType, length(time), np)
+        qtd  = zeros(FloatType, length(path.names))
+        qtdd = zeros(FloatType, length(path.names))
+        for i in eachindex(time)
+            getPosition!(path, time[i], qt, qtd, qtdd)
+            q[i,:]   = qt[indices]
+            qd[i,:]  = qtd[indices]
+            qdd[i,:] = qtdd[indices]
+        end
+
+        for i in eachindex(names2)
+            series[names2[i]]      = q[:,i]
+            series[der_names2[i]]  = qd[:,i]
+            series[der2_names2[i]] = qdd[:,i]
+        end
+
+        plot(series, [Tuple(names2), Tuple(der_names2), Tuple(der2_names2)],
+             heading=heading, figure=figure)
+    end
+
+    return nothing
 end

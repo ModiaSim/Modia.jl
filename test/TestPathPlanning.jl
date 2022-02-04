@@ -21,6 +21,9 @@ plot(path, [("angle1", "angle2", "angle3"),
             ("der(angle1)", "der(angle2)", "der(angle3)"),
             ("der2(angle1)", "der2(angle2)", "der2(angle3)")], figure=1)
 
+plotPath(ptp_path,plot,onlyPositions=false, heading="ptp_path", figure=2)
+
+
 nom(v) = measurement(v)
 err(v) = v ± (0.1*v)
 const ptp_path2 = PTP_path{Measurement{Float64}}(
@@ -39,5 +42,8 @@ printResultInfo(path2)
 
 plot(path2, [("angle1", "angle2", "angle3"),
              ("der(angle1)", "der(angle2)", "der(angle3)"),
-             ("der2(angle1)", "der2(angle2)", "der2(angle3)")], figure=2)
+             ("der2(angle1)", "der2(angle2)", "der2(angle3)")], figure=3)
+             
+
+plotPath(ptp_path2,plot,onlyPositions=false, heading="ptp_path2", figure=4)
 end
