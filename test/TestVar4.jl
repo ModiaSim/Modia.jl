@@ -1,7 +1,7 @@
 module TestVar
 
 using ModiaLang.Measurements
-using StaticArrays
+using ModiaLang.StaticArrays
 using ModiaLang.Unitful
 
 struct Var

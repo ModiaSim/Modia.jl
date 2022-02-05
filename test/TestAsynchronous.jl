@@ -4,7 +4,7 @@ module TestAsynchronous
 
 using ModiaLang
 @usingModiaPlot
-using ModiaLang.DifferentialEquations
+
 
 BooleanPulse1 = Model(
 	startTime = parameter,

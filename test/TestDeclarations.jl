@@ -1,6 +1,6 @@
 module TestDeclarations
 
-using ModiaLang.Unitful
+using ModiaLang
 using BenchmarkTools
 
 struct Var

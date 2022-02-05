@@ -4,7 +4,6 @@ module TestSynchronous
 
 using ModiaLang
 @usingModiaPlot
-using ModiaLang.DifferentialEquations
 
 
 MassWithSpringDamper = Model(

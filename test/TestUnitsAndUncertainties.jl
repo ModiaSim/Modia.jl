@@ -1,10 +1,8 @@
 module TestUnitsAndUncertainites
 
 using ModiaLang
-using ModiaLang.DifferentialEquations
 @usingModiaPlot
 using ModiaLang.Measurements
-using ModiaLang.Unitful
 
 TestModel = Model(
     T = (0.2 ± 0.02)u"s",

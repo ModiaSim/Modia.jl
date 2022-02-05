@@ -7,7 +7,6 @@ License: MIT (expat)
 =#
 
 using ModiaLang
-using Unitful
 
 HeatPort = Model( T = potential,   # Absolute temperature
                   Q_flow = flow )  # Heat flow into the component

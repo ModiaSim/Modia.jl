@@ -1,11 +1,7 @@
 module TestFilterCircuit2
 
 using ModiaLang
-using ModiaLang.Unitful
-
-using ModiaLang.DifferentialEquations
 @usingModiaPlot
-using Test
 
 setLogMerge(false)
 

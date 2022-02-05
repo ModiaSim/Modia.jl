@@ -1,35 +1,7 @@
-
-export simulate!, linearize!, get_result
-export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
-export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
-
-# For backwards compatibility
-export getNames, hasName
-
-import ModiaResult
-import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-import ModiaResult: resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
-import ModiaResult: signalNames, timeSignalName, hasOneTimeSignal, hasSignal
-
-import TimerOutputs
-
-import ModiaBase
-using  Measurements
-import MonteCarloMeasurements
-using  Unitful
 using  Test
-import Sundials
-import DifferentialEquations
 import DataFrames
 import ForwardDiff
 import FiniteDiff
-
-const  CVODE_BDF = Sundials.CVODE_BDF
-export CVODE_BDF
-
-const  IDA = Sundials.IDA
-export IDA
 
 
 #DifferentialEquations.DiffEqBase.check_error(integrator::Sundials.CVODE_BDF) =
@@ -573,9 +545,6 @@ ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
     haskey(m.result_info, name) || !ismissing(get_value(m.evaluatedParameters, name))
 end
 
-# For backwards compatibility
-hasName(m::SimulationModel, name::AbstractString) = ModiaResult.hasSignal(m,name)
-
 
 
 """
@@ -595,9 +564,6 @@ function ModiaResult.signalNames(m::SimulationModel)
     sort!(all_names)
     return all_names
 end
-
-# For backwards compatibility
-getNames(m::SimulationModel) = ModiaResult.signalNames(m)
 
 
 #=

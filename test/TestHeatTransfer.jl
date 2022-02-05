@@ -1,9 +1,9 @@
 module TestHeatTransfer
 
 using ModiaLang
-using ModiaLang.Unitful
 @usingModiaPlot
-using ModiaLang.DifferentialEquations
+using Test
+
 
 include("$(ModiaLang.path)/models/HeatTransfer.jl")
 
@@ -32,7 +32,7 @@ HeatedRod = Model(
     ]
 )
 
-using Test
+
 @test_skip begin
 heatedRod = @instantiateModel(HeatedRod, evaluateParameters=true, unitless=true, logExecution=true)
 simulate!(heatedRod, Tsit5(), stopTime = 1e5, 

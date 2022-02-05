@@ -3,11 +3,7 @@ module TestMechanics
 println("TestMechanics: Tests how 3D mechanics could be combined with ModiaLang.")
 
 using ModiaLang
-using ModiaLang.Unitful
 @usingModiaPlot
-using ModiaLang.DifferentialEquations
-using RuntimeGeneratedFunctions
-RuntimeGeneratedFunctions.init(@__MODULE__)
 
 # ModiaLang models
 include("$(ModiaLang.path)/models/Blocks.jl")

@@ -1,10 +1,7 @@
 module TestUnits
 
 using ModiaLang
-using ModiaLang.DifferentialEquations
 @usingModiaPlot
-using Test
-using ModiaLang.Unitful
 
 
 UnitTest = Model(

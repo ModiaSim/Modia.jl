@@ -3,7 +3,7 @@ module TestVariables
 using ModiaLang
 @usingModiaPlot
 using ModiaLang.Measurements
-using StaticArrays
+using ModiaLang.StaticArrays
 using Test
 
 @testset "... Test variable declarations" begin

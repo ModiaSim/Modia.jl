@@ -1,9 +1,7 @@
 module TestUncertainties
 
 using ModiaLang
-using ModiaLang.DifferentialEquations
 @usingModiaPlot
-
 using ModiaLang.Measurements
 
 

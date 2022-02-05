@@ -1,11 +1,9 @@
 module TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo
 
 using ModiaLang
-using ModiaLang.DifferentialEquations
 @usingModiaPlot
 using ModiaLang.MonteCarloMeasurements
 using ModiaLang.MonteCarloMeasurements.Distributions
-using ModiaLang.Unitful
 
 
 # The number of particles must be the same as for FloatType

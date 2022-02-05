@@ -1,8 +1,6 @@
 module TestLinearEquationSystemWithUnitsAndMonteCarlo
 
 using ModiaLang
-using ModiaLang.Unitful
-using ModiaLang.DifferentialEquations
 using ModiaLang.MonteCarloMeasurements
 @usingModiaPlot
 
