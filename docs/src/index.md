@@ -25,17 +25,18 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
         add ModiaPlot_CairoMakie    # if plotting with CairoMakie desired
 ```
 
-It is recommended to also add the following packages, in order that all tests and examples can be executed in your standard environment:
-
-```julia
-julia> ]add Measurements, MonteCarloMeasurements, Distributions
-```
 
 ## Release Notes
 
-### Version 0.9.2
+### Version 0.10.0
 
 - Require DifferentialEquations.jl version 7.
+- Cleanup of using/export
+- Cleanup of Project.toml/Manifest.toml.´
+- @reexport using Unitful
+- @reexport using DifferentialEquations
+- Cleanup of test files (besides ModiaLang, no other package needed in the environment to run the tests).
+- Change `SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}` to `SimulationModel{FloatType,TimeType}`
 
 
 ### Version 0.9.1
