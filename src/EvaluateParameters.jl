@@ -50,7 +50,7 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(modelModule::Module, parameters, ParType,
+    map = propagateEvaluateAndInstantiate!(modelModule::Module, parameters, 
                    eqInfo::ModiaBase.EquationInfo, x_start; log=false)
     
 Recursively traverse the hierarchical collection `parameters` and perform the following actions:
@@ -60,12 +60,12 @@ Recursively traverse the hierarchical collection `parameters` and perform the fo
 - Instantiate dependent objects.
 - Store start values of states with key x_name in x_start::Vector{FloatType} 
   (which has length eqInfo.nx).
-- Return the evaluated `parameters` as ParType if successfully evaluated, and otherwise 
+- Return the evaluated `parameters` if successfully evaluated, and otherwise 
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+function propagateEvaluateAndInstantiate!(modelModule, parameters, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
 
     if isnothing(map)
         return nothing
@@ -165,7 +165,7 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqInfo::ModiaBase.EquationInfo, 
+function propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo::ModiaBase.EquationInfo, 
                                            x_start::Vector{FloatType}, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
                                            environment, path::String; log=false) where {FloatType}
@@ -246,7 +246,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, ParType, eqI
                         println(" 7:    ... key = $k, v = $v") 
                     end
                     # For example: k = (a = 2.0, b = :(2*Lx))
-                    value = propagateEvaluateAndInstantiate2!(modelModule, v, ParType, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
+                    value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                                             vcat(environment, [current]), appendKey(path, k); log=log)     
                     if log
                         println(" 8:    ... key = $k, value = $value")
@@ -345,13 +345,13 @@ Search recursively in `evaluatedParameters` for a NamedTuple that has
 (nothing,nothing), where `obj` is the NamedTuple and `path` is the
 path::String path of  `obj`.
 """
-function getIdParameter(evaluatedParameters, ParType, id::Int, path::String="")
+function getIdParameter(evaluatedParameters, id::Int, path::String="")
     if haskey(evaluatedParameters, :_id) && evaluatedParameters[:_id] == id
         return (evaluatedParameters, path)
     else
         for (key,value) in evaluatedParameters # zip(keys(evaluatedParameters), evaluatedParameters)
-            if typeof(value) <: OrderedDict # ParType
-                result = getIdParameter(value, ParType, id, appendKey(path,key))
+            if typeof(value) <: OrderedDict 
+                result = getIdParameter(value, id, appendKey(path,key))
                 if !isnothing(result[1])
                     return result
                 end

@@ -243,7 +243,7 @@ end
 
 
 """
-    simulationModel = SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(
+    simulationModel = SimulationModel{FloatType,TimeType}(
             modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
             parameters, variableNames;
             vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}(),
@@ -264,7 +264,7 @@ end
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
-mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
+mutable struct SimulationModel{FloatType,TimeType}
     modelModule::Module
     modelFile::String
     modelName::String
@@ -276,8 +276,8 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     eventHandler::EventHandler{FloatType,TimeType}
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
 
-    parameters::ParType
-    evaluatedParameters::EvaluatedParType
+    parameters::OrderedDict{Symbol,Any}
+    evaluatedParameters::OrderedDict{Symbol,Any}
     previous::AbstractVector                # previous[i] is the value of previous(...., i)
     nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     previous_names::Vector{String}          # previous_names[i] is the name of previous-variable i
@@ -318,7 +318,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     unitless::Bool                              # = true, if simulation is performed without units.
 
 
-    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(modelModule, modelFile, modelName, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType,TimeType}(modelModule, modelFile, modelName, getDerivatives!, equationInfo, x_startValues,
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
                                         unitless=true,
@@ -327,7 +327,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
-                                        var_name::Function       = v -> nothing) where {FloatType,ParType,EvaluatedParType,TimeType}
+                                        var_name::Function       = v -> nothing) where {FloatType,TimeType}
         # Build dictionary of x_names and set start indices of x-vector
         ModiaBase.updateEquationInfo!(equationInfo)
 
@@ -382,12 +382,12 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
         #parameterValues = [eval(p) for p in values(parameters)]
         #@show typeof(parameterValues)
         #@show parameterValues
-        parameters::ParType = deepcopy(parameterDefinition[:_p])
+        parameters = deepcopy(parameterDefinition[:_p])
 
         # Determine x_start and previous values
         nx = equationInfo.nx
         x_start = zeros(FloatType,nx)
-        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, equationInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold)
+        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold)
         if isnothing(evaluatedParameters)
             return nothing
         end
@@ -424,7 +424,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     end
 
 
-    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(m::SimulationModel) where {FloatType,ParType,EvaluatedParType,TimeType}
+    function SimulationModel{FloatType,TimeType}(m::SimulationModel) where {FloatType,TimeType}
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
         for leq in m.equationInfo.linearEquations
@@ -456,22 +456,13 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
 end
 
 # Default constructors
-#=
-SimulationModel(args...; kwargs...) = SimulationModel{Float64,NamedTupe,NamedTuple,Float64}(args...; kwargs...)
+SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,FloatType}(args...; kwargs...)
 
-SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,NamedTuple,NamedTuple,FloatType}(args...; kwargs...)
-SimulationModel{Measurements.Measurement{T}}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},NamedTuple,NamedTuple,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.Particles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
-=#
-SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,OrderedDict,OrderedDict,FloatType}(args...; kwargs...)
+SimulationModel{Measurements.Measurement{T},}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N,} = SimulationModel{MonteCarloMeasurements.Particles{T,N},T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},T}(args...; kwargs...)
 
-SimulationModel{FloatType,ParType}(args...; kwargs...) where {FloatType,ParType} = SimulationModel{FloatType,ParType,ParType,FloatType}(args...; kwargs...)
-SimulationModel{Measurements.Measurement{T},ParType}(args...; kwargs...) where {T,ParType} = SimulationModel{Measurements.Measurement{T},ParType,ParType,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType,ParType,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType,ParType,T}(args...; kwargs...)
-
-timeType(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}) where {FloatType,ParType,EvaluatedParType,TimeType} = TimeType
+timeType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = TimeType
 
 
 positive(m::SimulationModel, args...; kwargs...) = ModiaLang.positive!(m.eventHandler, args...; kwargs...)
@@ -552,7 +543,7 @@ end
 Return the floating point type with which `simulationModel` is parameterized
 (for example returns: `Float64, Float32, DoubleFloat, Measurements.Measurement{Float64}`).
 """
-getFloatType(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}) where {FloatType,ParType,EvaluatedParType,TimeType} = FloatType
+getFloatType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = FloatType
 
 
 """
@@ -654,7 +645,7 @@ If `unit=true` return the value with its unit, otherwise with stripped unit.
 If `name` is not known or no result values yet available, an info message is printed
 and the function returns `nothing`.
 """
-function get_lastValue(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, name::String; unit::Bool=true) where {FloatType,ParType,EvaluatedParType,TimeType}
+function get_lastValue(m::SimulationModel{FloatType,TimeType}, name::String; unit::Bool=true) where {FloatType,TimeType}
     if haskey(m.result_info, name)
         # Time varying variable stored in m.result_xxx
         resInfo = m.result_info[name]
@@ -923,7 +914,7 @@ isTerminalOfAllSegments(m::SimulationModel)     = m.eventHandler.isTerminalOfAll
 
 At an event instant, set the next time event to `nextEventTime`.
 """
-setNextEvent!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, nextEventTime) where {FloatType,ParType,EvaluatedParType,TimeType} =
+setNextEvent!(m::SimulationModel{FloatType,TimeType}, nextEventTime) where {FloatType,TimeType} =
         setNextEvent!(m.eventHandler, convert(TimeType,nextEventTime))
 
 
@@ -987,7 +978,7 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 
 If initialization is successful return true, otherwise false.
 """
-function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType})::Bool where {FloatType,ParType,EvaluatedParType,TimeType}
+function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,TimeType}
     emptyResult!(m)
     eh = m.eventHandler
     reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
@@ -999,7 +990,7 @@ function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}):
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if !isnothing(m.options.merge)
         m.parameters = mergeModels(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, ParType, m.equationInfo, m.x_start, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.x_start, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
             return false
         end

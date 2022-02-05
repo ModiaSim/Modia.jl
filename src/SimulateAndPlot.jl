@@ -199,7 +199,7 @@ function simulate!(m::Nothing, args...; kwargs...)
     @test false
     return nothing
 end
-function simulate!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType,ParType,EvaluatedParType}
+function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType}
     options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
     if isnothing(options)
         @test false
@@ -499,9 +499,9 @@ function linearize!(m::Nothing, args...; kwargs...)
     @info "The call of linearize!(..) is ignored, since the first argument is nothing."
     return   nothing
 end
-function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType},
+function linearize!(m::SimulationModel{FloatType,TimeType},
                     algorithm=missing;
-                    merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,ParType,EvaluatedParType,TimeType}
+                    merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,TimeType}
     solution = simulate!(m, algorithm; merge=merge, stopTime=stopTime, kwargs...)
     finalStates = solution[:,end]
 
@@ -803,10 +803,10 @@ function get_result(m::SimulationModel, name::AbstractString; unit=true)
 end
 
 
-function setEvaluatedParametersInDataFrame!(obj::EvaluatedParType, result_info, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing where {EvaluatedParType}
+function setEvaluatedParametersInDataFrame!(obj::OrderedDict{Symbol,Any}, result_info, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing 
     for (key,value) in zip(keys(obj), obj)
         name = appendName(path, key)
-        if typeof(value) <: EvaluatedParType
+        if typeof(value) <: OrderedDict{Symbol,Any}
             setEvaluatedParametersInDataFrame!(value, result_info, dataFrame, name, nResult)
         elseif !haskey(result_info, name)
             dataFrame[!,name] = ModiaResult.OneValueVector(value,nResult)
