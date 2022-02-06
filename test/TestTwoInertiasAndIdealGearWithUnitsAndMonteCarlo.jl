@@ -1,11 +1,9 @@
 module TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
-using MonteCarloMeasurements
-using Distributions
-using Unitful
+using ModiaLang.MonteCarloMeasurements
+using ModiaLang.MonteCarloMeasurements.Distributions
 
 
 # The number of particles must be the same as for FloatType
@@ -18,8 +16,10 @@ TwoInertiasAndIdealGearWithUnitsAndMonteCarlo = Model(
     J2 = uniform(50.0, 170.0)u"kg*m^2",
     r  = 105.0,
     tau_max = 1.0u"N*m",
-
-    start = Map(phi2 = 0.5u"rad", w2 = 0.0u"rad/s", tau2 = 0.0u"N*m", tau=0.0u"N*m"),
+    
+    phi2 = Var(start = 0.5u"rad"), 
+    w2   = Var(start = 0.0u"rad/s"),
+    tau2 = Var(start = 0u"N*m"),   
 
     equations = :[
         tau = if time < 1u"s"; tau_max elseif time < 2u"s"; 0.0u"N*m" elseif time < 3u"s"; -tau_max else 0.0u"N*m" end,
@@ -39,7 +39,7 @@ TwoInertiasAndIdealGearWithUnitsAndMonteCarlo = Model(
 )
 
 twoInertiasAndIdealGear = @instantiateModel(TwoInertiasAndIdealGearWithUnitsAndMonteCarlo,
-                                            FloatType = StaticParticles{Float64,nparticles})
+                                            FloatType = StaticParticles{Float64,nparticles}, logCode=true)
 
 simulate!(twoInertiasAndIdealGear, Tsit5(), stopTime = 4.0)
 

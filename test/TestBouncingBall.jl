@@ -1,7 +1,6 @@
 module TestBouncingBall
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
 
 # Does not work: edge(..) appears in a linear equation system

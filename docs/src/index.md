@@ -25,13 +25,114 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
         add ModiaPlot_CairoMakie    # if plotting with CairoMakie desired
 ```
 
-It is recommended to also add the following packages, in order that all tests and examples can be executed in your standard environment:
-
-```julia
-julia> ]add Measurements, MonteCarloMeasurements, Distributions
-```
 
 ## Release Notes
+
+### Version 0.10.0
+
+- Require DifferentialEquations.jl version 7.
+- Cleanup of using/export
+- Cleanup of Project.toml/Manifest.toml.´
+- @reexport using Unitful
+- @reexport using DifferentialEquations
+- Cleanup of test files (besides ModiaLang, no other package needed in the environment to run the tests).
+- Change `SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}` to `SimulationModel{FloatType,TimeType}`
+
+
+### Version 0.9.1
+
+- New function plotPath to plot a PTP_path
+- Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
+- Include time in error message, if simulation failed
+
+
+### Version 0.9.0
+
+- Require Julia 1.7
+- Upgrade Manifest.toml to version 2.0
+- Update Project.toml/Manifest.toml
+
+
+
+### Version 0.8.7
+
+- Packages used in test models, prefixed with ModiaLang. to avoid missing package errors.
+- Deactivating test with DoubleFloats, since not in Project.toml
+- Version/date updated
+
+
+
+### Version 0.8.6
+
+- Require ModiaResult, version 0.3.9
+- Project.toml/Manifest.toml updated
+
+
+### Version 0.8.5
+
+- simulate!(..): 
+  - Trigger an error, if simulation is not successful (retcode is neither :Default nor :Success nor :Terminate)
+  - Use RightRootFind for zero crossings (improves state events based on new DifferentialEquations option)
+  - New keyword argument requiredFinalStates_atol=0.0.
+  - Improve docu (e.g. add return argument solution).  
+  - Show correct integrator name QBDF in simulation log (instead of QNDF)
+  - Raise an error, if (relative) tolerance is too small for FloatType
+  - Use FloatType for zero crossing hysteresis, instead of Float64
+  - If log=true print info about end of initialization.
+
+- Support of MonteCarloMeasurements with units + new test model TestLinearEquationSystemWithUnitsAndMonteCarlo.jl
+
+- Fixing and activating the deactivated test TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl.
+ 
+
+### Version 0.8.4
+
+- FloatType is included in the name space of Core.eval when evaluating parameters.
+
+- Version and Date updated
+
+- Included Version in printout of runtests.jl and runtests_withPlot.jl
+
+- Print difference of finalStates and requiredFinalStates in case they do not match with the given tolerance.
+
+
+### Version 0.8.3
+
+- Project.toml, Manifest.toml updated: Require newest version 0.7.7 of ModiaBase (containing a bug fix)
+
+- Minor correction of simulate!(log=true) output
+
+
+### Version 0.8.2
+
+- Issue with tearing fixed: Variables are only explicitly solved, if linear factor is a non-zero literal number
+  (previously a division by zero could occur, if the linear factor became zero during simulation).
+
+- Issue with unit of tearing variable fixed, if it is a derivative of a variable
+  (previously, the generated code for unitless=false was wrong, if the tearing variable was
+   a derivative, since the unit was not taken into account).
+
+- simulate!(..): 
+  - Support DAE integrators, especially IDA() from Sundials.
+  - New keyword `useRecursiveFactorizationUptoSize=0`: Linear equation systems A*v=b are solved with
+    [RecursiveFactorization.jl](https://github.com/YingboMa/RecursiveFactorization.jl) instead of 
+    the default `lu!(..)` and `ldiv!(..)`, if
+    `length(v) <= useRecursiveFactorizationUptoSize`.
+    According to `RecursiveFactorization.jl` docu, it is faster as `lu!(..)` with OpenBLAS,
+    for `length(v) <= 500` (typically, more as a factor of two). 
+    Since there had been some cases where `lu!(..)!` was successful,
+    but `RecursiveFactorization.jl` failed due to a singular system, the default is to use `lu!(..)!`.
+  - If log=true, sizes of linear equation systems are listed, as well as whether 
+    RecursiveFactorization.jl is used for the respective system.
+    
+- Test for RecursiveFactorization.jl added in TestTwoInertiasAndIdealGear.jl
+
+- Some test models corrected (since leading to errors with the above changes).
+
+- Updated Project.toml and Manifest.toml with newest versions of packages
+  (including MonteCarloMeasurements, version >= 1)
+  and improved Project.toml file to reduce issues with package constraints
+
 
 ### Version 0.8.1
 

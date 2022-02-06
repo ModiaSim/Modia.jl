@@ -1,7 +1,6 @@
 module TestInputOutput
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
 
 FirstOrder = Model(

@@ -18,7 +18,33 @@ experimentalTranslation = false
 
 using Reexport
 
+@reexport using Unitful                 # export Unitful symbols
+@reexport using DifferentialEquations   # export DifferentialEquations symbols
+
+export CVODE_BDF, IDA
+export ModiaBase
 export instantiateModel, @instantiateModel, assert, stringifyDefinition
+export stripUnit
+
+export simulate!, linearize!, get_result
+export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
+export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
+export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
+
+export SimulationModel, measurementToString, get_lastValue
+export positive, negative, previous, edge, after, reinit, pre
+export initial, terminal, isInitial, isTerminal
+export get_xNames
+export registerExtraSimulateKeywordArguments
+export get_extraSimulateKeywordArgumentsDict
+
+
+
+
+import Sundials
+const  CVODE_BDF = Sundials.CVODE_BDF
+const  IDA = Sundials.IDA
+
 
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
@@ -29,9 +55,15 @@ using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
 using ModiaBase
-export ModiaBase
 
-@reexport using Unitful
+import ModiaResult
+import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
+import ModiaResult: resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
+import ModiaResult: signalNames, timeSignalName, hasOneTimeSignal, hasSignal
+
+import StaticArrays   # Make StaticArrays available for the tests
+
+
 using  Measurements
 import MonteCarloMeasurements
 using JSON
@@ -41,7 +73,10 @@ using InteractiveUtils
 
 global to = TimerOutput()
 
-export stripUnit
+Unitful.unit(      v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = unit(T)
+Unitful.upreferred(v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = uconvert(upreferred(unit(v)), v)
+
+
 """
     stripUnit(v)
 
@@ -49,7 +84,7 @@ Convert the unit of `v` to the preferred units (default are the SI units),
 and then strip the unit. For details see `upreferred` and `preferunits` in
 [Unitful](https://painterqubits.github.io/Unitful.jl/stable/conversion/)
 
-The function is defined as: `stripUnit(v) = ustrip(upreferred.(v))`.
+The function is defined as: `stripUnit(v) = ustrip.(upreferred.(v))`.
 """
 stripUnit(v) = ustrip.(upreferred.(v))
 
@@ -73,8 +108,8 @@ const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
-const Version = "0.9.0-dev"
-const Date = "2021-12-06"
+const Version = "0.11.0-dev"
+const Date = "2022-02-06"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 #=
@@ -617,8 +652,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         else
             value = 0.0
         end
-        if hasParticles(value)  # Units not yet support for particles
-            return ""
+        if int_v > 0
+            value = value / u"s"
         end
         if int_v > 0
             value = value / u"s"
@@ -627,7 +662,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if ! (typeof(value) <: AbstractArray)
             un = unit(value)
         else
-            un = unit.(value)   # un = [unit(v) for v in value]  # unit.(value) does not work for MonteCarloMeasurements
+            un = unit.(value)
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
         end
@@ -798,8 +833,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
      
 #    println("Build SimulationModel")
 
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType, OrderedDict{Symbol,Any}}(modelModule, name, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
-#                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
+    model = @timeit to "build SimulationModel" SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
+                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          mappedParameters, extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
@@ -893,7 +928,7 @@ macro instantiateModel(model, kwargs...)
 end
 
 """
-See documentation of macro @instatiateModel
+See documentation of macro [`@instantiateModel`]
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
@@ -1082,12 +1117,13 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         inst #, flatModel
 #=
 
+#=
     catch e
         if isa(e, ErrorException)
             println()
             printstyled("Model error: ", bold=true, color=:red)
             printstyled(e.msg, "\n", bold=true, color=:red)
-            printstyled("Aborting instantiateModel for $modelName in $modelModule\n", bold=true, color=:red)
+            printstyled("Aborting @instantiateModel($modelName,...) in $modelModule.\n", bold=true, color=:red)
             println()
 #            Base.rethrow()
         else
@@ -1101,5 +1137,4 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 =#
 
 end
-
 end

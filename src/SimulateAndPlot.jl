@@ -143,7 +143,6 @@ A simulation run can be aborted with `<CTRL> C` (SIGINT).
 - `requiredFinalStates_rtol`: Relative tolerance used for `requiredFinalStates`.
 - `requiredFinalStates_atol`: Absolute tolerance used for `requiredFinalStates` (see atol in `?isapprox`)
 - `useRecursiveFactorizationUptoSize`: = 0: Linear equation systems A*v=b are solved with
->>>>>>> main
                `RecursiveFactorization.jl` instead of the default `lu!(..)` and `ldiv!(..)`, if
                `length(v) <= useRecursiveFactorizationUptoSize`.
                According to `RecursiveFactorization.jl` docu, it is faster as `lu!(..)` with OpenBLAS,
@@ -265,7 +264,6 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                 nx = length(m.x_init)
                 differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
                 TimerOutputs.@timeit m.timer "DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
-  
                 empty!(m.daeCopyInfo)
                 if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
                     # Prepare data structure to efficiently perform copy operations for DAE integrator

@@ -1,7 +1,6 @@
 module TestSingularLRRL
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
 
 SingularLRRL = Model(

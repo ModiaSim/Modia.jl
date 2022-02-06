@@ -1,11 +1,7 @@
 module TestFirstOrder
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
-
-# using RuntimeGeneratedFunctions
-# RuntimeGeneratedFunctions.init(@__MODULE__)
 
 inputSignal(t) = sin(t)
 

@@ -1,23 +1,2 @@
 [deps]
-DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
-Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
-DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
-Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-ModiaBase = "ec7bf1ca-419d-4510-bbab-199861c55244"
-ModiaResult = "16a87621-1533-42f6-8e19-4a825980cec2"
-MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
-StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-[compat]
-DifferentialEquations = "6.17, 6.16"
-Distributions = "0.25, 0.24, 0.23"
-DoubleFloats = "1.1"
-Measurements = "2.6, 2.5, 2.4, 2.3"
-ModiaBase = "0.7.3"
-ModiaResult = "0.3.1"
-MonteCarloMeasurements = "0.10"
-StaticArrays = "1.2, 1.1, 1.0"
-Unitful = "1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0"
-julia = "1.7, 1.6, 1.5"

@@ -16,12 +16,12 @@ Test.@testset "Test units, uncertainties" begin
     include("TestUnits.jl")
     include("TestUncertainties.jl")
     include("TestUnitsAndUncertainties.jl")
-
-    include("TestTwoInertiasAndIdealGear.jl")
-    include("TestTwoInertiasAndIdealGearWithUnits.jl")
-    include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")
-    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
-    Test.@test_skip include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")  # MonteCarlo and Unitful do not yet work together
+    include("TestTwoInertiasAndIdealGear.jl")   
+    include("TestTwoInertiasAndIdealGearWithUnits.jl")   
+    include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")   
+    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")   
+    include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl") 
+    include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")    
 end
 
 

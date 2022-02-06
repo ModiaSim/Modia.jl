@@ -9,7 +9,6 @@ Modia module with electric component models (inspired from Modelica Standard Lib
 #module Electric
 
 using ModiaLang
-using Unitful
 
 Pin = Model( v = potential, i = flow )
 

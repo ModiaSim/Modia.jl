@@ -505,7 +505,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
 #				typeof(v) <: AbstractDict && :parameter in keys(v) && v.parameter
             # p = 5.0
             if unitless && !isCollection(v)
-                v = ustrip(v)
+                v = ustrip.(v)
             end
             modelStructure.parameters[subMod] = v
             modelStructure.mappedParameters[k] = v
@@ -524,7 +524,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
             if :init in keys(v)
                 x0 = v[:init]
                 if unitless && typeof(x0) != Expr
-                    x0 = ustrip(x0)
+                    x0 = ustrip.(x0)
                 end
                 modelStructure.init[subMod] = x0
                 modelStructure.mappedParameters[k] = x0
@@ -532,7 +532,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
             if :start in keys(v)
                 s0 = v[:start]
                 if unitless && typeof(s0) != Expr
-                    s0 = ustrip(s0)
+                    s0 = ustrip.(s0)
                 end
                 modelStructure.start[subMod] = s0
                 modelStructure.mappedParameters[k] = s0 

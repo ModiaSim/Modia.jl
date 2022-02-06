@@ -1,7 +1,6 @@
 module TestSource
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
 
 

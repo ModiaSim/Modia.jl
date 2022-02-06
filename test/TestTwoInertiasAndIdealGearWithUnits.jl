@@ -1,9 +1,7 @@
 module TestTwoInertiasAndIdealGearWithUnits
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
-using Unitful
 using Test
 
 TwoInertiasAndIdealGearWithUnits = Model(

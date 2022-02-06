@@ -1,8 +1,8 @@
 export ModiaProblem, ModiaSolve
 
-function ModiaProblem(m1::ModiaLang.SimulationModel{FloatType1,ParType,EvaluatedParType,FloatType1}, 
-                      m2::ModiaLang.SimulationModel{FloatType2,ParType,EvaluatedParType,FloatType2};
-                      p, merge=nothing, kwargs...) where {FloatType1,ParType,EvaluatedParType,FloatType2}
+function ModiaProblem(m1::ModiaLang.SimulationModel{FloatType1,FloatType1}, 
+                      m2::ModiaLang.SimulationModel{FloatType2,FloatType2};
+                      p, merge=nothing, kwargs...) where {FloatType1,FloatType2}
 
     TimeType1 = FloatType1
     TimeType2 = FloatType2

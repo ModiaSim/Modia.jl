@@ -9,7 +9,6 @@ Modia module with electric component models (inspired from Modelica Standard Lib
 #module Electric
 
 using ModiaLang
-using Unitful
 
 Var(args...; kwargs...) = (;args..., kwargs...)
 Var(value::Union{Float64, Int64, Bool, String, Expr}, args...; kwargs...) = (;value = value, args..., kwargs...)

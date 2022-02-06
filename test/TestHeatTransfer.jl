@@ -1,9 +1,9 @@
 module TestHeatTransfer
 
 using ModiaLang
-using Unitful
 @usingModiaPlot
-using DifferentialEquations
+using Test
+
 
 include("$(ModiaLang.path)/models/HeatTransfer.jl")
 

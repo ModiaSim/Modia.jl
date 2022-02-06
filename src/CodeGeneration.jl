@@ -1,23 +1,8 @@
 # License for this file: MIT (expat)
 # Copyright 2020-2021, DLR Institute of System Dynamics and Control
 
-
-using  ModiaBase
-using  ModiaResult
-using  Unitful
-using  Measurements
-import MonteCarloMeasurements
 using  OrderedCollections: OrderedDict, OrderedSet
 using  DataFrames
-import DifferentialEquations
-import TimerOutputs
-
-export SimulationModel, measurementToString, get_lastValue
-export positive, negative, previous, edge, after, reinit, pre
-export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
-export get_xNames
-export registerExtraSimulateKeywordArguments
-export get_extraSimulateKeywordArgumentsDict
 
 #=
 fieldnames(typeof(integrator)) = (:sol, :u, :du, :k, :t, :dt, :f, :p, :uprev, :uprev2, :duprev, :tprev, :alg,
@@ -112,7 +97,7 @@ end
 const BasicSimulationKeywordArguments = OrderedSet{Symbol}(
         [:merge, :tolerance, :startTime, :stopTime, :interval, :interp_points, :dtmax, :adaptive, :nlinearMinForDAE,
          :log, :logStates, :logEvents, :logTiming, :logParameters, :logEvaluatedParameters,
-         :requiredFinalStates, :requiredFinalStates_rtol, :useRecursiveFactorizationUptoSize])
+         :requiredFinalStates, :requiredFinalStates_rtol, :requiredFinalStates_atol, :useRecursiveFactorizationUptoSize])
 const RegisteredExtraSimulateKeywordArguments = OrderedSet{Symbol}()
 
 function registerExtraSimulateKeywordArguments(keys)::Nothing
@@ -159,15 +144,20 @@ struct SimulationOptions{FloatType,TimeType}
     logEvaluatedParameters::Bool
     requiredFinalStates::Union{Missing, Vector{FloatType}}
     requiredFinalStates_rtol::Float64
+    requiredFinalStates_atol::Float64
     useRecursiveFactorizationUptoSize::Int
     extra_kwargs::OrderedDict{Symbol,Any}
 
     function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}
         success   = true
-        #merge     = get(kwargs, :merge, NamedTuple())
-        tolerance = get(kwargs, :tolerance, 1e-6)
+        adaptive  = get(kwargs, :adaptive, true)
+        tolerance = get(kwargs, :tolerance, max(100*eps(FloatType), 1e-6))
         if tolerance <= 0.0
             printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) must be > 0\n\n", bold=true, color=:red)
+            success = false
+        elseif tolerance < 100*eps(FloatType) && adaptive
+            printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) is too small for FloatType = $FloatType (eps(FloatType) = $(eps(FloatType))).\n" *
+                                            "tolerance >= $(100*eps(FloatType)) required!\n\n", bold=true, color=:red)
             success = false
         end
         startTime   = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
@@ -193,7 +183,11 @@ struct SimulationOptions{FloatType,TimeType}
         logParameters    = get(kwargs, :logParameters, false)
         logEvaluatedParameters   = get(kwargs, :logEvaluatedParameters  , false)
         requiredFinalStates      = get(kwargs, :requiredFinalStates     , missing)
+        if isnothing(requiredFinalStates)
+            requiredFinalStates = missing
+        end
         requiredFinalStates_rtol = get(kwargs, :requiredFinalStates_rtol, 1e-3)
+        requiredFinalStates_atol = get(kwargs, :requiredFinalStates_atol, 0.0)
         useRecursiveFactorizationUptoSize = get(kwargs, :useRecursiveFactorizationUptoSize, 0)
         extra_kwargs = OrderedDict{Symbol,Any}()
         for option in kwargs
@@ -211,7 +205,7 @@ struct SimulationOptions{FloatType,TimeType}
 #        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
         obj = new(ismissing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
                   dtmax, adaptive, nlinearMinForDAE, log, logStates, logEvents, logTiming, logParameters, logEvaluatedParameters,
-                  requiredFinalStates, requiredFinalStates_rtol, useRecursiveFactorizationUptoSize, extra_kwargs)
+                  requiredFinalStates, requiredFinalStates_rtol, requiredFinalStates_atol, useRecursiveFactorizationUptoSize, extra_kwargs)
         return success ? obj : nothing
     end
 
@@ -261,7 +255,7 @@ end
 
 
 """
-    simulationModel = SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(
+    simulationModel = SimulationModel{FloatType,TimeType}(
             modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
             parameters, variableNames;
             vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}(),
@@ -282,8 +276,9 @@ end
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
-mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
+mutable struct SimulationModel{FloatType,TimeType}
     modelModule::Module
+    modelFile::String
     modelName::String
     timer::TimerOutputs.TimerOutput
     options::SimulationOptions
@@ -293,8 +288,8 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     eventHandler::EventHandler{FloatType,TimeType}
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
 
-    parameters::ParType
-    evaluatedParameters::EvaluatedParType
+    parameters::OrderedDict{Symbol,Any}
+    evaluatedParameters::OrderedDict{Symbol,Any}
     previous::AbstractVector                # previous[i] is the value of previous(...., i)
     nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     previous_names::Vector{String}          # previous_names[i] is the name of previous-variable i
@@ -325,8 +320,9 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     der_x::Vector{FloatType}                    # Derivatives of states x or x_init
     odeIntegrator::Bool                         # = true , if ODE integrator used
                                                 # = false, if DAE integrator used
+  
     daeCopyInfo::Vector{LinearEquationsCopyInfoForDAEMode}  # Info to efficiently copy between DAE and linear equation systems
-    algorithmType::Union{DataType,Missing}      # Type of integration algorithm (used in default-heading of plot)
+    algorithmName::Union{String,Missing}        # Name of integration algorithm as string (used in default-heading of plot)
     addEventPointsDueToDEBug::Bool              # = true, if event points are explicitly stored for Sundials integrators, due to bug in DifferentialEquations
                                                 #         (https://github.com/SciML/Sundials.jl/issues/309)
     result_info::OrderedDict{String,ResultInfo} # key  : Full path name of result variables
@@ -340,7 +336,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     unitless::Bool                              # = true, if simulation is performed without units.
 
 
-    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
                                         unitless=true,
@@ -349,7 +345,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
-                                        var_name::Function       = v -> nothing) where {FloatType,ParType,EvaluatedParType,TimeType}
+                                        var_name::Function       = v -> nothing) where {FloatType,TimeType}
         # Construct result dictionary
         result_info = OrderedDict{String, ResultInfo}()
         vSolvedWithInitValuesAndUnit2 = OrderedDict{String,Any}( [(string(key),vSolvedWithInitValuesAndUnit[key]) for key in keys(vSolvedWithInitValuesAndUnit)] )
@@ -401,10 +397,10 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
         #parameterValues = [eval(p) for p in values(parameters)]
         #@show typeof(parameterValues)
         #@show parameterValues
-        parameters::ParType = deepcopy(parameterDefinition)
+        parameters = deepcopy(parameterDefinition)
 
         # Determine x_start and previous values
-        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, ParType, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
+        evaluatedParameters = propagateEvaluateAndInstantiate!(modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
         if isnothing(evaluatedParameters)
             return nothing
         end
@@ -447,7 +443,7 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
     end
 
 
-    function SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}(m::SimulationModel) where {FloatType,ParType,EvaluatedParType,TimeType}
+    function SimulationModel{FloatType,TimeType}(m::SimulationModel) where {FloatType,TimeType}
         # Construct data structure for linear equations
         linearEquations = ModiaBase.LinearEquations{FloatType}[]
         for leq in m.equationInfo.linearEquations
@@ -480,22 +476,13 @@ mutable struct SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}
 end
 
 # Default constructors
-#=
-SimulationModel(args...; kwargs...) = SimulationModel{Float64,NamedTupe,NamedTuple,Float64}(args...; kwargs...)
+SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,FloatType}(args...; kwargs...)
 
-SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,NamedTuple,NamedTuple,FloatType}(args...; kwargs...)
-SimulationModel{Measurements.Measurement{T}}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},NamedTuple,NamedTuple,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.Particles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},NamedTuple,NamedTuple,T}(args...; kwargs...)
-=#
-SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,OrderedDict,OrderedDict,FloatType}(args...; kwargs...)
+SimulationModel{Measurements.Measurement{T},}(args...; kwargs...) where {T} = SimulationModel{Measurements.Measurement{T},T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.Particles{T,N}}(args...; kwargs...) where {T,N,} = SimulationModel{MonteCarloMeasurements.Particles{T,N},T}(args...; kwargs...)
+SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...) where {T,N} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},T}(args...; kwargs...)
 
-SimulationModel{FloatType,ParType}(args...; kwargs...) where {FloatType,ParType} = SimulationModel{FloatType,ParType,ParType,FloatType}(args...; kwargs...)
-SimulationModel{Measurements.Measurement{T},ParType}(args...; kwargs...) where {T,ParType} = SimulationModel{Measurements.Measurement{T},ParType,ParType,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.Particles{T,N},ParType,ParType,T}(args...; kwargs...)
-SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType}(args...; kwargs...) where {T,N,ParType} = SimulationModel{MonteCarloMeasurements.StaticParticles{T,N},ParType,ParType,T}(args...; kwargs...)
-
-timeType(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}) where {FloatType,ParType,EvaluatedParType,TimeType} = TimeType
+timeType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = TimeType
 
 
 positive(m::SimulationModel, args...; kwargs...) = ModiaLang.positive!(m.eventHandler, args...; kwargs...)
@@ -576,7 +563,7 @@ end
 Return the floating point type with which `simulationModel` is parameterized
 (for example returns: `Float64, Float32, DoubleFloat, Measurements.Measurement{Float64}`).
 """
-getFloatType(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}) where {FloatType,ParType,EvaluatedParType,TimeType} = FloatType
+getFloatType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = FloatType
 
 
 """
@@ -678,7 +665,7 @@ If `unit=true` return the value with its unit, otherwise with stripped unit.
 If `name` is not known or no result values yet available, an info message is printed
 and the function returns `nothing`.
 """
-function get_lastValue(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, name::String; unit::Bool=true) where {FloatType,ParType,EvaluatedParType,TimeType}
+function get_lastValue(m::SimulationModel{FloatType,TimeType}, name::String; unit::Bool=true) where {FloatType,TimeType}
     if haskey(m.result_info, name)
         # Time varying variable stored in m.result_xxx
         resInfo = m.result_info[name]
@@ -947,7 +934,7 @@ isTerminalOfAllSegments(m::SimulationModel)     = m.eventHandler.isTerminalOfAll
 
 At an event instant, set the next time event to `nextEventTime`.
 """
-setNextEvent!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}, nextEventTime) where {FloatType,ParType,EvaluatedParType,TimeType} =
+setNextEvent!(m::SimulationModel{FloatType,TimeType}, nextEventTime) where {FloatType,TimeType} =
         setNextEvent!(m.eventHandler, convert(TimeType,nextEventTime))
 
 
@@ -1030,11 +1017,11 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 
 If initialization is successful return true, otherwise false.
 """
-function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType})::Bool where {FloatType,ParType,EvaluatedParType,TimeType}
+function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,TimeType}
     emptyResult!(m)
     eh = m.eventHandler
     reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
-
+  
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if !isnothing(m.options.merge)
         m.parameters = mergeModels(m.parameters, m.options.merge)
@@ -1108,6 +1095,9 @@ function init!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}):
     m.isInitial   = false
     m.storeResult = false
     eh.afterSimulationStart = true
+    if m.options.log
+        println("      Initialization finished")
+    end    
     return true
 end
 
@@ -1280,6 +1270,20 @@ function DAEresidualsForODE!(residuals, derx, x, m, t)::Nothing
             residuals[  copyInfo.index[i] ] = leq.residuals[i]
         end
     end
+    return nothing
+end
+
+
+
+"""
+    DAEresidualsForODE!(residuals, derx, x, m, t)
+
+DifferentialEquations callback function for DAE integrator for ODE model
+"""
+function DAEresidualsForODE!(residuals, derx, x, m, t)::Nothing
+    m.nf += 1
+    invokelatest_getDerivatives!(residuals, x, m, t)  # model computes derx and stores it in residuals
+    residuals .-= derx  # residuals = model-derx(= residuals) - integrator-derx (= derx)
     return nothing
 end
 
@@ -1490,6 +1494,7 @@ function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothi
 
     return nothing
 end
+
 
 
 

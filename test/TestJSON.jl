@@ -1,5 +1,7 @@
 module TestJSON
-import JSON
+
+using  ModiaLang
+import ModiaLang.JSON
 
 mutable struct S
 	a

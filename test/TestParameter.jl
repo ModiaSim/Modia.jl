@@ -1,8 +1,10 @@
 module TestParameter
 
 using ModiaLang
-using DifferentialEquations
 @usingModiaPlot
+using Test
+
+
 include("$(ModiaLang.path)/models/Blocks.jl")
 
 
@@ -44,7 +46,6 @@ SecondOrder = Model(
     equations = :[sys.u = 1.0]
 )
 
-using Test
 @test_skip begin
 secondOrder = @instantiateModel(SecondOrder, unitless=true)
 
