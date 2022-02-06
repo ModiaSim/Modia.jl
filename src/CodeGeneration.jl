@@ -278,7 +278,6 @@ end
 """
 mutable struct SimulationModel{FloatType,TimeType}
     modelModule::Module
-    modelFile::String
     modelName::String
     timer::TimerOutputs.TimerOutput
     options::SimulationOptions
@@ -1025,7 +1024,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if !isnothing(m.options.merge)
         m.parameters = mergeModels(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, ParType, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m.modelModule, m.parameters, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
             return false
         end
