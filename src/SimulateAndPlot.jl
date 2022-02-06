@@ -539,9 +539,8 @@ function linearize!(m::Nothing, args...; kwargs...)
     return   nothing
 end
 
-function linearize!(m::SimulationModel{FloatType,ParType,EvaluatedParType,TimeType},
-                    algorithm=missing;
-                    merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,ParType,EvaluatedParType,TimeType}
+function linearize!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
+                    merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,TimeType}
     if analytic
         @info "linearize!(.., analytic=true) of model $(m.modelName) \nis modified to analytic=false, because analytic=true is currently not supported!"
         analytic = false

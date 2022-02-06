@@ -1275,20 +1275,6 @@ end
 
 
 """
-    DAEresidualsForODE!(residuals, derx, x, m, t)
-
-DifferentialEquations callback function for DAE integrator for ODE model
-"""
-function DAEresidualsForODE!(residuals, derx, x, m, t)::Nothing
-    m.nf += 1
-    invokelatest_getDerivatives!(residuals, x, m, t)  # model computes derx and stores it in residuals
-    residuals .-= derx  # residuals = model-derx(= residuals) - integrator-derx (= derx)
-    return nothing
-end
-
-
-
-"""
     affectEvent!(integrator, stateEvent, eventIndex)
 
 Called when a time event (stateEvent=false) or state event (stateEvent=true) is triggered.

@@ -127,6 +127,7 @@ println()
 println("Version $Version ($Date)")
 =#
 
+println("!!! 1")
 # ----------------------------------------------------------------------------------------------
 
 function assert(condition, message)
@@ -549,12 +550,16 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     return reducedEquations, reducedUnknowns, reducedAvar, reducedG, reducedStates, vEliminated, vProperty
 end
 
+println("!!! 2") 
 
 function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
+println("!!! 3")     
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
+println("!!! 4")     
     Goriginal = deepcopy(G)
-
+    
+println("!!! 5")     
     function getSolvedEquationAST(e, v)
         (solution, solved) = solveEquation(equations[e], unknowns[v])
         unknown = solution.args[1]
@@ -858,6 +863,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     end
     return model
 end
+
+println("!!! 6")     
 
 function duplicateMultiReturningEquations!(equations)
     duplicatedEquations = []
