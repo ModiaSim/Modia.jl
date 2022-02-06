@@ -21,6 +21,7 @@ using Reexport
 @reexport using Unitful                 # export Unitful symbols
 @reexport using DifferentialEquations   # export DifferentialEquations symbols
 
+export ModiaBase
 export CVODE_BDF, IDA
 export ModiaBase
 export instantiateModel, @instantiateModel, assert, stringifyDefinition
@@ -33,7 +34,7 @@ export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
 
 export SimulationModel, measurementToString, get_lastValue
 export positive, negative, previous, edge, after, reinit, pre
-export initial, terminal, isInitial, isTerminal
+export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames
 export registerExtraSimulateKeywordArguments
 export get_extraSimulateKeywordArgumentsDict
@@ -55,6 +56,7 @@ using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
 using ModiaBase
+
 
 import ModiaResult
 import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
@@ -652,9 +654,6 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             value = eval(start[var])
         else
             value = 0.0
-        end
-        if int_v > 0
-            value = value / u"s"
         end
         if int_v > 0
             value = value / u"s"

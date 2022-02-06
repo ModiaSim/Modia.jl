@@ -28,6 +28,11 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
 
 ## Release Notes
 
+### Version 0.11.0
+
+- Support multi-returning functions.
+
+
 ### Version 0.10.0
 
 - Require DifferentialEquations.jl version 7.

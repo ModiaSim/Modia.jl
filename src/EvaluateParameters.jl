@@ -50,7 +50,7 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(modelModule::Module, parameters,
+    map = propagateEvaluateAndInstantiate!(FloatType, modelModule::Module, parameters,
                    eqInfo::ModiaBase.EquationInfo; log=false)
     
 Recursively traverse the hierarchical collection `parameters` and perform the following actions:
@@ -61,9 +61,9 @@ Recursively traverse the hierarchical collection `parameters` and perform the fo
 - Return the evaluated `parameters` if successfully evaluated, and otherwise 
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(modelModule, parameters,eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+function propagateEvaluateAndInstantiate!(FloatType, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(modelModule, parameters,eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
 
     if isnothing(map)
         return nothing
@@ -163,9 +163,9 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo::ModiaBase.EquationInfo, x_found::Vector{Bool}, 
+function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, eqInfo::ModiaBase.EquationInfo, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
-                                           environment, path::String; log=false) where {FloatType}
+                                           environment, path::String; log=false)
                                            
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)
@@ -243,7 +243,7 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo::Modi
                         println(" 7:    ... key = $k, v = $v") 
                     end
                     # For example: k = (a = 2.0, b = :(2*Lx))
-                    value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
+                    value = propagateEvaluateAndInstantiate2!(FloatType, modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                                               vcat(environment, [current]), appendKey(path, k); log=log)     
                     if log
                         println(" 8:    ... key = $k, value = $value")
