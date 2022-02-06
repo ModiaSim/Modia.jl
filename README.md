@@ -1,5 +1,5 @@
 # ModiaLang.jl
- 
+
 [![The MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/ModiaSim/ModiaLang.jl/blob/master/LICENSE.md)
 
 ModiaLang is part of [ModiaSim](https://modiasim.github.io/docs/).
