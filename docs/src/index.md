@@ -30,8 +30,28 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
 
 ### Version 0.11.0
 
-- Support multi-returning functions.
+- Generalized connection semantics.
 
+- Support of multi-returning functions.
+
+- Hierarchical names in function calls supported (e.g. a.b.c.f(..)).
+
+- Functions converting model to/from JSON: modelToJSON(model), JSONtoModel(json_string)
+
+- Large speedup of symbolic transformation, if function call depends on many input arguments 
+  (includes new operator implicitDependency(..)).
+
+- Efficiency of linear equations setup changed (memory allocation drastically reduced)
+
+- Include DAE-Mode in solution of linear equation system (if DAE integrator is used and all unknowns of linear
+  equation system are part of the DAE states, solve the linear equation system during continuous integration
+  via DAE solver (= usually large speed-up, for larger linear equation system).
+
+- Support for StaticArrays variables (the StaticArrays feature is kept in the generated AST).
+  
+- Support for Array variables (especially of state and tearing variables)
+  where the dimension can change after @instantiateModel(..)
+  
 
 ### Version 0.10.0
 
