@@ -152,7 +152,9 @@ equations = :[
 
 ## 2.4 Hierarchical modeling
 
-Sofar, the composition of models have resulted in dictionaries of key/value pairs with values being numeric values or quoted expressions. Hierarchical models are obtained if the values themself are `Models`, i.e. dictionaries. A model with two filters can, for example, be defined as follows:
+So far, the composition of models has resulted in dictionaries of key/value pairs with values being numeric values or quoted expressions.
+Hierarchical models are obtained if the values themselves are `Models`, i.e. dictionaries.
+A model with two filters can, for example, be defined as follows:
 
 ```julia
 TwoFilters = (
@@ -161,7 +163,7 @@ TwoFilters = (
 )
 ```
 
-Note, that the previous definitions of HighPassFilter and LowPassFilter was used instead of making the Model defintions inline.
+Note, that the previous definitions of `HighPassFilter` and `LowPassFilter` was used instead of making the Model definitions inline.
 
 A band pass filter is a series connection of a high pass filter and a low pass filter and can be described as:
 
@@ -178,9 +180,11 @@ BandPassFilter = (
 )
 ```
 
-A new input, `u`, has been defined which is propagated to `high.u`. The series connection itself is obtained by the equation `low.u = high.y`. Note, that dot-notation is allowed in equations.
+A new input, `u`, has been defined which is propagated to `high.u`.
+The series connection itself is obtained by the equation `low.u = high.y`.
+Note, that dot-notation is allowed in equations.
 
-The input and output for the BandPassFilter when using the same input definition as for the TestLowPassFilter
+The input and output for the `BandPassFilter` when using the same input definition as for the `TestLowPassFilter`
 
 ```julia
 TestBandPassFilter = BandPassFilter | Map(
@@ -199,22 +203,29 @@ is shown below:
 
 ## 2.5 Physically oriented modeling
 
-Sofar, only signal flow modeling has been used, i.e. input/output blocks coupled with equations between outputs and inputs. For object oriented modeling more high level constructs are neccessary. Coupling is then acausal and involves potentials such as electric potential, positions, pressure, etc. and flows such as electric current, forces and torques and mass flow rate.
+So far, only signal flow modeling has been used, i.e. input/output blocks coupled with equations between outputs and inputs.
+For object oriented modeling more high level constructs are necessary.
+Coupling is then acausal and involves potentials such as electric potential, positions, pressure, etc. and flows such as electric current, forces and torques and mass flow rate.
 
 ### 2.5.1 Connectors
 
-Models which contain any `flow` variable, i.e. a variable having an attribute `flow=true`, are considered connectors. Connectors must have equal number of flow and potential variables, i.e. variables having an attribute `potential=true`, and have matching array sizes. Connectors may not have any equations. An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.
+Models which contain any `flow` variable, i.e. a variable having an attribute `flow=true`, are considered connectors.
+Connectors must have equal number of flow and potential variables, i.e. variables having an attribute `potential=true`, and have matching array sizes.
+Connectors may not have any equations.
+An example of an electrical connector with potential (in Volt) and current (in Ampere) is shown below.
 
 ```julia
 Pin = Model( v = potential, i = flow )
 ```
-`potential` is a shortcut for `Var(potential=true)` and similarly for `flow`.
+
+The value `potential` is a shortcut for `Var(potential=true)` and similarly for `flow`.
 
 ### 2.5.2 Components
 
-Components are declared in a similar ways as blocks. However, the interfaces between components are defined using connector instances.
+Components are declared in a similar ways as blocks.
+However, the interfaces between components are defined using connector instances.
 
-An electrical resistor can be descibed as follows:
+An electrical resistor can be described as follows:
 
 ```julia
 Resistor = Model(
@@ -231,9 +242,12 @@ Resistor = Model(
 
 ### 2.5.3 Inheritance
 
-Various physical components sometimes share common properties. One mechanism to handle this is to use inheritance. In Modia, **merging** is used.
+Various physical components sometimes share common properties.
+One mechanism to handle this is to use inheritance.
+In Modia, **merging** is used.
 
-Electrical components such as resistors, capacitors and inductors are categorized as oneports which have two pins. Common properties are: constraint on currents at the pins and definitions of voltage over the component and current through the component.
+Electrical components such as resistors, capacitors and inductors are categorized as oneports which have two pins.
+Common properties are: constraint on currents at the pins and definitions of voltage over the component and current through the component.
 
 ```julia
 OnePort = Model(
@@ -245,7 +259,7 @@ OnePort = Model(
         i = p.i ] )
 ```
 
-Having such a OnePort definition makes it convenient to define electrical component models by merging OnePort with specific parameter definitions with default values and equations:
+Having such a `OnePort` definition makes it convenient to define electrical component models by merging `OnePort` with specific parameter definitions with default values and equations:
 
 ```julia
 Resistor = OnePort | Model( R = 1.0u"Ω", equation = :[ R*i = v ], )
@@ -256,25 +270,18 @@ Inductor = OnePort | Model( L = 1.0u"H", i=Map(init=0.0u"A"), equation = :[ L*de
 
 ConstantVoltage = OnePort | Model( V = 1.0u"V", equation = :[ v = V ] )
 ```
+
 The merged `Resistor` is shown below:
 
 ```julia
 Resistor = Model(
   p = Model(
-    v = Var(
-      potential = true,
-    ),
-    i = Var(
-      flow = true,
-    ),
+    v = Var(potential = true),
+    i = Var(flow = true),
   ),
   n = Model(
-    v = Var(
-      potential = true,
-    ),
-    i = Var(
-      flow = true,
-    ),
+    v = Var(potential = true),
+    i = Var(flow = true),
   ),
   equations = :([v = p.v - n.v; 0 = p.i + n.i; i = p.i, R * i = v]),
   R = 1.0 Ω,
@@ -284,9 +291,11 @@ Resistor = Model(
 ### 2.5.4 Connections
 
 Connections are described as an array of tuples listing the connectors that are connected:
+
 ```julia
     ( <connect reference 1>, <connect reference 2>, ... )
 ```
+
 A connect reference has either the form 'connect instance name' or 'component instance name'.'connect instance name' with 'connect instance name' being either a connector instance, input or output variable.
 
 Examples
@@ -299,7 +308,8 @@ Examples
     ]
 ```
 
-For connectors, all the potentials of the connectors in the same connect tuple are set equal and the sum of all incoming flows to the model are set equal to the sum of the flows into sub-components. A Modelica inspired form of connections, i.e. connect-equations, are also supported:
+For connectors, all the potentials of the connectors in the same connect tuple are set equal and the sum of all incoming flows to the model are set equal to the sum of the flows into sub-components.
+A Modelica inspired form of connections, i.e. connect-equations, are also supported:
 
 ```julia
     equations = :[
@@ -316,8 +326,7 @@ Having the above electrical component models, enables defining a filter
 
 ![Filter Circuit](../../resources/images/Filter.png)
 
-by instanciating components, setting parameters and defining connections.
-
+by instantiating components, setting parameters and defining connections.
 
 ```julia
 Filter = (
@@ -345,7 +354,10 @@ The connect tuples are translated to:
 
 ### 2.5.6 Parameter propagation
 
-Hierarchical modification of parameters is powerful but sometimes a bit inconvenient. It is also possible to propagate parameters introduced on a high level down in the hierarchy. The following Filter model defines three parameters, `r`, `c` and `v`. The `r` parameter is used to set the resistance of the resistor R: `Map(R=:r)`.
+Hierarchical modification of parameters is powerful but sometimes a bit inconvenient.
+It is also possible to propagate parameters introduced on a high level down in the hierarchy.
+The following Filter model defines three parameters, `r`, `c` and `v`.
+The `r` parameter is used to set the resistance of the resistor R: `Map(R=:r)`.
 
 ```julia
 Filter2 = Model(
@@ -369,9 +381,11 @@ Two separate filters can then be defined with:
 TwoFilters = Model( f1 = Filter | Map( r = 10.0, c = 2.0), f2 = Filter )
 ```
 
-### 2.5.7 Redeclarations
+### 2.5.7 Re-declarations
 
-It is possible to reuse a particular model topology by redeclaring the model of particular components. For example, changing the filter `f1` to a voltage divider by changing C from a Capacitor to a Resistor. A predefined definition `redeclare` is used for this purpose.
+It is possible to reuse a particular model topology by redeclaring the models of particular components.
+For example, changing the filter `f1` to a voltage divider by changing `C` from a Capacitor to a Resistor.
+A predefined definition `redeclare` is used for this purpose.
 
 ```julia
 VoltageDividerAndFilter = TwoFilters | Map(f1 = Map(C = redeclare | Resistor | Map(R = 20.0)))
@@ -384,21 +398,18 @@ The above examples are available in file `FilterCircuit.jl`.
 
 ### 2.5.8 Drive train example
 
-A larger example that utilizes most of the previously described features of
-Modia is available as `$(Modia.path)/examples/ServoSystem.jl`.
+A larger example that utilizes most of the previously described features of Modia is available as `$(Modia.path)/examples/ServoSystem.jl`.
 This is a textual (Modia) representation of a Modelica model
 
 ![ServoSystem](../../resources/images/ServoSystem.png)
 
-and demonstrates how to build up a hierarchical, multi-domain model consisting
-of a servo-system with a load, where the servo-system consists of
-an electric motor with a current and speed controller, as well with a more
-detailed model of a gearbox.
+and demonstrates how to build up a hierarchical, multi-domain model consisting of a servo-system with a load, where the servo-system consists of an electric motor with a current and speed controller, as well with a more detailed model of a gearbox.
 
 
 ## 2.6 Arrays
 
-Model parameters and variables can be arrays. For example a linear state space system
+Model parameters and variables can be arrays.
+For example a linear state space system
 
 ```math
 \begin{aligned}
@@ -443,15 +454,15 @@ SecondOrder = Model(
     equations = :[sys.u = [1.0]]
 )
 ```
+
 Variables `sys.u` and `sys.y` are vectors with one element each.
 
-Note, `[0; w^2]` is a vector in Julia and not a column matrix
-(see the discussion [here](https://discourse.julialang.org/t/construct-a-2-d-column-array/30617)).
+Note, `[0; w^2]` is a vector in Julia and not a column matrix (see the discussion [here](https://discourse.julialang.org/t/construct-a-2-d-column-array/30617)).
 In order that `B` is defined as column matrix, the function `col(..)` is used.
 
 Array equations remain array equations during symbolic transformation and in the generated code,
-so the code is both compact and efficient. In order that this is reasonably possible, the definition
-of an array cannot be split in different statements:
+so the code is both compact and efficient.
+In order that this is reasonably possible, the definition of an array cannot be split in different statements:
 
 ```julia
 equations = :[             # error, vector v is not defined as one symbol
@@ -460,8 +471,7 @@ equations = :[             # error, vector v is not defined as one symbol
 ]
 ```
 
-If scalar equations are needed in which arrays are used, then the arrays have
-to be first defined and then elements can be used.
+If scalar equations are needed in which arrays are used, then the arrays have to be first defined and then elements can be used.
 
 ```julia
 v = Var(init=zeros(2)),
@@ -476,8 +486,7 @@ equations = :[
 
 ## 2.7 Model libraries
 
-Modia provides a small set of pre-defined model components in directory
-`Modia.modelsPath`:
+Modia provides a small set of pre-defined model components in directory `Modia.modelsPath`:
 
 - `AllModels.jl` - Include all model libraries
 - `Blocks.jl` - Input/output control blocks
@@ -487,11 +496,9 @@ Modia provides a small set of pre-defined model components in directory
 - `Translational.jl` - 1D translational, mechanical component models
 - [PathPlanning](@ref) - Defining reference trajectories and access them.
 
-These models are included in package `Modia`, but are not exported, so must
-be access with `Modia.xxx".
+These models are included in package `Modia`, but are not exported, so must be access with `Modia.xxx`.
 
-The circuit of section [2.5.5 Connected models](@ref) can be for example
-constructed with these libraries in the following way:
+The circuit of section [2.5.5 Connected models](@ref) can be for example constructed with these libraries in the following way:
 
 ```julia
 using Modia

@@ -78,7 +78,8 @@ OrderedDict{Symbol, Any} with 2 entries:
   :r => 200
 ```
 
-The values can also be a quoted expression, i.e. an expression enclosed in `:( )`, an array of quoted expressions encloded in `:[ ]` or just a quoted symbol, `:x`. This mechanism is used to encode equations and expressions of the model which needs to be manipulated before the model can be simulated.
+The values can also be a quoted expression, i.e. an expression enclosed in `:( )`, an array of quoted expressions enclosed in `:[ ]` or just a quoted symbol, `:x`.
+This mechanism is used to encode equations and expressions of the model which needs to be manipulated before the model can be simulated.
 
 Julia defines a very useful merge operation between dictionaries:
 
@@ -90,7 +91,8 @@ OrderedDict{Symbol, Any} with 3 entries:
   :r => 200
 ```
 
-If a key already exists `q` in the first dictionary, it's value is overwritten otherwise it's added, `r`. Such a merge semantics allows for unification of parameter modifications and inheritance as will be demonstrated below.
+If a key already exists in the first dictionary (like `:q`), its value is overwritten (like `:r`) otherwise it's added (like `:p`).
+Such a merge semantic allows for unification of parameter modifications and inheritance as will be demonstrated below.
 
 ## A.3 MergeModels algorithm
 
