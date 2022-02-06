@@ -1116,8 +1116,6 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         inst #, flatModel
 #=
-
-#=
     catch e
         if isa(e, ErrorException)
             println()
