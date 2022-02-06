@@ -28,7 +28,7 @@ simulate!(filterCircuit, Tsit5(), stopTime = 10, merge = Map(R = Map(R = 5u"Ω")
 # Test access functions  
 @testset "Test variable access functions (TestFilterCircuit.jl)" begin  
     currentNames  = signalNames(filterCircuit)
-    requiredNames = String["C.C", "C.i", "C.n.i", "C.n.v", "C.p.i", "C.p.v", "C.v", "C.v", "R.R", "R.i", "R.n.i", "R.n.v", "R.p.i", "R.p.v", "R.v", "V.V", "V.i", "V.n.i", "V.n.v", "V.p.i", "V.p.v", "V.v", "der(C.v)", "ground.p.i", "ground.p.v", "time"]
+    requiredNames = String["C.C", "C.i", "C.n.i", "C.n.v", "C.p.i", "C.p.v", "C.v", "R.R", "R.i", "R.n.i", "R.n.v", "R.p.i", "R.p.v", "R.v", "V.V", "V.i", "V.n.i", "V.n.v", "V.p.i", "V.p.v", "V.v", "der(C.v)", "ground.p.i", "ground.p.v", "time"]
     @test sort!(currentNames) == sort!(requiredNames)
 
     @test hasSignal(filterCircuit, "R.v")

@@ -3,10 +3,6 @@ import DataFrames
 import ForwardDiff
 import FiniteDiff
 
-
-#DifferentialEquations.DiffEqBase.check_error(integrator::Sundials.CVODE_BDF) =
-#    Sundials.interpret_sundials_retcode(integrator.flag)
-
 macro usingModiaPlot()
     if haskey(ENV, "MODIA_PLOT")
         ModiaPlotPackage = ENV["MODIA_PLOT"]
@@ -61,23 +57,22 @@ function getAlgorithmName(algorithm)::String
     return name
 end
 
- 
-
 """
     solution = simulate!(instantiatedModel [, algorithm];
-              merge         = missing,  # change parameter/init/start values
-              tolerance     = 1e-6,     # relative tolerance
-              startTime     = 0.0,
-              stopTime      = 0.0,      # stopTime >= startTime required
-              interval      = missing,  # = (stopTime-startTime)/500
-              interp_points = 0,
-              dtmax         = missing,  # = 100*interval
-              adaptive      = true,
-              log           = false,
-              logStates     = false,
-              logEvents     = false,
-              logTiming     = false,
-              logParameters = false,
+              merge            = missing,  # change parameter/init/start values
+              tolerance        = 1e-6,     # relative tolerance
+              startTime        = 0.0,
+              stopTime         = 0.0,      # stopTime >= startTime required
+              interval         = missing,  # = (stopTime-startTime)/500
+              interp_points    = 0,
+              dtmax            = missing,  # = 100*interval
+              adaptive         = true,
+              nlinearMinForDAE = 10,
+              log              = false,
+              logStates        = false,
+              logEvents        = false,
+              logTiming        = false,
+              logParameters    = false,
               logEvaluatedParameters   = false,
               requiredFinalStates      = missing
               requiredFinalStates_rtol = 1e-3,
@@ -85,17 +80,21 @@ end
               useRecursiveFactorizationUptoSize = 0)
 
 Simulate `instantiatedModel::SimulationModel` with `algorithm`
-(= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)).
+(= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)
+or [DAE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/dae_solve/)).
 
 If the `algorithm` argument is missing, `algorithm=Sundials.CVODE_BDF()` is used, provided
 instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
-The symbol `CVODE_BDF` is exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
-can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.CVODE_BDF(), ...)`).
+The symbols `CVODE_BDF` and `IDA` are exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
+and `simulate!(instantiatedModel, IDA(), ...)`
+can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.xxx(), ...)`).
 
-The simulation results are stored in `instantiatedModel` and can be plotted with plot and the result values
-can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`
-(for details see chapter [Results and Plotting](@ref)).
+The simulation results are stored in `instantiatedModel` and can be plotted with 
+`plot(instantiatedModel, ...)` and the result values
+can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`. `printResultInfo(instantiatedModel)`
+prints information about the signals in the result file.
+For more details, see chapter [Results and Plotting](@ref)).
 
 The (optional) return argument `solution` is the return argument from `DifferentialEquations.solve(..)` and
 therefore all post-processing functionality from `DifferentialEqautions.jl` can be used. Especially,
@@ -107,7 +106,9 @@ A simulation run can be aborted with `<CTRL> C` (SIGINT).
 # Optional Arguments
 
 - `merge`: Define parameters and init/start values that shall be merged with the previous values
-           stored in `model`, before simulation is started.
+           stored in `model`, before simulation is started. If, say, an init value `phi = Var(init=1.0)`
+           is defined in the model, a different init value can be provided with
+           `merge = Map(phi=2.0)`.
 - `tolerance`: Relative tolerance.
 - `startTime`: Start time. If value is without unit, it is assumed to have unit [s].
 - `stopTime`: Stop time. If value is without unit, it is assumed to have unit [s].
@@ -119,6 +120,12 @@ A simulation run can be aborted with `<CTRL> C` (SIGINT).
 - `dtmax`: Maximum step size. If `dtmax==missing`, it is internally set to `100*interval`.
 - `adaptive`: = true, if the `algorithm` should use step-size control (if available).
               = false, if the `algorithm` should use a fixed step-size of `interval` (if available).
+- `nlinearMinForDAE`: If `algorithm` is a DAE integrator (e.g. `IDA()`) and the size of a linear equation system
+              is `>= nlinearMinForDAE` and the iteration variables of this equation system are a subset of the
+              DAE state derivatives, then during continuous integration (but not at events, including
+              initialization) this equation system is not locally solved but is solved via the DAE integrator.
+              Typically, for large linear equation systems, simulation efficiency is considerably improved
+              in such a case.f
 - `log`: = true, to log the simulation.
 - `logStates`: = true, to log the states, its init/start values and its units.
 - `logEvents`: = true, to log events.
@@ -199,6 +206,7 @@ function simulate!(m::Nothing, args...; kwargs...)
     @test false
     return nothing
 end
+
 function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType}
     options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
     if isnothing(options)
@@ -225,7 +233,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
 
             useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
             for leq in m.linearEquations
-                leq.useRecursiveFactorization = length(leq.vTear_value) <= useRecursiveFactorizationUptoSize && length(leq.vTear_value) > 1
+                leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
             end
 
             TimerOutputs.@timeit m.timer "init!" success = init!(m)
@@ -233,7 +241,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                 @test false
                 return nothing
             end
-            sizesOfLinearEquationSystems = Int[length(leq.vTear_value) for leq in m.linearEquations]
+            sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
 
             # Define problem and callbacks based on algorithm and model type
             interval = m.options.interval
@@ -248,12 +256,42 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             tspan = (m.options.startTime, m.options.stopTime)
 
             eh = m.eventHandler
+            m.odeMode   = true
+            m.solve_leq = true    
             if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
                 # DAE integrator
                 m.odeIntegrator = false
                 nx = length(m.x_init)
                 differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
                 TimerOutputs.@timeit m.timer "DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
+                empty!(m.daeCopyInfo)
+                if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
+                    # Prepare data structure to efficiently perform copy operations for DAE integrator
+                    x_info      = m.equationInfo.x_info
+                    der_x_dict  = m.equationInfo.der_x_dict
+                    der_x_names = keys(der_x_dict)
+                    for (ileq,leq) in enumerate(m.linearEquations)
+                        if sizesOfLinearEquationSystems[ileq] >= options.nlinearMinForDAE &&
+                           length(intersect(leq.x_names,der_x_names)) == length(leq.x_names)
+                            # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
+                            leq.odeMode = false
+                            m.odeMode   = false
+                            leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
+                            for ix in 1:length(leq.x_names)
+                                x_name   = leq.x_names[ix]
+                                x_length = leq.x_lengths[ix]
+                                x_info_i = x_info[ der_x_dict[x_name] ]
+                                @assert(x_length == x_info_i.length)
+                                startIndex = x_info_i.startIndex
+                                endIndex   = startIndex + x_length - 1
+                                append!(leq_copy.index, startIndex:endIndex)
+                            end
+                            push!(m.daeCopyInfo, leq_copy)
+                        else
+                            leq.odeMode = true
+                        end
+                    end
+                end
             else
                 # ODE integrator
                 m.odeIntegrator = true
@@ -311,7 +349,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             sol_x = solution.u
             m.storeResult = true
             for i = length(m.result_vars)+1:length(sol_t)
-                Base.invokelatest(m.getDerivatives!, m.der_x, sol_x[i], m, sol_t[i])
+                invokelatest_getDerivatives_without_der_x!(sol_x[i], m, sol_t[i])
             end
             m.storeResult = false
 
@@ -349,6 +387,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             println("        nStates                   = ", length(m.x_start))
             println("        linearSystemSizes         = ", sizesOfLinearEquationSystems)
             println("        useRecursiveFactorization = ", useRecursiveFactorization)
+            println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])    
             println("        nResults                  = ", length(m.result_x.t))
             println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
             println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
@@ -499,21 +538,27 @@ function linearize!(m::Nothing, args...; kwargs...)
     @info "The call of linearize!(..) is ignored, since the first argument is nothing."
     return   nothing
 end
-function linearize!(m::SimulationModel{FloatType,TimeType},
-                    algorithm=missing;
+
+function linearize!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
                     merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,TimeType}
+    if analytic
+        @info "linearize!(.., analytic=true) of model $(m.modelName) \nis modified to analytic=false, because analytic=true is currently not supported!"
+        analytic = false
+    end
+
     solution = simulate!(m, algorithm; merge=merge, stopTime=stopTime, kwargs...)
     finalStates = solution[:,end]
 
     # Function that shall be linearized
     function modelToLinearize!(der_x, x)
-        Base.invokelatest(m.getDerivatives!, der_x, x, m, m.options.startTime)
+        invokelatest_getDerivatives!(der_x, x, m, m.options.startTime)
         return nothing
     end
 
     # Linearize
     if analytic
-        A = ForwardDiff.jacobian(modelToLinearize!, m.der_x, finalStates)
+        der_x = zeros(FloatType, length(finalStates))
+        A = ForwardDiff.jacobian(modelToLinearize!, der_x, finalStates)
     else
         A = zeros(FloatType, length(finalStates), length(finalStates))
         FiniteDiff.finite_difference_jacobian!(A, modelToLinearize!, finalStates)
@@ -559,7 +604,7 @@ function ModiaResult.signalNames(m::SimulationModel)
     #    append!(names, collect( keys(m.equationInfo.x_dict) ))
     #else
         all_names = get_names(m.evaluatedParameters)
-        append!(all_names, collect( keys(m.result_info) ) )
+        append!(all_names, setdiff(collect( keys(m.result_info) ), all_names) )
     #end
     sort!(all_names)
     return all_names
@@ -600,9 +645,12 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
         if resInfo.store == RESULT_X
             (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
             if ibeg == iend
-                xSig = ModiaResult.FlattenedSignalView(m.result_x.u, ibeg, (), resInfo.negate)
+                xSig = [v[ibeg] for v in m.result_x.u]
             else
-                xSig = ModiaResult.FlattenedSignalView(m.result_x.u, ibeg, (iend-ibeg+1,), resInfo.negate)
+                xSig = [v[ibeg:iend] for v in m.result_x.u]
+            end
+            if resInfo.negate
+                xSig *= -1
             end
             if !m.unitless && xunit != ""
                 xSig = xSig*uparse(xunit)
@@ -612,10 +660,14 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
         elseif resInfo.store == RESULT_DER_X
             (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
             if ibeg == iend
-                derxSig = ModiaResult.FlattenedSignalView(m.result_der_x, ibeg, (), resInfo.negate)
+                derxSig = [v[ibeg] for v in m.result_der_x]
             else
-                derxSig = ModiaResult.FlattenedSignalView(m.result_der_x, ibeg, (iend-ibeg+1,), resInfo.negate)
+                derxSig = [v[ibeg:iend] for v in m.result_der_x]
             end
+            if resInfo.negate
+                derxSig *= -1
+            end
+
             if !m.unitless
                 if xunit == ""
                     derxSig = derxSig/u"s"
@@ -658,7 +710,7 @@ end
 """
     leaveName = get_leaveName(pathName::String)
 
- Return the `leaveName` of `pathName`.
+Return the `leaveName` of `pathName`.
 """
 get_leaveName(pathName::String) =
     begin

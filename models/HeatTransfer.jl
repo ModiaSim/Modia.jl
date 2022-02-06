@@ -58,7 +58,7 @@ InsulatedRod = Model(
     c       = 450.0u"J/(kg*K)",   # Specific heat capacity of rod material
     port_a  = HeatPort,           # Heat port on left side
     port_b  = HeatPort,           # Heat port on right side
-    T       = Map(init = fill(293.15u"K", 1)),  # Initial temperature and number of nodes
+    T       = Var(init = fill(293.15u"K", 1)),  # Temperatures at the internal nodes
     equations = :[
         n   = length(T)
         dx  = L/n

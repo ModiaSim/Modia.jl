@@ -53,7 +53,7 @@ macro define(modelDef)
     return esc(res)
 end
 
-isCollection(v) = (typeof(v) <: AbstractDict) && :_class in keys(v)
+isCollection(v) = (typeof(v) <: OrderedDict) && :_class in keys(v)
 
 showModel(m, level=0) = println(m)
 function showModel(m::OrderedDict, level=0)
@@ -65,23 +65,18 @@ function showModel(m::OrderedDict, level=0)
         print("OrderedDict")
     end
     println("(")
-    for (k, v) in m
+    if typeof(m) <: NamedTuple
+        iterator = zip(keys(m), m)
+    else
+        iterator = m
+    end
+    for (k, v) in iterator
         if isCollection(v) 
             print("  "^level, k, " = ")
             showModel(v, level)
-        elseif k == :equations
-            println("  "^level, "equations = :[")  
-            for e in v.args
-                println("  "^(level+1), e)
-            end
-            println("  "^level, "]")
-        elseif typeof(v) <: AbstractArray
-            println("  "^level, k, " = [")  
-            for e in v
-                print("  "^(level+1))
-                showModel(e, level+1)
-            end
-            println("  "^level, "]")
+        elseif typeof(v) <: AbstractDict 
+            print("  "^level, k, " = ")
+            showModel(v, level)
         elseif k != :_class
             println("  "^level, k, " = ", stringifyDefinition(v), ",")
         end
@@ -143,57 +138,57 @@ end
 # ---------------------------------------------------------
 
 function mergeModels(m1::AbstractDict, m2::AbstractDict, env=Symbol())
-#    println("mergeModels")
+#    println("mergedModels")
 #    @show m1 m2
-    result = deepcopy(m1) 
+    mergedModels = deepcopy(m1) 
     for (k,v) in m2 
         if k == :_class
         elseif typeof(v) <: AbstractDict
-            if k in keys(result) && ! (:_redeclare in keys(v))
+            if k in keys(mergedModels) && ! (:_redeclare in keys(v))
                 if logMerge; print("In $k: ") end
-#                @show result[k] v k
-                if typeof(result[k]) <: AbstractDict
-                    m = mergeModels(result[k], v, k)
-                    result[k] = m
+#                @show mergedModels[k] v k
+                if typeof(mergedModels[k]) <: AbstractDict
+                    m = mergeModels(mergedModels[k], v, k)
+                    mergedModels[k] = m
                 else
-#                    result[k] = v
+#                    mergedModels[k] = v
                 end
             elseif :_redeclare in keys(v)
                 if logMerge; println("Redeclaring: $k = $v") end
-                result[k] = v
+                mergedModels[k] = v
             elseif nothing in values(v) # TODO: Refine
 
             else
-                if !(:_redeclare in keys(result))
+                if !(:_redeclare in keys(mergedModels))
                     if logMerge; print("Adding: $k = "); showModel(v, 2) end
                 end
-                result[k] = v
+                mergedModels[k] = v
             end
         elseif v === nothing
             if logMerge; println("Deleting: $k") end
-            delete!(result, k)
-        elseif k in keys(result) && k == :equations
-            equa = copy(result[k])
+            delete!(mergedModels, k)
+        elseif k in keys(mergedModels) && k == :equations
+            equa = copy(mergedModels[k])
             push!(equa.args, v.args...)
-            result[k] = equa
+            mergedModels[k] = equa
             if logMerge
                 println("Adding equations: ", v)
             end
         else
             if logMerge
-                if k in keys(result)
-                    if result[k] != v
-                        println("Changing: $k = $(stringifyDefinition(result[k])) to $k = $(stringifyDefinition(v))")
+                if k in keys(mergedModels)
+                    if mergedModels[k] != v
+                        println("Changing: $k = $(stringifyDefinition(mergedModels[k])) to $k = $(stringifyDefinition(v))")
                     end
-                elseif !(:_redeclare in keys(result))
+                elseif !(:_redeclare in keys(mergedModels))
                     println("Adding: $k = $(stringifyDefinition(v))")
                 end
             end
-            result[k] = v
+            mergedModels[k] = v
         end
     end
-#    delete!(result, :_class)
-    return result 
+#    delete!(mergedModels, :_class)
+    return mergedModels 
 end
 
 function newCollection(kwargs, kind)
@@ -258,10 +253,6 @@ Base.:|(m, n) = if !(typeof(n) <: AbstractDict); mergeModels(m, Var(value=n)) el
 
 # Handling of connections
 
-"""
-Unpacks a path to a sequence.
-Example: :(a.b.c) => [:a, :b, :c]
-"""
 function unpackPath(path, sequence)
     if typeof(path) == Symbol
         push!(sequence, path)
@@ -274,43 +265,23 @@ function unpackPath(path, sequence)
     end
 end
 
-isVar(v, kind) = isCollection(v) && v[:_class] == :Var && kind in keys(v) && v[kind]
-
-"""
-Collects potentials, flows, inputs and outputs from a Model.
-"""
-function collectConnector(name, model)
+function collectConnector(model)
     potentials = []
     flows = []
-    inputs = OrderedDict{Any,Any}()
-    outputs = OrderedDict{Any,Any}()
-    potentialPotentials = []
     for (k,v) in model
-        if isVar(v, :potential)
-            push!(potentials, k)
-        elseif isVar(v, :flow)
-            push!(flows, k)
-            push!(potentials, potentialPotentials...)
-        elseif isVar(v, :input)
-            inputs[prepend(k, name)] = v 
-        elseif isVar(v, :output)
-            outputs[prepend(k, name)] = v
-        elseif isCollection(v) && v[:_class] == :Var
-#            println("Non potential or flow variable: $k = $v")
-            push!(potentialPotentials, k)
-        elseif isCollection(v) && v[:_class] == :Model
-            subPotentials, subFlows = collectConnector(k, v)
-            push!(potentials, [prepend(p, k) for p in subPotentials]...)
-            push!(flows, [prepend(f, k) for f in subFlows]...)
+        if isCollection(v) && v[:_class] == :Var 
+            if :potential in keys(v) && v[:potential]
+                push!(potentials, k)
+            elseif :flow in keys(v) && v[:flow]
+                push!(flows, k)
+            else
+                push!(potentials, k)
+            end
         end
     end
-    return potentials, flows, inputs, outputs
+    return potentials, flows 
 end
 
-"""
-Merge connections referencing the same connector into the same tuple (similar as Modelica semantics of connections).
-For examples, see below.
-"""
 function mergeConnections!(connections)
     for i in 1:length(connections)
         for j in 1:i-1
@@ -319,30 +290,29 @@ function mergeConnections!(connections)
             if length(con1.args) > 0 && length(con2.args) > 0 && length(intersect(Set(con1.args), Set(con2.args))) > 0
                 connections[i] = Expr(:tuple, union(Set(con1.args), Set(con2.args))...)
                 connections[j] = Expr(:tuple) # Empty tuple
+                # if :(OpI.n2) in con1.args || :(OpI.n2) in con2.args # For bug testing
+                #     @show i j con1.args con2.args 
+                #     @show connections[i] connections[j]
+                # end
             end
         end
     end
 end
 
-function testMergeConnections()
-    connections = [
-        :((a, b))
-        :((b, c))
-        :((m1.b, m2.a))
-        :((m1.b, m3.a))
-        :((r,s,t))
-        :((s,t,u))
-    ]
-    mergeConnections!(connections)
-    @assert connections == Expr[:(()), :((a, b, c)), :(()), :((m1.b, m3.a, m2.a)), :(()), :((s, u, t, r))]
+
+mutable struct InOut
+    inflow::Any
+    outflow::Any
 end
 
-"""
-Convert connections to equations
-"""
+
 function convertConnections!(connections, model, modelName, logging=false)
 #    println("\nconvertConnections")
 #    showModel(model)
+
+    m = Dict{Symbol, InOut}()
+
+
     mergeConnections!(connections)
 
     connectEquations = []
@@ -352,15 +322,19 @@ function convertConnections!(connections, model, modelName, logging=false)
         if c.head == :tuple
             connected = c.args
 
-            inflows = []
-            outflows = []
-            first = true
+            inflow = 0
+            outflow = 0
             signalFlow1 = nothing
             connectedOutput = nothing
             potentials1 = nothing
             fullPotentials1 = []
             flows1 = []
+
+            flows= []
+            iz = 0
+
             for con in connected
+
                 if con in alreadyConnected
                     error("Already connected: $con, found in connection: $connected")
                 end
@@ -380,6 +354,7 @@ function convertConnections!(connections, model, modelName, logging=false)
 
                 if sequence[end] in keys(mod)
                     mod = mod[sequence[end]]
+#                    @show mod[:_class]
                     if :input in keys(mod) && mod[:input] || :output in keys(mod) && mod[:output] || :_class in keys(mod) && mod[:_class] == :Var
                         signalFlow = con
                         if signalFlow1 !== nothing
@@ -393,14 +368,17 @@ function convertConnections!(connections, model, modelName, logging=false)
                             end
                             connectedOutput = con
                         end
-                    elseif :_class in keys(mod) && mod[:_class] == :Var
+                    elseif mod[:_class] == :Var
+#                        println("\nConnect vars: ", connected)
+#                        dump(connected)
                         if length(fullPotentials1) > 0
                             push!(connectEquations, :($(fullPotentials1[1]) = $con))
+#                            println(:($(fullPotentials1[1]) = $con))
                         end
                         push!(fullPotentials1, con)
                     else
-                        potentials, flows = collectConnector("", mod)
-
+#                        @show mod typeof(mod)
+                        potentials, flows = collectConnector(mod)
                         # Deprecated
                         if :potentials in keys(mod)
                             potentials = vcat(potentials, mod.potentials.args)
@@ -408,14 +386,13 @@ function convertConnections!(connections, model, modelName, logging=false)
                         if :flows in keys(mod)
                             flows = vcat(flows, mod.flows.args)
                         end
-                        
                         if potentials1 != nothing && potentials != potentials1
                             error("Not compatible potential variables: $potentials1 != $potentials, found in connection: $connected")
                         end
                         fullPotentials = []
                         for i in 1:length(potentials)
                             p = potentials[i]
-                            potential = prepend(p, con)
+                            potential = append(con, p)
                             push!(fullPotentials, potential)
                             if potentials1 != nothing
                                 push!(connectEquations, :($(fullPotentials1[i]) = $potential))
@@ -424,33 +401,34 @@ function convertConnections!(connections, model, modelName, logging=false)
                         potentials1 = potentials 
                         fullPotentials1 = fullPotentials
 
-                        if first 
-                            for i in 1:length(flows)
-                                push!(inflows, 0)
-                                push!(outflows, 0)
-                            end
-                            first = false
-                        end
-
                         if length(flows1) > 0 && flows != flows1
                             error("Not compatible flow variables: $flows1 != $flows, found in connection: $connected")
                         end
-                        for i in 1:length(flows)
-                            f = flows[i]
-                            flowVar = prepend(f, con)
+
+                        if iz==0
+                            for f in flows
+                                m[f] = InOut(0,0)
+                            end
+                        end
+                        iz+=1
+
+                        for f in flows
+                            flowVar = append(con, f)
                             if length(sequence) == 1
-                                if inflows[i] == 0
-                                    inflows[i] = flowVar
+                                if m[f].inflow == 0
+                                    m[f].inflow = flowVar
                                 else
-                                    inflows[i] = :($(inflows[i]) + $flowVar)
+                                    m[f].inflow = :($(m[f].inflow) + $flowVar)
                                 end
                             else
-                                if outflows[i] == 0
-                                    outflows[i] = flowVar
+                                if m[f].outflow == 0
+                                    m[f].outflow = flowVar
                                 else
-                                    outflows[i] = :($(outflows[i]) + $flowVar)
+                                    m[f].outflow = :($(m[f].outflow) + $flowVar)
                                 end
                             end
+
+                            println("-->> ",iz," flowVar in=out  ",flowVar,"    ",m[f].inflow," = ",m[f].outflow)
                         end
                         flows1 = flows
                     end
@@ -463,17 +441,14 @@ function convertConnections!(connections, model, modelName, logging=false)
                     signalFlow1 = signalFlow
                 end
             end
-            for i in 1:length(inflows)
-                if inflows[i] != 0 || outflows[i] != 0
-                    push!(connectEquations, :($(inflows[i]) = $(outflows[i])))
+            for f in flows
+                if m[f].inflow != 0 || m[f].outflow != 0
+                    push!(connectEquations, :($(m[f].inflow) = $(m[f].outflow)))
                 end
             end
         end
     end
-
     if length(connectEquations) > 0 && logging
-#        testMergeConnections()
-
         println("Connect equations in $modelName:")
         for e in connectEquations
             println("  ", e)
@@ -492,6 +467,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
     extendedModel = deepcopy(model)
 
     for (k,v) in model 
+#        @show k v typeof(v)
         if typeof(modelName) == String
             subMod = k
         else
@@ -505,26 +481,26 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
 #				typeof(v) <: AbstractDict && :parameter in keys(v) && v.parameter
             # p = 5.0
             if unitless && !isCollection(v)
-                v = ustrip.(v)
+                v = ustrip(v)
             end
             modelStructure.parameters[subMod] = v
             modelStructure.mappedParameters[k] = v
         elseif (isCollection(v) && v[:_class] in [:Par, :Var] ||
-                isCollection(v) && :parameter in keys(v) && v[:parameter]) &&
+                isCollection(v) && :parameter in keys(v) && v.parameter) &&
                 :value in keys(v)
             v = v[:value]
             if typeof(v) in [Expr, Symbol]
                 push!(modelStructure.equations, removeBlock(:($k = $v)))
             else
-                modelStructure.parameters[subMod] = v
+                modelStructure.parameters[k] = v
                 modelStructure.mappedParameters[k] = v
             end
          elseif isCollection(v) && v[:_class] in [:Var] ||
-            typeof(v) <: AbstractDict && :variable in keys(v) && v[:variable]
+            typeof(v) <: AbstractDict && :variable in keys(v) && v.variable
             if :init in keys(v)
                 x0 = v[:init]
                 if unitless && typeof(x0) != Expr
-                    x0 = ustrip.(x0)
+                    x0 = ustrip(x0)
                 end
                 modelStructure.init[subMod] = x0
                 modelStructure.mappedParameters[k] = x0
@@ -532,7 +508,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
             if :start in keys(v)
                 s0 = v[:start]
                 if unitless && typeof(s0) != Expr
-                    s0 = ustrip.(s0)
+                    s0 = ustrip(s0)
                 end
                 modelStructure.start[subMod] = s0
                 modelStructure.mappedParameters[k] = s0 
@@ -574,7 +550,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
         elseif isexpr(v, :vect) || isexpr(v, :vcat) || isexpr(v, :hcat)
             arrayEquation = false
             for e in v.args
-                if k == :equations && isexpr(e, :(=)) # Allow expressions without result
+                if k == :equations || isexpr(e, :(=))
                     if unitless
                         e = removeUnits(e)
                     end
@@ -582,7 +558,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
                 elseif isexpr(e, :tuple)
                     push!(connections, e)
                 elseif isexpr(e, :call) && e.args[1] == :connect
-                    con =  Expr(:tuple, e.args[2:end]... )
+                    con = :( ( $(e.args[2]), $(e.args[3]) ) )
                     push!(connections, con)
                 else
                     arrayEquation = true
@@ -610,8 +586,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
         end
     end
 
+#    printModelStructure(modelStructure, "flattened")
     @timeit to "convert connections" connectEquations = convertConnections!(connections, extendedModel, modelName, log)
     push!(modelStructure.equations, connectEquations...)
-
-    printModelStructure(modelStructure, "flattened", log=false)
 end

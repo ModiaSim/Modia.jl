@@ -50,34 +50,32 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(modelModule::Module, parameters, 
-                   eqInfo::ModiaBase.EquationInfo, x_start; log=false)
+    map = propagateEvaluateAndInstantiate!(FloatType, modelModule::Module, parameters,
+                   eqInfo::ModiaBase.EquationInfo; log=false)
     
 Recursively traverse the hierarchical collection `parameters` and perform the following actions:
 
 - Propagate values.
 - Evaluate expressions in the context of `modelModule`.
 - Instantiate dependent objects.
-- Store start values of states with key x_name in x_start::Vector{FloatType} 
-  (which has length eqInfo.nx).
 - Return the evaluated `parameters` if successfully evaluated, and otherwise 
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(modelModule, parameters, eqInfo, x_start, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+function propagateEvaluateAndInstantiate!(FloatType, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
 
     if isnothing(map)
         return nothing
     end
     
     # Check that all values of x_start are set:
-    x_start_missing = []
-    for (i, found) in enumerate(x_found)
-        if !found
-            push!(x_start_missing, eqInfo.x_info[i].x_name)
-        end
-    end
+    #x_start_missing = []
+    #for (i, found) in enumerate(x_found)
+    #    if !found
+    #        push!(x_start_missing, eqInfo.x_info[i].x_name)
+    #    end
+    #end
     
     # Check that all previous values are set:
     missingInitValues = false
@@ -165,10 +163,9 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo::ModiaBase.EquationInfo, 
-                                           x_start::Vector{FloatType}, x_found::Vector{Bool}, 
+function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, eqInfo::ModiaBase.EquationInfo, x_found::Vector{Bool}, 
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold, 
-                                           environment, path::String; log=false) where {FloatType}
+                                           environment, path::String; log=false)
                                            
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)
@@ -246,8 +243,8 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo::Modi
                         println(" 7:    ... key = $k, v = $v") 
                     end
                     # For example: k = (a = 2.0, b = :(2*Lx))
-                    value = propagateEvaluateAndInstantiate2!(modelModule, v, eqInfo, x_start, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
-                                                            vcat(environment, [current]), appendKey(path, k); log=log)     
+                    value = propagateEvaluateAndInstantiate2!(FloatType, modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
+                                                              vcat(environment, [current]), appendKey(path, k); log=log)     
                     if log
                         println(" 8:    ... key = $k, value = $value")
                     end
@@ -282,31 +279,32 @@ function propagateEvaluateAndInstantiate2!(modelModule, parameters, eqInfo::Modi
             # Set x_start
             full_key = appendKey(path, k) 
             if haskey(eqInfo.x_dict, full_key)
-                if log
-                    println(" 12:              (is stored in x_start)")
-                end
+                #if log
+                #    println(" 12:              (is stored in x_start)")
+                #end
                 j = eqInfo.x_dict[full_key]
                 xe_info = eqInfo.x_info[j]                
                 x_value = current[k]
                 len = hasParticles(x_value) ? 1 : length(x_value)
-                if len != xe_info.length
+                if j <= eqInfo.nxFixedLength && len != xe_info.length
                     printstyled("Model error: ", bold=true, color=:red)  
                     printstyled("Length of ", xe_info.x_name, " shall be changed from ",
                                 xe_info.length, " to $len\n",
-                                "This is currently not support in ModiaLang.", bold=true, color=:red)
+                                "This is not possible because variable has a fixed length.", bold=true, color=:red)
                     return nothing
                 end                    
                 x_found[j] = true
+                xe_info.startOrInit = deepcopy(x_value)
 
                 # Strip units from x_start  
-                if xe_info.length == 1
-                    x_start[xe_info.startIndex] = deepcopy( convert(FloatType, stripUnit(x_value)) )
-                else
-                    ibeg = xe_info.startIndex - 1
-                    for i = 1:xe_info.length
-                        x_start[ibeg+i] = deepcopy( convert(FloatType, stripUnit(x_value[i])) )
-                    end
-                end
+                #if xe_info.length == 1
+                #    x_start[xe_info.startIndex] = deepcopy( convert(FloatType, stripUnit(x_value)) )
+                #else
+                #    ibeg = xe_info.startIndex - 1
+                #    for i = 1:xe_info.length
+                #        x_start[ibeg+i] = deepcopy( convert(FloatType, stripUnit(x_value[i])) )
+                #    end
+                #end
                 
             elseif haskey(previous_dict, full_key)
                 previous[ previous_dict[full_key] ] = current[k]

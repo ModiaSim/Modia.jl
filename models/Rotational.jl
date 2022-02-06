@@ -52,7 +52,7 @@ Inertia = Model(
 PartialCompliant = Model(
     flange_a = Flange,
     flange_b = Flange,
-    partialEquations = :[
+    equations = :[
         phi_rel = flange_b.phi - flange_a.phi
         flange_b.tau = tau
         flange_a.tau = -tau ]
@@ -147,7 +147,7 @@ PartialCompliantWithRelativeStates = Model(
 # Linear 1D rotational damper
 Damper = PartialCompliantWithRelativeStates | Model(
     d = 1.0u"N*m*s/rad", # (info = "Damping constant"),
-    equation = :[
+    equations = :[
         tau = d * w_rel ]
 )
 =#
@@ -157,7 +157,7 @@ Damper = Model(
     flange_b = Flange,
     phi_rel  = Var(start=0.0u"rad"),
     d        = 1.0u"N*m*s/rad", # (info = "Damping constant"),
-    equation = :[
+    equations = :[
         phi_rel      = flange_b.phi - flange_a.phi
         w_rel        = der(phi_rel)
         flange_b.tau = tau
@@ -170,7 +170,7 @@ Damper = Model(
 # Partial model to measure a single absolute flange variable
 PartialAbsoluteSensor = Model(
     flange   = Flange,
-    equation = :[flange.tau = 0] 
+    equations = :[flange.tau = 0] 
 )
 
 # Ideal sensor to measure the absolute flange angular velocity
