@@ -127,7 +127,7 @@ println()
 println("Version $Version ($Date)")
 =#
 
-println("!!! 1")
+
 # ----------------------------------------------------------------------------------------------
 
 function assert(condition, message)
@@ -550,16 +550,12 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
     return reducedEquations, reducedUnknowns, reducedAvar, reducedG, reducedStates, vEliminated, vProperty
 end
 
-println("!!! 2") 
 
 function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
-    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
-println("!!! 3")     
-    (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
-println("!!! 4")     
+    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)    
+    (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure 
     Goriginal = deepcopy(G)
-    
-println("!!! 5")     
+ 
     function getSolvedEquationAST(e, v)
         (solution, solved) = solveEquation(equations[e], unknowns[v])
         unknown = solution.args[1]
@@ -691,8 +687,7 @@ println("!!! 5")
         return replace(replace(string(equations[e]), "\n" => " "), "  " => " ")
     end
 
-    # ----------------------------------------------------------------------------
-
+    # ----------------------------------------------------------------------------  
     solvedAST = []
     Gsolvable = copy(G)
     juliaVariables  = [Symbol(u) for u in unknowns]
@@ -789,6 +784,7 @@ println("!!! 5")
         end
     end
 
+
     # Generate code
     nCrossingFunctions, nAfter, nClocks, nSamples, previousVars, preVars, holdVars = getEventCounters()
     previousVars = Symbol.(previousVars)
@@ -839,7 +835,6 @@ println("!!! 5")
 #    println("Build SimulationModel")
 
     model = @timeit to "build SimulationModel" SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
-                                         parameters, vcat(:time, [Symbol(u) for u in unknowns]);
                                          mappedParameters, extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
@@ -864,7 +859,6 @@ println("!!! 5")
     return model
 end
 
-println("!!! 6")     
 
 function duplicateMultiReturningEquations!(equations)
     duplicatedEquations = []
