@@ -1,5 +1,5 @@
 # 1 Getting Started
-    
+
 A simple differential equation with $x(t) \in \R$
 
 ```math
@@ -36,10 +36,10 @@ plot(simpleModel, ("x", "der(x)"))
 ```
 
 A model is defined with a constructor `Model` taking a comma separated list of name/value pairs.
-The model consist of a definition of a parameter `T` with default value 0.2.
+The model consists of a definition of a parameter `T` with default value 0.2.
 Constructor `Var` with an `init` key is used to define the initial condition `0.2` of the state `x`, and one equation. Equations can have a Julia expression on both sides of the equal sign and are given as a *quoted* array expression `:[ ]` assigned to a unique identifier such as `equation`.
 
-Macro `@instantiateModel(..)`  symbolically processes the model, in particular solves the equation
+The macro `@instantiateModel(..)` symbolically processes the model, in particular solves the equation
 for the derivative `der(x)`, so the following equation will be used by the integrator:
 
 ```math
@@ -47,7 +47,7 @@ for the derivative `der(x)`, so the following equation will be used by the integ
 ```
 
 Furthermore, a Julia function is generated and compiled to evaluate this equation. `@instantiateModel(..)`
-returns an instance containing all the information needed for the further steps.
+returns an instance containing all the information needed for the next steps.
 
 The first [`simulate!`](@ref) function performs one simulation with the Modia default integrator
 `Sundials.CVODE_BDF()`. The second `simulate!` call defines the integrator as second argument.

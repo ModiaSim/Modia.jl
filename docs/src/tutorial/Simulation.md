@@ -26,7 +26,7 @@ modelInstance = @instantiateModel(model;
 
 The macro performs structural and symbolic transformations, generates a function for
 calculation of derivatives suitable for use with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
-and returns `modelInstance::SimulationModel` that can be used in other functions,
+and returns [`SimulationModel`](@ref) that can be used in other functions,
 for example to simulate or plot results:
 
 * `model`: model (declarations and equations).
@@ -158,7 +158,7 @@ The option `logStates=true` results in the following output:
 
 This model translates and simulates without problems.
 
-Changing the init-value of `w2` to `1.0` and resimulating:
+Changing the init-value of `w2` to `1.0` and re-simulating:
 
 ```julia
 simulate!(drive1, Tsit5(), stopTime = 1.0, logStates=true, merge = Map(w2=1.0))
