@@ -47,7 +47,7 @@ Pin = Model( v = Potential(nominal=10), i = Flow() )
 #Pin = Model( potentials = :[v], flows = :[i] )
 Pin = Model( v = Var(;pot), i = Var(;flow) )
 
-OnePort = Model( p = Pin, n = Pin, partialEquations = :[
+OnePort = Model( p = Pin, n = Pin, equations = :[
         v = p.v - n.v
         0 = p.i + n.i
         i = p.i ] 

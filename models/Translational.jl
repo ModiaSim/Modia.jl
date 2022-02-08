@@ -30,7 +30,7 @@ PartialRigid = Model(
     flange_a = TranslationalFlange,
     flange_b = TranslationalFlange,
     L = 0.0u"m",                # Length of component, from left flange to right flange
-    partialEquations = :[
+    equations = :[
         flange_a.s = s - L/2
         flange_b.s = s + L/2]
 )
@@ -60,8 +60,8 @@ UnitlessForce = PartialForce | Model(equations = :[flange.f = -f*u"N"])
 
 # Partial model to measure a single absolute flange variable
 PartialAbsoluteSensor = Model(
-    flange   = TranslationalFlange,
-    equation = :[flange.f = 0] 
+    flange    = TranslationalFlange,
+    equations = :[flange.f = 0] 
 )
 
 # Ideal sensor to measure the absolute flange position and velocity
