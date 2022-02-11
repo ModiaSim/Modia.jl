@@ -319,7 +319,7 @@ mutable struct SimulationModel{FloatType,TimeType}
     der_x::Vector{FloatType}                    # Derivatives of states x or x_init
     odeIntegrator::Bool                         # = true , if ODE integrator used
                                                 # = false, if DAE integrator used
-  
+
     daeCopyInfo::Vector{LinearEquationsCopyInfoForDAEMode}  # Info to efficiently copy between DAE and linear equation systems
     algorithmName::Union{String,Missing}        # Name of integration algorithm as string (used in default-heading of plot)
     addEventPointsDueToDEBug::Bool              # = true, if event points are explicitly stored for Sundials integrators, due to bug in DifferentialEquations
@@ -408,7 +408,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         nextPrevious = deepcopy(previous)
         nextPre      = deepcopy(pre)
         nextHold     = deepcopy(hold)
-        
+
         # Provide storage for x_vec
         x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)]
 
@@ -843,7 +843,6 @@ function eventIteration!(m::SimulationModel, x, t_event)::Nothing
     if !success
         error("Maximum number of event iterations (= $iter_max) reached")
     end
-
     return nothing
 end
 
@@ -972,20 +971,22 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #    return nothing
 #end
 
-invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.timer "getDerivatives!" begin
+
+invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.timer "ModiaLang getDerivatives!" begin
     if length(m.x_vec) > 0
         # copy vector-valued x-elements from x to m.x_vec
         eqInfo = m.equationInfo
         x_vec  = m.x_vec
         j      = 0
         for i in eqInfo.nxFixedLength+1:length(eqInfo.x_info)
-            j += 1        
+            j += 1
             xe = eqInfo.x_info[i]
             x_vec[j] .= x[xe.startIndex:(xe.startIndex+xe.length-1)]
         end
     end
     empty!(m.der_x)
-    Base.invokelatest(m.getDerivatives!, x, m, t)
+    TimerOutputs.@timeit m.timer "Base.invokelatest(m.getDerivatives!"  Base.invokelatest(m.getDerivatives!, x, m, t)
+    
     @assert(length(m.der_x) == m.equationInfo.nx)
 end
 
@@ -1020,7 +1021,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     emptyResult!(m)
     eh = m.eventHandler
     reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
-  
+
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if !isnothing(m.options.merge)
         m.parameters = mergeModels(m.parameters, m.options.merge)
@@ -1031,7 +1032,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 
         # Resize linear equation systems if dimensions of vector valued tearing variables changed
         resizeLinearEquations!(m, m.options.log)
-        
+
         # Resize state vector memory
         m.x_start = updateEquationInfo!(m.equationInfo, FloatType)
         nx = length(m.x_start)
@@ -1040,10 +1041,10 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
         eqInfo = m.equationInfo
         m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nxFixedLength+1:length(eqInfo.x_info)]
     end
-    
+
     # Initialize auxiliary arrays for event iteration
     m.x_init .= 0
-    m.der_x  .= 0    
+    m.der_x  .= 0
 
     # Re-initialize dictionary of separate objects
     empty!(m.separateObjects)
@@ -1096,7 +1097,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     eh.afterSimulationStart = true
     if m.options.log
         println("      Initialization finished")
-    end    
+    end
     return true
 end
 
@@ -1554,19 +1555,19 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 end
                 i1 += 1
             else
-                # x-element is a static vector 
+                # x-element is a static vector
                 i2 = i1 + xe.length - 1
                 v_length = xe.length
                 if !hasUnits || xe.unit == ""
-                    push!(code_x, :( $x_name = SVector{$v_length}(_x[$i1:$i2])) )
+                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length}(_x[$i1:$i2])) )
                 else
                     x_unit = xe.unit
-                    push!(code_x, :( $x_name = SVector{$v_length}(_x[$i1:$i2])*@u_str($x_unit)) )
+                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length}(_x[$i1:$i2])*@u_str($x_unit)) )
                 end
-                i1 = i2 + 1                
+                i1 = i2 + 1
             end
         end
-        
+
         i1 = 0
         for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)
             # x-element is a dynamic vector (length can change before initialization)
@@ -1578,19 +1579,19 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
             else
                 x_unit = xe.unit
                 push!(code_x, :( $x_name = _m.x_vec[$i1]*@u_str($x_unit)) )
-            end         
+            end
         end
-        
+
         for xe in equationInfo.x_info
             der_x_name = xe.der_x_name_julia
             if hasUnits
                 push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, ModiaLang.stripUnit( $der_x_name )) ))
             else
                 push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, $der_x_name) ))
-            end           
+            end
         end
     end
-                
+
     #for (i,pi) in enumerate(parameters)
     #    push!(code_p, :( $pi = _m.p[$i] ) )
     #end

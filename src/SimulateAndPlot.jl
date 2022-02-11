@@ -220,7 +220,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         enable_timer!(m.timer)
         reset_timer!(m.timer)
 
-        TimerOutputs.@timeit m.timer "simulate!" begin
+        TimerOutputs.@timeit m.timer "ModiaLang.simulate!" begin
             if ismissing(algorithm) && FloatType == Float64
                 algorithm = Sundials.CVODE_BDF()
             end
@@ -236,7 +236,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                 leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
             end
 
-            TimerOutputs.@timeit m.timer "init!" success = init!(m)
+            TimerOutputs.@timeit m.timer "ModiaLang.init!" success = init!(m)
             if !success
                 @test false
                 return nothing
@@ -263,7 +263,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                 m.odeIntegrator = false
                 nx = length(m.x_init)
                 differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
-                TimerOutputs.@timeit m.timer "DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
+                TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
                 empty!(m.daeCopyInfo)
                 if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
                     # Prepare data structure to efficiently perform copy operations for DAE integrator
@@ -295,7 +295,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             else
                 # ODE integrator
                 m.odeIntegrator = true
-                TimerOutputs.@timeit m.timer "ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
+                TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
             end
 
             callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)
@@ -331,17 +331,17 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             tstops = (m.eventHandler.nextEventTime,)
 
             if ismissing(algorithm)
-                TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
-                                                        initializealg = DifferentialEquations.NoInit())
+                TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
+                                                                                initializealg = DifferentialEquations.NoInit())
             elseif sundials
-                TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops,
-                                                        initializealg = DifferentialEquations.NoInit())
+                TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops,
+                                                                                initializealg = DifferentialEquations.NoInit())
             else
-                TimerOutputs.@timeit m.timer "solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
-                                                        initializealg = DifferentialEquations.NoInit())
+                TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
+                                                                                initializealg = DifferentialEquations.NoInit())
             end
 
             # Compute and store outputs from last event until final time
@@ -378,8 +378,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         if m.options.log
             useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
             println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
-            println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["simulate!"])*1e-9, sigdigits=3), " s")
-            println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["simulate!"])/1048576.0, sigdigits=3), " MiB")
+            println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["ModiaLang.simulate!"])*1e-9, sigdigits=3), " s")
+            println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["ModiaLang.simulate!"])/1048576.0, sigdigits=3), " MiB")
             println("        algorithm                 = ", get_algorithmName_for_heading(m))
             println("        FloatType                 = ", FloatType)
             println("        interval                  = ", m.options.interval, " s")
@@ -411,7 +411,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         end
         if m.options.logTiming
             println("\n... Timings for simulation of ", m.modelName,":")
-            TimerOutputs.print_timer(TimerOutputs.flatten(m.timer))
+            TimerOutputs.print_timer(TimerOutputs.flatten(m.timer), compact=true)
         end
 
         requiredFinalStates = m.options.requiredFinalStates
