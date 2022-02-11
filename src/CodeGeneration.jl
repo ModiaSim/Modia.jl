@@ -985,7 +985,7 @@ invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.tim
         end
     end
     empty!(m.der_x)
-    TimerOutputs.@timeit m.timer "Base.invokelatest(m.getDerivatives!"  Base.invokelatest(m.getDerivatives!, x, m, t)
+    Base.invokelatest(m.getDerivatives!, x, m, t)
     
     @assert(length(m.der_x) == m.equationInfo.nx)
 end
