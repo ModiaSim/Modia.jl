@@ -67,4 +67,9 @@ firstOrder3 = @instantiateModel(FirstOrder3, logCode=false)
 simulate!(firstOrder3, Tsit5(), stopTime = 10u"hr")
 plot(firstOrder3, [("u", "x"), "der(x)"], figure=2)
 
+# Test all options
+firstOrder3b = @instantiateModel(FirstOrder3, evaluateParameters=true, log=true, logModel=true, logDetails=true, logStateSelection=true,
+                                logCode=true, logExecution=true, logCalculations=true, logTiming=true)
+
+
 end

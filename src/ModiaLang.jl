@@ -843,12 +843,14 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     if logExecution
         println("\nExecute getDerivatives")
     #    @show startValues
-        derx = deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
+        #derx = deepcopy(x_startValues)     # deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
         println("First executions of getDerivatives")
         @timeit to "execute getDerivatives" try
             TimeType = timeType(model)
-            @time Base.invokelatest(getDerivatives, derx, x_start, model, convert(TimeType, 0.0))
-            @time Base.invokelatest(getDerivatives, derx, x_start, model, convert(TimeType, 0.0))
+            #@time Base.invokelatest(getDerivatives, derx, x_startValues, model, convert(TimeType, 0.0))
+            #@time Base.invokelatest(getDerivatives, derx, x_startValues, model, convert(TimeType, 0.0))
+            @time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))
+            @time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))            
 #            @show derx
         catch e
             error("Failed: ", e)
