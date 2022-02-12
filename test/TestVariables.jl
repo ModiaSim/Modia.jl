@@ -4,7 +4,7 @@ using ModiaLang
 @usingModiaPlot
 using ModiaLang.Measurements
 using ModiaLang.StaticArrays
-using Test
+using ModiaLang.Test
 
 @testset "... Test variable declarations" begin
 

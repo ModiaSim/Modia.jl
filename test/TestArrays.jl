@@ -1,8 +1,7 @@
 module TestArrays
 
 using ModiaLang
-using DifferentialEquations
-using StaticArrays
+using ModiaLang.StaticArrays
 
 @usingModiaPlot
 

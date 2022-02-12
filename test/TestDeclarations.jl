@@ -1,7 +1,6 @@
 module TestDeclarations
 
 using ModiaLang
-using BenchmarkTools
 
 struct Var
 	var::NamedTuple
@@ -28,8 +27,7 @@ Potential(; kwargs...) = Var(;potential=true, kwargs...)
 Flow(; kwargs...) = Var(;flow=true, kwargs...)
 
 using Base.Meta: isexpr
-using OrderedCollections: OrderedDict
-using ModiaLang.Unitful
+using ModiaLang.OrderedCollections: OrderedDict
 using ModiaBase.Symbolic: removeBlock
 
 

@@ -1,8 +1,8 @@
 module TestVar
 
+using ModiaLang
 using ModiaLang.Measurements
 using ModiaLang.StaticArrays
-using ModiaLang.Unitful
 
 struct Var
 	var::NamedTuple

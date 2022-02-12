@@ -1,6 +1,6 @@
 module TestMultiReturningFunction10
 
-using StaticArrays
+using ModiaLang.StaticArrays
 using ModiaLang
 @usingModiaPlot
 

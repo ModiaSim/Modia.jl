@@ -1,7 +1,7 @@
 module Runtests_withPlot
 
 using ModiaLang
-using Test
+using ModiaLang.Test
 
 const  test_title = "Test ModiaLang (version=$(ModiaLang.Version) with " * currentPlotPackage() * ")"
 
