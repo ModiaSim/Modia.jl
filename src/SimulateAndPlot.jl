@@ -217,30 +217,39 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     solution = nothing
 
     #try
+        if ismissing(algorithm) && FloatType == Float64
+            algorithm = Sundials.CVODE_BDF()
+        end
+        m.algorithmName = getAlgorithmName(algorithm)
+        
+        # Initialize/re-initialize SimulationModel
+        if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
+            println("... Simulate model ", m.modelName)
+        end
+
+        useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
+        for leq in m.linearEquations
+            leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
+        end
+
+        #TimerOutputs.@timeit m.timer "ModiaLang.init!" success = init!(m)
+        if m.options.log
+            @time success = init!(m)
+        elseif m.options.logTiming
+            print("Initialization finished within")
+            @time success = init!(m)
+        else
+            success = init!(m)
+        end
+        if !success
+            @test false
+            return nothing
+        end
+        
         enable_timer!(m.timer)
         reset_timer!(m.timer)
 
-        TimerOutputs.@timeit m.timer "ModiaLang.simulate!" begin
-            if ismissing(algorithm) && FloatType == Float64
-                algorithm = Sundials.CVODE_BDF()
-            end
-            m.algorithmName = getAlgorithmName(algorithm)
-            
-            # Initialize/re-initialize SimulationModel
-            if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
-                println("... Simulate model ", m.modelName)
-            end
-
-            useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
-            for leq in m.linearEquations
-                leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
-            end
-
-            TimerOutputs.@timeit m.timer "ModiaLang.init!" success = init!(m)
-            if !success
-                @test false
-                return nothing
-            end
+        TimerOutputs.@timeit m.timer "ModiaLang.simulate!" begin 
             sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
 
             # Define problem and callbacks based on algorithm and model type
@@ -378,8 +387,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         if m.options.log
             useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
             println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
-            println("        cpuTime                   = ", round(TimerOutputs.time(m.timer["ModiaLang.simulate!"])*1e-9, sigdigits=3), " s")
-            println("        allocated                 = ", round(TimerOutputs.allocated(m.timer["ModiaLang.simulate!"])/1048576.0, sigdigits=3), " MiB")
+            println("        cpuTime (without init.)   = ", round(TimerOutputs.time(m.timer["ModiaLang.simulate!"])*1e-9, sigdigits=3), " s")
+            println("        allocated (without init.) = ", round(TimerOutputs.allocated(m.timer["ModiaLang.simulate!"])/1048576.0, sigdigits=3), " MiB")
             println("        algorithm                 = ", get_algorithmName_for_heading(m))
             println("        FloatType                 = ", FloatType)
             println("        interval                  = ", m.options.interval, " s")
