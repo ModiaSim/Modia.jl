@@ -399,7 +399,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         parameters = deepcopy(parameterDefinition)
 
         # Determine x_start and previous values
-        evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
+        evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, unitless, modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
         if isnothing(evaluatedParameters)
             return nothing
         end
@@ -1025,7 +1025,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if !isnothing(m.options.merge)
         m.parameters = mergeModels(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, m.modelModule, m.parameters, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, m.unitless, m.modelModule, m.parameters, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
             return false
         end
@@ -1096,7 +1096,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.storeResult = false
     eh.afterSimulationStart = true
     if m.options.log
-        println("      Initialization finished")
+        print("      Initialization finished within")
     end
     return true
 end
@@ -1460,7 +1460,7 @@ function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothi
                 j += 1
                 if length(leq.x_vec[j]) != leq.x_lengths[i]
                     if log
-                        println("      Resize memory for $xi_name from ", length(leq.x_vec[j]), " to ", leq.x_lengths[i] )
+                        println("      ModiaLang: Resize linear equations vector $xi_name from ", length(leq.x_vec[j]), " to ", leq.x_lengths[i] )
                     end
                     resize!(leq.x_vec[j], leq.x_lengths[i])
                 end
@@ -1637,8 +1637,8 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     # Generate code of the function
     code = quote
-                function $functionName(_x, _m, _time)::Nothing
-                    _m.time = ModiaLang.getValue(_time)
+                function $functionName(_x, _m::ModiaLang.SimulationModel{_FloatType,_TimeType}, _time)::Nothing where {_FloatType,_TimeType}
+                    _m.time = _TimeType(ModiaLang.getValue(_time))
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
                     _p = _m.evaluatedParameters

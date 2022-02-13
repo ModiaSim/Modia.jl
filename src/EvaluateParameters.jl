@@ -29,7 +29,7 @@ function propagate(model, environment=[])
             current[k] = propagate(v, vcat(environment, [current]))
         else
             evalv = v
-            try 
+            try
                 evalv = eval(subst(v, vcat(environment, [current])))
             catch e
             end
@@ -40,7 +40,7 @@ function propagate(model, environment=[])
                 current[k] = evalv
             end
         end
-    end 
+    end
     return (; current...)
 end
 =#
@@ -50,25 +50,25 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(FloatType, modelModule::Module, parameters,
+    map = propagateEvaluateAndInstantiate!(FloatType, unitless::Bool, modelModule::Module, parameters,
                    eqInfo::ModiaBase.EquationInfo; log=false)
-    
+
 Recursively traverse the hierarchical collection `parameters` and perform the following actions:
 
 - Propagate values.
 - Evaluate expressions in the context of `modelModule`.
 - Instantiate dependent objects.
-- Return the evaluated `parameters` if successfully evaluated, and otherwise 
+- Return the evaluated `parameters` if successfully evaluated, and otherwise
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(FloatType, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+function propagateEvaluateAndInstantiate!(FloatType, unitless::Bool, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(FloatType, unitless, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
 
     if isnothing(map)
         return nothing
     end
-    
+
     # Check that all values of x_start are set:
     #x_start_missing = []
     #for (i, found) in enumerate(x_found)
@@ -76,7 +76,7 @@ function propagateEvaluateAndInstantiate!(FloatType, modelModule, parameters, eq
     #        push!(x_start_missing, eqInfo.x_info[i].x_name)
     #    end
     #end
-    
+
     # Check that all previous values are set:
     missingInitValues = false
     namesOfMissingValues = ""
@@ -117,18 +117,18 @@ function propagateEvaluateAndInstantiate!(FloatType, modelModule, parameters, eq
             namesOfMissingValues *= "\n    " * name
         end
     end
-    
+
     if missingInitValues
-        printstyled("Model error: ", bold=true, color=:red)  
-        printstyled("Missing start/init values for variables: ", namesOfMissingValues, 
+        printstyled("Model error: ", bold=true, color=:red)
+        printstyled("Missing start/init values for variables: ", namesOfMissingValues,
                     bold=true, color=:red)
         print("\n\n")
         return nothing
-    end    
-    
+    end
+
     #if length(x_start_missing) > 0
-    #    printstyled("Model error: ", bold=true, color=:red)  
-    #    printstyled("Missing start/init values for variables: ", x_start_missing, 
+    #    printstyled("Model error: ", bold=true, color=:red)
+    #    printstyled("Missing start/init values for variables: ", x_start_missing,
     #                bold=true, color=:red)
     #    print("\n\n")
     #    return nothing
@@ -139,7 +139,7 @@ end
 
 """
     firstName(ex::Expr)
-    
+
 If ex = :(a.b.c.d) -> firstName(ex) = :a
 """
 function firstName(ex::Expr)
@@ -163,21 +163,20 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, eqInfo::ModiaBase.EquationInfo, x_found::Vector{Bool}, 
-                                           previous_dict, previous, pre_dict, pre, hold_dict, hold, 
+function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModule, parameters, eqInfo::ModiaBase.EquationInfo, x_found::Vector{Bool},
+                                           previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                            environment, path::String; log=false)
-                                           
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)
     end
     current = OrderedDict{Symbol,Any}()   # should be Map()
-       
+
     # Determine, whether "parameters" has a ":_constructor" key and handle this specially
     constructor = nothing
     usePath     = false
     if haskey(parameters, :_constructor)
         # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
-        #          or: rev = (_constructor = (_class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)    
+        #          or: rev = (_constructor = (_class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)
         v = parameters[:_constructor]
         if typeof(v) <: OrderedDict
             constructor = v[:value]
@@ -190,7 +189,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
                 usePath = parameters[:_path]
             end
         end
-        
+
     elseif haskey(parameters, :value)
         # For example: p1 = (_class = :Var, parameter = true, value = 0.2)
         #          or: p2 = (_class = :Var, parameter = true, value = :(2*p1))
@@ -198,8 +197,8 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
         veval = Core.eval(modelModule, subst(v, vcat(environment, [current]), modelModule))
         return veval
     end
-    
-    for (k,v) in parameters # zip(keys(parameters), parameters)
+
+    for (k,v) in parameters
         if log
             println(" 2:    ... key = $k, value = $v")
         end
@@ -208,15 +207,15 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
                 println(" 3:    ... key = $k")
             end
             nothing
-            
+
         elseif !isnothing(constructor) && (k == :value || k == :init || k == :start)
             error("value, init or start keys are not allowed in combination with a _constructor:\n$parameters")
-            
-        elseif typeof(v) <: OrderedDict 
+
+        elseif typeof(v) <: OrderedDict
             if length(v) > 0
                 if haskey(v, :_class) && v[:_class] == :Par && haskey(v, :value)
                     # For example: k = (_class = :Par, value = 2.0) -> k = 2.0
-                    #          or: k = (_class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )   
+                    #          or: k = (_class = :Par, value = :(2*Lx - 3))   -> k = eval( 2*Lx - 3 )
                     #          or: k = (_class = :Par, value = :(bar.frame0)) -> k = ref(bar.frame0)
                     if log
                         println(" 4:    v[:value] = ", v[:value], ", typeof(v[:value]) = ", typeof(v[:value]))
@@ -225,13 +224,13 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
                     subv = subst(v[:value], vcat(environment, [current]), modelModule)
                     if log
                         println(" 5:    _class & value: $k = $subv  # before eval")
-                    end                   
+                    end
                     if typeof(subv) == Expr && subv.head == :(.)
                         if typeof(firstName(subv)) <: AbstractDict
                             changeDotToRef(subv)
                             if log
                                 println(" 5b:    _class & value: $k = $subv  # before eval")
-                            end 
+                            end
                         end
                     end
                     current[k] = Core.eval(modelModule, subv)
@@ -240,11 +239,11 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
                     end
                 else
                     if log
-                        println(" 7:    ... key = $k, v = $v") 
+                        println(" 7:    ... key = $k, v = $v")
                     end
                     # For example: k = (a = 2.0, b = :(2*Lx))
-                    value = propagateEvaluateAndInstantiate2!(FloatType, modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
-                                                              vcat(environment, [current]), appendKey(path, k); log=log)     
+                    value = propagateEvaluateAndInstantiate2!(FloatType, unitless, modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
+                                                              vcat(environment, [current]), appendKey(path, k); log=log)
                     if log
                         println(" 8:    ... key = $k, value = $value")
                     end
@@ -254,7 +253,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
                     current[k] = value
                 end
             end
-            
+
         else
             if log
                 println(" 9:    else: typeof(v) = ", typeof(v))
@@ -268,35 +267,40 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
                     changeDotToRef(subv)
                     if log
                         println(" 10b:    _class & value: $k = $subv  # before eval")
-                    end 
+                    end
                 end
-            end     
-            current[k] = Core.eval(modelModule, subv)
+            end
+            subv = Core.eval(modelModule, subv)
+            if unitless && eltype(subv) <: Number
+                # Remove unit
+                subv = stripUnit(subv)
+            end
+            current[k] = subv
             if log
                 println(" 11:          $k = ", current[k])
             end
-            
+
             # Set x_start
-            full_key = appendKey(path, k) 
+            full_key = appendKey(path, k)
             if haskey(eqInfo.x_dict, full_key)
                 #if log
                 #    println(" 12:              (is stored in x_start)")
                 #end
                 j = eqInfo.x_dict[full_key]
-                xe_info = eqInfo.x_info[j]                
+                xe_info = eqInfo.x_info[j]
                 x_value = current[k]
                 len = hasParticles(x_value) ? 1 : length(x_value)
                 if j <= eqInfo.nxFixedLength && len != xe_info.length
-                    printstyled("Model error: ", bold=true, color=:red)  
+                    printstyled("Model error: ", bold=true, color=:red)
                     printstyled("Length of ", xe_info.x_name, " shall be changed from ",
                                 xe_info.length, " to $len\n",
                                 "This is not possible because variable has a fixed length.", bold=true, color=:red)
                     return nothing
-                end                    
+                end
                 x_found[j] = true
                 xe_info.startOrInit = deepcopy(x_value)
 
-                # Strip units from x_start  
+                # Strip units from x_start
                 #if xe_info.length == 1
                 #    x_start[xe_info.startIndex] = deepcopy( convert(FloatType, stripUnit(x_value)) )
                 #else
@@ -305,31 +309,31 @@ function propagateEvaluateAndInstantiate2!(FloatType, modelModule, parameters, e
                 #        x_start[ibeg+i] = deepcopy( convert(FloatType, stripUnit(x_value[i])) )
                 #    end
                 #end
-                
+
             elseif haskey(previous_dict, full_key)
                 previous[ previous_dict[full_key] ] = current[k]
-                
+
             elseif haskey(pre_dict, full_key)
-                pre[ pre_dict[full_key] ] = current[k]     
-                
+                pre[ pre_dict[full_key] ] = current[k]
+
             elseif haskey(hold_dict, full_key)
-                hold[ hold_dict[full_key] ] = current[k]                 
+                hold[ hold_dict[full_key] ] = current[k]
             end
         end
-    end 
-    
+    end
+
     if isnothing(constructor)
         return current # (; current...)
     else
         if usePath
-            obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...))) 
+            obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
         else
             obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; $current...)))
         end
         if log
-            println(" 13:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")    
+            println(" 13:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")
         end
-        return obj        
+        return obj
     end
 end
 
@@ -337,9 +341,9 @@ end
 
 """
     (obj, path) = getIdParameter(evaluatedParameters, id)
-    
-Search recursively in `evaluatedParameters` for a NamedTuple that has 
-`key = :_id, value = id` and return this NamedTuple as (obj, path) or 
+
+Search recursively in `evaluatedParameters` for a NamedTuple that has
+`key = :_id, value = id` and return this NamedTuple as (obj, path) or
 (nothing,nothing), where `obj` is the NamedTuple and `path` is the
 path::String path of  `obj`.
 """
@@ -348,13 +352,13 @@ function getIdParameter(evaluatedParameters, id::Int, path::String="")
         return (evaluatedParameters, path)
     else
         for (key,value) in evaluatedParameters # zip(keys(evaluatedParameters), evaluatedParameters)
-            if typeof(value) <: OrderedDict 
+            if typeof(value) <: OrderedDict
                 result = getIdParameter(value, id, appendKey(path,key))
                 if !isnothing(result[1])
                     return result
                 end
             end
-        end   
+        end
     end
     return (nothing,nothing)
 end
