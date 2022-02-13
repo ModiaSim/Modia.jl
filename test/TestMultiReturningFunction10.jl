@@ -84,53 +84,10 @@ Pendulum = Model(
 )
         
 pendulum = @instantiateModel(Pendulum , unitless=true, log=false, logDetails=false, logCode=true, logStateSelection=false)
-
-#=
-    function getDerivatives2(_der_x, _x, _m, _time)::Nothing
-        _m.time = ModiaLang.getValue(_time)
-        _m.nGetDerivatives += 1
-        instantiatedModel = _m
-        _p = _m.evaluatedParameters
-        _leq_mode = nothing
-        time = _time
-        w1 = _x[1]
-        phi1 = _x[2]
-        mbs = Mbs()
-        var"der(phi1)" = w1
-        mbs1 = setStates(mbs, phi1, w1)
-        tau1 = -0.1w1
-        begin
-            global var"der(w1)", qdd, mbs2, mbs3, mbs4
-            _leq_mode = initLinearEquationsIteration!(_m, 1)
-             ModiaBase.TimerOutputs.@timeit _m.timer "LinearEquationsIteration" while ModiaBase.LinearEquationsIteration!(_leq_mode, _m.isInitial, _m.solve_leq, _m.storeResult, _m.time, _m.timer)
-                    var"der(w1)" = _leq_mode.x[1]
-                    qdd = _leq_mode.x_vec[1]
-                    mbs2 = setAccelerations1(mbs1, var"der(w1)")
-                    mbs3 = setAccelerations2(mbs2, qdd)
-                    mbs4 = computeForcesAndResiduals(mbs3, time)
-                    ModiaBase.appendResidual!(_leq_mode.residuals, ustrip(getResiduals(mbs4)))
-                    ModiaBase.appendResidual!(_leq_mode.residuals, ustrip(getForces(mbs4) - tau1))
-                end
-            _leq_mode = nothing
-        end
-        _der_x[1] = var"der(w1)"
-        _der_x[2] = var"der(phi1)"
-        if _m.storeResult     
-            ModiaLang.addToResult!(_m, _der_x, time, mbs, mbs1, mbs2, mbs3, deepcopy(qdd), mbs4, tau1)
-        end
-        return nothing
-    end
-
-pendulum.getDerivatives! = getDerivatives2
-=#
-
-
-#simulate!(pendulum, stopTime = 0.1, interval = 0.05, log=true)
 simulate!(pendulum, stopTime = 2.0, log=true)
-# printResultInfo(pendulum)
+printResultInfo(pendulum)
 
 plot(pendulum, [("phi1", "w1"), "der(w1)", "qdd"])
-
 
 simulate!(pendulum, stopTime = 2.0, log=true, merge=Map(mbs = Mbs(phi2=[10.0,20.0,30.0]), qdd = zeros(3)))
 plot(pendulum, [("phi1", "w1"), "der(w1)", "qdd"], figure=2)

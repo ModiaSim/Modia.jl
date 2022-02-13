@@ -12,7 +12,7 @@ end
 function twoCoupledInertias(mbs::Mbs,J1,J2,tau0)
     tau1 = tau0 - J1*mbs.derw1
     tau2 = tau1 - J2*mbs.derw2
-    return SVector{2,Float64}(tau1,tau2)
+    return (tau1,tau2)
 end
 
 
@@ -41,8 +41,7 @@ ThreeCoupledInertias = Model(
     ]
 )
     
-threeCoupledInertias = @instantiateModel(ThreeCoupledInertias, unitless=true, log=false, logDetails=false, logCode=false, logStateSelection=false)
-
+threeCoupledInertias = @instantiateModel(ThreeCoupledInertias, unitless=true, log=false, logDetails=false, logCode=true, logStateSelection=false)
 simulate!(threeCoupledInertias, stopTime = 2.0, log=true, requiredFinalStates=[0.3933746028781301, 0.3029735305821084])
 
 plot(threeCoupledInertias, [("phi1", "phi2", "phi3"), 
