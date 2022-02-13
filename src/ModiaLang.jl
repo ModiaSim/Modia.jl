@@ -365,7 +365,7 @@ end
 
 mutable struct ModelStructure
     parameters::OrderedDict{Any,Any}
-    mappedParameters::OrderedDict{Any,Any}
+    mappedParameters::OrderedDict{Symbol,Any}
     init::OrderedDict{Any,Any}
     start::OrderedDict{Any,Any}
     variables::OrderedDict{Any,Any}
@@ -377,7 +377,7 @@ mutable struct ModelStructure
     equations::Array{Expr,1}
 end
 
-ModelStructure() = ModelStructure(OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[])
+ModelStructure() = ModelStructure(OrderedDict(), OrderedDict{Symbol,Any}(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[])
 
 function printDict(label, d)
     if length(d) > 0
@@ -557,7 +557,6 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)    
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure 
     Goriginal = deepcopy(G)
- 
     function getSolvedEquationAST(e, v)
         (solution, solved) = solveEquation(equations[e], unknowns[v])
         unknown = solution.args[1]
@@ -579,7 +578,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
-        solution = makeDerVar(solution, parameters, inputs, evaluateParameters)
+        solution = makeDerVar(solution, parameters, inputs, evaluateParameters)       
         if logCalculations
             var = string(unknowns[v])
             solutionString = string(solution)
@@ -596,22 +595,20 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if isexpr(rhs, :call) && rhs.args[1] == :_DUPLICATEEQUATION
             return nothing
         end
-        if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args)
-            eqs = rhs
-        elseif typeof(lhs) <: NTuple && all(a == 0 for a in lhs)
-            eqs = rhs
-        elseif isexpr(lhs, :tuple)
-            eqs = sub(rhs, Expr(:call, :(ModiaBase.StaticArrays.SVector), lhs.args...))
-        elseif typeof(lhs) <: NTuple
-            eqs = sub(rhs, Expr(:call, :(ModiaBase.StaticArrays.SVector), lhs...))
+        if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args) ||
+           typeof(lhs) <: NTuple && all(a == 0 for a in lhs)   ||
+           lhs == :(0)
+            eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
+            eqs = :(ModiaLang.Unitful.ustrip.($eq_rhs))
         else
-            eqs = sub(rhs, lhs)
+            eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
+            eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
+            eqs = :( ModiaLang.Unitful.ustrip.($eq_rhs) .- ModiaLang.Unitful.ustrip.($eq_lhs))
         end
-        resid = makeDerVar(:(ustrip($eqs)), parameters, inputs, evaluateParameters)
-        residual = :(ModiaBase.appendVariable!(_leq_mode.residuals, $resid))
-        residString = string(resid)
+        residual = :(ModiaBase.appendVariable!(_leq_mode.residuals, $eqs))
+        residString = string(eqs)
         if logCalculations
-            return :(println("Calculating residual: ", $residString); $residualName = $resid; println("  Residual: ", $residualName) )
+            return :(println("Calculating residual: ", $residString); $residualName = $eqs; println("  Residual: ", $residualName) )
 #            return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
         else
             return residual
