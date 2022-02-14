@@ -1095,9 +1095,6 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.isInitial   = false
     m.storeResult = false
     eh.afterSimulationStart = true
-    if m.options.log
-        print("      Initialization finished within")
-    end
     return true
 end
 

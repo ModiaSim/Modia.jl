@@ -233,11 +233,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         end
 
         #TimerOutputs.@timeit m.timer "ModiaLang.init!" success = init!(m)
-        if m.options.log
-            @time success = init!(m)
-        elseif m.options.logTiming
-            print("Initialization finished within")
-            @time success = init!(m)
+        if m.options.log || m.options.logTiming
+            @time (success = init!(m); if m.options.log || m.options.logTiming; print("      Initialization finished within") end)
         else
             success = init!(m)
         end
@@ -419,7 +416,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             println("        nRestartEvents            = ", eh.nRestartEvents)
         end
         if m.options.logTiming
-            println("\n... Timings for simulation of ", m.modelName,":")
+            println("\n... Timings for simulation of ", m.modelName," (without initialization):")
             TimerOutputs.print_timer(TimerOutputs.flatten(m.timer), compact=true)
         end
 
