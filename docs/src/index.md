@@ -47,6 +47,8 @@ Other improvements
 
 - Generalized connection semantics.
 
+- New option `logProgress=false` in function `simulate!(..)` to print current simulation time every 5s (cpu-time).
+
 - Functions converting model to/from JSON: `modelToJSON(model)`, `JSONtoModel(json_string)`
 
 - Large speedup of symbolic transformation, if function depends on many input (and output) arguments 

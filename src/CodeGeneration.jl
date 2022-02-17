@@ -96,7 +96,7 @@ end
 
 const BasicSimulationKeywordArguments = OrderedSet{Symbol}(
         [:merge, :tolerance, :startTime, :stopTime, :interval, :interp_points, :dtmax, :adaptive, :nlinearMinForDAE,
-         :log, :logStates, :logEvents, :logTiming, :logParameters, :logEvaluatedParameters,
+         :log, :logStates, :logEvents, :logProgress, :logTiming, :logParameters, :logEvaluatedParameters,
          :requiredFinalStates, :requiredFinalStates_rtol, :requiredFinalStates_atol, :useRecursiveFactorizationUptoSize])
 const RegisteredExtraSimulateKeywordArguments = OrderedSet{Symbol}()
 
@@ -139,6 +139,7 @@ struct SimulationOptions{FloatType,TimeType}
     log::Bool
     logStates::Bool
     logEvents::Bool
+    logProgress::Bool
     logTiming::Bool
     logParameters::Bool
     logEvaluatedParameters::Bool
@@ -179,6 +180,7 @@ struct SimulationOptions{FloatType,TimeType}
         log              = get(kwargs, :log          , false)
         logStates        = get(kwargs, :logStates    , false)
         logEvents        = get(kwargs, :logEvents    , false)
+        logProgress      = get(kwargs, :logProgress  , false)
         logTiming        = get(kwargs, :logTiming    , false)
         logParameters    = get(kwargs, :logParameters, false)
         logEvaluatedParameters   = get(kwargs, :logEvaluatedParameters  , false)
@@ -204,7 +206,7 @@ struct SimulationOptions{FloatType,TimeType}
 
 #        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
         obj = new(ismissing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
-                  dtmax, adaptive, nlinearMinForDAE, log, logStates, logEvents, logTiming, logParameters, logEvaluatedParameters,
+                  dtmax, adaptive, nlinearMinForDAE, log, logStates, logEvents, logProgress, logTiming, logParameters, logEvaluatedParameters,
                   requiredFinalStates, requiredFinalStates_rtol, requiredFinalStates_atol, useRecursiveFactorizationUptoSize, extra_kwargs)
         return success ? obj : nothing
     end
@@ -280,6 +282,8 @@ mutable struct SimulationModel{FloatType,TimeType}
     modelModule::Module
     modelName::String
     timer::TimerOutputs.TimerOutput
+    cpuFirst::UInt64                  # cpu time of start of simulation
+    cpuLast::UInt64                   # Last time from time_ns()
     options::SimulationOptions
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
@@ -430,7 +434,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         nGetDerivatives = 0
         nf = 0
 
-        new(modelModule, modelName, TimerOutputs.TimerOutput(), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
+        new(modelModule, modelName, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
             equationInfo, linearEquations, eventHandler,
             vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters,
             previous, nextPrevious, previous_names, previous_dict,
@@ -462,7 +466,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         nf = 0
         nx = m.equationInfo.nx
 
-         new(m.modelModule, m.modelName, TimerOutputs.TimerOutput(), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
+         new(m.modelModule, m.modelName, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
             eventHandler,
             m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
             deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
@@ -970,9 +974,16 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #    end
 #    return nothing
 #end
-
+import Printf
 
 invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.timer "ModiaLang getDerivatives!" begin
+    if m.options.logProgress && m.cpuLast != UInt64(0)
+        cpuNew = time_ns()
+        if (cpuNew - m.cpuLast) * 1e-9 > 5.0
+            m.cpuLast = cpuNew
+            Printf.@printf("      progress: integrated up to time = %.3g s (in cpu-time = %.3g s)\n", t, (cpuNew-m.cpuFirst)*1e-9)
+        end        
+    end
     if length(m.x_vec) > 0
         # copy vector-valued x-elements from x to m.x_vec
         eqInfo = m.equationInfo
@@ -1634,7 +1645,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     # Generate code of the function
     code = quote
-                function $functionName(_x, _m::ModiaLang.SimulationModel{_FloatType,_TimeType}, _time)::Nothing where {_FloatType,_TimeType}
+                function $functionName(_x, _m::ModiaLang.SimulationModel{_F,_TimeType}, _time)::Nothing where {_F,_TimeType}
                     _m.time = _TimeType(ModiaLang.getValue(_time))
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m

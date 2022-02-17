@@ -71,6 +71,7 @@ end
               log              = false,
               logStates        = false,
               logEvents        = false,
+              logProgress      = false,
               logTiming        = false,
               logParameters    = false,
               logEvaluatedParameters   = false,
@@ -129,6 +130,7 @@ A simulation run can be aborted with `<CTRL> C` (SIGINT).
 - `log`: = true, to log the simulation.
 - `logStates`: = true, to log the states, its init/start values and its units.
 - `logEvents`: = true, to log events.
+- `logProgress` = true, to printout current simulation time every 5s.
 - `logTiming`: = true, to log the timing with `instantiatedModel.timer` which is an instance
                of [TimerOutputs](https://github.com/KristofferC/TimerOutputs.jl).TimerOutput.
                A user function can include its timing via\\
@@ -335,7 +337,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             # Compute solution
             abstol = 0.1*m.options.tolerance
             tstops = (m.eventHandler.nextEventTime,)
-
+            m.cpuLast  = time_ns()
+            m.cpuFirst = m.cpuLast
             if ismissing(algorithm)
                 TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
                                                                                 callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
@@ -349,7 +352,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                                                                                 callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
                                                                                 initializealg = DifferentialEquations.NoInit())
             end
-
+            
             # Compute and store outputs from last event until final time
             sol_t = solution.t
             sol_x = solution.u
