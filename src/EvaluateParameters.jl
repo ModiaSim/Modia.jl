@@ -338,28 +338,47 @@ function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModul
 end
 
 
-
 """
-    (obj, path) = getIdParameter(evaluatedParameters, id)
+    splittedPath = spitPlath(path::Union{Symbol, Expr, Nothing})::Vector{Symbol}
 
-Search recursively in `evaluatedParameters` for a NamedTuple that has
-`key = :_id, value = id` and return this NamedTuple as (obj, path) or
-(nothing,nothing), where `obj` is the NamedTuple and `path` is the
-path::String path of  `obj`.
+# Examples
+```
+splitPath(nothing)     # = Symbol[]
+splitPath(:a)          # = Symbol[:a]
+splitPath(:(a.b.c.d))  # = Symbol[:a, :b, :c, :d]
+```
 """
-function getIdParameter(evaluatedParameters, id::Int, path::String="")
-    if haskey(evaluatedParameters, :_id) && evaluatedParameters[:_id] == id
-        return (evaluatedParameters, path)
-    else
-        for (key,value) in evaluatedParameters # zip(keys(evaluatedParameters), evaluatedParameters)
-            if typeof(value) <: OrderedDict
-                result = getIdParameter(value, id, appendKey(path,key))
-                if !isnothing(result[1])
-                    return result
-                end
-            end
+function splitPath(path::Union{Symbol, Expr, Nothing})::Vector{Symbol}
+    splittedPath = Symbol[]
+    if typeof(path) == Symbol
+        push!(splittedPath, path)
+    elseif typeof(path) == Expr
+        while typeof(path.args[1]) == Expr
+            pushfirst!(splittedPath, path.args[2].value)
+            path = path.args[1]
         end
+        pushfirst!(splittedPath, path.args[2].value)
+        pushfirst!(splittedPath, path.args[1])
     end
-    return (nothing,nothing)
+    return splittedPath
 end
 
+
+"""
+    modelOfPath = getModelFromSplittedPath(model, splittedPath::Vector{Symbol})
+    
+Return reference to the sub-model characterized by `splittedPath`.
+
+# Examples
+
+```
+mymodel = Model(a = Model(b = Model(c = Model)))
+model_b = getModelFromSplittedPath(mymodel, Symbol["a", "b"])  # = mymodel[:a][:b]
+```
+"""
+function getModelFromSplittedPath(model, splittedPath::Vector{Symbol})
+    for name in splittedPath
+        model = model[name]
+    end
+    return model
+end

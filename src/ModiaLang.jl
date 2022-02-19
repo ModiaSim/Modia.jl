@@ -553,7 +553,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
+function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)    
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure 
     Goriginal = deepcopy(G)
@@ -830,7 +830,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
      
 #    println("Build SimulationModel")
 
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType}(modelModule, name, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
+    model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
                                          mappedParameters, extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
@@ -897,6 +897,62 @@ function duplicateMultiReturningEquations!(equations)
     append!(equations, duplicatedEquations)
 end
 
+
+appendSymbol(path::Nothing, name::Symbol) = name
+appendSymbol(path         , name::Symbol) = :( $path.$name )
+
+"""
+    modifiedModel = buildSubModels!(model, modelModule, FloatType, TimeType, buildDict::OrderedDict)
+    
+Traverse `model` and for every `<subModel>` that is a `Model(..)` and has a key-value pair 
+`:_buildFunction = <buildFunction>` and optionally `:_buildOption=<buildOption>`, call 
+
+```
+buildCode = <buildFunction>(<subModel>, modelModule, FloatType::Type, TimeType::Type,  
+                            buildDict::OrderedDict{String,Any},
+                            modelPath::Union{Expr,Symbol,Nothing},
+                            buildOption = <buildOption>)
+```
+
+The`buildCode` is merged to the corresponding `<subModel>` in the calling environment.
+The arguments of `<buildFunction>`are:
+
+- `subModel`: The returned `buildCode` is merged to `submodel` 
+- `FloatType`, `TimeType`: Types used when instantiating `SimulationModel{FloatType,TimeType}`
+- `modelPath`: Path upto `<subModel>`, such as: `:( a.b.c )`.
+- `buildDict`: Dictionary, that will be stored in the corresponding SimulationModel instance and 
+               that allows to store information about the build-process, 
+               typically with key `string(modelPath)` (if modelPath==Nothing, key="" is used).
+- `buildOption`: Option used for the generation of `buildCode`.
+
+Note, keys `_buildFunction` and `_buildOption` are deleted from the corresponding `<subModel>`.
+"""
+function buildSubModels!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type, 
+                         buildDict::OrderedDict{String,Any}; path::Union{Expr,Symbol,Nothing}=nothing)
+    if haskey(model, :_buildFunction)
+        buildFunction = model[:_buildFunction] 
+        delete!(model, :_buildFunction)      
+        quotedPath = Meta.quot(path)        
+        if haskey(model, :_buildOption)
+            buildOption = model[:_buildOption]
+            delete!(model, :_buildOption)        
+            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath, buildOption=$buildOption)) )
+        else
+            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath)))
+        end
+        return  model | buildCode
+    end
+    
+    for (key,value) in model
+        if typeof(value) <: OrderedDict && haskey(value, :_class) && value[:_class] == :Model
+            model[key] = buildSubModels!(value, modelModule, FloatType, TimeType, buildDict; path=appendSymbol(path,key))
+        end
+    end
+    return model
+end
+
+
+
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
         evaluateParameters=false, log=false, logModel=false, logDetails=false, logStateSelection=false,
@@ -927,6 +983,7 @@ macro instantiateModel(model, kwargs...)
     return esc(code)
 end
 
+
 """
 See documentation of macro [`@instantiateModel`]
 """
@@ -944,8 +1001,14 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         if isexpr(model, :quote)
             model = eval(model) # model defined with macro
         end
-
+       
         if typeof(model) <: NamedTuple || typeof(model) <: Dict || typeof(model) <: OrderedDict
+            buildDict = OrderedDict{String,Any}()
+            TimeType = if FloatType <: Measurements.Measurement ||
+                          FloatType <: MonteCarloMeasurements.AbstractParticles;
+                          baseType(FloatType) else FloatType end  # baseType(..) is defined in CodeGeneration.jl
+            model = buildSubModels!(model, modelModule, FloatType, TimeType, buildDict)
+
             if logModel
                 @showModel(model)
             end
@@ -1101,7 +1164,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         end
 
         if ! experimentalTranslation
-            inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, FloatType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
+            inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
                 vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
                 unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters)
         else

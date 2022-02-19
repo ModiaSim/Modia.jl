@@ -16,7 +16,7 @@ mutable struct MbsData
     residuals2::Vector{Float64}
 
     function MbsData(; path = "", phi1=0.0, w1=0.0, phi2, equationInfo = missing, evaluatedParameters=missing)
-        println("... init Mbs with phi2=$phi2")
+        println("      TestMultiReturningFunction10: init Mbs with phi2=$phi2")
         ndof = length(phi2)
         obj = new(phi1, w1, 0.0, 0.0, phi2, zeros(ndof), zeros(ndof), zeros(ndof))
         # get_sizes(evaluatedParameters, ...)
@@ -24,6 +24,15 @@ mutable struct MbsData
         return obj
     end
 end
+
+function myBuildFunction(model::AbstractDict, FloatType::Type, TimeType::Type, buildDict::AbstractDict, 
+                         modelPath::Union{Expr,Symbol,Nothing}; buildOption = "Default")
+    modelPathAsString = if isnothing(modelPath); "" else string(modelPath) end
+    println("  TestMultiReturningFunction10: Test output from function myBuildFunction at modelPath = \"$modelPathAsString\":\n  Code could be constructed here and merged to the model with buildOption=$buildOption")
+    return nothing
+end
+
+MyModelWithBuild(; kwargs...) = Model(; _buildFunction = :myBuildFunction, kwargs...)
 
 Mbs(; kwargs...) = Par(; _constructor = :(MbsData), _path = true, kwargs...)
 
@@ -66,7 +75,7 @@ function getResiduals(mbs::MbsData)
     return mbs.residuals2
 end
 
-Pendulum = Model(
+Pendulum = MyModelWithBuild(_buildOption = "MyBuildOption", 
     phi1 = Var(init=pi/2),
     w1   = Var(init=0.0),
     qdd  = Var(start=zeros(2)),

@@ -126,9 +126,9 @@ convertTimeVariable(TimeType, t) = typeof(t) <: Unitful.AbstractQuantity ? conve
 
 
 struct SimulationOptions{FloatType,TimeType}
-    merge
+    merge::OrderedDict{Symbol,Any}
     tolerance::Float64
-    startTime::TimeType   # u"s"
+    startTime::TimeType   # u"s"    
     stopTime::TimeType    # u"s"
     interval::TimeType    # u"s"
     desiredResultTimeUnit
@@ -149,17 +149,19 @@ struct SimulationOptions{FloatType,TimeType}
     useRecursiveFactorizationUptoSize::Int
     extra_kwargs::OrderedDict{Symbol,Any}
 
-    function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; kwargs...) where {FloatType,TimeType}
+    function SimulationOptions{FloatType,TimeType}(merge, errorMessagePrefix=""; _dummy=false, kwargs...) where {FloatType,TimeType}
         success   = true
         adaptive  = get(kwargs, :adaptive, true)
-        tolerance = get(kwargs, :tolerance, max(100*eps(FloatType), 1e-6))
+        tolerance = _dummy ? Inf : get(kwargs, :tolerance, 1e-6)
         if tolerance <= 0.0
             printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) must be > 0\n\n", bold=true, color=:red)
             success = false
         elseif tolerance < 100*eps(FloatType) && adaptive
-            printstyled(errorMessagePrefix, "tolerance (= $(tolerance)) is too small for FloatType = $FloatType (eps(FloatType) = $(eps(FloatType))).\n" *
-                                            "tolerance >= $(100*eps(FloatType)) required!\n\n", bold=true, color=:red)
-            success = false
+            newTolerance = max(tolerance, 100*eps(FloatType))
+            printstyled("Warning from ModiaLang.simulate!(..):\n"*
+                        "tolerance (= $(tolerance)) is too small for FloatType = $FloatType (eps(FloatType) = $(eps(FloatType))).\n" *
+                        "tolerance changed to $newTolerance.\n\n", bold=true, color=:red)
+            tolerance = newTolerance
         end
         startTime   = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
         rawStopTime = get(kwargs, :stopTime, startTime)
@@ -205,14 +207,14 @@ struct SimulationOptions{FloatType,TimeType}
         end
 
 #        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
-        obj = new(ismissing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
+        obj = new(ismissing(merge) || isnothing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
                   dtmax, adaptive, nlinearMinForDAE, log, logStates, logEvents, logProgress, logTiming, logParameters, logEvaluatedParameters,
                   requiredFinalStates, requiredFinalStates_rtol, requiredFinalStates_atol, useRecursiveFactorizationUptoSize, extra_kwargs)
         return success ? obj : nothing
     end
 
-    SimulationOptions{FloatType,TimeType}(; kwargs...) where {FloatType,TimeType} =
-        SimulationOptions{FloatType,TimeType}(OrderedDict{Symbol,Any}(); kwargs...)
+    SimulationOptions{FloatType,TimeType}() where {FloatType,TimeType} =
+        SimulationOptions{FloatType,TimeType}(OrderedDict{Symbol,Any}(); _dummy=true)
 end
 
 
@@ -281,10 +283,11 @@ end
 mutable struct SimulationModel{FloatType,TimeType}
     modelModule::Module
     modelName::String
+    buildDict::OrderedDict{String,Any}
     timer::TimerOutputs.TimerOutput
     cpuFirst::UInt64                  # cpu time of start of simulation
     cpuLast::UInt64                   # Last time from time_ns()
-    options::SimulationOptions
+    options::SimulationOptions{FloatType,TimeType}
     getDerivatives!::Function
     equationInfo::ModiaBase.EquationInfo
     linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
@@ -308,7 +311,6 @@ mutable struct SimulationModel{FloatType,TimeType}
     hold_names::Vector{String}
     hold_dict::OrderedDict{String,Int}
 
-    separateObjects::OrderedDict{Int,Any}   # Dictionary of separate objects
     isInitial::Bool
     solve_leq::Bool                         # = true, if linear equations 0 = A*x-b shall be solved
                                             # = false, if leq.x is provided by DAE solver and leq.residuals is used by the DAE solver.
@@ -339,7 +341,7 @@ mutable struct SimulationModel{FloatType,TimeType}
     unitless::Bool                              # = true, if simulation is performed without units.
 
 
-    function SimulationModel{FloatType,TimeType}(modelModule, modelName, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType,TimeType}(modelModule, modelName, buildDict, getDerivatives!, equationInfo, x_startValues,
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
                                         unitless=true,
@@ -422,9 +424,6 @@ mutable struct SimulationModel{FloatType,TimeType}
             push!(linearEquations, ModiaBase.LinearEquations{FloatType}(leq...))
         end
 
-        # Construct dictionary for separate objects
-        separateObjects = OrderedDict{Int,Any}()
-
         # Initialize execution flags
         eventHandler = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
         eventHandler.initial = true
@@ -434,13 +433,13 @@ mutable struct SimulationModel{FloatType,TimeType}
         nGetDerivatives = 0
         nf = 0
 
-        new(modelModule, modelName, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
+        new(modelModule, modelName, buildDict, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
             equationInfo, linearEquations, eventHandler,
             vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters,
             previous, nextPrevious, previous_names, previous_dict,
             pre, nextPre, pre_names, pre_dict,
             hold, nextHold, hold_names, hold_dict,
-            separateObjects, isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             x_vec, x_start, zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
     end
@@ -453,9 +452,6 @@ mutable struct SimulationModel{FloatType,TimeType}
             push!(linearEquations, ModiaBase.LinearEquations{FloatType}(leq...))
         end
 
-        # Construct dictionary for separate objects
-        separateObjects = OrderedDict{Int,Any}()
-
         # Initialize execution flags
         eventHandler = EventHandler{FloatType,TimeType}()
         eventHandler.initial = true
@@ -466,13 +462,13 @@ mutable struct SimulationModel{FloatType,TimeType}
         nf = 0
         nx = m.equationInfo.nx
 
-         new(m.modelModule, m.modelName, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
+         new(m.modelModule, m.modelName, deepcopy(m.buildDict), TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
             eventHandler,
             m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
             deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
             deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
             deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,
-            separateObjects, isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, deepcopy(m.x_vec),
+            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, deepcopy(m.x_vec),
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)
     end
@@ -831,6 +827,7 @@ function eventIteration!(m::SimulationModel, x, t_event)::Nothing
         iter += 1
         #Base.invokelatest(m.getDerivatives!, m.der_x, x, m, t_event)
         invokelatest_getDerivatives_without_der_x!(x, m, t_event)
+        eh.firstInitialOfAllSegments = false
         success = terminateEventIteration!(m)
 
         if eh.firstEventIterationDirectlyAfterInitial
@@ -1032,6 +1029,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     emptyResult!(m)
     eh = m.eventHandler
     reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
+    eh.firstInitialOfAllSegments = true
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if !isnothing(m.options.merge)
@@ -1056,9 +1054,6 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     # Initialize auxiliary arrays for event iteration
     m.x_init .= 0
     m.der_x  .= 0
-
-    # Re-initialize dictionary of separate objects
-    empty!(m.separateObjects)
 
     # Log parameters
     if m.options.logParameters
