@@ -28,38 +28,57 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
 
 ## Release Notes
 
-### Version 0.11.0-dev
+### Version 0.11.0
  
-Non-backwards compatible improvements
+Non-backwards compatible changes
+
+- Equations can only be defined with key `equations` and no other key. 
 
 - Parameter values in the code are now type cast to the type of the parameter value from the 
   `@instantiatedModel(..)` call. The benefit is that access of parameter values in the code is type stable
   and operations with the parameter value are more efficient and at run-time no memory is allocated.
   Existing models can no longer be simulated, if parameter values provided via `simulate!(.., merge=xx)` are not
   type compatible to their definition. For example, an error is thrown if the @instantedModel(..) uses a Float64 value and the
-  `simulate!(.., merge=xx)` uses a `Measurement{Float64}` value for the same parameter.
-  
-Other improvements
+  `simulate!(.., merge=xx)` uses a `Measurement{Float64}` value for the same parameter
+ 
+Other changes
 
 - Hierarchical names in function calls supported (e.g. `a.b.c.fc(..)`). 
 
 - Functions can return multiple values, e.g. `(tau1,tau2) = generalizedForces(derw1, derw2)`.
 
-- Generalized connection semantics.
-
-- New option `logProgress=false` in function `simulate!(..)` to print current simulation time every 5s (cpu-time).
-
-- Functions converting model to/from JSON: `modelToJSON(model)`, `JSONtoModel(json_string)`
-
-- Large speedup of symbolic transformation, if function depends on many input (and output) arguments 
-  (includes new operator `implicitDependency(..)`).
-  
 - Support for StaticArrays variables (the StaticArrays feature is kept in the generated AST).
   For an example, see `ModiaLang/test/TestArrays.jl`.
   
 - Support for Array variables (especially of state and tearing variables)
   where the dimension can change after `@instantiateModel(..)`.
   For examples, see `ModiaLang/test/TestArrays.jl` and `TestMultiReturningFunction10.jl`.
+  
+- New keyword `Var(hideResult=true)` removes variable from the result (has no effect on states, derivative of states and parameters).
+  For an example, see `ModiaLang/test/TestMultiReturningFunction10.jl`
+
+- New feature of @instantiatedModel(..): If a Model(..) has key `:_buildFunction`, call this function to merge additional code to the model.
+  For details see the docu of function buildSubModels! in ModiaLang.jl.
+  For examples, see `ModiaLang/test/TestMultiReturningFunction10.jl` and 
+  constructor `Model3D(..)` in `Modia3D/src/ModiaInterface/model3D.jl` and `Modia3D/src/ModiaInterface/buildModia3D.jl`.
+
+- Generalized connection semantics.
+
+- Functions converting model to/from JSON: `modelToJSON(model)`, `JSONtoModel(json_string)`
+
+- `simulate!(..):`
+   - New option `logProgress=false` in function `simulate!(..)` to print current simulation time every 5s (cpu-time).
+   - If tolerance is too small, a warning is prented and it is automatically enlarged to a meaningful value
+     (e.g. tolerance = 1e-8 is not useful if `FloatType=Float32`)
+   - Logging improved: If log=true or logTiming=true, then timing, memory allocation and compilation time is 
+     reported for initialization (ths includes compilation of the generated getDerivatives(..) function). 
+     The remaining log shows cpu-time and memory allocation **without** initialization 
+     (and without the resources needed to compile getDerivatives(..)).
+   - Prefix messages of the timers with "ModiaLang" or "DifferentialEquations" to more clearly see
+     the origin of a message in the timer log.
+
+- Large speedup of symbolic transformation, if function depends on many input (and output) arguments 
+  (includes new operator `implicitDependency(..)`).
 
 - Included DAE-Mode in solution of linear equation system (if DAE integrator is used and all unknowns of a linear
   equation system are part of the DAE states, solve the linear equation system during continuous integration
@@ -67,8 +86,12 @@ Other improvements
  
 Bug fixes
 
+- If unitless=true, units in instantiatedModel.evaluatedParameters are removed.
+
 - The unit macro is kept in the generated code and is no longer expanded. For example, `u"N"`, is kept in the code that is
   displayed with `logCode=true` (previously, this was expanded and the unit was displayed in the code as `N` which is not correct Julia code).
+  
+- Function `ModiaLang.firstInitialOfAllSegments(..)` now correctly returns true for the first call of the getDerivatives function during the simulation.
 
 
 ### Version 0.10.0
