@@ -375,9 +375,10 @@ mutable struct ModelStructure
 #    components
 #    extends
     equations::Array{Expr,1}
+    hideResults::OrderedSet{Any}   # Do not store these variables in the result data structure    
 end
 
-ModelStructure() = ModelStructure(OrderedDict(), OrderedDict{Symbol,Any}(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[])
+ModelStructure() = ModelStructure(OrderedDict(), OrderedDict{Symbol,Any}(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[], OrderedSet())
 
 function printDict(label, d)
     if length(d) > 0
@@ -553,7 +554,7 @@ function performAliasReduction(unknowns, equations, Avar, logDetails, log)
 end
 
 
-function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters;
+function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters, hideResults;
     unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)    
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure 
     Goriginal = deepcopy(G)
@@ -595,9 +596,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if isexpr(rhs, :call) && rhs.args[1] == :_DUPLICATEEQUATION
             return nothing
         end
-        if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args) ||
-           typeof(lhs) <: NTuple && all(a == 0 for a in lhs)   ||
-           lhs == :(0)
+        if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args) || lhs == :(0)
             eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
             eqs = :(ModiaLang.Unitful.ustrip.($eq_rhs))
         else
@@ -789,6 +788,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
     # Variables added to result
     extraResults = vcat(:time, setdiff([Symbol(u) for u in unknowns],
+                                        hideResults,
                                         Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
                                         Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info]))
 
@@ -843,12 +843,12 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         #derx = deepcopy(x_startValues)     # deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
         println("First executions of getDerivatives")
         @timeit to "execute getDerivatives" try
-            TimeType = timeType(model)
             #@time Base.invokelatest(getDerivatives, derx, x_startValues, model, convert(TimeType, 0.0))
             #@time Base.invokelatest(getDerivatives, derx, x_startValues, model, convert(TimeType, 0.0))
-            @time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))
-            @time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))            
-#            @show derx
+            @time init!(model)  # getDerivatives is called
+            #@time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))
+            #@time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))            
+#           @show derx
         catch e
             error("Failed: ", e)
             return nothing
@@ -1003,6 +1003,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         end
        
         if typeof(model) <: NamedTuple || typeof(model) <: Dict || typeof(model) <: OrderedDict
+            # Traverse model and execute functions _buildFunction(..), to include code into sub-models
             buildDict = OrderedDict{String,Any}()
             TimeType = if FloatType <: Measurements.Measurement ||
                           FloatType <: MonteCarloMeasurements.AbstractParticles;
@@ -1165,7 +1166,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
         if ! experimentalTranslation
             inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
-                vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters;
+                vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters, modelStructure.hideResults;
                 unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters)
         else
             interface[:equations] = modStructure[:equations]
