@@ -80,6 +80,10 @@ Pendulum = MyModelWithBuild(_buildOption = "MyBuildOption",
     w1   = Var(init=0.0),
     qdd  = Var(start=zeros(2)),
     mbs  = Mbs(phi2=[1.0,2.0]),
+    mbs1 = Var(hideResult=true),
+    mbs2 = Var(hideResult=true),
+    mbs3 = Var(hideResult=true),
+    mbs4 = Var(hideResult=true),    
     equations = :[ 
         w1   = der(phi1)
         mbs1 = setStates(mbs,phi1,w1)
