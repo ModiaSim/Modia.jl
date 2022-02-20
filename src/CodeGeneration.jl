@@ -1562,10 +1562,10 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 i2 = i1 + xe.length - 1
                 v_length = xe.length
                 if !hasUnits || xe.unit == ""
-                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length}(_x[$i1:$i2])) )
+                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length,_FloatType}(_x[$i1:$i2])::ModiaBase.SVector{$v_length,_FloatType}) )
                 else
                     x_unit = xe.unit
-                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length}(_x[$i1:$i2])*@u_str($x_unit)) )
+                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length,_FloatType}(_x[$i1:$i2])::ModiaBase.SVector{$v_length,_FloatType}*@u_str($x_unit)) )
                 end
                 i1 = i2 + 1
             end
@@ -1640,7 +1640,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     # Generate code of the function
     code = quote
-                function $functionName(_x, _m::ModiaLang.SimulationModel{_F,_TimeType}, _time)::Nothing where {_F,_TimeType}
+                function $functionName(_x, _m::ModiaLang.SimulationModel{_FloatType,_TimeType}, _time)::Nothing where {_FloatType,_TimeType}
                     _m.time = _TimeType(ModiaLang.getValue(_time))
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
@@ -1654,8 +1654,10 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_pre...)
 
                     if _m.storeResult
-                        $(code_copy...)
-                        ModiaLang.addToResult!(_m, $(variables...))
+                        ModiaBase.TimerOutputs.@timeit _m.timer "ModiaLang addToResult!" begin 
+                            $(code_copy...)
+                            ModiaLang.addToResult!(_m, $(variables...))
+                        end
                     end
                     return nothing
                 end
