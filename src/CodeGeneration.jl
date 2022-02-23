@@ -1562,7 +1562,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 i2 = i1 + xe.length - 1
                 v_length = xe.length
                 if !hasUnits || xe.unit == ""
-                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length,_FloatType}(_x[$i1:$i2])::ModiaBase.SVector{$v_length,_FloatType}) )
+                    push!(code_x, :( $x_name::ModiaBase.SVector{$v_length,_FloatType} = ModiaBase.SVector{$v_length,_FloatType}(_x[$i1:$i2])) )
                 else
                     x_unit = xe.unit
                     push!(code_x, :( $x_name = ModiaBase.SVector{$v_length,_FloatType}(_x[$i1:$i2])::ModiaBase.SVector{$v_length,_FloatType}*@u_str($x_unit)) )

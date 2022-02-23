@@ -7,7 +7,7 @@ using Test
 TwoInertiasAndIdealGearWithUnits = Model(
     J1 = 0.0025u"kg*m^2",
     J2 = 170u"kg*m^2",
-    r  = 105,
+    r  = 105.0,
     tau_max = 1u"N*m",
 
     phi2 = Var(start = 0.5u"rad"), 
@@ -31,7 +31,7 @@ TwoInertiasAndIdealGearWithUnits = Model(
     ]
 )
 
-twoInertiasAndIdealGearWithUnits = @instantiateModel(TwoInertiasAndIdealGearWithUnits)
+twoInertiasAndIdealGearWithUnits = @instantiateModel(TwoInertiasAndIdealGearWithUnits, logCode=true)
 
 
 simulate!(twoInertiasAndIdealGearWithUnits, Tsit5(), stopTime = 4.0, 

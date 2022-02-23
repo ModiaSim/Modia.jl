@@ -110,8 +110,8 @@ const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
-const Version = "0.11.1"
-const Date = "2022-02-21"
+const Version = "0.11.2"
+const Date = "2022-02-23"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 #=
@@ -598,16 +598,28 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         end
         if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args) || lhs == :(0)
             eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
-            eqs = :(ModiaLang.Unitful.ustrip.($eq_rhs))
+            if unitless
+                eqs = eq_rhs
+            else
+                eqs = :(ModiaLang.Unitful.ustrip.($eq_rhs))
+            end
+        #elseif isexpr(lhs, :tuple) && isexpr(rhs, :call) && unitless
+        #    eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
+        #    eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
+        #    eqs =  :( ($eq_rhs .-= $eq_lhs) )
         else
             eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
             eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
-            eqs = :( ModiaLang.Unitful.ustrip.($eq_rhs) .- ModiaLang.Unitful.ustrip.($eq_lhs))
+            if unitless
+                eqs = :( $eq_rhs .- $eq_lhs )            
+            else
+                eqs = :( ModiaLang.Unitful.ustrip.($eq_rhs) .- ModiaLang.Unitful.ustrip.($eq_lhs))
+            end
         end
         residual = :(ModiaBase.appendVariable!(_leq_mode.residuals, $eqs))
         residString = string(eqs)
         if logCalculations
-            return :(println("Calculating residual: ", $residString); $residualName = $eqs; println("  Residual: ", $residualName) )
+             return :(println("Calculating residual: ", $residString); $residualName = $eqs; println("  Residual: ", $residualName) )
 #            return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
         else
             return residual

@@ -28,6 +28,18 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
 
 ## Release Notes
 
+### Version 0.11.2
+
+- Minor (efficiency) improvement if states are SVectors.
+- 
+
+
+### Version 0.11.1
+
+- Update of Manifest.toml file
+- Require ModiaBase 0.9.1 (with updated Manifest.toml file)
+
+
 ### Version 0.11.0
  
 Non-backwards compatible changes
@@ -92,6 +104,19 @@ Bug fixes
   displayed with `logCode=true` (previously, this was expanded and the unit was displayed in the code as `N` which is not correct Julia code).
   
 - Function `ModiaLang.firstInitialOfAllSegments(..)` now correctly returns true for the first call of the getDerivatives function during the simulation.
+
+
+### Version 0.10.2
+
+- Minor (efficiency) improvement if states are SVectors.
+- Require ModiaBase 0.9.2 (to get rid of performance issues in Modia3D).
+- Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
+
+
+### Version 0.10.1
+
+- Update of Manifest.toml file
+- Require ModiaBase 0.9.1 (with updated Manifest.toml file).
 
 
 ### Version 0.10.0

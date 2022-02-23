@@ -424,7 +424,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
             for (x,x0) in zip(keys(v), v)
                 if x != :class
                     if unitless && typeof(x0) != Expr
-                        x0 = ustrip(x0)
+                        x0 = ustrip.(x0)
                     end
                     modelStructure.init[x] = x0
                     modelStructure.mappedParameters = (;modelStructure.mappedParameters..., x => x0)
@@ -436,7 +436,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
             for (s,s0) in zip(keys(v), v)
                 if s != :class
                     if unitless
-                        s0 = ustrip(s0)
+                        s0 = ustrip.(s0)
                     end
                     modelStructure.start[s] = s0
                     modelStructure.mappedParameters = (;modelStructure.mappedParameters...,  s => s0)
@@ -449,7 +449,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
 				typeof(v) <: NamedTuple && :class in keys(v) && v.class == :Par ||
 				typeof(v) <: NamedTuple && :parameter in keys(v) && v.parameter
             if unitless && !(typeof(v) <: NamedTuple)
-                v = ustrip(v)
+                v = ustrip.(v)
             end
             modelStructure.parameters[k] = v
             modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => v)
@@ -468,7 +468,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
             if :init in keys(v)
                 x0 = v.init
                 if unitless && typeof(x0) != Expr
-                    x0 = ustrip(x0)
+                    x0 = ustrip.(x0)
                 end
                 modelStructure.init[k] = x0
                 modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => x0)
@@ -476,7 +476,7 @@ function flattenModelTuple!(model, modelStructure, modelName; unitless = false, 
             if :start in keys(v)
                 s0 = v.start
                 if unitless && typeof(s0) != Expr
-                    s0 = ustrip(s0)
+                    s0 = ustrip.(s0)
                 end
                 modelStructure.start[k] = s0
                 modelStructure.mappedParameters = (;modelStructure.mappedParameters..., k => s0)
