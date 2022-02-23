@@ -43,6 +43,11 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
+### Version 0.6.1
+
+- Project.toml and Manifest.toml updated due to new versions of Modia3D and ModiaLang
+- docu: fix some typing and formatting
+
 ### Version 0.6.0
 
 - Modia is restricted to Julia 1.7
