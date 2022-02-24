@@ -45,6 +45,8 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ### Version 0.6.1
 
+- See release notes of [ModiaLang](https://github.com/ModiaSim/ModiaLang.jl/releases/tag/v0.11.0) and 
+  of [Modia3D](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.9.0).
 - Project.toml and Manifest.toml updated due to new versions of Modia3D and ModiaLang
 - docu: fix some typing and formatting
 
