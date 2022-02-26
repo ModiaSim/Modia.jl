@@ -28,10 +28,22 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
 
 ## Release Notes
 
+### Version 0.11.3-dev
+
+- @instantiateModel(..)
+  - `Var(hideResult=true)` is no longer ignored if present in a sub-component.
+
+- simulate!(..)
+  - Unnecessary evaluation of the parameters dictionary is avoided (if merge = missing, nothing or has no elements).
+
+  
 ### Version 0.11.2
 
 - Minor (efficiency) improvement if states are SVectors.
-- 
+
+- Require ModiaBase 0.9.2 (to get rid of performance issues in Modia3D).
+
+- Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
 
 
 ### Version 0.11.1

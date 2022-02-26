@@ -128,7 +128,7 @@ convertTimeVariable(TimeType, t) = typeof(t) <: Unitful.AbstractQuantity ? conve
 struct SimulationOptions{FloatType,TimeType}
     merge::OrderedDict{Symbol,Any}
     tolerance::Float64
-    startTime::TimeType   # u"s"    
+    startTime::TimeType   # u"s"
     stopTime::TimeType    # u"s"
     interval::TimeType    # u"s"
     desiredResultTimeUnit
@@ -979,7 +979,7 @@ invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.tim
         if (cpuNew - m.cpuLast) * 1e-9 > 5.0
             m.cpuLast = cpuNew
             Printf.@printf("      progress: integrated up to time = %.3g s (in cpu-time = %.3g s)\n", t, (cpuNew-m.cpuFirst)*1e-9)
-        end        
+        end
     end
     if length(m.x_vec) > 0
         # copy vector-valued x-elements from x to m.x_vec
@@ -994,7 +994,7 @@ invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.tim
     end
     empty!(m.der_x)
     Base.invokelatest(m.getDerivatives!, x, m, t)
-    
+
     @assert(length(m.der_x) == m.equationInfo.nx)
 end
 
@@ -1032,7 +1032,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     eh.firstInitialOfAllSegments = true
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
-    if !isnothing(m.options.merge)
+    if length(m.options.merge) > 0
         m.parameters = mergeModels(m.parameters, m.options.merge)
         m.evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, m.unitless, m.modelModule, m.parameters, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
@@ -1654,7 +1654,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_pre...)
 
                     if _m.storeResult
-                        ModiaBase.TimerOutputs.@timeit _m.timer "ModiaLang addToResult!" begin 
+                        ModiaBase.TimerOutputs.@timeit _m.timer "ModiaLang addToResult!" begin
                             $(code_copy...)
                             ModiaLang.addToResult!(_m, $(variables...))
                         end

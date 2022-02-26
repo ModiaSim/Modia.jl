@@ -110,8 +110,8 @@ const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
-const Version = "0.11.2"
-const Date = "2022-02-23"
+const Version = "0.11.3-dev"
+const Date = "2022-02-26"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 #=
@@ -375,7 +375,7 @@ mutable struct ModelStructure
 #    components
 #    extends
     equations::Array{Expr,1}
-    hideResults::OrderedSet{Any}   # Do not store these variables in the result data structure    
+    hideResults::OrderedSet{Any}   # Do not store these variables in the result data structure
 end
 
 ModelStructure() = ModelStructure(OrderedDict(), OrderedDict{Symbol,Any}(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict(), Expr[], OrderedSet())
@@ -427,6 +427,7 @@ function mergeModelStructures(parent::ModelStructure, child::ModelStructure, pre
 
     merge!(parent.variables, child.variables)
     merge!(parent.flows, child.flows)
+    union!(parent.hideResults, child.hideResults)
 
     push!(parent.equations, prepend(child.equations, prefix)...)
 end
@@ -555,8 +556,8 @@ end
 
 
 function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters, hideResults;
-    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)    
-    (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure 
+    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
+    (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
     Goriginal = deepcopy(G)
     function getSolvedEquationAST(e, v)
         (solution, solved) = solveEquation(equations[e], unknowns[v])
@@ -579,7 +580,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
-        solution = makeDerVar(solution, parameters, inputs, evaluateParameters)       
+        solution = makeDerVar(solution, parameters, inputs, evaluateParameters)
         if logCalculations
             var = string(unknowns[v])
             solutionString = string(solution)
@@ -611,7 +612,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
             eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
             if unitless
-                eqs = :( $eq_rhs .- $eq_lhs )            
+                eqs = :( $eq_rhs .- $eq_lhs )
             else
                 eqs = :( ModiaLang.Unitful.ustrip.($eq_rhs) .- ModiaLang.Unitful.ustrip.($eq_lhs))
             end
@@ -694,7 +695,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         return replace(replace(string(equations[e]), "\n" => " "), "  " => " ")
     end
 
-    # ----------------------------------------------------------------------------  
+    # ----------------------------------------------------------------------------
     solvedAST = []
     Gsolvable = copy(G)
     juliaVariables  = [Symbol(u) for u in unknowns]
@@ -702,7 +703,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     allEquations    = equations
     #    @show stringVariables equations G blt assign Avar Bequ Gsolvable
 
-         
+
     stateSelectionFunctions = StateSelectionFunctions(
         var_name               = v -> stringVariables[v],
         var_julia_name         = v -> juliaVariables[v],
@@ -778,7 +779,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     if logCode
         println("startValues = ", startValues)
     end
-=#    
+=#
 
     vSolvedWithInit = equationInfo.vSolvedWithFixedTrue
     vSolvedWithInitValuesAndUnit = OrderedDict{String,Any}()
@@ -800,7 +801,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
     # Variables added to result
     extraResults = vcat(:time, setdiff([Symbol(u) for u in unknowns],
-                                        hideResults,
+                                       [Symbol(h) for h in hideResults],
                                         Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
                                         Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info]))
 
@@ -839,7 +840,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 #    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
      x_startValues = initialStateVector(equationInfo, FloatType)
-     
+
 #    println("Build SimulationModel")
 
     model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
@@ -859,7 +860,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             #@time Base.invokelatest(getDerivatives, derx, x_startValues, model, convert(TimeType, 0.0))
             @time init!(model)  # getDerivatives is called
             #@time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))
-            #@time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))            
+            #@time invokelatest_getDerivatives_without_der_x!(x_startValues, model, convert(TimeType, 0.0))
 #           @show derx
         catch e
             error("Failed: ", e)
@@ -915,12 +916,12 @@ appendSymbol(path         , name::Symbol) = :( $path.$name )
 
 """
     modifiedModel = buildSubModels!(model, modelModule, FloatType, TimeType, buildDict::OrderedDict)
-    
-Traverse `model` and for every `<subModel>` that is a `Model(..)` and has a key-value pair 
-`:_buildFunction = <buildFunction>` and optionally `:_buildOption=<buildOption>`, call 
+
+Traverse `model` and for every `<subModel>` that is a `Model(..)` and has a key-value pair
+`:_buildFunction = <buildFunction>` and optionally `:_buildOption=<buildOption>`, call
 
 ```
-buildCode = <buildFunction>(<subModel>, modelModule, FloatType::Type, TimeType::Type,  
+buildCode = <buildFunction>(<subModel>, modelModule, FloatType::Type, TimeType::Type,
                             buildDict::OrderedDict{String,Any},
                             modelPath::Union{Expr,Symbol,Nothing},
                             buildOption = <buildOption>)
@@ -929,32 +930,32 @@ buildCode = <buildFunction>(<subModel>, modelModule, FloatType::Type, TimeType::
 The`buildCode` is merged to the corresponding `<subModel>` in the calling environment.
 The arguments of `<buildFunction>`are:
 
-- `subModel`: The returned `buildCode` is merged to `submodel` 
+- `subModel`: The returned `buildCode` is merged to `submodel`
 - `FloatType`, `TimeType`: Types used when instantiating `SimulationModel{FloatType,TimeType}`
 - `modelPath`: Path upto `<subModel>`, such as: `:( a.b.c )`.
-- `buildDict`: Dictionary, that will be stored in the corresponding SimulationModel instance and 
-               that allows to store information about the build-process, 
+- `buildDict`: Dictionary, that will be stored in the corresponding SimulationModel instance and
+               that allows to store information about the build-process,
                typically with key `string(modelPath)` (if modelPath==Nothing, key="" is used).
 - `buildOption`: Option used for the generation of `buildCode`.
 
 Note, keys `_buildFunction` and `_buildOption` are deleted from the corresponding `<subModel>`.
 """
-function buildSubModels!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type, 
+function buildSubModels!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type,
                          buildDict::OrderedDict{String,Any}; path::Union{Expr,Symbol,Nothing}=nothing)
     if haskey(model, :_buildFunction)
-        buildFunction = model[:_buildFunction] 
-        delete!(model, :_buildFunction)      
-        quotedPath = Meta.quot(path)        
+        buildFunction = model[:_buildFunction]
+        delete!(model, :_buildFunction)
+        quotedPath = Meta.quot(path)
         if haskey(model, :_buildOption)
             buildOption = model[:_buildOption]
-            delete!(model, :_buildOption)        
+            delete!(model, :_buildOption)
             buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath, buildOption=$buildOption)) )
         else
             buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath)))
         end
         return  model | buildCode
     end
-    
+
     for (key,value) in model
         if typeof(value) <: OrderedDict && haskey(value, :_class) && value[:_class] == :Model
             model[key] = buildSubModels!(value, modelModule, FloatType, TimeType, buildDict; path=appendSymbol(path,key))
@@ -1013,7 +1014,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         if isexpr(model, :quote)
             model = eval(model) # model defined with macro
         end
-       
+
         if typeof(model) <: NamedTuple || typeof(model) <: Dict || typeof(model) <: OrderedDict
             # Traverse model and execute functions _buildFunction(..), to include code into sub-models
             buildDict = OrderedDict{String,Any}()
