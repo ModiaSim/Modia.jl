@@ -4,7 +4,6 @@ A particular model is instantiated, simulated and results plotted with the comma
 
 ```julia
 using Modia
-using DifferentialEquations
 @usingModiaPlot
 
 filter = @instantiateModel(Filter)
@@ -18,41 +17,44 @@ plot(filter, "y", figure=1)
 The `@instantiateModel` macro takes additional arguments:
 
 ```julia
-modelInstance = @instantiateModel(model;
-                    FloatType = Float64, aliasReduction=true, unitless=false,
-                    log=false, logModel=false, logDetails=false, logStateSelection=false,
-                    logCode=false, logExecution=false, logTiming=false)
+modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
+        evaluateParameters=false, log=false, logModel=false, logDetails=false, logStateSelection=false,
+        logCode=false,logExecution=logExecution, logCalculations=logCalculations, logTiming=false)
 ```
 
 The macro performs structural and symbolic transformations, generates a function for
 calculation of derivatives suitable for use with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
 and returns [`SimulationModel`](@ref) that can be used in other functions,
-for example to simulate or plot results:
+for example to simulate or plot results. Explanation of the arguments:
 
-* `model`: model (declarations and equations).
-* `FloatType`: Variable type for floating point numbers (see below).
-* `aliasReduction`: Perform alias elimination and remove singularities.
-* `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements).
-* `log`: Log the different phases of translation.
-* `logModel`: Log the variables and equations of the model.
-* `logDetails`: Log internal data during the different phases of translation.
-* `logStateSelection`: Log details during state selection.
-* `logCode`: Log the generated code.
+* `model`: model (declarations and equations)
+* `FloatType`: Variable type for floating point numbers, for example: Float64, Measurements{Float64}, StaticParticles{Float64,100}, Particles{Float64,2000}
+* `aliasReduction`: Perform alias elimination and remove singularities
+* `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements)
+* `evaluateParameters`: Use evaluated parameters in the generated code.
+* `log`: Log the different phases of translation
+* `logModel`: Log the variables and equations of the model
+* `logDetails`: Log internal data during the different phases of translation
+* `logStateSelection`: Log details during state selection
+* `logCode`: Log the generated code
 * `logExecution`: Log the execution of the generated code (useful for timing compilation)
 * `logCalculations`: Log the calculations of the generated code (useful for finding unit bugs)
-* `logTiming`: Log timing of different phases.
+* `logTiming`: Log timing of different phases
 * `return modelInstance prepared for simulation`
 
 ## 3.2 Simulating
 
 The [`simulate!`](@ref) function performs one simulation with
-[DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) using the default integrator
-that this package automatically selects and stores the result in `modelInstance`.
- It is also possible to specify the integrator as second argument of `simulate!`:
+[DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl) using
+by default integrator `Sundials.CVODE_BDF()`, provided
+instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
+(for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
+The reason to choose `CVODE_BDF` as default integrator is that it is a very robust integrator
+and also usually very efficient for larger models, provided there are no undamped vibrations.
+It is also possible to specify the integrator as second argument of `simulate!`:
 
 ```julia
 using Modia
-using DifferentialEquations
 @usingModiaPlot
 
 filter = @instantiateModel(Filter)
@@ -62,7 +64,7 @@ plot(filter, ["y", "x"], figure=1)
 
 Integrator `DifferentialEquations.Tsit5` is an
 [adaptive Runge-Kutta method of order 5/4 from Tsitouras](https://www.sciencedirect.com/science/article/pii/S0898122111004706).
-There are > 100 ODE integrators provided. For details, see [here](https://docs.sciml.ai/stable/solvers/ode_solve/).
+There are > 100 ODE integrators provided. For details, see [here](https://diffeq.sciml.ai/stable/solvers/ode_solve/).
 
 Parameters and init/start values can be changed with the `merge` keyword.
 The effect is the same, as if the filter would have been instantiated with:
@@ -82,7 +84,7 @@ used on the return argument `sol` of `simulate!`.
 
 ## 3.4 Plotting
 
-A short overview of the most important plot commands is given in section
+A short overview of the most important plot commands is given in
 section [Results and Plotting](@ref)
 
 
@@ -216,7 +218,7 @@ der(phi1) = ratio*der(phi2)  # differentiated constraint equation
        w2 = der(phi2)
 ```
 
-it becomes obvious, that there is also a hidden constraint equation for 
+it becomes obvious, that there is also a hidden constraint equation for
 the potential ODE states `w1, w2`:
 
 ```julia
@@ -248,3 +250,107 @@ variable as an ODE state. You can get more information by setting
 drive1 = @instantiateModel(TwoInertiasAndIdealGearTooManyInits, logStateSelection=true)
 ```
 
+This results in the following output in the REPL:
+
+```
+Instantiating model TwoInertiasAndIdealGearTooManyInits
+  in module: Main.Tutorial
+  in file: <..>\Modia\examples\Tutorial.jl:196
+
+=== getSortedAndSolvedAST(...) started for TwoInertiasAndIdealGearTooManyInits.
+
+... Equation set 1.1 ..............................
+Equations:
+   1: tau = 2.0 * sin((2 * 3.14 * f * time) / u"s")
+Unknown variables:
+   1: tau
+One equation in one unknown variable. Solve the equation:
+Julia code:
+    tau = 2.0 * sin((2 * 3.14 * _FloatType(_p[:f])::_FloatType * time) / u"s")
+
+... Equation set 2.1 ..............................
+Equations:
+   4: phi1 = ratio * phi2
+Unknown variables:
+   7: phi2
+   4: phi1
+1 equation(s) in 2 unknown variable(s). Tear the system of equations:
+    Unknowns with start or init values: phi2, phi1
+    Tearing  variables: phi2
+    All solved unknowns are dummy states.
+Julia code:
+    phi1 = _FloatType(_p[:ratio])::_FloatType * phi2
+
+... Equation set 2.2 ..............................
+Equations:
+   6: w2 = der(phi2)
+   8: der(phi1) = ratio * der(phi2)
+   2: w1 = der(phi1)
+Unknown variables:
+   9: w2
+  10: der(phi2)
+   3: der(phi1)
+   2: w1
+3 equation(s) in 4 unknown variable(s). Tear the system of equations:
+    Unknowns with start or init values: w2, w1
+    Tearing  variables: w2
+    All solved unknowns are dummy states.
+Julia code:
+    var"der(phi2)" = w2
+    var"der(phi1)" = _FloatType(_p[:ratio])::_FloatType * var"der(phi2)"
+    w1 = var"der(phi1)"
+
+... Equation set 2.3 ..............................
+Equations:
+   5: ratio * tau1 = tau2
+   7: J2 * der(w2) = tau2
+  10: der(w2) = der(der(phi2))
+  11: der(der(phi1)) = ratio * der(der(phi2))
+   9: der(w1) = der(der(phi1))
+   3: J1 * der(w1) = tau - tau1
+Unknown variables:
+   8: tau2
+  11: der(w2)
+  13: der(der(phi2))
+  12: der(der(phi1))
+   5: der(w1)
+   6: tau1
+6 equation(s) in 6 unknown variable(s). Tear the system of equations:
+    Tearing  variables: der(w2)
+    Residual equations:
+       7: J2 * der(w2) = tau2
+    All unknowns are solved.
+Teared equation system is linear. Solve system with hasConstantCoefficients = false.
+code = quote
+    local var"der(w2)", var"der(der(phi2))", var"der(der(phi1))", var"der(w1)", tau1, tau2
+    _leq_mode = initLinearEquationsIteration!(_m, 1)
+     ModiaBase.TimerOutputs.@timeit _m.timer "ModiaBase LinearEquationsIteration!" while ModiaBase.LinearEquationsIteration!(_leq_mode, _m.isInitial, _m.solve_leq, _m.storeResult, _m.time, _m.timer)
+            var"der(w2)" = _leq_mode.x[1] * u"s^-1"
+            var"der(der(phi2))" = var"der(w2)"
+            var"der(der(phi1))" = _FloatType(_p[:ratio])::_FloatType * var"der(der(phi2))"
+            var"der(w1)" = var"der(der(phi1))"
+            tau1 = -((_FloatType(_p[:J1])::_FloatType * var"der(w1)" - tau))
+            tau2 = _FloatType(_p[:ratio])::_FloatType * tau1
+            ModiaBase.appendVariable!(_leq_mode.residuals, ModiaLang.Unitful.ustrip.(tau2) .- ModiaLang.Unitful.ustrip.(_FloatType(_p[:J2])::_FloatType * var"der(w2)"))
+        end
+    _leq_mode = nothing
+end
+Sort equations (BLT on all equations under the assumption that the ODE states are known).
+
+Information message from getSortedAndSolvedAST for model TwoInertiasAndIdealGearTooManyInits:
+The following variables are iteration variables but have no start/init values defined.
+If units are used in the model, start/init values with correct units should be defined
+to avoid unit errors during compilation.
+Involved variables:
+    der(w2)
+
+
+Warning message from getSortedAndSolvedAST for model TwoInertiasAndIdealGearTooManyInits:
+The following variables have an 'init' initialization and are explicitly solved for.
+Therefore, the 'init' values have no effect, but must exactly match the values,
+computed during initialization. Otherwise this gives a run-time error.
+It is adviced to use 'start' initialization or remove initialization for these variables.
+Involved variables:
+    phi1
+    w1
+```

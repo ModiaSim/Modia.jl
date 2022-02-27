@@ -16,6 +16,8 @@ in column 2 and 3. These constants can be used as shortcuts:
 | flow       | flow      | Var(flow = true)      | If true, flow variable                             |
 | init       | --        | --                    | Initial value of ODE state (defines unit and size) |
 | start      | --        | --                    | Start value of variable (defines unit and size)    |
+| hideResult | --        | --                    | If true, the variable is not stored in the result  |
+
 
 Example:
 
@@ -99,17 +101,23 @@ Such a merge semantic allows for unification of parameter modifications and inhe
 The basics of the `mergeModels` algorithm and the merge operator `|` are defined as follows (without logging):
 
 ```julia
-function mergeModels(m1::OrderedDict, m2::OrderedDict, env=Symbol())
+function mergeModels(m1::AbstractDict, m2::AbstractDict, env=Symbol())
     result = deepcopy(m1)
     for (k,v) in m2)
-        if typeof(v) <: OrderedDict
+        if typeof(v) <: AbstractDict
             if k in keys(result) && ! (:_redeclare in keys(v))
-                result[k] = mergeModels(result[k], v, k)
+                if typeof(result[k]) <: AbstractDict
+                    result[k] = mergeModels(result[k], v, k)
+                end
             else
                 result[k] = v
             end
         elseif v === nothing
             delete!(result, k)
+        elseif k in keys(result) && k == :equations
+            equa = copy(result[k])
+            push!(equa.args, v.args...)
+            result[k] = equa
         else
             result[k] = v
         end
@@ -117,6 +125,6 @@ function mergeModels(m1::OrderedDict, m2::OrderedDict, env=Symbol())
     return result
 end
 
-|(m::OrderedDict, n::OrderedDict) =  mergeModels(m, n)
+|(m::AbstractDict, n::AbstractDict) =  mergeModels(m, n)
 
 ```

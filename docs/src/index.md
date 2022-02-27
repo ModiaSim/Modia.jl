@@ -45,10 +45,26 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ### Version 0.6.1
 
+Non-backwards compatible changes
+
+- Equations can only be defined with key `equations` and no other key. 
+
+- Parameter values in the code are now type cast to the type of the parameter value from the 
+  `@instantiatedModel(..)` call. The benefit is that access of parameter values in the code is type stable
+  and operations with the parameter value are more efficient and at run-time no memory is allocated.
+  Existing models can no longer be simulated, if parameter values provided via `simulate!(.., merge=xx)` are not
+  type compatible to their definition. For example, an error is thrown if the @instantedModel(..) uses a Float64 value and the
+  `simulate!(.., merge=xx)` uses a `Measurement{Float64}` value for the same parameter
+
+Other changes:
+
 - See release notes of [ModiaLang](https://github.com/ModiaSim/ModiaLang.jl/releases/tag/v0.11.0) and 
   of [Modia3D](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.9.0).
+
 - Project.toml and Manifest.toml updated due to new versions of Modia3D and ModiaLang
+
 - docu: fix some typing and formatting
+
 
 ### Version 0.6.0
 

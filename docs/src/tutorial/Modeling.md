@@ -22,7 +22,7 @@ LowPassFilter = Model(
     u = input,
     y = output | Var(:x),
     x = Var(init=0),
-    equation = :[T * der(x) + x = u],
+    equations = :[T * der(x) + x = u],
 )
 ```
 The symbols `input` and `output` refer to predefined variable constructors to define the input and output variables. If an equation has just a unique variable in the left hand side, `y`, the right hand side can be given as a quoted expression in a Var-constructor `Var(:x)` after the `output` constructor combined with the merge operator, `|`, see below.
@@ -128,26 +128,37 @@ table = CubicSplineInterpolation(0:0.5:2.0, [0.0, 0.7, 2.0, 1.8, 1.2])
 TestLowAndHighPassFilter2 = TestLowAndHighPassFilter | Map(u = :(table(time*u"1/s")*u"V"))
 ```
 
-A function cannot return more as one variable and a function cannot modify
-one of its arguments:
+It is possible to call Julia functions that have more as one return argument:
+
+```julia
+function ref(time)
+    y1 = sin(time)
+    y2 = cos(time)
+    return (y1,y2)
+end
+
+TestMultiReturningFunction1 = Model(
+    equations = :[
+        (y1,y2) = ref(time)
+        y3 = y1+y2
+    ]
+)
+```
+
+The returned arguments are typically numbers or arrays (see below).
+It is also possible to return an instance of a struct and, say,
+pass this instance as input to another function call.
+
+However, it is currently not supported that a function call modifies one of its arguments,
+or that a function call returns no argument at all:
 
 ```
 equations = :[
-    (y1, y1) = fc1(u1,u2)      # Error: Two return arguments
-    fc2!(u,y)                  # Error: Not known that fc2! computes y
-    println("This is a test")  # Fine
+    fc!(u,y)                   # Error: Not known that fc! computes y
+    println("This is a test")  # Error: One equation is introduced but no unknown
 ]
 ```
 
-The first issue can be fixed by rewriting the function call:
-
-```
-equations = :[
-    v  = fc1(u1,u2)
-    y1 = v[1]
-    y2 = v[2]
-]
-```
 
 
 ## 2.4 Hierarchical modeling
@@ -262,13 +273,13 @@ OnePort = Model(
 Having such a `OnePort` definition makes it convenient to define electrical component models by merging `OnePort` with specific parameter definitions with default values and equations:
 
 ```julia
-Resistor = OnePort | Model( R = 1.0u"Ω", equation = :[ R*i = v ], )
+Resistor = OnePort | Model( R = 1.0u"Ω", equations = :[ R*i = v ], )
 
-Capacitor = OnePort | Model( C = 1.0u"F", v=Map(init=0.0u"V"), equation = :[ C*der(v) = i ] )
+Capacitor = OnePort | Model( C = 1.0u"F", v=Map(init=0.0u"V"), equations = :[ C*der(v) = i ] )
 
-Inductor = OnePort | Model( L = 1.0u"H", i=Map(init=0.0u"A"), equation = :[ L*der(i) = v ] )
+Inductor = OnePort | Model( L = 1.0u"H", i=Map(init=0.0u"A"), equations = :[ L*der(i) = v ] )
 
-ConstantVoltage = OnePort | Model( V = 1.0u"V", equation = :[ v = V ] )
+ConstantVoltage = OnePort | Model( V = 1.0u"V", equations = :[ v = V ] )
 ```
 
 The merged `Resistor` is shown below:
@@ -287,6 +298,9 @@ Resistor = Model(
   R = 1.0 Ω,
 ),
 ```
+
+Note, there is a special merge-rule that the vectors of keys `equations` are appended.
+
 
 ### 2.5.4 Connections
 
@@ -439,15 +453,13 @@ StateSpace = Model(
 and used as:
 
 ```julia
-col(args...) = hvcat(1, args...)  # Construct a column matrix from a vector
-
 SecondOrder = Model(
     w = 20.0,
     D =  0.1,
     k =  2.0,
     sys = StateSpace | Map(A = :([  0        1;
                                  -w^2  -2*D*w]),
-                           B = :(col([0; w^2])),
+                           B = :([0; w^2;;]),    # Julia 1.7: Trailing ";;" defines a column matrix
                            C = :([k 0]),
                            D = :(zeros(1,1)),
                            x = Var(init = zeros(2)) ),
@@ -457,8 +469,9 @@ SecondOrder = Model(
 
 Variables `sys.u` and `sys.y` are vectors with one element each.
 
-Note, `[0; w^2]` is a vector in Julia and not a column matrix (see the discussion [here](https://discourse.julialang.org/t/construct-a-2-d-column-array/30617)).
-In order that `B` is defined as column matrix, the function `col(..)` is used.
+Note, `[0; w^2]` is a vector in Julia and not a column matrix.
+In order that `B` is defined as column matrix, the Julia 1.7 feature is used to append two semikolons, that is,
+`[0; w^2;;]`
 
 Array equations remain array equations during symbolic transformation and in the generated code,
 so the code is both compact and efficient.
@@ -484,6 +497,44 @@ equations = :[
 ]
 ```
 
+When the init or start value of an array variable is defined as a [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) array,
+then the value of this array remains to be a StaticArrays variable also in the generated code.
+The benefit is that array operations are more efficient:
+
+```julia
+using StaticArrays
+TestArray1 = Model
+    v = Var(init=SVector{3,Float64}(1.0, 2.0, 3.0)),
+    equations = :[der(v) = -v]
+)
+testArray1 =  @instantiateModel(TestArray1, logCode=true)
+```
+
+Note, the generated code is shown in the REPL if `logCode=true` is defined:
+
+```julia
+function getDerivatives(_x, _m::ModiaLang.SimulationModel{_FloatType,_TimeType} ...
+    ...
+    v::ModiaBase.SVector{3,_FloatType} = ModiaBase.SVector{3,_FloatType}(_x[1:3])
+    var"der(v)" = -v
+    ...
+```
+
+The sizes of StaticArrays variables cannot be changed, after `@instantiatedModel` was called.
+However, the sizes of standard array variables can be changed with keyword argument `merge` in `simulate!`
+(so no re-generation and re-compilation of the code is needed):
+
+```julia
+TestArray2 = Model(
+    v = Var(init=[1.0, 2.0, 3.0]),   # length(v) = 3
+    equations = :[der(v) = -v]
+)
+testArray2 = @instantiateModel(TestArray2)
+simulate!(testArray2, stopTime=2.0, merge=Map(v = [4.0, 3.0, 2.0, 1.0]))   # length(v) = 4
+plot(testArray2, "v", figure=5)
+```
+
+
 ## 2.7 Model libraries
 
 Modia provides a small set of pre-defined model components in directory `Modia.modelsPath`:
@@ -496,14 +547,15 @@ Modia provides a small set of pre-defined model components in directory `Modia.m
 - `Translational.jl` - 1D translational, mechanical component models
 - [PathPlanning](@ref) - Defining reference trajectories and access them.
 
-These models are included in package `Modia`, but are not exported, so must be access with `Modia.xxx`.
-
-The circuit of section [2.5.5 Connected models](@ref) can be for example constructed with these libraries in the following way:
+The desired libraries must be explicitly included with the help of utility
+path variable `Modia.modelsPath`. For example, the circuit of section [2.5.5 Connected models](@ref)
+is constructed with these libraries in the following way:
 
 ```julia
 using Modia
-using DifferentialEquations
 @usingModiaPlot
+
+include("$(Modia.modelsPath)/Electric.jl")
 
 FilterCircuit = Model(
     R = Modia.Resistor  | Map(R=0.5u"Ω"),
