@@ -86,14 +86,14 @@ function createMobile(depth)
         )
     end
 end
-Mobile = Model(
+Mobile = Model3D(
     world      = Object3D(feature=Scene(gravityField=UniformGravityField(g=9.81, n=[0, -1, 0]), enableContactDetection=false, nominalLength=0.2*barLength(depthMax), enableVisualization=enableVisualization, animationFile=animationFile)),
     worldFrame = Object3D(parent = :world, feature = Visual(shape = CoordinateSystem(length=rodLength))),
     top        = createMobile(depthMax),
     rev0       = RevoluteWithDamping(obj1 = :world, obj2 = :(top.rod.frame1), phi_start=0.2)
 )
 
-mobile = @instantiateModel(buildModia3D(Mobile), unitless=true, log=false, logDetails=false, logModel=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
+mobile = @instantiateModel(Mobile, unitless=true, log=false, logDetails=false, logModel=false, logStateSelection=false, logCode=false, logExecution=false, logTiming=false)
 
 stopTime = 5.0
 tolerance = 1e-5

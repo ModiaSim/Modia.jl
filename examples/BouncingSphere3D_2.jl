@@ -1,9 +1,10 @@
 module BouncingSphere3D_2
 
 using Modia
+using ModiaLang.StaticArrays
 @usingModiaPlot
 
-BouncingSphere = Model(
+BouncingSphere = Model3D(
     boxHeigth = 0.05,
     groundMaterial = VisualMaterial(color="DarkGreen", transparency=0.5),
     sphereMaterial = VisualMaterial(color="Red"),
@@ -27,16 +28,17 @@ BouncingSphere = Model(
     sphere = Object3D(feature=Solid(shape=Sphere(diameter=0.2),
                                     visualMaterial=:sphereMaterial, solidMaterial="Steel",
                                     collision=true)),
-    free = FreeMotion(obj1=:world, obj2=:sphere, r=Var(init=[0.0, 1.0, 0.0]), w=Var(init=[10.0, 0.0, -5.0]))
+    free = FreeMotion(obj1=:world, obj2=:sphere, r=Var(init=SVector{3,Float64}(0.0, 1.0, 0.0)), w=Var(init=SVector{3,Float64}(10.0, 0.0, -5.0)))
 )
 
-bouncingSphere = @instantiateModel(buildModia3D(BouncingSphere), unitless=true, log=false, logStateSelection=false, logCode=false)
+bouncingSphere = @instantiateModel(BouncingSphere, unitless=true, log=false, logStateSelection=false, logCode=false)
 
 
 stopTime = 2.7
 tolerance = 1e-8
-requiredFinalStates = [0.28711931505126853, -0.9780916472966511, -0.20833195055744314, 0.10925258092251605, -3.8123627743313273, -0.9364166852211897, 1.228619049097046, -0.5724547180688829, 0.22566245156307535, -7.694985753129207, 0.3826986158402523, 5.519005772512668]
-simulate!(bouncingSphere, stopTime=stopTime, tolerance=tolerance, log=true, logStates=true, logEvents=true, requiredFinalStates=requiredFinalStates)
+requiredFinalStates = [0.29302652789657424, -1.2392524758992525, -0.13171402091799628, 0.11357140027502943, -4.417276610857313, -0.8729857092038694, 2.3810648360145152, -0.426312211044484 , 0.13656197405807574, -7.335181005993924, 0.812877179123953, 4.870682494334355]
+simulate!(bouncingSphere, stopTime=stopTime, tolerance=tolerance, log=true, logStates=true, logEvents=true, 
+          requiredFinalStates_rtol = 0.2, requiredFinalStates_atol = 0.2, requiredFinalStates=requiredFinalStates)
 
 plot(bouncingSphere, ["free.r" "free.rot"; "free.v" "free.w"], figure=1)
 

@@ -5,7 +5,7 @@ println("... Pendulum3D_2 - simple pendulum modeled with multibody components wi
 using  Modia
 @usingModiaPlot
 
-Pendulum = Model(
+Pendulum = Model3D(
     world = Object3D(feature=Scene(animationFile="Pendulum2.json")),
     obj1  = Object3D(feature=Solid(shape=Box(lengthX=1.0, lengthY=0.2, lengthZ=0.2),
                 solidMaterial="Steel", visualMaterial=VisualMaterial(color="Blue"))),
@@ -14,7 +14,7 @@ Pendulum = Model(
     rev   = Revolute(obj1=:world, obj2=:obj2)
 )
 
-pendulum = @instantiateModel(buildModia3D(Pendulum), unitless=true)
+pendulum = @instantiateModel(Pendulum, unitless=true)
 simulate!(pendulum, stopTime=3.0)
 plot(pendulum, "rev.phi")
 end

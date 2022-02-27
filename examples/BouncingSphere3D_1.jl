@@ -1,8 +1,9 @@
 module BouncingSphere3D_1
 
 using Modia
+using ModiaLang.StaticArrays
 
-BouncingSphere = Model(
+BouncingSphere = Model3D(
     boxHeigth = 0.1,
     groundMaterial = VisualMaterial(color="DarkGreen", transparency=0.5),
     gravField = UniformGravityField(g=9.81, n=[0, -1, 0]),
@@ -24,10 +25,10 @@ BouncingSphere = Model(
                                     solidMaterial="Steel",
                                     massProperties=MassPropertiesFromShapeAndMass(mass=0.001),
                                     collision=true)),
-    free = FreeMotion(obj1=:world, obj2=:sphere, r=Var(init=[0.0, 1.0, 0.0]))
+    free = FreeMotion(obj1=:world, obj2=:sphere, r=Var(init=SVector{3,Float64}(0.0, 1.0, 0.0)))
 )
 
-bouncingSphere = @instantiateModel(buildModia3D(BouncingSphere), unitless=true, log=false, logStateSelection=false, logCode=false)
+bouncingSphere = @instantiateModel(BouncingSphere, unitless=true, log=false, logStateSelection=false, logCode=false)
 
 #@show bouncingSphere.parameterExpressions
 #@show bouncingSphere.parameters
@@ -36,7 +37,8 @@ stopTime = 2.2
 dtmax = 0.1
 tolerance = 1e-8
 requiredFinalStates = [0.0, 0.10092547226369847, 0.0, 0.0, 0.01950941258387679, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-simulate!(bouncingSphere, stopTime=stopTime, tolerance=tolerance, dtmax=dtmax, log=true, logStates=true, logEvents=true, requiredFinalStates=requiredFinalStates)
+simulate!(bouncingSphere, stopTime=stopTime, tolerance=tolerance, dtmax=dtmax, log=true, logStates=true, logEvents=true, 
+          requiredFinalStates_atol=0.01, requiredFinalStates=requiredFinalStates)
 
 @usingModiaPlot
 plot(bouncingSphere, "free.r", figure=1)

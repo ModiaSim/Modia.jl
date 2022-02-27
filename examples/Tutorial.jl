@@ -9,7 +9,7 @@ using Modia
 SimpleModel = Model(
     T = 0.4,
     x = Var(init=0.2),
-    equation = :[T * der(x) + x = 1],
+    equations = :[T * der(x) + x = 1],
 )
 
 # Transform to ODE form
@@ -35,7 +35,7 @@ LowPassFilter = Model(
     u = input,
     y = output | Var(:x),
     x = Var(init=0),
-    equation = :[T * der(x) + x = u],
+    equations = :[T * der(x) + x = u],
 )
     
 

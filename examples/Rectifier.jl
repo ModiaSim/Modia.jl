@@ -26,7 +26,7 @@ IdealDiode = OnePort | Model(
 
 Rectifier1 = Model(
     R1 = Resistor | Map(R=1.0u"Ω"),
-    R2 = Resistor | Map(R=100.0u"Ω"),    
+    R2 = Resistor | Map(R=10.0u"Ω"),    
     C = Capacitor | Map(C=0.1u"F", v=Var(init=0.0u"V")),
     D = IdealDiode,
     V = SineVoltage | Map(V=5.0u"V", f=1.5u"Hz"),
@@ -40,7 +40,7 @@ Rectifier1 = Model(
 )
 
 rectifier1 = @instantiateModel(Rectifier1)
-@time simulate!(rectifier1, Tsit5(), stopTime = 3, requiredFinalStates=[4.5665505086780565])
+simulate!(rectifier1, Tsit5(), stopTime = 3, requiredFinalStates=[3.509663836166844])
 plot(rectifier1, [("V.v", "D.v", "C.v"), "D.i"], figure=1)
 
 
@@ -64,10 +64,10 @@ Rectifier2 = Model(
 )
 
 rectifier2 = @instantiateModel(Rectifier2, unitless=true)
-@time simulate!(rectifier2, Tsit5(), stopTime = 0.1, log=true, requiredFinalStates=[183.9899542497182])
+simulate!(rectifier2, Tsit5(), stopTime = 0.1, tolerance=1e-8, log=true, requiredFinalStates=[183.9899542497182])  # Wrong result if tolerance = 1e-6
 plot(rectifier2, [("V.v", "C.v"), "V.i"], figure=2)
 
-@time simulate!(rectifier2, stopTime = 0.1, log=true)  #, requiredFinalStates=[183.9899542497182])
+simulate!(rectifier2, stopTime = 0.1, log=true, requiredFinalStates=[183.9899542497182])
 plot(rectifier2, [("V.v", "C.v"), "V.i"], figure=3)
 
 end

@@ -6,7 +6,7 @@ using Modia
 SimpleModel = Model(
     T = 0.2,
     x = Var(init=0.5),
-    equation = :[T * der(x) + x = 2]
+    equations = :[T * der(x) + x = 2]
 )
 
 # @showModel(SimpleModel)

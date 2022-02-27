@@ -7,7 +7,7 @@ using Modia
 # Modia equation-based models
 include("$(Modia.modelsPath)/AllModels.jl")
 
-Pendulum = Model(
+Pendulum = Model3D(
     world = Object3D(feature=Scene(animationFile="Pendulum3.json")),
     obj1  = Object3D(feature=Solid(shape=Box(lengthX=1.0, lengthY=0.2, lengthZ=0.2),
                 solidMaterial="Steel", visualMaterial=VisualMaterial(color="Blue"))),
@@ -21,7 +21,7 @@ Pendulum = Model(
                 (damper.flange_a, fixed.flange)]
 )
 
-pendulum = @instantiateModel(buildModia3D(Pendulum), unitless=true)
+pendulum = @instantiateModel(Pendulum, unitless=true)
 simulate!(pendulum, stopTime=3.0)
 
 @usingModiaPlot
