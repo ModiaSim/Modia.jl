@@ -43,11 +43,18 @@ julia> ]add Measurements, MonteCarloMeasurements, Distributions
 
 ## Release Notes
 
-### Version 0.6.1
+### Version 0.7.0
 
-Non-backwards compatible changes
+**Non-backwards** compatible changes (basically, these changes are, erronously, in 0.6.1):
 
-- Equations can only be defined with key `equations` and no other key. 
+- Equations can only be defined with key `equations` and no other key
+  (still, expressions can be associated with one variable, such as `b = Var(:(2*a))`).
+  In versions 0.6.0 and before, equations could be associated with any key.
+  
+- The merge operator `|` appends the expression vectors of `equations`, so 
+  `m1 | m2` basically appends the vector of `m2.equations` to the vector of `m1.equations`.
+  In versions 0.6.0 and before, the merge operator did not handle `equations` specially, 
+  and therefore `m1 | m2` replaced `m1.equations` by `m2.equations`.
 
 - Parameter values in the code are now type cast to the type of the parameter value from the 
   `@instantiatedModel(..)` call. The benefit is that access of parameter values in the code is type stable
@@ -55,8 +62,32 @@ Non-backwards compatible changes
   Existing models can no longer be simulated, if parameter values provided via `simulate!(.., merge=xx)` are not
   type compatible to their definition. For example, an error is thrown if the @instantedModel(..) uses a Float64 value and the
   `simulate!(.., merge=xx)` uses a `Measurement{Float64}` value for the same parameter
+  
+- Operator `buildModia3D(..)` as used in Modia3D models is removed. Instead, the new constructor 
+  `Model3D(..)` must be used at the top level of a Modia3D definition. It is now possible to define 
+  several, independent multibody systems (currently, only one of them can have animation and animation export). 
+  
+- `Var(init=[...])` or `Var(start=[..])` of FreeMotion joints must be defined as
+  `Var(init=SVector{3,Float64}(..))` or `Var(start=SVector{3,Float64}(..))`.
+  Otherwise, errors occur during compilation. 
 
-Other changes:
+  
+Other changes
+
+- Documentation (especially tutorial) adapted to the new version.
+
+- Examples and test models (Modia/examples, Modia/tests) adapted to the new version, especially
+  to the non-backwards compatible changes.
+  
+- For further changes of equation-based models, see the release notes of [ModiaLang 0.11.0](https://github.com/ModiaSim/ModiaLang.jl/releases/tag/v0.11.0).
+
+- For further changes of Modia3D models, see the release notes of [Modia3D 0.9.0](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.9.0).
+
+ 
+### Version 0.6.1
+
+This version was erronously released as 0.6.1. Since it contains non-backwards compatible
+changes with respect to 0.6.0, this is wrong and should have been released as version 0.7.0.
 
 - See release notes of [ModiaLang](https://github.com/ModiaSim/ModiaLang.jl/releases/tag/v0.11.0) and 
   of [Modia3D](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.9.0).

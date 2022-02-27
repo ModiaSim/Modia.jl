@@ -9,8 +9,8 @@ Modia main module.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.6.1"
-const Date = "2022-02-23"
+const Version = "0.7.0"
+const Date = "2022-02-27"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 print(" \n\nWelcome to ")
