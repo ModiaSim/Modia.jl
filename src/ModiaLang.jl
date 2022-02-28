@@ -110,8 +110,8 @@ const drawIncidence = false
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 
-const Version = "0.11.3-dev"
-const Date = "2022-02-26"
+const Version = "0.11.3"
+const Date = "2022-02-28"
 
 #println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
 #=
