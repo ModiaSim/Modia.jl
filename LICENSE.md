@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2020-2021: Hilding Elmqvist (Mogram) and DLR Institute of System Dynamics and Control
+Copyright (c) 2020-2022: Hilding Elmqvist (Mogram) and DLR Institute of System Dynamics and Control
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
