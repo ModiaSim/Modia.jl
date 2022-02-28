@@ -1,7 +1,7 @@
 # Functions
 
 ```@meta
-CurrentModule = ModiaLang
+CurrentModule = Modia
 ```
 
 
@@ -35,7 +35,7 @@ The following functions are provided (for details see
 [Functions of ModiaResult](https://modiasim.github.io/ModiaResult.jl/stable/Functions.html#Functions-of-ModiaResult)):
 
 ```@meta
-CurrentModule = ModiaLang
+CurrentModule = Modia
 ```
 
 | Functions                        | Description                                       |
