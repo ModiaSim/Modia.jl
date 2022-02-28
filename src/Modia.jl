@@ -8,6 +8,23 @@ Main module of Modia.
 """
 module Modia
 
+const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
+const Version = "0.8.0"
+const Date = "2022-03-01"
+
+print(" \n\nWelcome to ")
+print("Mod")
+printstyled("ia", bold=true, color=:red)
+print(" - ")
+printstyled("Dynamic ", color=:light_black)
+print("Mod")
+printstyled("eling and Simulation with Jul", color=:light_black)
+printstyled("ia", bold=true, color=:red)
+
+println()
+println("Version $Version ($Date)")
+
+
 # Defalut switch settings
 logStatistics = false
 logExecution = false
@@ -107,27 +124,6 @@ include("JSONModel.jl")
 # Base.Experimental.@optlevel 0
 
 const drawIncidence = false
-
-const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-
-const Version = "0.11.3"
-const Date = "2022-02-28"
-
-#println(" \n\nWelcome to Modia - Dynamic MODeling and Simulation in julIA")
-#=
-print(" \n\nWelcome to ")
-printstyled("Tiny", color=:light_black)
-print("Mod")
-printstyled("ia", bold=true, color=:red)
-print(" - ")
-printstyled("Dynamic ", color=:light_black)
-print("Mod")
-printstyled("eling and Simulation with Jul", color=:light_black)
-printstyled("ia", bold=true, color=:red)
-
-println()
-println("Version $Version ($Date)")
-=#
 
 
 include("ModiaLang.jl")
