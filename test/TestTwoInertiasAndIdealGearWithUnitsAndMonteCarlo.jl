@@ -1,9 +1,9 @@
 module TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo
 
-using ModiaLang
+using Modia
 @usingModiaPlot
-using ModiaLang.MonteCarloMeasurements
-using ModiaLang.MonteCarloMeasurements.Distributions
+using Modia.MonteCarloMeasurements
+using Modia.MonteCarloMeasurements.Distributions
 
 
 # The number of particles must be the same as for FloatType

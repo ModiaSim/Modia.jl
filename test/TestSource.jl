@@ -1,6 +1,6 @@
 module TestSource
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 

@@ -10,7 +10,7 @@ Modia module with rotational component models (inspired from Modelica Standard L
 
 #export Flange, Inertia, Spring, SpringDamper, EMF, IdealGear, Torque, CurrentSensor, Fixed, Damper, IdealGear_withSupport, SpeedSensor
 
-using ModiaLang
+using Modia
 
 # Connector for 1D rotational systems
 Flange = Model(

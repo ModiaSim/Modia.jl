@@ -1,8 +1,8 @@
 module TestTwoInertiasAndIdealGearWithUnitsAndUncertainties
 
-using ModiaLang
+using Modia
 @usingModiaPlot
-using ModiaLang.Measurements
+using Modia.Measurements
 
 
 TwoInertiasAndIdealGear = Model(

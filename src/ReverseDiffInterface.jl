@@ -1,7 +1,7 @@
 export ModiaProblem, ModiaSolve
 
-function ModiaProblem(m1::ModiaLang.SimulationModel{FloatType1,FloatType1}, 
-                      m2::ModiaLang.SimulationModel{FloatType2,FloatType2};
+function ModiaProblem(m1::Modia.SimulationModel{FloatType1,FloatType1}, 
+                      m2::Modia.SimulationModel{FloatType2,FloatType2};
                       p, merge=nothing, kwargs...) where {FloatType1,FloatType2}
 
     TimeType1 = FloatType1
@@ -34,13 +34,13 @@ function ModiaProblem(m1::ModiaLang.SimulationModel{FloatType1,FloatType1},
         println("... Construct simulation problem of DifferentialEquations.jl for ", m.modelName)
     end
      
-    success1 = ModiaLang.init!(m1)
-    if !success1|| m1.eventHandler.restart == ModiaLang.Terminate
+    success1 = Modia.init!(m1)
+    if !success1|| m1.eventHandler.restart == Modia.Terminate
         return nothing
     end
     
-    success2 = ModiaLang.init!(m2)
-    if !success2|| m2.eventHandler.restart == ModiaLang.Terminate
+    success2 = Modia.init!(m2)
+    if !success2|| m2.eventHandler.restart == Modia.Terminate
         return nothing
     end
     

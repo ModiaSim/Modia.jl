@@ -12,7 +12,7 @@ macro usingModiaPlot()
         elseif ModiaPlotPackage == "NoPlot"
             @goto USE_NO_PLOT
         elseif ModiaPlotPackage == "SilentNoPlot"
-            expr = :( import ModiaLang.ModiaResult.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            expr = :( import Modia.ModiaResult.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
             return esc( expr )
         else
             ModiaPlotPackage = Symbol("ModiaPlot_" * ModiaPlotPackage)
@@ -27,7 +27,7 @@ macro usingModiaPlot()
     end
 
     @label USE_NO_PLOT
-    expr = :( import ModiaLang.ModiaResult.NoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+    expr = :( import Modia.ModiaResult.NoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
     println("$expr")
     return esc( expr )
 end
@@ -87,7 +87,7 @@ or [DAE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solv
 If the `algorithm` argument is missing, `algorithm=Sundials.CVODE_BDF()` is used, provided
 instantiatedModel has `FloatType = Float64`. Otherwise, a default algorithm will be chosen from DifferentialEquations
 (for details see [https://arxiv.org/pdf/1807.06430](https://arxiv.org/pdf/1807.06430), Figure 3).
-The symbols `CVODE_BDF` and `IDA` are exported from ModiaLang, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
+The symbols `CVODE_BDF` and `IDA` are exported from Modia, so that `simulate!(instantiatedModel, CVODE_BDF(), ...)`
 and `simulate!(instantiatedModel, IDA(), ...)`
 can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.xxx(), ...)`).
 
@@ -234,7 +234,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
         end
 
-        #TimerOutputs.@timeit m.timer "ModiaLang.init!" success = init!(m)
+        #TimerOutputs.@timeit m.timer "Modia.init!" success = init!(m)
         if m.options.log || m.options.logTiming
             @time (success = init!(m); if m.options.log || m.options.logTiming; print("      Initialization finished within") end)
         else
@@ -248,7 +248,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         enable_timer!(m.timer)
         reset_timer!(m.timer)
 
-        TimerOutputs.@timeit m.timer "ModiaLang.simulate!" begin 
+        TimerOutputs.@timeit m.timer "Modia.simulate!" begin 
             sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
 
             # Define problem and callbacks based on algorithm and model type
@@ -387,8 +387,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         if m.options.log
             useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
             println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
-            println("        cpuTime (without init.)   = ", round(TimerOutputs.time(m.timer["ModiaLang.simulate!"])*1e-9, sigdigits=3), " s")
-            println("        allocated (without init.) = ", round(TimerOutputs.allocated(m.timer["ModiaLang.simulate!"])/1048576.0, sigdigits=3), " MiB")
+            println("        cpuTime (without init.)   = ", round(TimerOutputs.time(m.timer["Modia.simulate!"])*1e-9, sigdigits=3), " s")
+            println("        allocated (without init.) = ", round(TimerOutputs.allocated(m.timer["Modia.simulate!"])/1048576.0, sigdigits=3), " MiB")
             println("        algorithm                 = ", get_algorithmName_for_heading(m))
             println("        FloatType                 = ", FloatType)
             println("        interval                  = ", m.options.interval, " s")
@@ -518,7 +518,7 @@ You can improve this situation, by using a larger
 # Example
 
 ```julia
-using ModiaLang
+using Modia
 using DoubleFloats
 using Measurements
 
@@ -808,7 +808,7 @@ In both cases, a **view** on the internal result memory is provided
 # Example
 
 ```julia
-using ModiaLang
+using Modia
 @usingModiaPlot
 using Unitful
 

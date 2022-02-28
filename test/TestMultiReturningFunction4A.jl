@@ -1,7 +1,7 @@
 module TestMultiReturningFunction4A
 
 using ModiaBase.StaticArrays
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 mutable struct Mbs

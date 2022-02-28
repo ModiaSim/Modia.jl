@@ -2,7 +2,7 @@ module TestAsynchronous
 
 #println("\nAsynchronousExamples: Demonstrating the ability to simulate models with asynchronous semantics")
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 

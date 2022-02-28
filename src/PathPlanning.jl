@@ -39,7 +39,7 @@ a flange according to a given acceleration.
 
 # Example
 ```julia
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 const ptp_path = PTP_path(["angle1", "angle2", "angle3"],
@@ -429,7 +429,7 @@ using `ntime` time points.
 # Example
 
 ```julia
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 const ptp_path = PTP_path(["angle1", "angle2", "angle3"],

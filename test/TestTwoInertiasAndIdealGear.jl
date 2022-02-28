@@ -1,6 +1,6 @@
 module TestTwoInertiasAndIdealGear
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 using Test
 

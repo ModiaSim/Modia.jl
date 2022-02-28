@@ -1,6 +1,6 @@
 module TestMultiReturningFunction5A
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 mutable struct Mbs

@@ -1,6 +1,6 @@
 module TestFilterCircuit
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 using Test
 

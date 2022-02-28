@@ -8,7 +8,7 @@ Modia module with block component models (inspired from Modelica Standard Librar
 """
 #module Blocks
 
-using ModiaLang
+using Modia
 
 #export Gain, FirstOrder, Feedback, PI, Step, Ramp # Sine, Switch, MIMO
 

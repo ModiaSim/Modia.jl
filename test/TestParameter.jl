@@ -1,11 +1,11 @@
 module TestParameter
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 using Test
 
 
-include("$(ModiaLang.path)/models/Blocks.jl")
+include("$(Modia.path)/models/Blocks.jl")
 
 
 inputSignal(t) = sin(t)

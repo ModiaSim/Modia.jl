@@ -1,8 +1,8 @@
 module TestUncertainties
 
-using ModiaLang
+using Modia
 @usingModiaPlot
-using ModiaLang.Measurements
+using Modia.Measurements
 
 
 TestModel = Model(

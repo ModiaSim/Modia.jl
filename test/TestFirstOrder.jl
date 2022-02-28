@@ -1,6 +1,6 @@
 module TestFirstOrder
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 inputSignal(t) = sin(t)

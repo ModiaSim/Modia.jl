@@ -120,7 +120,7 @@ plot(testServo1, plotVariables, figure=1)
 
 
 println("\nServo with uncertainties")
-using ModiaLang.Measurements
+using Modia.Measurements
 TestServoWithUncertainties = TestServo | Map(
     load  = Map(J=(110.0 ± 20)u"kg*m^2"),
     servo = Map(motor = Map(resistor = Map(R=(13.8±1.0)u"Ω"))))
@@ -129,14 +129,14 @@ testServo2 = @instantiateModel(TestServoWithUncertainties , FloatType = Measurem
 plot(testServo2, plotVariables, figure=2)
 
 println("\nServo with Monte Carlo simulation")
-using  ModiaLang.MonteCarloMeasurements.Distributions
+using  Modia.MonteCarloMeasurements.Distributions
 const nparticles = 100
-uniform(vmin,vmax) = ModiaLang.MonteCarloMeasurements.StaticParticles(nparticles,Distributions.Uniform(vmin,vmax))
+uniform(vmin,vmax) = Modia.MonteCarloMeasurements.StaticParticles(nparticles,Distributions.Uniform(vmin,vmax))
 
 TestServoWithMonteCarlo = TestServo | Map(
      load  = Map(J = uniform(50,170)),
      servo = Map(motor = Map(resistor = Map(R = uniform(12.8,14.8)))))
-testServo3 = @instantiateModel(TestServoWithMonteCarlo, FloatType = ModiaLang.MonteCarloMeasurements.StaticParticles{Float64,nparticles}, unitless=true)
+testServo3 = @instantiateModel(TestServoWithMonteCarlo, FloatType = Modia.MonteCarloMeasurements.StaticParticles{Float64,nparticles}, unitless=true)
 @time simulate!(testServo3, Tsit5(), stopTime=2.0, tolerance=1e-6)
 plot(testServo3, plotVariables, figure=3)
 

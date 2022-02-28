@@ -1,7 +1,7 @@
 module PendulumSimulation
 
 using Modia
-using ModiaLang.Measurements
+using Modia.Measurements
 @usingModiaPlot
 
 
@@ -40,7 +40,7 @@ println("\n... Numerically linearize at stopTime = 10 with Float64 and Double64:
 (A_10, x_10) = linearize!(pendulum2, stopTime=10) 
 
 #= DoubleFloats is not necessarily defined in the environment
-using ModiaLang.DoubleFloats
+using Modia.DoubleFloats
 pendulum3 = SimulationModel{Measurement{Double64}}(pendulum2)
 (A_10_Double64, x_10_Double64) = linearize!(pendulum3, stopTime=10) 
 =#

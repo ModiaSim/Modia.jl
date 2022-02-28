@@ -1,6 +1,6 @@
 module TestFirstOrder2
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 using Test
 

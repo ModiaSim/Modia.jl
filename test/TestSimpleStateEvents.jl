@@ -1,6 +1,6 @@
 module TestSimpleStateEvents
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 

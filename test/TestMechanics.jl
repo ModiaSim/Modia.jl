@@ -1,17 +1,17 @@
 module TestMechanics
 
-println("TestMechanics: Tests how 3D mechanics could be combined with ModiaLang.")
+println("TestMechanics: Tests how 3D mechanics could be combined with Modia.")
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
-# ModiaLang models
-include("$(ModiaLang.path)/models/Blocks.jl")
-include("$(ModiaLang.path)/models/Electric.jl")
-include("$(ModiaLang.path)/models/Rotational.jl")
+# Modia models
+include("$(Modia.path)/models/Blocks.jl")
+include("$(Modia.path)/models/Electric.jl")
+include("$(Modia.path)/models/Rotational.jl")
 
 
-# Generic ModiaLang3D model stubs (always available)
+# Generic Modia3D model stubs (always available)
 RevoluteStub = Model(
     flange = Flange,
 
@@ -48,7 +48,7 @@ function Pendulum_f1(_m::TestMechanics.SimulationModel3D, phi, w, tau, m, L, g)
 end
 
 
-# ModiaLang model for the system
+# Modia model for the system
 Pendulum = Model(
     model3D = SimulationModel3D(),
     
@@ -60,7 +60,7 @@ Pendulum = Model(
     # 3D model stubs
     rev = RevoluteStub | Map(init = Map(phi=1.5u"rad", w=2u"rad/s")),
 
-    # Standard ModiaLang models
+    # Standard Modia models
     damper  = Damper | Map(d=0.4u"N*m*s/rad"),
 	support = Fixed,
 

@@ -1,6 +1,6 @@
 module TestExtraSimulateKeywordArguments
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 # Register extra simulate! keyword arguments

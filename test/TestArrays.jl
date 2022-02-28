@@ -1,7 +1,7 @@
 module TestArrays
 
-using ModiaLang
-using ModiaLang.StaticArrays
+using Modia
+using Modia.StaticArrays
 
 @usingModiaPlot
 

@@ -1,7 +1,7 @@
 module BouncingSphere3D_1
 
 using Modia
-using ModiaLang.StaticArrays
+using Modia.StaticArrays
 
 BouncingSphere = Model3D(
     boxHeigth = 0.1,

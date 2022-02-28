@@ -1,6 +1,6 @@
 module TestSingularLRRL
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 SingularLRRL = Model(

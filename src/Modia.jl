@@ -126,6 +126,6 @@ include("JSONModel.jl")
 const drawIncidence = false
 
 
-include("ModiaLang.jl")
+include("Modia.jl")
 
 end

@@ -1,9 +1,9 @@
 module Runtests_withPlot
 
-using ModiaLang
-using ModiaLang.Test
+using Modia
+using Modia.Test
 
-const  test_title = "Test ModiaLang (version=$(ModiaLang.Version) with " * currentPlotPackage() * ")"
+const  test_title = "Test Modia (version=$(Modia.Version) with " * currentPlotPackage() * ")"
 
 println("\n... $test_title")
 

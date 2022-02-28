@@ -1,9 +1,9 @@
 module TestStateSpace
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
-include("$(ModiaLang.path)/models/Blocks.jl")
+include("$(Modia.path)/models/Blocks.jl")
 
 
 # Second order system:

@@ -1,8 +1,8 @@
 module TestUnitsAndUncertainites
 
-using ModiaLang
+using Modia
 @usingModiaPlot
-using ModiaLang.Measurements
+using Modia.Measurements
 
 TestModel = Model(
     T = (0.2 ± 0.02)u"s",

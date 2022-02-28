@@ -1,5 +1,5 @@
-import ModiaLang
-import ModiaLang.Test
+import Modia
+import Modia.Test
 
 Test.@testset "Test basic functionality" begin
     include("TestVariables.jl")

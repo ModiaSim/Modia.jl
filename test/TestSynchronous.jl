@@ -2,7 +2,7 @@ module TestSynchronous
 
 #println("\nSynchronousExamples: Demonstrating the ability to simulate models with synchronous semantics")
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 

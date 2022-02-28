@@ -1,6 +1,6 @@
 module TestStateSelection
 
-using ModiaLang
+using Modia
 using Test
 
 function checkStateSelection(model, x_names, linearEquations=[])

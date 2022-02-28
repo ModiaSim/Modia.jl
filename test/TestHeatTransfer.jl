@@ -1,11 +1,11 @@
 module TestHeatTransfer
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 using Test
 
 
-include("$(ModiaLang.path)/models/HeatTransfer.jl")
+include("$(Modia.path)/models/HeatTransfer.jl")
 
 SimpleRod = Model(
     fixedT = FixedTemperature | Map(T = 393.15u"K"),

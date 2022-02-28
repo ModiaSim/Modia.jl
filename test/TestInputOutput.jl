@@ -1,6 +1,6 @@
 module TestInputOutput
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 FirstOrder = Model(

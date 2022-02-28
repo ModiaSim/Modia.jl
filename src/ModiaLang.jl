@@ -477,7 +477,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             if unitless
                 eqs = eq_rhs
             else
-                eqs = :(ModiaLang.Unitful.ustrip.($eq_rhs))
+                eqs = :(Modia.Unitful.ustrip.($eq_rhs))
             end
         #elseif isexpr(lhs, :tuple) && isexpr(rhs, :call) && unitless
         #    eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
@@ -489,7 +489,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             if unitless
                 eqs = :( $eq_rhs .- $eq_lhs )
             else
-                eqs = :( ModiaLang.Unitful.ustrip.($eq_rhs) .- ModiaLang.Unitful.ustrip.($eq_lhs))
+                eqs = :( Modia.Unitful.ustrip.($eq_rhs) .- Modia.Unitful.ustrip.($eq_lhs))
             end
         end
         residual = :(ModiaBase.appendVariable!(_leq_mode.residuals, $eqs))
@@ -663,7 +663,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if haskey(init, nameAsExpr)
             vSolvedWithInitValuesAndUnit[name] = eval( init[nameAsExpr] )
         else
-            @warn "Internal issue of ModiaLang: $name is assumed to have an init-value, but it is not found."
+            @warn "Internal issue of Modia: $name is assumed to have an init-value, but it is not found."
         end
     end
 

@@ -2,10 +2,10 @@ module Runtests
 
 # Run all tests with SilentNoPlot (so not plots)
 
-using ModiaLang
-using ModiaLang.Test 
+using Modia
+using Modia.Test 
 
-const  test_title = "Test ModiaLang (version=$(ModiaLang.Version) with SilentNoPlot)"
+const  test_title = "Test Modia (version=$(Modia.Version) with SilentNoPlot)"
 println("\n... $test_title")
 
 @time @testset verbose=true "$test_title" begin

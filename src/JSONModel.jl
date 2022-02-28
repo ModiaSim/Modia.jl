@@ -11,7 +11,7 @@ module JSONModel
 export modelToJSON, JSONToModel, cloneModel
 
 import JSON
-using ModiaLang
+using Modia
 using Unitful
 using OrderedCollections
 using ModiaBase.Symbolic: removeBlock

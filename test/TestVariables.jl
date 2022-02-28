@@ -1,10 +1,10 @@
 module TestVariables
 
-using ModiaLang
+using Modia
 @usingModiaPlot
-using ModiaLang.Measurements
-using ModiaLang.StaticArrays
-using ModiaLang.Test
+using Modia.Measurements
+using Modia.StaticArrays
+using Modia.Test
 
 @testset "... Test variable declarations" begin
 

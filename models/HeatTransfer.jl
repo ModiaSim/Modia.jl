@@ -6,7 +6,7 @@ Copyright 2021, DLR Institute of System Dynamics and Control
 License: MIT (expat)
 =#
 
-using ModiaLang
+using Modia
 
 HeatPort = Model( T = potential,   # Absolute temperature
                   Q_flow = flow )  # Heat flow into the component

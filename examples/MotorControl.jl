@@ -4,7 +4,7 @@ println("\nMotorControl: Demonstrating the ability to simulate hierarchical mixe
 
 using Modia
 @usingModiaPlot
-using  ModiaLang.Measurements
+using  Modia.Measurements
 export MotorControl2
 
 include("$(Modia.modelsPath)/Blocks.jl")  

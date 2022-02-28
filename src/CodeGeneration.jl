@@ -79,7 +79,7 @@ function get_x_start!(FloatType, equationInfo, parameters)
             printstyled("Model error: ", bold=true, color=:red)
             printstyled("Length of ", xe_info.x_name, " shall be changed from ",
                         xe_info.length, " to $len\n",
-                        "This is currently not support in ModiaLang.", bold=true, color=:red)
+                        "This is currently not support in Modia.", bold=true, color=:red)
             return false
         end
         startIndex += xe_info.length
@@ -158,7 +158,7 @@ struct SimulationOptions{FloatType,TimeType}
             success = false
         elseif tolerance < 100*eps(FloatType) && adaptive
             newTolerance = max(tolerance, 100*eps(FloatType))
-            printstyled("Warning from ModiaLang.simulate!(..):\n"*
+            printstyled("Warning from Modia.simulate!(..):\n"*
                         "tolerance (= $(tolerance)) is too small for FloatType = $FloatType (eps(FloatType) = $(eps(FloatType))).\n" *
                         "tolerance changed to $newTolerance.\n\n", bold=true, color=:red)
             tolerance = newTolerance
@@ -274,7 +274,7 @@ end
   that is evaluation of expressions in the environment of the user.
 - `modelName::String`: Name of the model
 - `getDerivatives::Function`: Function that is used to evaluate the model equations,
-  typically generated with [`ModiaLang.generate_getDerivatives!`].
+  typically generated with [`Modia.generate_getDerivatives!`].
 - `equationInfo::ModiaBase.EquationInfo`: Information about the states and the equations.
 - `x_startValues`:: Deprecated (is no longer used).
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
@@ -484,11 +484,11 @@ SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...)
 timeType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = TimeType
 
 
-positive(m::SimulationModel, args...; kwargs...) = ModiaLang.positive!(m.eventHandler, args...; kwargs...)
-negative(m::SimulationModel, args...; kwargs...) = ModiaLang.negative!(m.eventHandler, args...; kwargs...)
-change(  m::SimulationModel, args...; kwargs...) = ModiaLang.change!(  m.eventHandler, args...; kwargs...)
-edge(    m::SimulationModel, args...; kwargs...) = ModiaLang.edge!(    m.eventHandler, args...; kwargs...)
-after(   m::SimulationModel, args...; kwargs...) = ModiaLang.after!(   m.eventHandler, args...; kwargs...)
+positive(m::SimulationModel, args...; kwargs...) = Modia.positive!(m.eventHandler, args...; kwargs...)
+negative(m::SimulationModel, args...; kwargs...) = Modia.negative!(m.eventHandler, args...; kwargs...)
+change(  m::SimulationModel, args...; kwargs...) = Modia.change!(  m.eventHandler, args...; kwargs...)
+edge(    m::SimulationModel, args...; kwargs...) = Modia.edge!(    m.eventHandler, args...; kwargs...)
+after(   m::SimulationModel, args...; kwargs...) = Modia.after!(   m.eventHandler, args...; kwargs...)
 pre(     m::SimulationModel, i)                  = m.pre[i]
 
 
@@ -973,7 +973,7 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #end
 import Printf
 
-invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.timer "ModiaLang getDerivatives!" begin
+invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.timer "Modia getDerivatives!" begin
     if m.options.logProgress && m.cpuLast != UInt64(0)
         cpuNew = time_ns()
         if (cpuNew - m.cpuLast) * 1e-9 > 5.0
@@ -1463,7 +1463,7 @@ function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothi
                 j += 1
                 if length(leq.x_vec[j]) != leq.x_lengths[i]
                     if log
-                        println("      ModiaLang: Resize linear equations vector $xi_name from ", length(leq.x_vec[j]), " to ", leq.x_lengths[i] )
+                        println("      Modia: Resize linear equations vector $xi_name from ", length(leq.x_vec[j]), " to ", leq.x_lengths[i] )
                     end
                     resize!(leq.x_vec[j], leq.x_lengths[i])
                 end
@@ -1588,7 +1588,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         for xe in equationInfo.x_info
             der_x_name = xe.der_x_name_julia
             if hasUnits
-                push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, ModiaLang.stripUnit( $der_x_name )) ))
+                push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, Modia.stripUnit( $der_x_name )) ))
             else
                 push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, $der_x_name) ))
             end
@@ -1615,7 +1615,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
             push!(code_previous2, :( _m.nextPrevious[$i] = $previousName ))
         end
         code_previous3 = quote
-             if ModiaLang.isFirstEventIteration(_m) && !ModiaLang.isInitial(_m)
+             if Modia.isFirstEventIteration(_m) && !Modia.isInitial(_m)
                  $(code_previous2...)
              end
         end
@@ -1640,8 +1640,8 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     # Generate code of the function
     code = quote
-                function $functionName(_x, _m::ModiaLang.SimulationModel{_FloatType,_TimeType}, _time)::Nothing where {_FloatType,_TimeType}
-                    _m.time = _TimeType(ModiaLang.getValue(_time))
+                function $functionName(_x, _m::Modia.SimulationModel{_FloatType,_TimeType}, _time)::Nothing where {_FloatType,_TimeType}
+                    _m.time = _TimeType(Modia.getValue(_time))
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
                     _p = _m.evaluatedParameters
@@ -1654,9 +1654,9 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_pre...)
 
                     if _m.storeResult
-                        ModiaBase.TimerOutputs.@timeit _m.timer "ModiaLang addToResult!" begin
+                        ModiaBase.TimerOutputs.@timeit _m.timer "Modia addToResult!" begin
                             $(code_copy...)
-                            ModiaLang.addToResult!(_m, $(variables...))
+                            Modia.addToResult!(_m, $(variables...))
                         end
                     end
                     return nothing

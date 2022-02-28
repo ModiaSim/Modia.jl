@@ -1,11 +1,11 @@
 module TestMultiReturningFunction
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
-include("$(ModiaLang.path)/models/Blocks.jl")
-include("$(ModiaLang.path)/models/Electric.jl")
-include("$(ModiaLang.path)/models/Rotational.jl")
+include("$(Modia.path)/models/Blocks.jl")
+include("$(Modia.path)/models/Electric.jl")
+include("$(Modia.path)/models/Rotational.jl")
 
 
 function twoCoupledInertias(J1,J2,derw1,derw2,tau0,tau1,tau2)::Array{Float64,1}

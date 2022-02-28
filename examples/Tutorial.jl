@@ -148,7 +148,7 @@ simulate!(secondOrder, stopTime=2.0)
 plot(secondOrder, ("sys.u", "sys.x", "sys.y"), figure=3)
 
 
-using ModiaLang.StaticArrays
+using Modia.StaticArrays
 TestArray1 = Model(
     v = Var(init=SVector{3,Float64}(1.0, 2.0, 3.0)),
     equations = :[der(v) = -v]

@@ -1,7 +1,7 @@
 module TestLinearEquationSystemWithUnitsAndMonteCarlo
 
-using ModiaLang
-using ModiaLang.MonteCarloMeasurements
+using Modia
+using Modia.MonteCarloMeasurements
 @usingModiaPlot
 
 

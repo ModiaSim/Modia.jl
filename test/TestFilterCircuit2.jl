@@ -1,6 +1,6 @@
 module TestFilterCircuit2
 
-using ModiaLang
+using Modia
 @usingModiaPlot
 
 setLogMerge(false)
