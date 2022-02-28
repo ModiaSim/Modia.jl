@@ -331,7 +331,7 @@ code = quote
             var"der(w1)" = var"der(der(phi1))"
             tau1 = -((_FloatType(_p[:J1])::_FloatType * var"der(w1)" - tau))
             tau2 = _FloatType(_p[:ratio])::_FloatType * tau1
-            ModiaBase.appendVariable!(_leq_mode.residuals, ModiaLang.Unitful.ustrip.(tau2) .- ModiaLang.Unitful.ustrip.(_FloatType(_p[:J2])::_FloatType * var"der(w2)"))
+            ModiaBase.appendVariable!(_leq_mode.residuals, Modia.Unitful.ustrip.(tau2) .- Modia.Unitful.ustrip.(_FloatType(_p[:J2])::_FloatType * var"der(w2)"))
         end
     _leq_mode = nothing
 end

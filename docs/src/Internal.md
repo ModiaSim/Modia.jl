@@ -9,7 +9,7 @@ This section provides functions to **generate Julia code** of the
 transformed equations.
 
 ```@meta
-CurrentModule = ModiaLang
+CurrentModule = Modia
 ```
 
 ```@docs
