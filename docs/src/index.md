@@ -28,13 +28,12 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
 
 ## Release Notes
 
-### Version 0.11.3-dev
+### Version 0.11.3
 
-- @instantiateModel(..)
-  - `Var(hideResult=true)` is no longer ignored if present in a sub-component.
+- @instantiateModel(..): `Var(hideResult=true)` is no longer ignored if present in a sub-component.
 
-- simulate!(..)
-  - Unnecessary evaluation of the parameters dictionary is avoided (if merge = missing, nothing or has no elements).
+- simulate!(..): Unnecessary evaluation of the parameters dictionary is avoided 
+  (if merge = missing, nothing or has no elements).
 
   
 ### Version 0.11.2
