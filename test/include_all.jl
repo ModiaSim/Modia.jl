@@ -6,6 +6,7 @@ Test.@testset "Test basic functionality" begin
     include("TestFirstOrder.jl")
     include("TestFirstOrder2.jl")
     include("TestSource.jl")
+    include("TestLinearEquations.jl")
     include("TestStateSelection.jl")
     include("TestFilterCircuit.jl")
     include("TestFilterCircuit2.jl")
@@ -52,3 +53,6 @@ Test.@testset "Test multi returning functions" begin
     include("TestMultiReturningFunction7A.jl")
     include("TestMultiReturningFunction10.jl")    
 end
+
+include("../examples/runexamples.jl")
+

@@ -16,7 +16,7 @@ function checkStateSelection(model, x_names, linearEquations=[])
 end
 
 
-@testset "\nTest ModiaBase/StateSelection.jl" begin
+@testset "\nTest Modia/src/StateSelection.jl" begin
 
     @testset "... Test FirstOrder" begin
         FirstOrder = Model(

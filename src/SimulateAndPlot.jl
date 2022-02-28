@@ -477,7 +477,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     return solution
 end
 
-#get_x_startIndexAndLength(m::SimulationModel, name) = ModiaBase.get_x_startIndexAndLength(m.equationInfo, name)
+#get_x_startIndexAndLength(m::SimulationModel, name) = Modia.get_x_startIndexAndLength(m.equationInfo, name)
 
 
 #---------------------------------------------------------------------
@@ -812,7 +812,7 @@ using Modia
 @usingModiaPlot
 using Unitful
 
-include("\$(ModiaBase.path)/demos/models/Model_Pendulum.jl")
+include("\$(Modia.path)/examples/Pendulum.jl")
 using  .Model_Pendulum
 
 pendulum = simulationModel(Pendulum)

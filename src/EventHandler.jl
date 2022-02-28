@@ -180,7 +180,7 @@ end
 
 
 function after!(h::EventHandler{FloatType,TimeType}, nr::Int, t::Number, tAsString::String,
-                leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}};
+                leq::Union{Nothing,Modia.LinearEquations{FloatType}};
                 restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     # time >= t  (it is required that t is a discrete-time expression, but this cannot be checked)
     t2 = convert(TimeType,t)
@@ -216,7 +216,7 @@ end
 #positive!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = positive!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
 
 function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String,
-                   leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}};
+                   leq::Union{Nothing,Modia.LinearEquations{FloatType}};
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     crossing = getValue(crossing)
 
@@ -263,7 +263,7 @@ end
 
 
 function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String,
-                   leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}};
+                   leq::Union{Nothing,Modia.LinearEquations{FloatType}};
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     crossing = getValue(crossing)
 
@@ -311,7 +311,7 @@ end
 
 #=
 function change!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing::FloatType, crossingAsString::String,
-                 leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}};
+                 leq::Union{Nothing,Modia.LinearEquations{FloatType}};
                  restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
     if leq_mode >= 0
         return crossing > convert(FloatType,0)
@@ -346,7 +346,7 @@ end
 
 
 function edge!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String,
-               leq::Union{Nothing,ModiaBase.LinearEquations{FloatType}};
+               leq::Union{Nothing,Modia.LinearEquations{FloatType}};
                restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
 
     if !isnothing(leq)

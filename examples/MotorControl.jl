@@ -142,7 +142,7 @@ end
 #=
 module MotorControlModuleMonteCarlo
 
-using ModiaBase.Modia
+using Modia
 using Unitful
 using Main.MotorControlModule
 include("../test/SimulateAndPlot.jl")

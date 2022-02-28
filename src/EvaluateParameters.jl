@@ -51,7 +51,7 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 """
     map = propagateEvaluateAndInstantiate!(FloatType, unitless::Bool, modelModule::Module, parameters,
-                   eqInfo::ModiaBase.EquationInfo; log=false)
+                   eqInfo::Modia.EquationInfo; log=false)
 
 Recursively traverse the hierarchical collection `parameters` and perform the following actions:
 
@@ -163,7 +163,7 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModule, parameters, eqInfo::ModiaBase.EquationInfo, x_found::Vector{Bool},
+function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModule, parameters, eqInfo::Modia.EquationInfo, x_found::Vector{Bool},
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                            environment, path::String; log=false)
     if log

@@ -492,7 +492,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
                 eqs = :( Modia.Unitful.ustrip.($eq_rhs) .- Modia.Unitful.ustrip.($eq_lhs))
             end
         end
-        residual = :(ModiaBase.appendVariable!(_leq_mode.residuals, $eqs))
+        residual = :(Modia.appendVariable!(_leq_mode.residuals, $eqs))
         residString = string(eqs)
         if logCalculations
              return :(println("Calculating residual: ", $residString); $residualName = $eqs; println("  Residual: ", $residualName) )
@@ -592,9 +592,9 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         getSolvedEquationAST   = getSolvedEquationAST,
         getResidualEquationAST = getResidualEquationAST,
         showMessage            = (message;severity=0,from="???",details="",variables=Int[],equations=Int[]) ->
-                                    ModiaBase.showMessage(message, severity, from, details,
-                                                          stringVariables[variables],
-                                                          string.(allEquations[equations]))
+                                    Modia.showMessage(message, severity, from, details,
+                                                      stringVariables[variables],
+                                                      string.(allEquations[equations]))
         )
 
     if length(equations) == 0

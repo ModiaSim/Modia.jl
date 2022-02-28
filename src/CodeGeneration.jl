@@ -275,7 +275,7 @@ end
 - `modelName::String`: Name of the model
 - `getDerivatives::Function`: Function that is used to evaluate the model equations,
   typically generated with [`Modia.generate_getDerivatives!`].
-- `equationInfo::ModiaBase.EquationInfo`: Information about the states and the equations.
+- `equationInfo::Modia.EquationInfo`: Information about the states and the equations.
 - `x_startValues`:: Deprecated (is no longer used).
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
@@ -289,8 +289,8 @@ mutable struct SimulationModel{FloatType,TimeType}
     cpuLast::UInt64                   # Last time from time_ns()
     options::SimulationOptions{FloatType,TimeType}
     getDerivatives!::Function
-    equationInfo::ModiaBase.EquationInfo
-    linearEquations::Vector{ModiaBase.LinearEquations{FloatType}}
+    equationInfo::Modia.EquationInfo
+    linearEquations::Vector{Modia.LinearEquations{FloatType}}
     eventHandler::EventHandler{FloatType,TimeType}
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
 
@@ -419,9 +419,9 @@ mutable struct SimulationModel{FloatType,TimeType}
         x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)]
 
         # Construct data structure for linear equations
-        linearEquations = ModiaBase.LinearEquations{FloatType}[]
+        linearEquations = Modia.LinearEquations{FloatType}[]
         for leq in equationInfo.linearEquations
-            push!(linearEquations, ModiaBase.LinearEquations{FloatType}(leq...))
+            push!(linearEquations, Modia.LinearEquations{FloatType}(leq...))
         end
 
         # Initialize execution flags
@@ -447,9 +447,9 @@ mutable struct SimulationModel{FloatType,TimeType}
 
     function SimulationModel{FloatType,TimeType}(m::SimulationModel) where {FloatType,TimeType}
         # Construct data structure for linear equations
-        linearEquations = ModiaBase.LinearEquations{FloatType}[]
+        linearEquations = Modia.LinearEquations{FloatType}[]
         for leq in m.equationInfo.linearEquations
-            push!(linearEquations, ModiaBase.LinearEquations{FloatType}(leq...))
+            push!(linearEquations, Modia.LinearEquations{FloatType}(leq...))
         end
 
         # Initialize execution flags
@@ -852,7 +852,7 @@ end
 
 Return the names of the elements of the x-vector in a Vector{String}.
 """
-get_xNames(m::SimulationModel) = ModiaBase.get_xNames(m.equationInfo)
+get_xNames(m::SimulationModel) = Modia.get_xNames(m.equationInfo)
 
 
 
@@ -1512,7 +1512,7 @@ Symbol `functionName` as function name. By `eval(code)` or
 
 - `AST::Vector{Expr}`: Abstract Syntax Tree of the equations as vector of `Expr`.
 
-- `equationInfo::ModiaBase.EquationInfo`: Data structure returned by `ModiaBase.getSortedAndSolvedAST
+- `equationInfo::Modia.EquationInfo`: Data structure returned by `Modia.getSortedAndSolvedAST
             holding information about the states.
 
 - `parameters`: Vector of parameter names (as vector of symbols)
@@ -1528,7 +1528,7 @@ Symbol `functionName` as function name. By `eval(code)` or
 
 - `hasUnits::Bool`: = true, if variables have units. Note, the units of the state vector are defined in equationinfo.
 """
-function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.EquationInfo,
+function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::Modia.EquationInfo,
                                   parameters, variables, previousVars, preVars, holdVars, functionName::Symbol;
                                   pre::Vector{Symbol} = Symbol[], hasUnits=false)
 
@@ -1540,7 +1540,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
 
     if length(x_info) == 1 && x_info[1].x_name == "_dummy_x" && x_info[1].der_x_name == "der(_dummy_x)"
         # Explicitly solved pure algebraic variables. Introduce dummy equation
-        push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, -_x[1]) ))
+        push!(code_der_x, :( Modia.appendVariable!(_m.der_x, -_x[1]) ))
     else
         i1 = 1
         for i in 1:equationInfo.nxFixedLength
@@ -1562,10 +1562,10 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                 i2 = i1 + xe.length - 1
                 v_length = xe.length
                 if !hasUnits || xe.unit == ""
-                    push!(code_x, :( $x_name::ModiaBase.SVector{$v_length,_FloatType} = ModiaBase.SVector{$v_length,_FloatType}(_x[$i1:$i2])) )
+                    push!(code_x, :( $x_name::Modia.SVector{$v_length,_FloatType} = Modia.SVector{$v_length,_FloatType}(_x[$i1:$i2])) )
                 else
                     x_unit = xe.unit
-                    push!(code_x, :( $x_name = ModiaBase.SVector{$v_length,_FloatType}(_x[$i1:$i2])::ModiaBase.SVector{$v_length,_FloatType}*@u_str($x_unit)) )
+                    push!(code_x, :( $x_name = Modia.SVector{$v_length,_FloatType}(_x[$i1:$i2])::Modia.SVector{$v_length,_FloatType}*@u_str($x_unit)) )
                 end
                 i1 = i2 + 1
             end
@@ -1588,9 +1588,9 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
         for xe in equationInfo.x_info
             der_x_name = xe.der_x_name_julia
             if hasUnits
-                push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, Modia.stripUnit( $der_x_name )) ))
+                push!(code_der_x, :( Modia.appendVariable!(_m.der_x, Modia.stripUnit( $der_x_name )) ))
             else
-                push!(code_der_x, :( ModiaBase.appendVariable!(_m.der_x, $der_x_name) ))
+                push!(code_der_x, :( Modia.appendVariable!(_m.der_x, $der_x_name) ))
             end
         end
     end
@@ -1654,7 +1654,7 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::ModiaBase.Equ
                     $(code_pre...)
 
                     if _m.storeResult
-                        ModiaBase.TimerOutputs.@timeit _m.timer "Modia addToResult!" begin
+                        Modia.TimerOutputs.@timeit _m.timer "Modia addToResult!" begin
                             $(code_copy...)
                             Modia.addToResult!(_m, $(variables...))
                         end

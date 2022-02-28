@@ -11,6 +11,7 @@ module Modia
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.8.0"
 const Date = "2022-03-01"
+const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
 print("Mod")
@@ -40,7 +41,6 @@ using Reexport
 
 export ModiaBase
 export CVODE_BDF, IDA
-export ModiaBase
 export instantiateModel, @instantiateModel, assert, stringifyDefinition
 export stripUnit
 
@@ -67,13 +67,12 @@ const  IDA = Sundials.IDA
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
 
+using ModiaBase
 using ModiaBase.Symbolic
 using ModiaBase.Simplify
 using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
-using ModiaBase
-
 
 import ModiaResult
 import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
@@ -87,13 +86,18 @@ using  Measurements
 import MonteCarloMeasurements
 using JSON
 #using Profile
-using TimerOutputs
-using InteractiveUtils
+import Test
+using  TimerOutputs
+using  InteractiveUtils
 
 global to = TimerOutput()
 
 Unitful.unit(      v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = unit(T)
 Unitful.upreferred(v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = uconvert(upreferred(unit(v)), v)
+
+# append! as needed in EquationAndStateInfo.jl and in CodeGeneration.jl
+appendVariable!(v1::Vector{FloatType}, s::FloatType) where {FloatType} = push!(v1,s)
+appendVariable!(v1::Vector{FloatType}, v2)           where {FloatType} = append!(v1,v2)
 
 
 """
@@ -107,6 +111,8 @@ The function is defined as: `stripUnit(v) = ustrip.(upreferred.(v))`.
 """
 stripUnit(v) = ustrip.(upreferred.(v))
 
+include("EquationAndStateInfo.jl")
+include("StateSelection.jl")
 
 include("ModelCollections.jl")
 include("EvaluateParameters.jl")
