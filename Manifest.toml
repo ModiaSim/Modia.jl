@@ -496,10 +496,10 @@ version = "1.0.2"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.ModiaBase]]
-deps = ["DataFrames", "DiffRules", "LinearAlgebra", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "RecursiveFactorization", "StaticArrays", "TimerOutputs", "Unitful"]
-git-tree-sha1 = "e32f09c491f569f254d3c7776326539f4b3c5f24"
+deps = ["DataFrames", "DiffRules", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "StaticArrays", "Unitful"]
+git-tree-sha1 = "4562d56ff6b2fe5b78ef0995e478e8b734e24f2a"
 uuid = "ec7bf1ca-419d-4510-bbab-199861c55244"
-version = "0.9.2"
+version = "0.10.0"
 
 [[deps.ModiaResult]]
 deps = ["DataFrames", "Measurements", "MonteCarloMeasurements", "OrderedCollections", "Pkg", "Tables", "Unitful"]

@@ -34,22 +34,35 @@ Note, Modia exports all exported symbols of
 
 ### Version 0.8.0 
 
-**Non-backwards** compatible changes:
+**Non-backwards** compatible changes
 
-- ModiaLang#main 0.11.3 and ModiaLang#development merged into Modia 0.7.0
-  (hereby preserving history of both ModiaLang and of Modia).
+The Modia packages are slightly restructured to allow more efficient operations.
+Previously, Modia was planned to include all the functionality with all model libraries.
+This is now changed and Modia includes now equation-oriented modeling and basic model libraries.
+Further model libraries, such as Modia3D (and other model libraries in the future) must be
+explicitly imported and are no longer automatically imported by Modia.
+To simplify the structuring, ModiaLang is merged into Modia
+and some functionality for the code generation is moved from ModiaBase to Modia.
+Overall, the benefit is that loading and compilation times are reduced, if Modia3D is not needed.
+Furthermore, the generated code contains only references to Modia functionality and no longer to ModiaBase.
+Details of the changes:
 
-- Removing all Modia3D references from Modia
+- ModiaLang#main 0.11.3 and ModiaLang#development merged into Modia 0.7.0 resulting
+  in the new Modia version 0.8.0 (hereby history of both ModiaLang and of Modia is preserved).
+  
+- Modia3D is removed from Modia (so when a model is using Modia3D, the package must be explicitly imported
+  and is no longer automatically imported from Modia).
 
+- Require ModiaBase 0.10 (where EquationAndStateInfo.jl and StateSelection.jl are removed and
+  added to Modia, in order that only references to Modia are in the generated code and no longer
+  references to ModiaBase).
+  
 
+## Old Release Notes (until 28.2.2022)
 
+### Release Notes of Modia (until 28.2.2022)
 
-
-
-
-## Release Notes of Modia (until Feb. 28, 2022)
-
-### Version 0.7.0
+#### Version 0.7.0
 
 **Non-backwards** compatible changes (basically, these changes are, erronously, in 0.6.1):
 
@@ -90,7 +103,7 @@ Other changes
 - For further changes of Modia3D models, see the release notes of [Modia3D 0.9.0](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.9.0).
 
  
-### Version 0.6.1
+#### Version 0.6.1
 
 This version was erronously released as 0.6.1. Since it contains non-backwards compatible
 changes with respect to 0.6.0, this is wrong and should have been released as version 0.7.0.
@@ -103,38 +116,38 @@ changes with respect to 0.6.0, this is wrong and should have been released as ve
 - docu: fix some typing and formatting
 
 
-### Version 0.6.0
+#### Version 0.6.0
 
 - Modia is restricted to Julia 1.7
 - cyclic dependencies with Modia3D package are removed
 
 
-### Version 0.5.2
+#### Version 0.5.2
 
 - Fully reexporting Modia3D and removing duplicate ModiaInterface (see [Modia3D release notes 0.6.0](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.6.0)).
 
-### Version 0.5.1
+#### Version 0.5.1
 
 - Using and reexporting ModiaLang 0.8.3 (see [release notes 0.8.3 and 0.8.2](https://github.com/ModiaSim/ModiaLang.jl/releases)).
 - Using and partially reexporting Modia3D 0.5.1 (see [release notes 0.5.1](https://github.com/ModiaSim/Modia3D.jl/releases/tag/v0.5.1)).
 
 
 
-### Version 0.5.0
+#### Version 0.5.0
 
 - Using and reexporting ModiaLang 0.8.1 (see [release notes](https://modiasim.github.io/ModiaLang.jl/stable/)).
 - Using and partially reexporting Modia3D 0.5.0 (see [release notes](https://modiasim.github.io/Modia3D.jl/stable/#Release-Notes)).
 - New plot package interface via [ModiaResult](https://github.com/ModiaSim/ModiaResult.jl). Additional support for PyPlot, WGLMakie, CairoMakie (besides GLMakie).
 
 
-### Version 0.4.0
+#### Version 0.4.0
 
 - Initial version of new Modia design.
 
 
-## Release Notes of ModiaLang (until Feb. 28, 2022)
+### Release Notes of ModiaLang (until 28.2.2022)
 
-### Version 0.11.3
+#### Version 0.11.3
 
 - @instantiateModel(..): `Var(hideResult=true)` is no longer ignored if present in a sub-component.
 
@@ -142,7 +155,7 @@ changes with respect to 0.6.0, this is wrong and should have been released as ve
   (if merge = missing, nothing or has no elements).
 
   
-### Version 0.11.2
+#### Version 0.11.2
 
 - Minor (efficiency) improvement if states are SVectors.
 
@@ -151,13 +164,13 @@ changes with respect to 0.6.0, this is wrong and should have been released as ve
 - Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
 
 
-### Version 0.11.1
+#### Version 0.11.1
 
 - Update of Manifest.toml file
 - Require ModiaBase 0.9.1 (with updated Manifest.toml file)
 
 
-### Version 0.11.0
+#### Version 0.11.0
  
 Non-backwards compatible changes
 
@@ -223,20 +236,20 @@ Bug fixes
 - Function `ModiaLang.firstInitialOfAllSegments(..)` now correctly returns true for the first call of the getDerivatives function during the simulation.
 
 
-### Version 0.10.2
+#### Version 0.10.2
 
 - Minor (efficiency) improvement if states are SVectors.
 - Require ModiaBase 0.9.2 (to get rid of performance issues in Modia3D).
 - Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
 
 
-### Version 0.10.1
+#### Version 0.10.1
 
 - Update of Manifest.toml file
 - Require ModiaBase 0.9.1 (with updated Manifest.toml file).
 
 
-### Version 0.10.0
+#### Version 0.10.0
 
 - Require DifferentialEquations.jl version 7.
 - Cleanup of using/export
@@ -247,14 +260,14 @@ Bug fixes
 - Change `SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}` to `SimulationModel{FloatType,TimeType}`
 
 
-### Version 0.9.1
+#### Version 0.9.1
 
 - New function plotPath to plot a PTP_path
 - Replace ustrip(..) with ustrip.(..) at some places to get rid of warnings.
 - Include time in error message, if simulation failed
 
 
-### Version 0.9.0
+#### Version 0.9.0
 
 - Require Julia 1.7
 - Upgrade Manifest.toml to version 2.0
@@ -262,7 +275,7 @@ Bug fixes
 
 
 
-### Version 0.8.7
+#### Version 0.8.7
 
 - Packages used in test models, prefixed with ModiaLang. to avoid missing package errors.
 - Deactivating test with DoubleFloats, since not in Project.toml
@@ -270,13 +283,13 @@ Bug fixes
 
 
 
-### Version 0.8.6
+#### Version 0.8.6
 
 - Require ModiaResult, version 0.3.9
 - Project.toml/Manifest.toml updated
 
 
-### Version 0.8.5
+#### Version 0.8.5
 
 - simulate!(..): 
   - Trigger an error, if simulation is not successful (retcode is neither :Default nor :Success nor :Terminate)
@@ -293,7 +306,7 @@ Bug fixes
 - Fixing and activating the deactivated test TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl.
  
 
-### Version 0.8.4
+#### Version 0.8.4
 
 - FloatType is included in the name space of Core.eval when evaluating parameters.
 
@@ -304,14 +317,14 @@ Bug fixes
 - Print difference of finalStates and requiredFinalStates in case they do not match with the given tolerance.
 
 
-### Version 0.8.3
+#### Version 0.8.3
 
 - Project.toml, Manifest.toml updated: Require newest version 0.7.7 of ModiaBase (containing a bug fix)
 
 - Minor correction of simulate!(log=true) output
 
 
-### Version 0.8.2
+#### Version 0.8.2
 
 - Issue with tearing fixed: Variables are only explicitly solved, if linear factor is a non-zero literal number
   (previously a division by zero could occur, if the linear factor became zero during simulation).
@@ -342,14 +355,14 @@ Bug fixes
   and improved Project.toml file to reduce issues with package constraints
 
 
-### Version 0.8.1
+#### Version 0.8.1
 
 - Added a minimal documentation, including release notes.
 - No message anymore, when ModiaLang is started.
 - Fixed bug that `using ModiaResult` is needed, when calling `@usingModiaPlot`.
 
 
-### Version 0.8.0
+#### Version 0.8.0
 
 - Improved scalability by using OrderedDicts instead of named tuples for models, variables and parameter modifications.
 - Speed improvements for structural and symbolic algorithms.
@@ -387,7 +400,7 @@ Changes that are **not backwards compatible** to version 0.7.x:
 - Plotting is defined slightly differently (`@useModiaPlot`, instead of `using ModiaPlot`).
 
 
-### Version 0.7.3
+#### Version 0.7.3
 
 - Evaluation and propagation of parameter expressions (also in simulate!(..., merge=Map(...))).
   Propagation of start/init values of states is not yet supported.
@@ -395,11 +408,11 @@ Changes that are **not backwards compatible** to version 0.7.x:
 - State events supported.
 
 
-### Version 0.7.2
+#### Version 0.7.2
 
 - Missing dependency of Test package added.
 
-### Version 0.7.1
+#### Version 0.7.1
 
 - Variable constructor `Var(...)` introduced. For example:
   `v = input | Var(init = 1.2u"m")`. 
@@ -420,7 +433,7 @@ Changes that are **not backwards compatible** to version 0.7.x:
 
 - Functions docu improved.
 
-### Version 0.7.0
+#### Version 0.7.0
 
 - Initial version, based on code developed for Modia 0.6 and ModiaMath 0.6.
 
