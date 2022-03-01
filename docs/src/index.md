@@ -32,6 +32,11 @@ Note, Modia exports all exported symbols of
 
 ## Release Notes
 
+### Version 0.8.1
+
+- Missing file Modia/test/TestLinearEquations.jl added.
+
+
 ### Version 0.8.0 
 
 **Non-backwards** compatible changes
