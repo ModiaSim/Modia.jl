@@ -550,7 +550,10 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
         end
-        return replace(string(un), " " => "*") # Fix since Unitful removes * in unit strings
+        # Transform unit to string representation that is parseable again (see also https://github.com/PainterQubits/Unitful.jl/issues/412):
+        # - Display exponents on units not as superscripts (= default on macOS)
+        # - Replace " " by "*", since Unitful removes "*" when converting to string
+        return replace(repr(un,context = Pair(:fancy_exponent,false)), " " => "*")
     end
 
     function var_startInitFixed(v_original)

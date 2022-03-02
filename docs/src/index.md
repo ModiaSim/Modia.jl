@@ -24,10 +24,14 @@ julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
         add ModiaPlot_CairoMakie    # if plotting with CairoMakie desired
 ```
 
-Note, Modia exports all exported symbols of 
+Note, Modia reexports the following definitions 
 
-- [DifferentialEquations](https://github.com/SciML/DifferentialEquations.jl) and of 
-- [Unitful](https://github.com/PainterQubits/Unitful.jl)
+- `using Unitful`
+- `using DifferentialEquations`
+- and exports functions `CVODE_BDF` and `IDA` of [Sundials.jl](https://github.com/SciML/Sundials.jl).
+
+As a result, it is usually sufficient to have `using Modia` in a model to utilize the relevant 
+functionalities of these packages.
 
 
 ## Release Notes
