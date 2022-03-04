@@ -901,10 +901,14 @@ function addLinearEquations!(eq::EquationGraph, hasConstantCoefficients::Bool, u
             i2 = i1 + v_length - 1
             if v_startOrInit isa AbstractVector
                 # v is a vector
+                x_elements = Expr[]
+                for i in i1:i2
+                    push!(x_elements, :( _leq_mode.x[$i] ))
+                end
                 if v_unit == ""
-                    push!(while_body, :( $v_julia_name::Modia.SVector{$v_length,_FloatType} = Modia.SVector{$v_length,_FloatType}(_leq_mode.x[$i1:$i2])) )
+                    push!(while_body, :( $v_julia_name = Modia.SVector{$v_length,_FloatType}($(x_elements...))) )
                 else
-                    push!(while_body, :( $v_julia_name = Modia.SVector{$v_length}(_leq_mode.x[$i1:$i2])::Modia.SVector{$v_length,_FloatType}*@u_str($v_unit)) )
+                    push!(while_body, :( $v_julia_name = Modia.SVector{$v_length,_FloatType}($(x_elements...))*@u_str($v_unit)) )
                 end
             elseif v_startOrInit isa Number || v_startOrInit isa Nothing
                 # v is a scalar or nothing (= assumed to be a scalar)

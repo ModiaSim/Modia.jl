@@ -1561,11 +1561,15 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::Modia.Equatio
                 # x-element is a static vector
                 i2 = i1 + xe.length - 1
                 v_length = xe.length
+                x_elements = Expr[]
+                for i in i1:i2
+                    push!(x_elements, :( _x[$i] ))
+                end
                 if !hasUnits || xe.unit == ""
-                    push!(code_x, :( $x_name::Modia.SVector{$v_length,_FloatType} = Modia.SVector{$v_length,_FloatType}(_x[$i1:$i2])) )
+                    push!(code_x, :( $x_name = Modia.SVector{$v_length,_FloatType}($(x_elements...)) ))
                 else
                     x_unit = xe.unit
-                    push!(code_x, :( $x_name = Modia.SVector{$v_length,_FloatType}(_x[$i1:$i2])::Modia.SVector{$v_length,_FloatType}*@u_str($x_unit)) )
+                    push!(code_x, :( $x_name = Modia.SVector{$v_length,_FloatType}($(x_elements...))*@u_str($x_unit)) )
                 end
                 i1 = i2 + 1
             end
