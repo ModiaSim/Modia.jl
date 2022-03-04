@@ -36,10 +36,13 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.8.2
+
+- Memory allocation reduced if states or tearing variables are SVectors.
+
 ### Version 0.8.1
 
 - Missing file Modia/test/TestLinearEquations.jl added.
-
 
 ### Version 0.8.0 
 
