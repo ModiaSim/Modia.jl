@@ -548,7 +548,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
             if :_outer in keys(v) && v[:_outer]
                 push!(modelStructure.equations, :($k = $(prepend(k, :up))))
             end
-            if :hideResult in keys(v)
+            if :hideResult in keys(v) && v[:hideResult] == true
                 push!(modelStructure.hideResults, subMod)
             end
         elseif isCollection(v) # || typeof(v) == Symbol # instantiate
