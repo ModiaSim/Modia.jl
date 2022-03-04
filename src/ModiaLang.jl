@@ -291,14 +291,16 @@ prependDict(dict, prefix) = OrderedDict([prepend(k, prefix) => prepend(v, prefix
 
 
 function mergeModelStructures(parent::ModelStructure, child::ModelStructure, prefix)
-    merge!(parent.parameters, child.parameters)
-    parent.mappedParameters[prefix] = child.mappedParameters
+    if length(child.mappedParameters) > 0
+        merge!(parent.parameters, child.parameters)
+        parent.mappedParameters[prefix] = child.mappedParameters
 
-    merge!(parent.init, child.init)
-    parent.mappedParameters[prefix] = child.mappedParameters
+        merge!(parent.init, child.init)
+        parent.mappedParameters[prefix] = child.mappedParameters
 
-    merge!(parent.start, child.start)
-    parent.mappedParameters[prefix] = child.mappedParameters
+        merge!(parent.start, child.start)
+        parent.mappedParameters[prefix] = child.mappedParameters
+    end
 
     merge!(parent.variables, child.variables)
     merge!(parent.flows, child.flows)
