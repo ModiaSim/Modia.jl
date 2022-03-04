@@ -83,7 +83,9 @@ function showModel(m::OrderedDict, level=0)
             end
             println("  "^level, "]")
         elseif k != :_class
-            println("  "^level, k, " = ", stringifyDefinition(v), ",")
+            #println("  "^level, k, " = ", stringifyDefinition(v), ",")
+            print("  "^level, k, " = ")
+            showModel(v,level)
         end
     end
     println("  "^(level-1), "),")
