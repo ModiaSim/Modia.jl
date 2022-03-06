@@ -98,27 +98,31 @@ Servo = Model(
 
 
 TestServo = Model(
-    ks    = 0.8,
+    ks    = 0.4,
     Ts    = 0.08u"s",
     ramp  = Ramp  | Map(duration=1.18u"s", height=2.95),
     servo = Servo | Map(ks=:(up.ks), Ts=:(up.Ts)),
-    load  = Inertia | Map(J=170u"kg*m^2"),
-    equations =:[load.flange_b.tau = 0u"N*m"],
+    load  = Inertia | Map(J=170.0u"kg*m^2"),
+    equations =:[load.flange_b.tau = 0.0u"N*m"],
     connect = :[
         (ramp.y        , servo.refSpeed)
         (servo.flange_b, load.flange_a) ]
 )
 
+file = joinpath(pwd(), "TestServo.json")
+writeModel(file, TestServo)
+TestServo = readModel(file) | Map(ks = 0.8)
+
 plotVariables = [("ramp.y", "load.w")         "servo.speedError.y";
                  "servo.gear.spring.phi_rel"  "servo.motor.currentSensor.i"]
 
-testServo1 = @instantiateModel(TestServo)
+testServo1 = @instantiateModel(TestServo, saveCodeOnFile="TestServo.jl")
 println("Simulate")
 @time simulate!(testServo1, Tsit5(), stopTime=2.0, tolerance=1e-6, requiredFinalStates = 
     [7.320842067204029, 9.346410309487013, 355.30389168655955, 2.792544498835712, 429.42665751348284, 311.7812493890421, 4.089776248793499, 2.969353608933471])
 plot(testServo1, plotVariables, figure=1)
 
-
+#=
 println("\nServo with uncertainties")
 using Modia.Measurements
 TestServoWithUncertainties = TestServo | Map(
@@ -139,6 +143,6 @@ TestServoWithMonteCarlo = TestServo | Map(
 testServo3 = @instantiateModel(TestServoWithMonteCarlo, FloatType = Modia.MonteCarloMeasurements.StaticParticles{Float64,nparticles}, unitless=true)
 @time simulate!(testServo3, Tsit5(), stopTime=2.0, tolerance=1e-6)
 plot(testServo3, plotVariables, figure=3)
-
+=#
 
 end

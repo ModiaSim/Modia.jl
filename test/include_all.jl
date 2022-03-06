@@ -2,7 +2,6 @@ import Modia
 import Modia.Test
 
 Test.@testset "Test basic functionality" begin
-    include("TestUnitAsString.jl")
     include("TestVariables.jl")
     include("TestFirstOrder.jl")
     include("TestFirstOrder2.jl")
@@ -16,6 +15,7 @@ end
 
 
 Test.@testset "Test units, uncertainties" begin
+    include("TestUnitAsString.jl")    
     include("TestUnits.jl")
     include("TestUncertainties.jl")
     include("TestUnitsAndUncertainties.jl")

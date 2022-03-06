@@ -457,7 +457,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
-        solution = makeDerVar(solution, parameters, inputs, evaluateParameters)
+        solution = makeDerVar(solution, parameters, inputs, FloatType, evaluateParameters)
         if logCalculations
             var = string(unknowns[v])
             solutionString = string(solution)
@@ -475,7 +475,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             return nothing
         end
         if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args) || lhs == :(0)
-            eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
+            eq_rhs = makeDerVar(:($rhs), parameters, inputs, FloatType, evaluateParameters)
             if unitless
                 eqs = eq_rhs
             else
@@ -486,8 +486,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         #    eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
         #    eqs =  :( ($eq_rhs .-= $eq_lhs) )
         else
-            eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
-            eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
+            eq_rhs = makeDerVar(:($rhs), parameters, inputs, FloatType, evaluateParameters)
+            eq_lhs = makeDerVar(:($lhs), parameters, inputs, FloatType, evaluateParameters)
             if unitless
                 eqs = :( $eq_rhs .- $eq_lhs )
             else
@@ -687,7 +687,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if useNewCodeGeneration
             @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         else
-            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(FloatType, TimeType, AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         end
     else
 #        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), extraResults, :getDerivatives, hasUnits = !unitless)
@@ -888,6 +888,11 @@ See documentation of macro [`@instantiateModel`]
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
     logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false, saveCodeOnFile="")
+    if isMonteCarloMeasurements(FloatType) && !unitless
+        unitless=true
+        printstyled("  @instantiateModel(...,unitless=true, ..) set automatically, because\n  FloatType=MonteCarloMeasurements often fails if units are involved.\n", color=:red)
+    end
+    
     #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
         println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")

@@ -17,7 +17,15 @@ fieldnames(typeof(integrator)) = (:sol, :u, :du, :k, :t, :dt, :f, :p, :uprev, :u
 """
     baseType(T)
 
-Return the base type of a type T.
+Return the base type of a type T, according to the following definition.
+
+```julia
+baseType(::Type{T})                                           where {T}     = T
+baseType(::Type{Unitful.Quantity{T,D,U}})                     where {T,D,U} = T
+baseType(::Type{Measurements.Measurement{T}})                 where {T}     = T
+baseType(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T,N}   = T
+baseType(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T,N}   = T
+```
 
 # Examples
 ```
@@ -25,13 +33,20 @@ baseType(Float32)                # Float32
 baseType(Measurement{Float64})   # Float64
 ```
 """
-baseType(::Type{T})                                           where {T}                  = T
-baseType(::Type{Measurements.Measurement{T}})                 where {T<:AbstractFloat}   = T
-baseType(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T<:AbstractFloat,N} = T
-baseType(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T<:AbstractFloat,N} = T
+baseType(::Type{T})                                           where {T}     = T
+baseType(::Type{Unitful.Quantity{T,D,U}})                     where {T,D,U} = T
+baseType(::Type{Measurements.Measurement{T}})                 where {T}     = T
+baseType(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T,N}   = T
+baseType(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T,N}   = T
 
-Base.floatmax(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T<:AbstractFloat,N} = Base.floatmax(T)
-Base.floatmax(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T<:AbstractFloat,N} = Base.floatmax(T)
+isQuantity(              ::Type{T}) where {T} = T <: Unitful.Quantity         || T <: MonteCarloMeasurements.AbstractParticles && baseType(T) <: Unitful.Quantity
+isMeasurements(          ::Type{T}) where {T} = T <: Measurements.Measurement || T <: Unitful.Quantity && baseType(T) <: Measurements.Measurement
+isMonteCarloMeasurements(::Type{T}) where {T} = T <: MonteCarloMeasurements.AbstractParticles
+
+Base.floatmax(::Type{Unitful.Quantity{T,D,U}})                     where {T,D,U} = Base.floatmax(T)
+Base.floatmax(::Type{Measurements.Measurement{T}})                 where {T}     = Base.floatmax(T)
+Base.floatmax(::Type{MonteCarloMeasurements.Particles{T,N}})       where {T,N}   = Base.floatmax(T)
+Base.floatmax(::Type{MonteCarloMeasurements.StaticParticles{T,N}}) where {T,N}   = Base.floatmax(T)
 
 
 """
@@ -1528,7 +1543,7 @@ Symbol `functionName` as function name. By `eval(code)` or
 
 - `hasUnits::Bool`: = true, if variables have units. Note, the units of the state vector are defined in equationinfo.
 """
-function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::Modia.EquationInfo,
+function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equationInfo::Modia.EquationInfo,
                                   parameters, variables, previousVars, preVars, holdVars, functionName::Symbol;
                                   pre::Vector{Symbol} = Symbol[], hasUnits=false)
 
@@ -1643,9 +1658,12 @@ function generate_getDerivatives!(AST::Vector{Expr}, equationInfo::Modia.Equatio
     end
 
     # Generate code of the function
+    # temporarily removed: _m.time = $TimeType(Modia.getValue(_time))
     code = quote
-                function $functionName(_x, _m::Modia.SimulationModel{_FloatType,_TimeType}, _time)::Nothing where {_FloatType,_TimeType}
-                    _m.time = _TimeType(Modia.getValue(_time))
+                function $functionName(_x, _m::Modia.SimulationModel{$FloatType,$TimeType}, _time::$TimeType)::Nothing
+                    _FloatType = $FloatType
+                    _TimeType = $TimeType
+                    _m.time = _time
                     _m.nGetDerivatives += 1
                     instantiatedModel = _m
                     _p = _m.evaluatedParameters

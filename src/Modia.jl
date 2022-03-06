@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.8.2"
-const Date = "2022-03-04"
+const Date = "2022-03-08"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -56,8 +56,7 @@ export get_xNames
 export registerExtraSimulateKeywordArguments
 export get_extraSimulateKeywordArgumentsDict
 
-
-
+export modelToJSON, JSONToModel, writeModel, readModel
 
 import Sundials
 const  CVODE_BDF = Sundials.CVODE_BDF
@@ -141,6 +140,25 @@ Implementation is performed in the following way:
 """
 unitAsString(unitOfQuantity::Unitful.FreeUnits) = replace(repr(unitOfQuantity,context = Pair(:fancy_exponent,false)), " " => "*")
 
+"""
+    quantityType = quantity(numberType, numberUnit::Unitful.FreeUnits)
+    
+Return the quantity type given the numberType and the numberUnit.
+
+# Example
+```julia
+mutable struct Data{FloatType <: AbstractFloat}
+    velocity::quantity(FloatType, u"m/s")
+end
+
+v = Data{Float64}(2.0u"mm/s")
+@show v                         # v = 
+```
+"""
+quantity(numberType, numberUnit::Unitful.FreeUnits) = Quantity{numberType, dimension(numberUnit), typeof(numberUnit)} 
+
+quantityTypes(::Type{Unitful.Quantity{T,D,U}}) where {T,D,U} = (T,D,U)
+
 
 include("EquationAndStateInfo.jl")
 include("StateSelection.jl")
@@ -155,6 +173,7 @@ include("SimulateAndPlot.jl")
 include("ReverseDiffInterface.jl")
 include("PathPlanning.jl")
 include("JSONModel.jl")
+using .JSONModel
 
 # include("IncidencePlot.jl")
 # using .IncidencePlot
@@ -162,7 +181,7 @@ include("JSONModel.jl")
 
 const drawIncidence = false
 
-
+include("Symbolic.jl")
 include("ModiaLang.jl")
 
 end
