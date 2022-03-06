@@ -291,14 +291,16 @@ prependDict(dict, prefix) = OrderedDict([prepend(k, prefix) => prepend(v, prefix
 
 
 function mergeModelStructures(parent::ModelStructure, child::ModelStructure, prefix)
-    merge!(parent.parameters, child.parameters)
-    parent.mappedParameters[prefix] = child.mappedParameters
+    if length(child.mappedParameters) > 0
+        merge!(parent.parameters, child.parameters)
+        parent.mappedParameters[prefix] = child.mappedParameters
 
-    merge!(parent.init, child.init)
-    parent.mappedParameters[prefix] = child.mappedParameters
+        merge!(parent.init, child.init)
+        parent.mappedParameters[prefix] = child.mappedParameters
 
-    merge!(parent.start, child.start)
-    parent.mappedParameters[prefix] = child.mappedParameters
+        merge!(parent.start, child.start)
+        parent.mappedParameters[prefix] = child.mappedParameters
+    end
 
     merge!(parent.variables, child.variables)
     merge!(parent.flows, child.flows)
@@ -431,7 +433,7 @@ end
 
 
 function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters, hideResults;
-    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
+    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false, saveCodeOnFile="")
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
     Goriginal = deepcopy(G)
     function getSolvedEquationAST(e, v)
@@ -455,7 +457,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     #        solution = :(try $solution; catch e; println("Failure executing: ", $sol); printstyled(stderr,"ERROR: ", bold=true, color=:red);
     #        printstyled(stderr,sprint(showerror,e), color=:light_red); println(stderr); end)
         end
-        solution = makeDerVar(solution, parameters, inputs, evaluateParameters)
+        solution = makeDerVar(solution, parameters, inputs, FloatType, evaluateParameters)
         if logCalculations
             var = string(unknowns[v])
             solutionString = string(solution)
@@ -473,7 +475,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             return nothing
         end
         if isexpr(lhs, :tuple) && all(a == 0 for a in lhs.args) || lhs == :(0)
-            eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
+            eq_rhs = makeDerVar(:($rhs), parameters, inputs, FloatType, evaluateParameters)
             if unitless
                 eqs = eq_rhs
             else
@@ -484,8 +486,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         #    eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
         #    eqs =  :( ($eq_rhs .-= $eq_lhs) )
         else
-            eq_rhs = makeDerVar(:($rhs), parameters, inputs, evaluateParameters)
-            eq_lhs = makeDerVar(:($lhs), parameters, inputs, evaluateParameters)
+            eq_rhs = makeDerVar(:($rhs), parameters, inputs, FloatType, evaluateParameters)
+            eq_lhs = makeDerVar(:($lhs), parameters, inputs, FloatType, evaluateParameters)
             if unitless
                 eqs = :( $eq_rhs .- $eq_lhs )
             else
@@ -550,10 +552,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
         end
-        # Transform unit to string representation that is parseable again (see also https://github.com/PainterQubits/Unitful.jl/issues/412):
-        # - Display exponents on units not as superscripts (= default on macOS)
-        # - Replace " " by "*", since Unitful removes "*" when converting to string
-        return replace(repr(un,context = Pair(:fancy_exponent,false)), " " => "*")
+        return unitAsString(un)
     end
 
     function var_startInitFixed(v_original)
@@ -688,7 +687,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if useNewCodeGeneration
             @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         else
-            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(FloatType, TimeType, AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         end
     else
 #        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), extraResults, :getDerivatives, hasUnits = !unitless)
@@ -703,6 +702,13 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
 #    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)
     #getDerivatives = Core.eval(modelModule, code)
+
+    if saveCodeOnFile != ""
+        println("  Save generated code on file ", joinpath(pwd(), saveCodeOnFile))
+        open(saveCodeOnFile, "w") do io
+            print(io, replace(sprint(show,code), r"( *#= .*=#\n)|(#= .*=#)" => ""))
+        end
+    end
 
     if logTiming
         println("eval code")
@@ -846,7 +852,7 @@ end
 
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
-        evaluateParameters=false, log=false, logModel=false, logDetails=false, logStateSelection=false,
+        evaluateParameters=false, saveCodeOnFile="", log=false, logModel=false, logDetails=false, logStateSelection=false,
         logCode=false,logExecution=logExecution, logCalculations=logCalculations, logTiming=false)
 
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
@@ -856,6 +862,7 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 * `aliasReduction`: Perform alias elimination and remove singularities
 * `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements)
 * `evaluateParameters`: Use evaluated parameters in the generated code.
+* `saveCodeOnFile`: If non-empty string, save generated code in file with name `saveCodeOnFile`.
 * `log`: Log the different phases of translation
 * `logModel`: Log the variables and equations of the model
 * `logDetails`: Log internal data during the different phases of translation
@@ -880,7 +887,12 @@ See documentation of macro [`@instantiateModel`]
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
-    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false)
+    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false, saveCodeOnFile="")
+    if isMonteCarloMeasurements(FloatType) && !unitless
+        unitless=true
+        printstyled("  @instantiateModel(...,unitless=true, ..) set automatically, because\n  FloatType=MonteCarloMeasurements often fails if units are involved.\n", color=:red)
+    end
+    
     #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
         println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
@@ -1058,7 +1070,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         if ! experimentalTranslation
             inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
                 vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters, modelStructure.hideResults;
-                unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters)
+                unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters, saveCodeOnFile)
         else
             interface[:equations] = modStructure[:equations]
             return interface

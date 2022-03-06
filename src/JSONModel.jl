@@ -8,7 +8,7 @@ Encoding and decoding Modia models as JSON.
 """
 module JSONModel
 
-export modelToJSON, JSONToModel, cloneModel
+export modelToJSON, JSONToModel, cloneModel, writeModel, readModel
 
 import JSON
 using Modia
@@ -31,7 +31,7 @@ function encodeModel(model, expressionsAsStrings=true)
     Base.remove_linenums!(model)
     model = removeBlock(model)
     if typeof(model) <: Quantity
-        return Dict(:_value => ustrip.(model), :_unit=>string(unit(model)))
+        return Dict(:_value => ustrip.(model), :_unit=>Modia.unitAsString(unit(model)))
     elseif expressionsAsStrings && typeof(model) == Expr
         return Dict(:_Expr=>string(model))
     elseif typeof(model) == Expr
@@ -80,10 +80,10 @@ Encodes a model suitable to convert to a JSON string.
 function decodeModel(jModel)
     if typeof(jModel) <: AbstractDict && length(keys(jModel)) == 2 && "_value" in keys(jModel) && "_unit" in keys(jModel)
         unit = jModel["_unit"]
-        unit = replace(unit, ' ' => '*')  # Workaround for https://github.com/PainterQubits/Unitful.jl/issues/391
+        #unit = replace(unit, ' ' => '*')  # Workaround for https://github.com/PainterQubits/Unitful.jl/issues/391  # Remove, since already correctly done in encodeModel(...)
         return jModel["_value"]*uparse(unit)
     elseif typeof(jModel) <: AbstractDict && length(keys(jModel)) == 1 && "_Expr" in keys(jModel) 
-        return Meta.parse(jModel["_Expr"])
+        return Base.remove_linenums!( Meta.parse(jModel["_Expr"]) )  # without remove_linenums!, there are errors later with if-expressions.
     elseif typeof(jModel) <: AbstractDict && length(keys(jModel)) == 1 && "_Symbol" in keys(jModel) 
         return Symbol(jModel["_Symbol"])
     elseif typeof(jModel) <: AbstractDict && length(keys(jModel)) == 2 && "head" in keys(jModel) && "args" in keys(jModel)
@@ -119,6 +119,32 @@ Decodes JSON string as model.
 function JSONToModel(json)
     jModel = JSON.parse(json, dicttype=OrderedDict)
     model = decodeModel(jModel)
+end
+
+
+"""
+    writeModel(filename::String, model; log=true)
+    
+Write model in JSON format on file `filename`.
+"""
+function writeModel(filename::String, model::AbstractDict; log=true) 
+    if log
+        println("  Write model in JSON format on file \"$filename\"")
+    end
+    write(filename, modelToJSON(model))
+end
+
+
+"""
+    model = readModel(filename::AbstractString; log=true)
+    
+Read a model that is stored in JSON format on file `filename` and return it.
+"""
+function readModel(filename::String; log=true)
+    if log
+        println("  Read model from JSON file \"$filename\"")
+    end
+    JSONToModel( read(filename,String) )
 end
 
 

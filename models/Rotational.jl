@@ -61,7 +61,7 @@ PartialCompliant = Model(
 # Linear 1D rotational spring
 Spring = PartialCompliant | Model(
     c = 1.0u"N*m/rad",   # (min = 0, info = "Spring constant")
-    phi_rel0 = 0u"rad", # (info = "Unstretched spring angle") 
+    phi_rel0 = 0.0u"rad", # (info = "Unstretched spring angle") 
     equations = :[
         tau = c * (phi_rel - phi_rel0) ]
 ) 
@@ -70,7 +70,7 @@ Spring = PartialCompliant | Model(
 SpringDamper = PartialCompliant | Model(
     c = 1.0*u"N*m/rad", # (min = 0, info = "Spring constant")
     d = 0.0u"N*m*s/rad", # (info = "Damping constant")
-    phi_rel0 = 0u"rad", # (info = "Unstretched spring angle")
+    phi_rel0 = 0.0u"rad", # (info = "Unstretched spring angle")
     equations = :[
         tau = c * (phi_rel - phi_rel0) + d * der(phi_rel) ]
 )

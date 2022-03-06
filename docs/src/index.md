@@ -38,7 +38,49 @@ functionalities of these packages.
 
 ### Version 0.8.2
 
+- New exported functions
+  - modelToJSON(model; expressionsAsStrings=true)
+  - JSONToModel(json)
+  - writeModel(filename, model; log=true) 
+  - readModel(filename; log=true)
+  writeModel saves the model in JSON format on file and readModel reads the model from a JSON file.
+
+- `Modia/examples/ServoSystem.jl` enhanced, so that the hierarchical model with units is
+  first stored in JSON format on file, then the model is read from file, a parameter is modified,
+  and then the model is passed to @instantiateModel(..).
+ 
+- `@instantiateModel(...)`:
+  - `@instantiateModel(..., logCode=true, ...)` provides now correct unit type casts for scalars.
+  - `@instantiateModel(..., saveCodeOnFile=fileName, ...)` stores the generated code on file `fileName`.
+  - Automatically use `@instantiatedModel(..., unitless=true, ..)`, if `FloatType = MonteCarloMeasurements.XXX`,
+    because there are easily cases where this fails, if units are present.
+
+- `@showModel model`: Nicer pretty print if model is hierarchical.
+
+- New function `Modia.unitAsString(unitOfQuantity)`,
+  see Unitful issue 412 (https://github.com/PainterQubits/Unitful.jl/issues/412).
+
+- Remove empty hierarchies in model parameters (seen with `simulate!(..., logParameters=true)`).
+
 - Memory allocation reduced if states or tearing variables are SVectors.
+
+- Improved casting and checking of types in the generated code
+  (see new test model Modia/test/TestUnitAsString.jl). 
+  
+- Moved ModiaBase.Symbolic.makeDerVar from ModiaBase to new file `Modia/src/Symbolic.jl` (because makeDerVar needs FloatType for
+  generating type-stable code and FloatType is available in Modia but not in ModiaBase).
+
+- Github actions workflow added for automatic tests on Linux/Windows/MacOS, for pull requests on main.
+
+**Bug fixes**
+
+- Fixed issue with unit on macOS (exponents had been displayed as Unicode superscripts when converting 
+  the unit to a string, leading to errors in the further processing).
+  
+- Hide result only if `Var(hideResult=true)` (previously, hideResult=false was treated as true).
+
+- `Modia/models/Rotational.jl`: Change some Int to Float64 values, because errors occured in some situations.
+
 
 ### Version 0.8.1
 

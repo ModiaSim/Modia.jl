@@ -15,6 +15,7 @@ end
 
 
 Test.@testset "Test units, uncertainties" begin
+    include("TestUnitAsString.jl")    
     include("TestUnits.jl")
     include("TestUncertainties.jl")
     include("TestUnitsAndUncertainties.jl")

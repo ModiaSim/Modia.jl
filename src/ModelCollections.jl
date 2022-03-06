@@ -83,7 +83,9 @@ function showModel(m::OrderedDict, level=0)
             end
             println("  "^level, "]")
         elseif k != :_class
-            println("  "^level, k, " = ", stringifyDefinition(v), ",")
+            #println("  "^level, k, " = ", stringifyDefinition(v), ",")
+            print("  "^level, k, " = ")
+            showModel(v,level)
         end
     end
     println("  "^(level-1), "),")
@@ -546,7 +548,7 @@ function flattenModelTuple!(model, modelStructure, modelName, to; unitless = fal
             if :_outer in keys(v) && v[:_outer]
                 push!(modelStructure.equations, :($k = $(prepend(k, :up))))
             end
-            if :hideResult in keys(v)
+            if :hideResult in keys(v) && v[:hideResult] == true
                 push!(modelStructure.hideResults, subMod)
             end
         elseif isCollection(v) # || typeof(v) == Symbol # instantiate
