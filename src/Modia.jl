@@ -111,6 +111,37 @@ The function is defined as: `stripUnit(v) = ustrip.(upreferred.(v))`.
 """
 stripUnit(v) = ustrip.(upreferred.(v))
 
+
+"""
+     str = unitAsString( unitOfQuantity::Unitful.FreeUnits )
+
+Return a string representation of the unit of a quantity that can be used in a unit string macro
+(see also Unitful [issue 412](https://github.com/PainterQubits/Unitful.jl/issues/412)).
+
+# Example
+```
+v1 = 2.0u"m/s"
+v1_unit = unitAsString( unit(v1) )   # = "m*s^-1"
+v2_withoutUnit = 2.0
+code = :( \$v2_withoutUnit@u_str(\$v1_unit) )  # = 2.0u"m*s^-1"
+v2 = eval(code)
+@show v1
+@show v1_unit
+@show v2
+```
+
+# Notes
+Transforms unit to string representation that is parseable again 
+(see also Unitful [issue 412](https://github.com/PainterQubits/Unitful.jl/issues/412)).
+This implementation is a hack and only works in common cases.
+Implementation is performed in the following way:
+
+1. Transform to string and display exponents on units not as Unicode superscripts (= default on macOS).
+2. Replace " " by "*", since Unitful removes "*" when converting to string.
+"""
+unitAsString(unitOfQuantity::Unitful.FreeUnits) = replace(repr(unitOfQuantity,context = Pair(:fancy_exponent,false)), " " => "*")
+
+
 include("EquationAndStateInfo.jl")
 include("StateSelection.jl")
 

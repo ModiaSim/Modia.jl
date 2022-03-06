@@ -2,6 +2,7 @@ import Modia
 import Modia.Test
 
 Test.@testset "Test basic functionality" begin
+    include("TestUnitAsString.jl")
     include("TestVariables.jl")
     include("TestFirstOrder.jl")
     include("TestFirstOrder2.jl")
