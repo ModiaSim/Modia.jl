@@ -67,7 +67,7 @@ functionalities of these packages.
 - Improved casting and checking of types in the generated code
   (see new test model Modia/test/TestUnitAsString.jl). 
   
-- Moved ModiaBase.Symbolic.makeDerVar from ModiaBase to Modia (because makeDerVar needs FloatType for
+- Moved ModiaBase.Symbolic.makeDerVar from ModiaBase to new file `Modia/src/Symbolic.jl` (because makeDerVar needs FloatType for
   generating type-stable code and FloatType is available in Modia but not in ModiaBase).
 
 - Github actions workflow added for automatic tests on Linux/Windows/MacOS, for pull requests on main.
