@@ -433,7 +433,7 @@ end
 
 
 function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, init, start, inputs, outputs, vEliminated, vProperty, unknownsWithEliminated, mappedParameters, hideResults;
-    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false)
+    unitless=false, logStateSelection=false, logCode=false, logExecution=false, logCalculations=false, logTiming=false, evaluateParameters=false, saveCodeOnFile="")
     (unknowns, equations, G, Avar, Bequ, assign, blt, parameters) = modStructure
     Goriginal = deepcopy(G)
     function getSolvedEquationAST(e, v)
@@ -703,6 +703,13 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 #    generatedFunction = @RuntimeGeneratedFunction(modelModule, code)
     #getDerivatives = Core.eval(modelModule, code)
 
+    if saveCodeOnFile != ""
+        println("  Save generated code on file ", joinpath(pwd(), saveCodeOnFile))
+        open(saveCodeOnFile, "w") do io
+            print(io, replace(sprint(show,code), r"( *#= .*=#\n)|(#= .*=#)" => ""))
+        end
+    end
+
     if logTiming
         println("eval code")
         @time @timeit to "eval(code)" Core.eval(modelModule, code)
@@ -845,7 +852,7 @@ end
 
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
-        evaluateParameters=false, log=false, logModel=false, logDetails=false, logStateSelection=false,
+        evaluateParameters=false, saveCodeOnFile="", log=false, logModel=false, logDetails=false, logStateSelection=false,
         logCode=false,logExecution=logExecution, logCalculations=logCalculations, logTiming=false)
 
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
@@ -855,6 +862,7 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 * `aliasReduction`: Perform alias elimination and remove singularities
 * `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements)
 * `evaluateParameters`: Use evaluated parameters in the generated code.
+* `saveCodeOnFile`: If non-empty string, save generated code in file with name `saveCodeOnFile`.
 * `log`: Log the different phases of translation
 * `logModel`: Log the variables and equations of the model
 * `logDetails`: Log internal data during the different phases of translation
@@ -879,7 +887,7 @@ See documentation of macro [`@instantiateModel`]
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
-    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false)
+    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false, saveCodeOnFile="")
     #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
         println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
@@ -1057,7 +1065,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         if ! experimentalTranslation
             inst = stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelModule, buildDict, FloatType, TimeType, modelStructure.init, modelStructure.start, modelStructure.inputs, modelStructure.outputs,
                 vEliminated, vProperty, unknownsWithEliminated, modelStructure.mappedParameters, modelStructure.hideResults;
-                unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters)
+                unitless, logStateSelection, logCode, logExecution, logCalculations, logTiming, evaluateParameters, saveCodeOnFile)
         else
             interface[:equations] = modStructure[:equations]
             return interface
