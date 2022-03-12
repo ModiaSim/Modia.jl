@@ -420,7 +420,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         parameters = deepcopy(parameterDefinition)
 
         # Determine x_start and previous values
-        evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, unitless, modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
+        evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitless, modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
         if isnothing(evaluatedParameters)
             return nothing
         end
@@ -1049,7 +1049,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if length(m.options.merge) > 0
         m.parameters = mergeModels(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, m.unitless, m.modelModule, m.parameters, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, TimeType, m.buildDict, m.unitless, m.modelModule, m.parameters, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
         if isnothing(m.evaluatedParameters)
             return false
         end

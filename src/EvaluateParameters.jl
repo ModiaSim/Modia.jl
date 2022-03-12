@@ -61,9 +61,9 @@ Recursively traverse the hierarchical collection `parameters` and perform the fo
 - Return the evaluated `parameters` if successfully evaluated, and otherwise
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(FloatType, unitless::Bool, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+function propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitless::Bool, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
     x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(FloatType, unitless, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+    map = propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitless, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
 
     if isnothing(map)
         return nothing
@@ -163,7 +163,7 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModule, parameters, eqInfo::Modia.EquationInfo, x_found::Vector{Bool},
+function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitless::Bool, modelModule, parameters, eqInfo::Modia.EquationInfo, x_found::Vector{Bool},
                                            previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                            environment, path::String; log=false)
     if log
@@ -171,9 +171,10 @@ function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModul
     end
     current = OrderedDict{Symbol,Any}()   # should be Map()
 
-    # Determine, whether "parameters" has a ":_constructor" key and handle this specially
-    constructor = nothing
-    usePath     = false
+    # Determine, whether "parameters" has a ":_constructor"  or "_stateInfoFunction" key and handle this specially
+    constructor       = nothing
+    stateInfoFunction = nothing
+    usePath           = false
     if haskey(parameters, :_constructor)
         # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
         #          or: rev = (_constructor = (_class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)
@@ -190,6 +191,10 @@ function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModul
             end
         end
 
+    elseif haskey(parameters, :_stateInfoFunction)
+        # For example: obj = (_stateInfoFunction = Par(functionPath = :(stateInfoLinearStateSpaceSystem))
+        stateInfoFunction = parameters[:_stateInfoFunction][:functionPath]    
+    
     elseif haskey(parameters, :value)
         # For example: p1 = (_class = :Var, parameter = true, value = 0.2)
         #          or: p2 = (_class = :Var, parameter = true, value = :(2*p1))
@@ -202,7 +207,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModul
         if log
             println(" 2:    ... key = $k, value = $v")
         end
-        if k == :_constructor || k == :_path || (k == :_class && !isnothing(constructor))
+        if k == :_constructor || k == :_stateInfoFunction || k == :_path || (k == :_class && !isnothing(constructor))
             if log
                 println(" 3:    ... key = $k")
             end
@@ -242,7 +247,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModul
                         println(" 7:    ... key = $k, v = $v")
                     end
                     # For example: k = (a = 2.0, b = :(2*Lx))
-                    value = propagateEvaluateAndInstantiate2!(FloatType, unitless, modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
+                    value = propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitless, modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
                                                               vcat(environment, [current]), appendKey(path, k); log=log)
                     if log
                         println(" 8:    ... key = $k, value = $value")
@@ -322,6 +327,13 @@ function propagateEvaluateAndInstantiate2!(FloatType, unitless::Bool, modelModul
         end
     end
 
+    if !isnothing(stateInfoFunction)
+        # Call: stateInfoFunction(model, FloatType, Timetype, buildDict, path)
+        # (1) Generate an instance of subModel and store it in buildDict[path]
+        # (2) Define subModel states and store them in xxx
+        Core.eval(modelModule, :($stateInfoFunction($current, $FloatType, $TimeType, $buildDict, $path)))
+    end
+    
     if isnothing(constructor)
         return current # (; current...)
     else
