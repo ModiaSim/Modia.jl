@@ -369,6 +369,50 @@ mutable struct SimulationModel{FloatType,TimeType}
         # Construct result dictionary
         result_info = OrderedDict{String, ResultInfo}()
         vSolvedWithInitValuesAndUnit2 = OrderedDict{String,Any}( [(string(key),vSolvedWithInitValuesAndUnit[key]) for key in keys(vSolvedWithInitValuesAndUnit)] )
+            # Build previous-arrays
+            previous       = Vector{Any}(missing, length(previousVars))
+            previous_names = string.(previousVars)
+            previous_dict  = OrderedDict{String,Int}(zip(previous_names, 1:length(previousVars)))
+
+            # Build pre-arrays
+            pre       = Vector{Any}(missing, length(preVars))
+            pre_names = string.(preVars)
+            pre_dict  = OrderedDict{String,Int}(zip(pre_names, 1:length(preVars)))
+
+            # Build hold-arrays
+            hold       = Vector{Any}(missing, length(holdVars))
+            hold_names = string.(holdVars)
+            hold_dict  = OrderedDict{String,Int}(zip(hold_names, 1:length(holdVars)))
+
+        # Construct parameter values that are copied into the code
+        #parameterValues = [eval(p) for p in values(parameters)]
+        #@show typeof(parameterValues)
+        #@show parameterValues
+        parameters = deepcopy(parameterDefinition)
+
+        # Determine x_start and previous values
+        evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitless, modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
+        if isnothing(evaluatedParameters)
+            return nothing
+        end
+        x_start      = updateEquationInfo!(equationInfo, FloatType)
+        nx           = length(x_start)
+        nextPrevious = deepcopy(previous)
+        nextPre      = deepcopy(pre)
+        nextHold     = deepcopy(hold)
+        @show equationInfo.nx
+        @show nx
+
+        # Provide storage for x_vec
+        x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)]          
+            
+        # Construct data structure for linear equations
+        linearEquations = Modia.LinearEquations{FloatType}[]
+        for leq in equationInfo.linearEquations
+            push!(linearEquations, Modia.LinearEquations{FloatType}(leq...))
+        end
+
+        # Define result 
             # Store x and der_x
             for (xe_index, xe_info) in enumerate(equationInfo.x_info)
                 result_info[xe_info.x_name]     = ResultInfo(RESULT_X    , xe_index)
@@ -397,48 +441,8 @@ mutable struct SimulationModel{FloatType,TimeType}
                     result_info[name] = ResultInfo(info2.store, info2.index, true)
                 end
             end
-
-            # Build previous-arrays
-            previous       = Vector{Any}(missing, length(previousVars))
-            previous_names = string.(previousVars)
-            previous_dict  = OrderedDict{String,Int}(zip(previous_names, 1:length(previousVars)))
-
-            # Build pre-arrays
-            pre       = Vector{Any}(missing, length(preVars))
-            pre_names = string.(preVars)
-            pre_dict  = OrderedDict{String,Int}(zip(pre_names, 1:length(preVars)))
-
-            # Build hold-arrays
-            hold       = Vector{Any}(missing, length(holdVars))
-            hold_names = string.(holdVars)
-            hold_dict  = OrderedDict{String,Int}(zip(hold_names, 1:length(holdVars)))
-
-        # Construct parameter values that are copied into the code
-        #parameterValues = [eval(p) for p in values(parameters)]
-        #@show typeof(parameterValues)
-        #@show parameterValues
-        parameters = deepcopy(parameterDefinition)
-
-        # Determine x_start and previous values
-        evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitless, modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
-        if isnothing(evaluatedParameters)
-            return nothing
-        end
-        x_start      = initialStateVector(equationInfo, FloatType)
-        nx           = length(x_start)
-        nextPrevious = deepcopy(previous)
-        nextPre      = deepcopy(pre)
-        nextHold     = deepcopy(hold)
-
-        # Provide storage for x_vec
-        x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)]
-
-        # Construct data structure for linear equations
-        linearEquations = Modia.LinearEquations{FloatType}[]
-        for leq in equationInfo.linearEquations
-            push!(linearEquations, Modia.LinearEquations{FloatType}(leq...))
-        end
-
+            
+            
         # Initialize execution flags
         eventHandler = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
         eventHandler.initial = true
@@ -519,6 +523,14 @@ function get_xinfo(m::SimulationModel, x_index::Int)::Tuple{Int, Int, String}
     ibeg  = xinfo.startIndex
     iend  = ibeg + xinfo.length-1
     return (ibeg, iend, xinfo.unit)
+end
+
+
+get_state(m::SimulationModel, x_index::Int) = m.x_vec[x_index - m.equationInfo.nxFixedLength]
+    
+function set_stateDerivative!(m::SimulationModel, x_index::Int, derx)
+    # Should appendVariable(m.der_x, derx), but order of derx appendVariable defined by sorting order in code!!!!
+    # Needs to be fixed!!!!
 end
 
 
@@ -1069,6 +1081,12 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     # Initialize auxiliary arrays for event iteration
     m.x_init .= 0
     m.der_x  .= 0
+    @show m.equationInfo.nx
+    @show m.x_vec
+    @show m.x_start
+    @show m.x_init
+    @show m.der_x
+    @show m.equationInfo
 
     # Log parameters
     if m.options.logParameters

@@ -807,6 +807,34 @@ function initialStateVector(eqInfo::EquationInfo, FloatType::Type)::Vector{Float
 end
 
 
+function addOrUpdateStateInfo(eqInfo::EquationInfo, x_name::String, der_x_name::String, startOrInit::Vector{FloatType}; 
+                              stateCategory::StateCategory = XD,
+                              unit::String     = "",
+                              fixed::Bool      = true, 
+                              nominal::Float64 = NaN, 
+                              unbounded::Bool  = false)::Int where {FloatType}
+    if haskey(eqInfo.x_dict, x_name)
+        # State is already defined. Update it.
+        ix = eqInfo.x_dict[x_name]
+        xi_info = eqInfo.x_info[ix]
+        @assert(xi_info.der_x_name == der_x_name)
+        @assert(xi_info.unit       == unit)
+        xi_info.startOrInit = startOrInit
+        xi_info.nominal     = nominal
+        xi_info.unbounded   = unbounded
+    else
+        # State is not yet defined. Add it.
+        xi_info = StateElementInfo(x_name, Symbol(x_name), der_x_name, Symbol(der_x_name),
+                                   stateCategory, unit, startOrInit, fixed, nominal, unbounded)
+        push!(eqInfo.x_info, xi_info)
+        ix = length(eqInfo.x_info)
+        eqInfo.x_dict[x_name]         = ix
+        eqInfo.der_x_dict[der_x_name] = ix 
+    end
+    return ix
+end
+
+
 """
     x_start = updateEquationInfo!(eqInfo::EquationInfo, FloatType)
 

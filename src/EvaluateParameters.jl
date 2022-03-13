@@ -336,7 +336,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
         # Call: stateInfoFunction(model, FloatType, Timetype, buildDict, path)
         # (1) Generate an instance of subModel and store it in buildDict[path]
         # (2) Define subModel states and store them in xxx
-        Core.eval(modelModule, :($stateInfoFunction($current, $FloatType, $TimeType, $buildDict, $path)))
+        Core.eval(modelModule, :($stateInfoFunction($current, $FloatType, $TimeType, $buildDict, $eqInfo, $path)))
     end
     
     if isnothing(constructor)

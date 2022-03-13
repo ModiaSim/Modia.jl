@@ -45,11 +45,11 @@ ModelLinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearState
 
 mutable struct LinearStateSpaceStruct{FloatType}
     path::String  # Path name of instance
+    ix::Int       # Index with respect to equationInfo.x_info    
     A::Matrix{FloatType}
     B::Matrix{FloatType}
     C::Matrix{FloatType}
     x_init::Vector{FloatType}  # Initial values of states
-    x::Vector{FloatType}       # Actual values of states
     y::Vector{FloatType}       # Internal memory for y
     derx::Vector{FloatType}    # Internal memory for derx
 
@@ -73,7 +73,7 @@ mutable struct LinearStateSpaceStruct{FloatType}
         copyB = Matrix{FloatType}(deepcopy(B))
         copyC = Matrix{FloatType}(deepcopy(C))
         copy_x_init = if isnothing(x_init); zeros(FloatType, size(A,1)) else Vector{FloatType}(deepcopy(x_init)) end
-        new(path, copyA, copyB, copyC, copy_x_init, copy_x_init, zeros(FloatType,size(C,1)), zeros(FloatType,size(A,1)))
+        new(path, 0, copyA, copyB, copyC, copy_x_init, zeros(FloatType,size(C,1)), zeros(FloatType,size(A,1)))
     end
 end
 
@@ -113,9 +113,9 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
                     u = Var(input  = true, start = u_zeros),
                     y = Var(output = true, start = y_zeros),
                     equations = :[
-                        ls = getLinearStateSpace!(instantiatedModel,$pathAsString)
-                        y = computeOutputs!(ls)
-                        success = computeStateDerivatives!(ls,u)])
+                        ls = getLinearStateSpace!(instantiatedModel, $pathAsString)
+                        y = computeOutputs!(instantiatedModel, ls)
+                        success = computeStateDerivatives!(instantiatedModel, ls, u)])
 
     # Store build info in buildDict
     buildDict[pathAsString] = LinearStateSpaceBuild{FloatType}(pathAsString, nu, ny)
@@ -125,6 +125,7 @@ end
 
 function stateInfoLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type,
                                     buildDict::OrderedCollections.OrderedDict{String,Any},
+                                    eqInfo::Modia.EquationInfo,
                                     path::String)::Nothing
     # Called during evaluation of the parameters (before initialization)                                 
     println("... 3: stateInfoLinearStateSpace! called for $path with model = $model")
@@ -134,10 +135,11 @@ function stateInfoLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeTy
     @assert(size(A,2) == size(A,1))
     @assert(size(ls.B,2) == lsBuild.nu)
     @assert(size(ls.C,1) == lsBuild.ny)
-    lsBuild.ls = ls
+    ls.ix = Modia.addOrUpdateStateInfo(eqInfo, path*".x", path*".der(x)", ls.x_init)
+    lsBuild.ls = ls    
     return nothing
 end
-
+    
 
 function getLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = instantiatedModel.buildDict[path].ls
@@ -145,15 +147,19 @@ function getLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeT
     return ls
 end
 
-function computeOutputs!(ls)
+function computeOutputs!(instantiatedModel, ls)
+    x = Modia.get_state(instantiatedModel, ls.ix)
     ls.y .= 0
-    mul!(ls.y, ls.C, ls.x)
+    mul!(ls.y, ls.C, x)
 end
 
-function computeStateDerivatives!(ls, u)::Bool
+function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
+    x = Modia.getState(instantiatedModel, ls.ix)
     ls.derx .= 0
-    mul!(ls.derx, ls.A, ls.x)
+
+    mul!(ls.derx, ls.A, x)
     mul!(ls.derx, ls.B, u)
+    Modia.set_stateDerivative!(instantiatedModel, ls.ix, ls.derx)
     return true
 end
 
@@ -164,6 +170,7 @@ SSTest = Model(
          )
 ssTest = @instantiateModel(SSTest, logCode=true)
 simulate!(ssTest, stopTime=5.0)
-plot(ssTest, "y")
+Modia.printResultInfo(ssTest)
+plot(ssTest, ("ss.x", "ss.u", "y"))
 
 end
