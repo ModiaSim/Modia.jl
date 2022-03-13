@@ -192,8 +192,13 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
         end
 
     elseif haskey(parameters, :_stateInfoFunction)
-        # For example: obj = (_stateInfoFunction = Par(functionPath = :(stateInfoLinearStateSpaceSystem))
-        stateInfoFunction = parameters[:_stateInfoFunction][:functionPath]    
+        # For example: obj = (_stateInfoFunction = Par(functionName = :(stateInfoLinearStateSpaceSystem))
+        _stateInfoFunction = parameters[:_stateInfoFunction]
+        if haskey(_stateInfoFunction, :functionName)
+            stateInfoFunction = _stateInfoFunction[:functionName]
+        else
+            @warn "Model $path has key :_stateInfoFunction but its value has no key :functionName"
+        end 
     
     elseif haskey(parameters, :value)
         # For example: p1 = (_class = :Var, parameter = true, value = 0.2)
