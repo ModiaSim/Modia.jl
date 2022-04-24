@@ -723,7 +723,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
 #    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
-     x_startValues = initialStateVector(equationInfo, FloatType)
+     x_startValues = nothing    # deprecated, is no longer used; just temporarily kept for backwards compatibility 
+                                # = initialStateVector(equationInfo, FloatType)
 
 #    println("Build SimulationModel")
 

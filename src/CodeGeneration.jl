@@ -334,10 +334,13 @@ mutable struct SimulationModel{FloatType,TimeType}
     time::TimeType
     nGetDerivatives::Int                        # Number of getDerivatives! calls
     nf::Int                                     # Number of getDerivatives! calls from integrator (without zero-crossing calls)
-    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of state vector element equationInfo.x_info[equationInfo.nxFixedLength+i]
+    x::Vector{FloatType}                        # Reference of x-vector passed to getDerivatives!(..)
+    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of (visible) state vector element equationInfo.x_info[equationInfo.nxFixedLength+i] 
     x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
-    der_x::Vector{FloatType}                    # Derivatives of states x or x_init
+    der_x_visible::Vector{FloatType}            # Derivatives of states x or x_init that correspond to visible states
+    der_x_hidden::Vector{FloatType}             # Derivatives of states x or x_init that correspond to hidden states (defined in functions and not visible in getDerivatives!(..))
+    der_x_full::Vector{FloatType}               # Derivatives of states x (needed in DAE mode)
     odeIntegrator::Bool                         # = true , if ODE integrator used
                                                 # = false, if DAE integrator used
 
@@ -400,11 +403,11 @@ mutable struct SimulationModel{FloatType,TimeType}
         nextPrevious = deepcopy(previous)
         nextPre      = deepcopy(pre)
         nextHold     = deepcopy(hold)
-        @show equationInfo.nx
-        @show nx
+        #@show equationInfo.nx
+        #@show nx
 
         # Provide storage for x_vec
-        x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)]          
+        x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.nxVisibleLength)]          
             
         # Construct data structure for linear equations
         linearEquations = Modia.LinearEquations{FloatType}[]
@@ -458,8 +461,9 @@ mutable struct SimulationModel{FloatType,TimeType}
             previous, nextPrevious, previous_names, previous_dict,
             pre, nextPre, pre_names, pre_dict,
             hold, nextHold, hold_names, hold_dict,
-            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
-            x_vec, x_start, zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
+            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, zeros(FloatType,0),
+            x_vec, x_start, zeros(FloatType,nx), zeros(FloatType,equationInfo.nxVisible), zeros(FloatType,nx-equationInfo.nxVisible), 
+            zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
     end
 
@@ -487,8 +491,9 @@ mutable struct SimulationModel{FloatType,TimeType}
             deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
             deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
             deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,
-            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, deepcopy(m.x_vec),
-            convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
+            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, zeros(FloatType,0), deepcopy(m.x_vec),
+            convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,equationInfo.nxVisible), zeros(FloatType,nx-equationInfo.nxVisible),
+            zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)
     end
 end
@@ -525,12 +530,38 @@ function get_xinfo(m::SimulationModel, x_index::Int)::Tuple{Int, Int, String}
     return (ibeg, iend, xinfo.unit)
 end
 
+export copyState!
 
-get_state(m::SimulationModel, x_index::Int) = m.x_vec[x_index - m.equationInfo.nxFixedLength]
+"""
+    copyState!(m::SimulationModel, x_index::Int, xi)
     
-function set_stateDerivative!(m::SimulationModel, x_index::Int, derx)
-    # Should appendVariable(m.der_x, derx), but order of derx appendVariable defined by sorting order in code!!!!
-    # Needs to be fixed!!!!
+Copy state of m.equationInfo.x_info[x_index] into pre-allocated vector xi.
+"""
+function copyState!(m::SimulationModel{FloatType,TimeType}, x_index::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
+    @assert(length(xi) == m.equationInfo.x_info[x_index].length)
+    startIndex = m.equationInfo.x_info[x_index].startIndex - 1 
+    for i = 1:length(xi)
+        xi[i] = m.x[startIndex+i]
+    end
+    return nothing
+end
+
+
+"""
+    set_hiddenStateDerivative!(m::SimulationModel, x_index, der_x)
+    
+Copy hidden state derivative der_x of m.equationInfo.x_info[x_index] into full state derivative vector
+"""
+function set_hiddenStateDerivative!(m::SimulationModel, x_index::Int, der_x)::Nothing
+    @assert(length(der_x) == m.equationInfo.x_info[x_index].length)
+    startIndex = m.equationInfo.x_info[x_index].startIndex - m.equationInfo.nxVisible - 1 
+    #@show startIndex
+    #@show m.der_x_hidden
+    #@show der_x
+    for i = 1:length(der_x)
+        m.der_x_hidden[startIndex+i] = der_x[i]
+    end
+    return nothing
 end
 
 
@@ -1013,21 +1044,18 @@ invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.tim
         eqInfo = m.equationInfo
         x_vec  = m.x_vec
         j      = 0
-        for i in eqInfo.nxFixedLength+1:length(eqInfo.x_info)
+        for i in eqInfo.nxFixedLength+1:eqInfo.nxVisibleLength
             j += 1
             xe = eqInfo.x_info[i]
             x_vec[j] .= x[xe.startIndex:(xe.startIndex+xe.length-1)]
         end
     end
-    empty!(m.der_x)
+    empty!(m.der_x_visible)
+    m.der_x_hidden .= 0
+    m.x = x
     Base.invokelatest(m.getDerivatives!, x, m, t)
 
-    @assert(length(m.der_x) == m.equationInfo.nx)
-end
-
-invokelatest_getDerivatives!(der_x, x, m, t) = begin
-    invokelatest_getDerivatives_without_der_x!(x, m, t)
-    der_x .= m.der_x
+    @assert(length(m.der_x_visible) + length(m.der_x_hidden) == length(x))
 end
 
 
@@ -1073,21 +1101,28 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
         m.x_start = updateEquationInfo!(m.equationInfo, FloatType)
         nx = length(m.x_start)
         resize!(m.x_init, nx)
-        resize!(m.der_x, nx)
+        resize!(m.der_x_visible, m.equationInfo.nxVisible)
+        resize!(m.der_x_hidden , nx - m.equationInfo.nxVisible)
+        resize!(m.der_x_full   , nx)
         eqInfo = m.equationInfo
-        m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nxFixedLength+1:length(eqInfo.x_info)]
+        m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nxFixedLength+1:eqInfo.nxVisibleLength]
     end
 
     # Initialize auxiliary arrays for event iteration
     m.x_init .= 0
-    m.der_x  .= 0
+    m.der_x_visible .= 0
+    m.der_x_hidden  .= 0
+    m.der_x_full    .= 0
+    #=
     @show m.equationInfo.nx
     @show m.x_vec
     @show m.x_start
     @show m.x_init
-    @show m.der_x
+    @show m.der_x_visible
+    @show m.der_x_hidden
     @show m.equationInfo
-
+    =#
+    
     # Log parameters
     if m.options.logParameters
         parameters = m.parameters
@@ -1215,22 +1250,24 @@ function outputs!(x, t, integrator)::Nothing
         invokelatest_getDerivatives_without_der_x!(x, m, t)
     else
         if t==m.options.startTime
-            m.der_x .= integrator.du   # Since IDA gives an error for integrator(t, Val{1]}) at the initial time instant
+            m.der_x_full .= integrator.du   # Since IDA gives an error for integrator(t, Val{1]}) at the initial time instant
         else
-            integrator(m.der_x, t, Val{1})  # Compute derx
+            integrator(m.der_x_full, t, Val{1})  # Compute derx by interpolation
         end
 
         # Copy derx to linearEquations
         for copyInfo in m.daeCopyInfo
             leq = m.linearEquations[ copyInfo.ileq ]
             for i in 1:length(copyInfo.index)
-                leq.x[i] = m.der_x[ copyInfo.index[i] ]
+                leq.x[i] = m.der_x_full[ copyInfo.index[i] ]
             end
         end
         m.solve_leq = false
         invokelatest_getDerivatives_without_der_x!(x, m, t)
         m.solve_leq = true
     end
+    copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)
+    push!(m.result_der_x, deepcopy(m.der_x_full)) 
     m.storeResult = false
     if !m.success
         m.result_x = integrator.sol
@@ -1268,14 +1305,41 @@ end
 
 
 """
+    copyDerivatives!(der_x, der_x_visible, der_x_hidden)
+    
+Copy der_x_visible and der_x_hidden to der_x (der_x .= [der_x_visible, der_x_hidden])
+"""
+@inline function copyDerivatives!(der_x, der_x_visible, der_x_hidden)::Nothing
+    if length(der_x_hidden) == 0
+        der_x .= der_x_visible
+    else
+        @inbounds begin
+            @assert(length(der_x) == length(der_x_visible) + length(der_x_hidden))
+            for i = 1:length(der_x_visible)
+                der_x[i] = der_x_visible[i]
+            end
+            istart = length(der_x_visible)
+            for i = 1:length(der_x_hidden)
+                der_x[istart+i] = der_x_hidden[i]
+            end
+        end
+    end
+    return nothing
+end
+
+
+"""
     derivatives!(derx, x, m, t)
 
 DifferentialEquations callback function to get the derivatives.
 """
-derivatives!(der_x, x, m, t) = begin
-                                    m.nf += 1
-                                    invokelatest_getDerivatives!(der_x, x, m, t)
-                               end
+function derivatives!(der_x, x, m, t)
+    m.nf += 1
+    invokelatest_getDerivatives_without_der_x!(x, m, t)
+    copyDerivatives!(der_x, m.der_x_visible, m.der_x_hidden)
+    return nothing
+end
+
 
 
 """
@@ -1297,8 +1361,10 @@ function DAEresidualsForODE!(residuals, derx, x, m, t)::Nothing
     m.solve_leq = false
     invokelatest_getDerivatives_without_der_x!(x, m, t)
     m.solve_leq = true
-    residuals .= m.der_x .- derx
-
+    
+    copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)
+    residuals .= m.der_x_full .- derx
+    
     # Get residuals from linearEquations
     for copyInfo in m.daeCopyInfo
         leq = m.linearEquations[ copyInfo.ileq ]
@@ -1528,7 +1594,6 @@ It is assumed that the first variable in `variableValues` is `time`.
 """
 function addToResult!(m::SimulationModel, variableValues...)::Nothing
     push!(m.result_vars , variableValues)
-    push!(m.result_der_x, deepcopy(m.der_x))
     return nothing
 end
 
@@ -1573,7 +1638,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
 
     if length(x_info) == 1 && x_info[1].x_name == "_dummy_x" && x_info[1].der_x_name == "der(_dummy_x)"
         # Explicitly solved pure algebraic variables. Introduce dummy equation
-        push!(code_der_x, :( Modia.appendVariable!(_m.der_x, -_x[1]) ))
+        push!(code_der_x, :( Modia.appendVariable!(_m.der_x_visible, -_x[1]) ))
     else
         i1 = 1
         for i in 1:equationInfo.nxFixedLength
@@ -1609,7 +1674,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
         end
 
         i1 = 0
-        for i in equationInfo.nxFixedLength+1:length(equationInfo.x_info)
+        for i in equationInfo.nxFixedLength+1:equationInfo.nxVisibleLength
             # x-element is a dynamic vector (length can change before initialization)
             xe     = x_info[i]
             x_name = xe.x_name_julia
@@ -1622,12 +1687,13 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
             end
         end
 
-        for xe in equationInfo.x_info
+        for i in 1:equationInfo.nxVisibleLength
+            xe = equationInfo.x_info[i]
             der_x_name = xe.der_x_name_julia
             if hasUnits
-                push!(code_der_x, :( Modia.appendVariable!(_m.der_x, Modia.stripUnit( $der_x_name )) ))
+                push!(code_der_x, :( Modia.appendVariable!(_m.der_x_visible, Modia.stripUnit( $der_x_name )) ))
             else
-                push!(code_der_x, :( Modia.appendVariable!(_m.der_x, $der_x_name) ))
+                push!(code_der_x, :( Modia.appendVariable!(_m.der_x_visible, $der_x_name) ))
             end
         end
     end

@@ -731,7 +731,10 @@ mutable struct EquationInfo
     linearEquations::Vector{Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}}
     vSolvedWithFixedTrue::Vector{String}
     nx::Int                                        # = length(x) or -1 if not yet known
-    nxFixedLength::Int                             # x_info[1:nxFixedLengt] are states with fixed length (does not change after compilation)
+    nxVisible::Int                                 # = number of visible x-elements or -1 if not yet known
+    nxFixedLength::Int                             # x_info[1:nxFixedLength] are states with fixed length (does not change after compilation) or -1 if not yet known
+    nxVisibleLength::Int                           # x_info[1:nxVisibleLength] are states that are visible in getDerivatives!(..) or -1 if not yet known
+                                                   # x_info[nxVisibleLength+1:end] are states defined in functions that are not visible in getDerivatives!(..) 
     x_infoByIndex::Vector{Int}                     # i = x_infoByIndex[j] -> x_info[i]
                                                    # or empty vector, if not yet known.
     x_dict::OrderedCollections.OrderedDict{String,Int}      # x_dict[x_name] returns the index of x_name with respect to x_info
@@ -750,12 +753,14 @@ EquationInfo(; status                = MANUAL,
                linearEquations       = Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}[],
                vSolvedWithFixedTrue  = String[],
                nxFixedLength         = -1,
+               nxVisibleLength       = -1,
                x_infoByIndex         = Int[],
                defaultParameterAndStartValues::Union{AbstractDict,Nothing} = nothing,
                ResultType = nothing,
                ResultTypeHasFloatType = false) = EquationInfo(status, ode, nz, x_info,
                                                     residualCategories, linearEquations,
-                                                    vSolvedWithFixedTrue, stateVectorLength(x_info), -1, x_infoByIndex,
+                                                    vSolvedWithFixedTrue, -1, -1, 
+                                                    nxFixedLength, nxVisibleLength , x_infoByIndex,
                                                     OrderedCollections.OrderedDict{String,Int}(),
                                                     OrderedCollections.OrderedDict{String,Int}(),
                                                     defaultParameterAndStartValues,
@@ -777,7 +782,9 @@ function initEquationInfo!(eqInfo::EquationInfo)::Nothing
         xi_info.startIndex = startIndex
         startIndex += xi_info.length
     end    
-    eqInfo.nx = startIndex - 1
+    eqInfo.nx        = startIndex - 1
+    eqInfo.nxVisible = eqInfo.nx
+    eqInfo.nxVisibleLength = length(eqInfo.x_info)
     return nothing
 end
 
@@ -841,7 +848,8 @@ end
 Set eqInfo.x_dict, eqInfo.der_x_dict, eqInfo.nx and eqInfo.x_info[:].startIndex
 """
 function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
-    nxFixedLength = eqInfo.nxFixedLength
+    nxFixedLength   = eqInfo.nxFixedLength
+    nxVisibleLength = eqInfo.nxVisibleLength
     if nxFixedLength == 0
         startIndex = 1
     else
@@ -857,6 +865,11 @@ function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
         startIndex        += xi_info.length
     end    
     eqInfo.nx = startIndex - 1
+
+    nxVisible = 0
+    for i = nxVisibleLength+1:length(x_info)
+        nxVisible += x_info[i].length
+    end
     
     return initialStateVector(eqInfo, FloatType)
 end

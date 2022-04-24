@@ -51,6 +51,7 @@ mutable struct LinearStateSpaceStruct{FloatType}
     C::Matrix{FloatType}
     x_init::Vector{FloatType}  # Initial values of states
     y::Vector{FloatType}       # Internal memory for y
+    x::Vector{FloatType}       # Internal memory for x
     derx::Vector{FloatType}    # Internal memory for derx
 
     function LinearStateSpaceStruct{FloatType}(; A::AbstractMatrix, B::AbstractMatrix, C::AbstractMatrix,
@@ -73,7 +74,7 @@ mutable struct LinearStateSpaceStruct{FloatType}
         copyB = Matrix{FloatType}(deepcopy(B))
         copyC = Matrix{FloatType}(deepcopy(C))
         copy_x_init = if isnothing(x_init); zeros(FloatType, size(A,1)) else Vector{FloatType}(deepcopy(x_init)) end
-        new(path, 0, copyA, copyB, copyC, copy_x_init, zeros(FloatType,size(C,1)), zeros(FloatType,size(A,1)))
+        new(path, 0, copyA, copyB, copyC, copy_x_init, zeros(FloatType,size(C,1)), zeros(FloatType, size(A,1)), zeros(FloatType,size(A,1)))
     end
 end
 
@@ -143,34 +144,32 @@ end
 
 function getLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = instantiatedModel.buildDict[path].ls
-    # Store states
+    copyState!(instantiatedModel, ls.ix, ls.x)
     return ls
 end
 
-function computeOutputs!(instantiatedModel, ls)
-    x = Modia.get_state(instantiatedModel, ls.ix)
-    ls.y .= 0
-    mul!(ls.y, ls.C, x)
+function computeOutputs!(instantiatedModel::SimulationModel{FloatType,TimeType}, ls)::Vector{FloatType} where {FloatType,TimeType}
+    mul!(ls.y, ls.C, ls.x)
+    return ls.y
 end
 
 function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
-    x = Modia.getState(instantiatedModel, ls.ix)
-    ls.derx .= 0
-
-    mul!(ls.derx, ls.A, x)
+    mul!(ls.derx, ls.A, ls.x)
     mul!(ls.derx, ls.B, u)
-    Modia.set_stateDerivative!(instantiatedModel, ls.ix, ls.derx)
+    Modia.set_hiddenStateDerivative!(instantiatedModel, ls.ix, ls.derx)
     return true
 end
 
+# ss = ModelLinearStateSpace(A=[-1/0.1;;], B=[2.0/0.1;;], C=[2.0;;], x_init=[1.1], nu=1, ny=1),
+
 SSTest = Model(
-            ss = ModelLinearStateSpace(A=[-1/0.1;;], B=[2.0/0.1;;], C=[2.0;;], x_init=[1.1], nu=1, ny=1),
+            ss = ModelLinearStateSpace(A=[-0.1;;], B=[1.0;;], C=[1.0;;], x_init=[1.1], nu=1, ny=1),
             equations = :[ss.u = [1.0],
                           y = ss.y]
          )
 ssTest = @instantiateModel(SSTest, logCode=true)
-simulate!(ssTest, stopTime=5.0)
+simulate!(ssTest, stopTime=0.1, log=true, logStates=true)
 Modia.printResultInfo(ssTest)
-plot(ssTest, ("ss.x", "ss.u", "y"))
+plot(ssTest, ("ss.x", "ss.u", "ss.y"))
 
 end

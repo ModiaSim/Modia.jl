@@ -271,7 +271,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                 m.odeIntegrator = false
                 nx = length(m.x_init)
                 differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
-                TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
+                copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)                
+                TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x_full, m.x_init, tspan, m, differential_vars = differential_vars)
                 empty!(m.daeCopyInfo)
                 if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
                     # Prepare data structure to efficiently perform copy operations for DAE integrator
@@ -649,6 +650,7 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
     end
 
     if haskey(m.result_info, name)
+        #println("rawSignal: name = $name")
         resInfo = m.result_info[name]
 
         if resInfo.store == RESULT_X
