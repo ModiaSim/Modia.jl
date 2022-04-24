@@ -36,6 +36,12 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.8.3
+
+- Bug fix: Parameters that are Numbers, but not AbstractFloats, and have no unit defined, 
+  e.g. a Bool or an Int parameter, are no longer converted to FloatType in the generated Code.
+  
+
 ### Version 0.8.2
 
 - New exported functions

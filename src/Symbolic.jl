@@ -79,9 +79,14 @@ function addCastAndTypeCheck(ex,value,FloatType)
                     addCastAndTypeCheckBasicValueType(ex,value,T)
                 end
                 
-            else
-                # FloatType is neither Measurements nor MonteCarloMeasurements
+            elseif valueType <: AbstractFloat || isQuantity(valueType)
+                # FloatType is neither Measurements nor MonteCarloMeasurements and
+                # is either an AbstractFloat or has a unit (is treated as Float)
                 addCastAndTypeCheckBasicValueType(ex,value,T)
+                
+            else
+                # For example Bool or Int values: No conversion, just define the type in the code
+                :( ($ex)::$valueType )
             end            
         else
             # Numeric array
