@@ -20,26 +20,38 @@ Define a linear state space system Model:
 where
 
 - `x_init` is the optional vector of init-values. If not provided, zeros will be used.
-- The number of **inputs** and **outputs** is **fixed**, after @instantiateModel(..) was called.
-- The number of **states** can be **changed** before simulation starts,
-  by providing appropriate ``A,B,C`` matrices and `x_init` vector as `merge` value in `simulate!(..., merge = ...)`.
+- The number of **inputs** (= `size(B,2)`) and **outputs** (= `size(C,1)`) is **fixed**, after @instantiateModel(..) was called.
+- The number of **states** (= `size(A,1)`) can be **changed** before simulation starts,
+  by providing appropriate ``A,B,C`` matrices and `x_init` vector as `merge` values in `simulate!(..., merge = ...)`.
 
 # Example
 ```
 using Modia
-usingModiaPlot
-SSTest = Model(ss = ModelLinearStateSpace(A=[-1/0.1;;], B=[2.0/0.1;;], C=[1.0;;])), # one State
-               y = Var(start=0.0)
-               equations = :[ss.u[1] = 1.0,
-                             y = ss.y[1]]
+@usingModiaPlot
+
+# T*der(x) + x = u 
+T = 0.2;
+SSTest = Model(
+            ss = LinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], x_init=[0.2]), # one state
+            equations = :[ss.u = 2.0,
+                          y = ss.y[1]]
          )
-ssTest = @instantiateModel(SSTest, merge=Map(ss = Map(A=[-1/0.1 0.0;
-                                                          0.0  -1/0.2], B=[2.0/0.1;2.0/0.2;;], C=[1.0 2.0] ) # two states
-simulate!(ssTest, stopTime=5.0)
-plot(ssTest, ("ss.x", "u", "y"))
+         
+ssTest = @instantiateModel(SSTest, logCode=true)
+simulate!(ssTest, stopTime=1.0, log=true, logStates=true)
+plot(ssTest, ("ss.x", "ss.u", "y"), figure=1)
+
+simulate!(ssTest, stopTime=1.0, log=true, logStates=true,
+                                merge=Map(ss = Map(A=[-1/T   0.0;
+                                                       0.0  -1/T], 
+                                                   B=[1.0/T; 
+                                                      1.0/T;;], 
+                                                   C=[0.4 0.4;],
+                                                   x_init=[0.2,0.4]))) # two states
+plot(ssTest, ("ss.x", "ss.u", "y"), figure=2)
 ```
 """
-ModelLinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace!),         # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
+LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace!),         # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
                                              _stateInfoFunction = Par(functionName = :(stateInfoLinearStateSpace!)),  # Called once after new A,B,C values are merged
                                              kwargs...)
 
@@ -56,7 +68,6 @@ mutable struct LinearStateSpaceStruct{FloatType}
 
     function LinearStateSpaceStruct{FloatType}(; A::AbstractMatrix, B::AbstractMatrix, C::AbstractMatrix,
                                                  x_init::Union{AbstractVector,Nothing}=nothing, 
-                                                 nu::Int, ny::Int,
                                                  u::AbstractVector, y::AbstractVector,  # Code generated with buildLinearStateSpace! provides start values of u and y.
                                                  path::String, kwargs...) where {FloatType}
         #println("... 4: LinearStateSpaceStruct called for $path")
@@ -68,8 +79,8 @@ mutable struct LinearStateSpaceStruct{FloatType}
         @assert(size(C,2) == size(A,1))
         @assert(size(u,1) == size(B,2))
         @assert(size(y,1) == size(C,1))
-        @assert(size(u,1) == nu)
-        @assert(size(y,1) == ny)
+        @assert(size(u,1) == size(B,2))
+        @assert(size(y,1) == size(C,1))
         copyA = Matrix{FloatType}(deepcopy(A))
         copyB = Matrix{FloatType}(deepcopy(B))
         copyC = Matrix{FloatType}(deepcopy(C))
@@ -101,11 +112,11 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
     pathAsString = isnothing(path) ? "" : string(path)
     #println("... 1: buildLinearStateSpace! called for path = ", pathAsString)
 
-    # Determine nu,ny from model (must be Integer literals >= 0)
-    nu::Int = model[:nu]
-    ny::Int = model[:ny]
-    @assert(nu >= 0)
-    @assert(ny >= 0)
+    # Determine nu,ny from model
+    B = model[:B]
+    C = model[:C]
+    nu = size(B,2)
+    ny = size(C,1)
     u_zeros = zeros(FloatType,nu)
     y_zeros = zeros(FloatType,ny)
 
@@ -165,14 +176,23 @@ end
 # T*der(x) + x = u 
 T = 0.2;
 SSTest = Model(
-            ss = ModelLinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], x_init=[0.2], nu=1, ny=1),
-            equations = :[ss.u = [2.0],
-                          y = ss.y]
+            ss = LinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], x_init=[0.2]),  # one state
+            equations = :[ss.u = 2.0,
+                          y = ss.y[1]]
          )
          
 ssTest = @instantiateModel(SSTest, logCode=true)
 simulate!(ssTest, stopTime=1.0, log=true, logStates=true)
 #Modia.printResultInfo(ssTest)
-plot(ssTest, ("ss.x", "ss.u", "ss.y"))
+plot(ssTest, ("ss.x", "ss.u", "y"), figure=1)
+
+simulate!(ssTest, stopTime=1.0, log=true, logStates=true,
+                                merge=Map(ss = Map(A=[-1/T   0.0;
+                                                       0.0  -1/T], 
+                                                   B=[1.0/T; 
+                                                      1.0/T;;], 
+                                                   C=[0.4 0.4;],
+                                                   x_init=[0.2,0.4]))) # two states
+plot(ssTest, ("ss.x", "ss.u", "y"), figure=2)
 
 end
