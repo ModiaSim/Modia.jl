@@ -561,7 +561,7 @@ function linearize!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
 
     # Function that shall be linearized
     function modelToLinearize!(der_x, x)
-        invokelatest_getDerivatives!(der_x, x, m, m.options.startTime)
+        derivatives!(der_x, x, m, m.options.startTime)
         return nothing
     end
 
