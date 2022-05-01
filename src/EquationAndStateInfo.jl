@@ -26,7 +26,7 @@ export EquationInfoStatus, MANUAL, CODE_GENERATION, SOLVER_MODEL
 
 """
     isFixedLengthStartOrInit(startOrInit::Any, name::AbstractString)
-    
+
 Returns true, if `startOrInit` (so start value, init value, `nothing`) characterizes a value
 with fixed length, so `length(v_startOrInit)` is fixed after compilation (= either a number or a StaticArray).
 Note, if a start-value is not defined (`startOrInit = nothing`) a scalar default is used.
@@ -174,7 +174,7 @@ mutable struct LinearEquations{FloatType <: Real}
         new(true, A_is_constant, x_names, Any[], x_lengths, nx_fixedLength, x_vec,
             zeros(FloatType,nx,nx), zeros(FloatType,nx), zeros(FloatType,nx), fill(0,nx), zeros(FloatType,nx),
             -2, 0, niter_max, false, String[], String[],
-            useRecursiveFactorizationUptoSize, useRecursiveFactorization)      
+            useRecursiveFactorizationUptoSize, useRecursiveFactorization)
     end
 end
 LinearEquations(args...) = LinearEquations{Float64}(args...)
@@ -434,12 +434,12 @@ function LinearEquationsIteration!(leq::LinearEquations{FloatType}, isInitial::B
         j = mode
         for i = 1:nx
             A[i,j] = (residuals[i] + b[i])/x[j]
-        end         
+        end
         x[j] = 0
 
         if j < nx
             leq.mode += 1
-            x[leq.mode] = max(FloatType(1e-3), abs(b[leq.mode]))    # convert(FloatType, 1)       
+            x[leq.mode] = max(FloatType(1e-3), abs(b[leq.mode]))    # convert(FloatType, 1)
             empty!(leq.residuals)
             return copy_x_into_x_vec!(leq)
         end
@@ -574,7 +574,7 @@ mutable struct StateElementInfo
     der_x_name::String            # Modia name of der_x-element or "" if either "der(x_name)" or if no name,
     der_x_name_julia              # Julia name of der_x-element in getDerivatives! function
                                   # or not needed (since no code generation)
-    stateCategory::StateCategory  # category of the state   
+    stateCategory::StateCategory  # category of the state
     unit::String                  # unit of x-element as string (or "" if not yet known)
     startOrInit::Any              # start or init value or nothing depending on fixed
                                   # (init   : if value and fixed=true
@@ -587,8 +587,8 @@ mutable struct StateElementInfo
                                   # = false, if length of value is determined before initialization
     scalar::Bool                  # = true, if scalar
                                   # = false, if vector
-    length::Int                   # length of x-element                                   
-    startIndex::Int               # start index of element with respect to x-vector (if fixedLength=true)  
+    length::Int                   # length of x-element
+    startIndex::Int               # start index of element with respect to x-vector (if fixedLength=true)
                                   # or with respect to x_vec-vector (if fixedLength=false)
 end
 
@@ -599,7 +599,7 @@ StateElementInfo(x_name, x_name_julia, der_x_name, der_x_name_julia,
                  stateCategory, unit, startOrInit, fixed, nominal, unbounded) = StateElementInfo(
                  x_name, x_name_julia, der_x_name, der_x_name_julia,
                  stateCategory, unit, startOrInit, fixed, nominal, unbounded,
-                 isFixedLengthStartOrInit(startOrInit, x_name), !(startOrInit isa AbstractArray), 
+                 isFixedLengthStartOrInit(startOrInit, x_name), !(startOrInit isa AbstractArray),
                  startOrInit isa Nothing ? 1 : length(startOrInit), -1)
 
 
@@ -631,8 +631,8 @@ function Base.show(io::IO, xe_info::StateElementInfo)
     print(io, ",", xe_info.nominal)
     print(io, ",", xe_info.unbounded)
     print(io, ",", xe_info.fixedLength)
-    print(io, ",", xe_info.scalar)      
-    print(io, ",", xe_info.length)    
+    print(io, ",", xe_info.scalar)
+    print(io, ",", xe_info.length)
     print(io, ",", xe_info.startIndex)
     print(io, ")")
     return nothing
@@ -662,7 +662,7 @@ end
 
 """
     nx = stateVectorLength(x_info::Vector{StateElementInfo})
-    
+
 Return the length of the state vector
 """
 function stateVectorLength(x_info::Vector{StateElementInfo})::Int
@@ -672,9 +672,9 @@ function stateVectorLength(x_info::Vector{StateElementInfo})::Int
     end
     return nx
 end
-   
 
-    
+
+
 """
     eqInfo = EquationInfo(;
                 status               = MANUAL,
@@ -732,7 +732,7 @@ mutable struct EquationInfo
     nxVisible::Int                                 # = number of visible x-elements or -1 if not yet known
     nxFixedLength::Int                             # x_info[1:nxFixedLength] are states with fixed length (does not change after compilation) or -1 if not yet known
     nxVisibleLength::Int                           # x_info[1:nxVisibleLength] are states that are visible in getDerivatives!(..) or -1 if not yet known
-                                                   # x_info[nxVisibleLength+1:end] are states defined in functions that are not visible in getDerivatives!(..) 
+                                                   # x_info[nxVisibleLength+1:end] are states defined in functions that are not visible in getDerivatives!(..)
     #x_infoByIndex::Vector{Int}                     # i = x_infoByIndex[j] -> x_info[i]
     #                                               # or empty vector, if not yet known.
     x_dict::OrderedCollections.OrderedDict{String,Int}      # x_dict[x_name] returns the index of x_name with respect to x_info
@@ -756,7 +756,7 @@ EquationInfo(; status                = MANUAL,
                ResultType = nothing,
                ResultTypeHasFloatType = false) = EquationInfo(status, ode, nz, x_info,
                                                     residualCategories, linearEquations,
-                                                    vSolvedWithFixedTrue, -1, -1, 
+                                                    vSolvedWithFixedTrue, -1, -1,
                                                     nxFixedLength, nxVisibleLength,
                                                     OrderedCollections.OrderedDict{String,Int}(),
                                                     OrderedCollections.OrderedDict{String,Int}(),
@@ -778,7 +778,7 @@ function initEquationInfo!(eqInfo::EquationInfo)::Nothing
         der_x_dict[xi_info.der_x_name] = i
         xi_info.startIndex = startIndex
         startIndex += xi_info.length
-    end    
+    end
     eqInfo.nx        = startIndex - 1
     eqInfo.nxVisible = eqInfo.nx
     eqInfo.nxVisibleLength = length(eqInfo.x_info)
@@ -788,7 +788,7 @@ end
 
 """
     x_init = initialStateVector(eqInfo::EquationInfo, FloatType)
-    
+
 Return initial state vector `Vector{FloatType}` with stripped units.
 """
 function initialStateVector(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
@@ -813,7 +813,7 @@ end
 
 """
     removeHiddenStates(eqInfo::EquationInfo)
-    
+
 Remove all hidden (non-visible) states from `eqInfo`.
 """
 function removeHiddenStates(eqInfo::EquationInfo)::Nothing
@@ -822,7 +822,7 @@ function removeHiddenStates(eqInfo::EquationInfo)::Nothing
             xi_info = eqInfo.x_info[i]
             delete!(eqInfo.x_dict    , xi_info.x_name)
             delete!(eqInfo.der_x_dict, xi_info.der_x_name)
-        end      
+        end
         resize!(eqInfo.x_info, eqInfo.nxVisibleLength)
         eqInfo.nx = eqInfo.nxVisible
     end
@@ -831,21 +831,21 @@ end
 
 
 """
-    xindex = addState(eqInfo::EquationInfo, 
-                x_name::String, der_x_name::String, startOrInit::Vector{FloatType}; 
+    xindex = addState(eqInfo::EquationInfo,
+                x_name::String, der_x_name::String, startOrInit::Vector{FloatType};
                 stateCategory::StateCategory = XD,
                 unit::String     = "",
-                fixed::Bool      = true, 
-                nominal::Float64 = NaN, 
+                fixed::Bool      = true,
+                nominal::Float64 = NaN,
                 unbounded::Bool  = false)::Int where {FloatType}
-                
+
 Add new state to model and return its index (new state info is stored in eqInfo.x_info[xindex]).
 """
-function addState(eqInfo::EquationInfo, x_name::String, der_x_name::String, startOrInit::Vector{FloatType}; 
+function addState(eqInfo::EquationInfo, x_name::String, der_x_name::String, startOrInit::Vector{FloatType};
                   stateCategory::StateCategory = XD,
                   unit::String     = "",
-                  fixed::Bool      = true, 
-                  nominal::Float64 = NaN, 
+                  fixed::Bool      = true,
+                  nominal::Float64 = NaN,
                   unbounded::Bool  = false)::Int where {FloatType}
     if haskey(eqInfo.x_dict, x_name) ||
        haskey(eqInfo.der_x_dict, der_x_name)
@@ -857,7 +857,7 @@ function addState(eqInfo::EquationInfo, x_name::String, der_x_name::String, star
     push!(eqInfo.x_info, xi_info)
     ix = length(eqInfo.x_info)
     eqInfo.x_dict[x_name]         = ix
-    eqInfo.der_x_dict[der_x_name] = ix 
+    eqInfo.der_x_dict[der_x_name] = ix
     return ix
 end
 
@@ -878,22 +878,22 @@ function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
               "_dummy_x", :(), "der(_dummy_x)", :(), XD, "", 0.0, true, NaN, false))
         startIndex = 1
         eqInfo.x_dict["_dummy_x"]          = 1
-        eqInfo.der_x_dict["der(_dummy_x)"] = 1         
+        eqInfo.der_x_dict["der(_dummy_x)"] = 1
     elseif nxFixedLength == 0
         startIndex = 1
     else
         xi_info = x_info[nxFixedLength]
         startIndex = xi_info.startIndex + xi_info.length
     end
-    
+
     for i = nxFixedLength+1:length(x_info)
         xi_info = x_info[i]
         xi_info.length     = length(xi_info.startOrInit)
         xi_info.startIndex = startIndex
         startIndex        += xi_info.length
-    end    
+    end
     eqInfo.nx = startIndex - 1
-   
+
     return initialStateVector(eqInfo, FloatType)
 end
 

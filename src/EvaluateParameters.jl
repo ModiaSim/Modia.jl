@@ -199,8 +199,8 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
             stateInfoFunction = _stateInfoFunction[:functionName]
         else
             @warn "Model $path has key :_stateInfoFunction but its value has no key :functionName"
-        end 
-    
+        end
+
     elseif haskey(parameters, :value)
         # For example: p1 = (_class = :Var, parameter = true, value = 0.2)
         #          or: p2 = (_class = :Var, parameter = true, value = :(2*p1))
@@ -339,7 +339,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
         # (2) Define subModel states and store them in xxx
         Core.eval(modelModule, :($stateInfoFunction($current, $FloatType, $TimeType, $buildDict, $eqInfo, $path)))
     end
-    
+
     if isnothing(constructor)
         return current # (; current...)
     else
@@ -384,7 +384,7 @@ end
 
 """
     modelOfPath = getModelFromSplittedPath(model, splittedPath::Vector{Symbol})
-    
+
 Return reference to the sub-model characterized by `splittedPath`.
 
 # Examples

@@ -192,7 +192,7 @@ simulate!(ssTest, stopTime=1.0, log=false, logStates=true,
                                                       1.0/T;;],
                                                    C=[0.4 0.4;],
                                                    x_init=[0.2,0.4])),  # two states
-          requiredFinalStates = [1.98786636233743, 1.9892145443000466]) 
+          requiredFinalStates = [1.98786636233743, 1.9892145443000466])
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=2)
 
 end

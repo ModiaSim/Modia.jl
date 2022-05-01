@@ -42,17 +42,17 @@ function getAlgorithmName(algorithm)::String
         return "???"
     end
     name = string(algorithmType)
-    
-    if algorithmType <: DifferentialEquations.OrdinaryDiffEq.QNDF 
+
+    if algorithmType <: DifferentialEquations.OrdinaryDiffEq.QNDF
         if algorithm.kappa == tuple(0//1,0//1,0//1,0//1,0//1)
             name = replace(name, "QNDF" => "QBDF")
         end
-        
+
     elseif algorithmType <: DifferentialEquations.OrdinaryDiffEq.QNDF1 ||
            algorithmType <: DifferentialEquations.OrdinaryDiffEq.QNDF2
         if algorithm.kappa == 0
             name = replace(name, "QNDF" => "QBDF")
-        end  
+        end
     end
     return name
 end
@@ -91,7 +91,7 @@ The symbols `CVODE_BDF` and `IDA` are exported from Modia, so that `simulate!(in
 and `simulate!(instantiatedModel, IDA(), ...)`
 can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.xxx(), ...)`).
 
-The simulation results are stored in `instantiatedModel` and can be plotted with 
+The simulation results are stored in `instantiatedModel` and can be plotted with
 `plot(instantiatedModel, ...)` and the result values
 can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`. `printResultInfo(instantiatedModel)`
 prints information about the signals in the result file.
@@ -223,7 +223,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             algorithm = Sundials.CVODE_BDF()
         end
         m.algorithmName = getAlgorithmName(algorithm)
-        
+
         # Initialize/re-initialize SimulationModel
         if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
             println("... Simulate model ", m.modelName)
@@ -244,11 +244,11 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             @test false
             return nothing
         end
-        
+
         enable_timer!(m.timer)
         reset_timer!(m.timer)
 
-        TimerOutputs.@timeit m.timer "Modia.simulate!" begin 
+        TimerOutputs.@timeit m.timer "Modia.simulate!" begin
             sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
 
             # Define problem and callbacks based on algorithm and model type
@@ -265,13 +265,13 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
 
             eh = m.eventHandler
             m.odeMode   = true
-            m.solve_leq = true    
+            m.solve_leq = true
             if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
                 # DAE integrator
                 m.odeIntegrator = false
                 nx = length(m.x_init)
                 differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
-                copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)                
+                copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)
                 TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x_full, m.x_init, tspan, m, differential_vars = differential_vars)
                 empty!(m.daeCopyInfo)
                 if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
@@ -353,7 +353,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                                                                                 callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
                                                                                 initializealg = DifferentialEquations.NoInit())
             end
-            
+
             # Compute and store outputs from last event until final time
             sol_t = solution.t
             sol_x = solution.u
@@ -368,16 +368,16 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             if ismissing(algorithm)
                 m.algorithmName = getAlgorithmName(solution.alg)
             end
-            
+
             # Terminate simulation
             finalStates = solution.u[end]
-            finalTime   = solution.t[end]         
+            finalTime   = solution.t[end]
             terminate!(m, finalStates, finalTime)
-            
+
             # Raise an error, if simulation was not successful
             if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
                 error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
-            end            
+            end
         end
         disable_timer!(m.timer)
 
@@ -397,7 +397,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             println("        nStates                   = ", length(m.x_start))
             println("        linearSystemSizes         = ", sizesOfLinearEquationSystems)
             println("        useRecursiveFactorization = ", useRecursiveFactorization)
-            println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])    
+            println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])
             println("        nResults                  = ", length(m.result_x.t))
             println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
             println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
@@ -474,7 +474,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         end
     end
     =#
-    
+
     return solution
 end
 
@@ -866,7 +866,7 @@ function get_result(m::SimulationModel, name::AbstractString; unit=true)
 end
 
 
-function setEvaluatedParametersInDataFrame!(obj::OrderedDict{Symbol,Any}, result_info, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing 
+function setEvaluatedParametersInDataFrame!(obj::OrderedDict{Symbol,Any}, result_info, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing
     for (key,value) in zip(keys(obj), obj)
         name = appendName(path, key)
         if typeof(value) <: OrderedDict{Symbol,Any}

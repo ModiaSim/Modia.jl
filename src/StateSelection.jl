@@ -72,7 +72,7 @@ The functions need to have the following arguments:
 
 - `var_startInitFixed(v::Int)::Tuple(Any,Bool)`:\\
   Return `(startOrInit, fixed)`, where `startOrInit` is the `start` or `init` value or `nothing`
-  (if neither `start` nor `init` defined) and `fixed` is `true`, if an `init` value is defined.  
+  (if neither `start` nor `init` defined) and `fixed` is `true`, if an `init` value is defined.
 
 -  `var_is_state(v_original::Int)::Bool`:\\
    Return true, if variable `v_original` is defined to be a state.
@@ -1477,7 +1477,7 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
             push!(x_without_start, v)
         end
         v_name = eq.fc.var_name(v)
-        
+
         if isFixedLengthStartOrInit(v_startOrInit, v_name)
             v_der_x            = eq.A[v]
             v_unit             = unitless ? "" : eq.fc.var_unit(v)
@@ -1487,7 +1487,7 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
             v_nominal          = eq.fc.var_nominal(v)
             v_unbounded        = eq.fc.var_unbounded(v)
             v_stateCategory    = Modia.XD
-    
+
             push!(x_info, Modia.StateElementInfo(
                             v_name, v_julia_name,
                             v_der_x_name, v_der_x_julia_name,
@@ -1496,8 +1496,8 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
         else
             # length(v_startOrInit) may change after compilation
             push!(x_vec            , v)
-            push!(x_vec_startOrInit, v_startOrInit)   
-            push!(x_vec_fixed      , v_fixed)            
+            push!(x_vec_startOrInit, v_startOrInit)
+            push!(x_vec_fixed      , v_fixed)
         end
     end
     eq.equationInfo.nxFixedLength = length(x_info)
@@ -1513,12 +1513,12 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
         v_nominal          = eq.fc.var_nominal(v)
         v_unbounded        = eq.fc.var_unbounded(v)
         v_stateCategory    = Modia.XD
-        
+
         push!(x_info, Modia.StateElementInfo(
                         v_name, v_julia_name,
                         v_der_x_name, v_der_x_julia_name,
                         v_stateCategory, v_unit, v_startOrInit, v_fixed,
-                        v_nominal, v_unbounded))        
+                        v_nominal, v_unbounded))
     end
 
     # Handle systems with only algebraic variables, by introducing a dummy
@@ -1530,13 +1530,13 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
                     "Added a dummy differential equation der(_dummy_x) = -_dummy_x, _dummy_x(t0) = 0")
         end
         push!(eq.equationInfo.x_info, Modia.StateElementInfo(
-              "_dummy_x", :(), "der(_dummy_x)", :(), XD, "", 0.0, true, NaN, false))      
+              "_dummy_x", :(), "der(_dummy_x)", :(), XD, "", 0.0, true, NaN, false))
     end
     =#
-    
-    # Finalize equationInfo 
+
+    # Finalize equationInfo
     initEquationInfo!(eq.equationInfo)
-    
+
     # Print ODE states
     if logStates
         println("\nSelected ODE states: ")
