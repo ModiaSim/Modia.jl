@@ -59,7 +59,7 @@ mutable struct LinearStateSpaceStruct{FloatType}
                                                  nu::Int, ny::Int,
                                                  u::AbstractVector, y::AbstractVector,  # Code generated with buildLinearStateSpace! provides start values of u and y.
                                                  path::String, kwargs...) where {FloatType}
-        println("... 4: LinearStateSpaceStruct called for $path")
+        #println("... 4: LinearStateSpaceStruct called for $path")
         if length(kwargs) > 0
             @warn "LinearStateSpaceStruct with path=$path ignores keyword arguments: $(kwargs...)"
         end
@@ -88,7 +88,7 @@ mutable struct LinearStateSpaceBuild{FloatType}
     ls::Union{LinearStateSpaceStruct{FloatType}, Nothing}
 
     function LinearStateSpaceBuild{FloatType}(path::String, nu::Int, ny::Int) where {FloatType}
-        println("... 2: LinearStateSpaceBuild called with path = $path")
+        #println("... 2: LinearStateSpaceBuild called with path = $path")
         new(path,nu,ny,nothing)
     end
 end
@@ -99,7 +99,7 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
                                 path::Union{Expr,Symbol,Nothing})
     # Called from @instantiatedModel, during instantiation of the model.
     pathAsString = isnothing(path) ? "" : string(path)
-    println("... 1: buildLinearStateSpace! called for path = ", pathAsString)
+    #println("... 1: buildLinearStateSpace! called for path = ", pathAsString)
 
     # Determine nu,ny from model (must be Integer literals >= 0)
     nu::Int = model[:nu]
@@ -110,9 +110,10 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
     y_zeros = zeros(FloatType,ny)
 
     # Define code to be generated
-    lsCode = Model(ls = Var(hideResult=true),
-                    u = Var(input  = true, start = u_zeros),
-                    y = Var(output = true, start = y_zeros),
+    lsCode = Model(ls      = Var(hideResult=true),
+                   success = Var(hideResult=true),
+                         u = Var(input  = true, start = u_zeros),
+                         y = Var(output = true, start = y_zeros),
                     equations = :[
                         ls = getLinearStateSpace!(instantiatedModel, $pathAsString)
                         y = computeOutputs!(instantiatedModel, ls)
@@ -129,7 +130,7 @@ function stateInfoLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeTy
                                     eqInfo::Modia.EquationInfo,
                                     path::String)::Nothing
     # Called during evaluation of the parameters (before initialization)                                 
-    println("... 3: stateInfoLinearStateSpace! called for $path with model = $model")
+    #println("... 3: stateInfoLinearStateSpace! called for $path with model = $model")
     lsBuild::LinearStateSpaceBuild{FloatType} = buildDict[path]
     ls = LinearStateSpaceStruct{FloatType}(; path, model...)
     A = ls.A
@@ -148,28 +149,30 @@ function getLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeT
     return ls
 end
 
-function computeOutputs!(instantiatedModel::SimulationModel{FloatType,TimeType}, ls)::Vector{FloatType} where {FloatType,TimeType}
+function computeOutputs!(instantiatedModel, ls)
     mul!(ls.y, ls.C, ls.x)
     return ls.y
 end
 
 function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
+    # ls.derx .= ls.A*ls.x + ls.B*u
     mul!(ls.derx, ls.A, ls.x)
-    mul!(ls.derx, ls.B, u)
+    mul!(ls.derx, ls.B, u, 1.0, 1.0)
     Modia.set_hiddenStateDerivative!(instantiatedModel, ls.ix, ls.derx)
     return true
 end
-
-# ss = ModelLinearStateSpace(A=[-1/0.1;;], B=[2.0/0.1;;], C=[2.0;;], x_init=[1.1], nu=1, ny=1),
-
+       
+# T*der(x) + x = u 
+T = 0.2;
 SSTest = Model(
-            ss = ModelLinearStateSpace(A=[-0.1;;], B=[1.0;;], C=[1.0;;], x_init=[1.1], nu=1, ny=1),
-            equations = :[ss.u = [1.0],
+            ss = ModelLinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], x_init=[0.2], nu=1, ny=1),
+            equations = :[ss.u = [2.0],
                           y = ss.y]
          )
+         
 ssTest = @instantiateModel(SSTest, logCode=true)
-simulate!(ssTest, stopTime=0.1, log=true, logStates=true)
-Modia.printResultInfo(ssTest)
+simulate!(ssTest, stopTime=1.0, log=true, logStates=true)
+#Modia.printResultInfo(ssTest)
 plot(ssTest, ("ss.x", "ss.u", "ss.y"))
 
 end

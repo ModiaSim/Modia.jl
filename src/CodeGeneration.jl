@@ -535,7 +535,7 @@ export copyState!
 """
     copyState!(m::SimulationModel, x_index::Int, xi)
     
-Copy state of m.equationInfo.x_info[x_index] into pre-allocated vector xi.
+Copy state of m.equationInfo.x_info[x_index] from m.x into pre-allocated vector xi.
 """
 function copyState!(m::SimulationModel{FloatType,TimeType}, x_index::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
     @assert(length(xi) == m.equationInfo.x_info[x_index].length)
@@ -554,13 +554,12 @@ Copy hidden state derivative der_x of m.equationInfo.x_info[x_index] into full s
 """
 function set_hiddenStateDerivative!(m::SimulationModel, x_index::Int, der_x)::Nothing
     @assert(length(der_x) == m.equationInfo.x_info[x_index].length)
+    #println("set_hiddenStateDerivative!: x_index = $x_index, der_x = $der_x")
     startIndex = m.equationInfo.x_info[x_index].startIndex - m.equationInfo.nxVisible - 1 
-    #@show startIndex
-    #@show m.der_x_hidden
-    #@show der_x
     for i = 1:length(der_x)
         m.der_x_hidden[startIndex+i] = der_x[i]
     end
+    #println("m.der_x_hidden = ", m.der_x_hidden)
     return nothing
 end
 
@@ -1031,7 +1030,7 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #end
 import Printf
 
-invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.timer "Modia getDerivatives!" begin
+invokelatest_getDerivatives_without_der_x!(x, m, t)::Nothing = TimerOutputs.@timeit m.timer "Modia getDerivatives!" begin
     if m.options.logProgress && m.cpuLast != UInt64(0)
         cpuNew = time_ns()
         if (cpuNew - m.cpuLast) * 1e-9 > 5.0
@@ -1056,6 +1055,7 @@ invokelatest_getDerivatives_without_der_x!(x, m, t) = TimerOutputs.@timeit m.tim
     Base.invokelatest(m.getDerivatives!, x, m, t)
 
     @assert(length(m.der_x_visible) + length(m.der_x_hidden) == length(x))
+    return nothing
 end
 
 
@@ -1592,8 +1592,8 @@ end
 Add `variableValues...` to `simulationModel::SimulationModel`.
 It is assumed that the first variable in `variableValues` is `time`.
 """
-function addToResult!(m::SimulationModel, variableValues...)::Nothing
-    push!(m.result_vars , variableValues)
+@inline function addToResult!(m::SimulationModel, variableValues...)::Nothing
+    push!(m.result_vars , deepcopy(variableValues))
     return nothing
 end
 
