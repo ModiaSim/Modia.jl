@@ -893,6 +893,13 @@ function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
         startIndex        += xi_info.length
     end
     eqInfo.nx = startIndex - 1
+    
+    nxVisible = 0
+    for i = 1:eqInfo.nxVisibleLength
+        xi_info = x_info[i]
+        nxVisible += x_info[i].length
+    end
+    eqInfo.nxVisible = nxVisible
 
     return initialStateVector(eqInfo, FloatType)
 end
