@@ -1523,6 +1523,7 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
 
     # Handle systems with only algebraic variables, by introducing a dummy
     # differential equation der_x[1] = -x[1].
+    #=
     if length(ODE_states) == 0
         if log
             println("Model has only algebraic variables.\n",
@@ -1531,7 +1532,8 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
         push!(eq.equationInfo.x_info, Modia.StateElementInfo(
               "_dummy_x", :(), "der(_dummy_x)", :(), XD, "", 0.0, true, NaN, false))      
     end
-
+    =#
+    
     # Finalize equationInfo 
     initEquationInfo!(eq.equationInfo)
     

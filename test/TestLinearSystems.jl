@@ -29,23 +29,23 @@ where
 using Modia
 @usingModiaPlot
 
-# T*der(x) + x = u 
+# T*der(x) + x = u
 T = 0.2;
 SSTest = Model(
             ss = LinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], x_init=[0.2]), # one state
             equations = :[ss.u = 2.0,
                           y = ss.y[1]]
          )
-         
+
 ssTest = @instantiateModel(SSTest, logCode=true)
 simulate!(ssTest, stopTime=1.0, log=true, logStates=true)
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=1)
 
 simulate!(ssTest, stopTime=1.0, log=true, logStates=true,
                                 merge=Map(ss = Map(A=[-1/T   0.0;
-                                                       0.0  -1/T], 
-                                                   B=[1.0/T; 
-                                                      1.0/T;;], 
+                                                       0.0  -1/T],
+                                                   B=[1.0/T;
+                                                      1.0/T;;],
                                                    C=[0.4 0.4;],
                                                    x_init=[0.2,0.4]))) # two states
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=2)
@@ -57,7 +57,7 @@ LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace
 
 mutable struct LinearStateSpaceStruct{FloatType}
     path::String  # Path name of instance
-    ix::Int       # Index with respect to equationInfo.x_info    
+    ix::Int       # Index with respect to equationInfo.x_info
     A::Matrix{FloatType}
     B::Matrix{FloatType}
     C::Matrix{FloatType}
@@ -67,7 +67,7 @@ mutable struct LinearStateSpaceStruct{FloatType}
     derx::Vector{FloatType}    # Internal memory for derx
 
     function LinearStateSpaceStruct{FloatType}(; A::AbstractMatrix, B::AbstractMatrix, C::AbstractMatrix,
-                                                 x_init::Union{AbstractVector,Nothing}=nothing, 
+                                                 x_init::Union{AbstractVector,Nothing}=nothing,
                                                  u::AbstractVector, y::AbstractVector,  # Code generated with buildLinearStateSpace! provides start values of u and y.
                                                  path::String, kwargs...) where {FloatType}
         #println("... 4: LinearStateSpaceStruct called for $path")
@@ -140,19 +140,18 @@ function stateInfoLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeTy
                                     buildDict::OrderedCollections.OrderedDict{String,Any},
                                     eqInfo::Modia.EquationInfo,
                                     path::String)::Nothing
-    # Called during evaluation of the parameters (before initialization)                                 
+    # Called during evaluation of the parameters (before initialization)
     #println("... 3: stateInfoLinearStateSpace! called for $path with model = $model")
     lsBuild::LinearStateSpaceBuild{FloatType} = buildDict[path]
     ls = LinearStateSpaceStruct{FloatType}(; path, model...)
-    A = ls.A
-    @assert(size(A,2) == size(A,1))
+    @assert(size(ls.A,2) == size(ls.A,1))
     @assert(size(ls.B,2) == lsBuild.nu)
     @assert(size(ls.C,1) == lsBuild.ny)
-    ls.ix = Modia.addOrUpdateStateInfo(eqInfo, path*".x", path*".der(x)", ls.x_init)
-    lsBuild.ls = ls    
+    ls.ix = Modia.addState(eqInfo, path*".x", path*".der(x)", ls.x_init)
+    lsBuild.ls = ls
     return nothing
 end
-    
+
 
 function getLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = instantiatedModel.buildDict[path].ls
@@ -172,27 +171,28 @@ function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
     Modia.set_hiddenStateDerivative!(instantiatedModel, ls.ix, ls.derx)
     return true
 end
-       
-# T*der(x) + x = u 
+
+# T*der(x) + x = u
 T = 0.2;
 SSTest = Model(
             ss = LinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], x_init=[0.2]),  # one state
             equations = :[ss.u = 2.0,
                           y = ss.y[1]]
          )
-         
+
 ssTest = @instantiateModel(SSTest, logCode=true)
-simulate!(ssTest, stopTime=1.0, log=true, logStates=true)
+simulate!(ssTest, stopTime=1.0, log=false, logStates=true, requiredFinalStates = [1.987867388853733])
 #Modia.printResultInfo(ssTest)
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=1)
 
-simulate!(ssTest, stopTime=1.0, log=true, logStates=true,
+simulate!(ssTest, stopTime=1.0, log=false, logStates=true,
                                 merge=Map(ss = Map(A=[-1/T   0.0;
-                                                       0.0  -1/T], 
-                                                   B=[1.0/T; 
-                                                      1.0/T;;], 
+                                                       0.0  -1/T],
+                                                   B=[1.0/T;
+                                                      1.0/T;;],
                                                    C=[0.4 0.4;],
-                                                   x_init=[0.2,0.4]))) # two states
+                                                   x_init=[0.2,0.4])),  # two states
+          requiredFinalStates = [1.98786636233743, 1.9892145443000466]) 
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=2)
 
 end

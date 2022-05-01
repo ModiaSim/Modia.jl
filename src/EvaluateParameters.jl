@@ -62,6 +62,7 @@ Recursively traverse the hierarchical collection `parameters` and perform the fo
   return nothing, if an error occurred (an error message was printed).
 """
 function propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitless::Bool, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
+    removeHiddenStates(eqInfo)
     x_found = fill(false, length(eqInfo.x_info))
     map = propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitless, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
 

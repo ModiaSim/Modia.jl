@@ -1050,7 +1050,7 @@ invokelatest_getDerivatives_without_der_x!(x, m, t)::Nothing = TimerOutputs.@tim
         end
     end
     empty!(m.der_x_visible)
-    m.der_x_hidden .= 0
+    m.der_x_hidden .= 0   # Handles also the case for a dummy differential equation (if model has no states): der(_dummy_x) = 0.0
     m.x = x
     Base.invokelatest(m.getDerivatives!, x, m, t)
 
