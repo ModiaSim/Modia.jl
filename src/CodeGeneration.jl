@@ -1732,14 +1732,16 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
         push!(code_pre, :( _m.nextPre[$i] = $preName ))
     end
 
-    # Code for deepcopy of vectors with pre-allocated memory
-    code_copy = Expr[]
-    for leq_tuple in equationInfo.linearEquations
-        x_vec_julia_names = leq_tuple[2]
-        for name in x_vec_julia_names
-            push!(code_copy, :( $name = deepcopy($name) ))
-        end
-    end
+    # Code for deepcopy of vectors with pre-allocated memory (no longer needed, since deepCopy of everything inside addToResult!)
+    #code_copy = Expr[]
+    #for leq_tuple in equationInfo.linearEquations
+    #    x_vec_julia_names = leq_tuple[2]
+    #    for name in x_vec_julia_names
+    #        push!(code_copy, :( $name = deepcopy($name) ))
+    #    end
+    #end
+    # if _m.storeResult
+    #      $(code_copy...)
 
     # Generate code of the function
     # temporarily removed: _m.time = $TimeType(Modia.getValue(_time))
@@ -1760,10 +1762,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
                     $(code_pre...)
 
                     if _m.storeResult
-                        Modia.TimerOutputs.@timeit _m.timer "Modia addToResult!" begin
-                            $(code_copy...)
-                            Modia.addToResult!(_m, $(variables...))
-                        end
+                        Modia.TimerOutputs.@timeit _m.timer "Modia addToResult!" Modia.addToResult!(_m, $(variables...))
                     end
                     return nothing
                 end
