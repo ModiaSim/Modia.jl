@@ -1135,13 +1135,14 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 
     if m.options.logStates
         # List init/start values
-        x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[], nominal=Float64[])
+        x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[])   #, nominal=String[])
         for xe_info in m.equationInfo.x_info
             xe_init = get_xe(m.x_start, xe_info)
             if hasParticles(xe_init)
                 xe_init = string(minimum(xe_init)) * " .. " * string(maximum(xe_init))
             end
-            push!(x_table, (xe_info.x_name, xe_init, xe_info.unit, xe_info.nominal))
+            # xe_nominal = isnan(xe_info.nominal) ? "" : xe_info.nominal
+            push!(x_table, (xe_info.x_name, xe_init, xe_info.unit))   #, xe_nominal))
         end
         show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
         println("\n")

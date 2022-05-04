@@ -333,15 +333,17 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
         end
     end
 
-    if !isnothing(stateInfoFunction)
-        # Call: stateInfoFunction(model, FloatType, Timetype, buildDict, path)
-        # (1) Generate an instance of subModel and store it in buildDict[path]
-        # (2) Define subModel states and store them in xxx
-        Core.eval(modelModule, :($stateInfoFunction($current, $FloatType, $TimeType, $buildDict, $eqInfo, $path)))
-    end
-
     if isnothing(constructor)
-        return current # (; current...)
+        if !isnothing(stateInfoFunction)
+            # Call: stateInfoFunction(model, FloatType, Timetype, buildDict, path)
+            # (1) Generate an instance of subModel and store it in buildDict[path]
+            # (2) Define subModel states and store them in xxx
+            Core.eval(modelModule, :($stateInfoFunction($current, $FloatType, $TimeType, $buildDict, $eqInfo, $path)))
+            if log
+                println(" 13:    +++ Instantiated $path: $stateInfoFunction called to define hidden states\n\n")
+            end
+        end    
+        return current
     else
         if usePath
             obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
@@ -349,7 +351,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
             obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; $current...)))
         end
         if log
-            println(" 13:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")
+            println(" 14:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")
         end
         return obj
     end
