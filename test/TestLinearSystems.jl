@@ -52,8 +52,8 @@ plot(ssTest, ("ss.x", "ss.u", "y"), figure=2)
 ```
 """
 LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace!),         # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
-                                             _stateInfoFunction = Par(functionName = :(stateInfoLinearStateSpace!)),  # Called once after new A,B,C values are merged
-                                             kwargs...)
+                                        _instantiateFunction = Par(functionName = :(instantiateLinearStateSpace!)),  # Called once after new A,B,C values are merged
+                                        kwargs...)
 
 mutable struct LinearStateSpaceStruct{FloatType}
     path::String  # Path name of instance
@@ -136,12 +136,12 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
 end
 
 
-function stateInfoLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type,
-                                    buildDict::OrderedCollections.OrderedDict{String,Any},
-                                    eqInfo::Modia.EquationInfo,
-                                    path::String)::Nothing
+function instantiateLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type,
+                                      buildDict::OrderedCollections.OrderedDict{String,Any},
+                                      eqInfo::Modia.EquationInfo,
+                                      path::String)::Nothing
     # Called during evaluation of the parameters (before initialization)
-    #println("... 3: stateInfoLinearStateSpace! called for $path with model = $model")
+    #println("... 3: instantiateLinearStateSpace! called for $path with model = $model")
     lsBuild::LinearStateSpaceBuild{FloatType} = buildDict[path]
     ls = LinearStateSpaceStruct{FloatType}(; path, model...)
     @assert(size(ls.A,2) == size(ls.A,1))

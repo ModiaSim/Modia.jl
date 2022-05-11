@@ -172,10 +172,10 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
     end
     current = OrderedDict{Symbol,Any}()   # should be Map()
 
-    # Determine, whether "parameters" has a ":_constructor"  or "_stateInfoFunction" key and handle this specially
-    constructor       = nothing
-    stateInfoFunction = nothing
-    usePath           = false
+    # Determine, whether "parameters" has a ":_constructor"  or "_instantiateFunction" key and handle this specially
+    constructor         = nothing
+    instantiateFunction = nothing
+    usePath             = false
     if haskey(parameters, :_constructor)
         # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
         #          or: rev = (_constructor = (_class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)
@@ -192,13 +192,13 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
             end
         end
 
-    elseif haskey(parameters, :_stateInfoFunction)
-        # For example: obj = (_stateInfoFunction = Par(functionName = :(stateInfoLinearStateSpaceSystem))
-        _stateInfoFunction = parameters[:_stateInfoFunction]
-        if haskey(_stateInfoFunction, :functionName)
-            stateInfoFunction = _stateInfoFunction[:functionName]
+    elseif haskey(parameters, :_instantiateFunction)
+        # For example: obj = (_instantiateFunction = Par(functionName = :(instantiateLinearStateSpace!))
+        _instantiateFunction = parameters[:_instantiateFunction]
+        if haskey(_instantiateFunction, :functionName)
+            instantiateFunction = _instantiateFunction[:functionName]
         else
-            @warn "Model $path has key :_stateInfoFunction but its value has no key :functionName"
+            @warn "Model $path has key :_instantiateFunction but its value has no key :functionName"
         end
 
     elseif haskey(parameters, :value)
@@ -213,7 +213,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
         if log
             println(" 2:    ... key = $k, value = $v")
         end
-        if k == :_constructor || k == :_stateInfoFunction || k == :_path || (k == :_class && !isnothing(constructor))
+        if k == :_constructor || k == :_instantiateFunction || k == :_path || (k == :_class && !isnothing(constructor))
             if log
                 println(" 3:    ... key = $k")
             end
@@ -334,13 +334,13 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
     end
 
     if isnothing(constructor)
-        if !isnothing(stateInfoFunction)
-            # Call: stateInfoFunction(model, FloatType, Timetype, buildDict, path)
+        if !isnothing(instantiateFunction)
+            # Call: instantiateFunction(model, FloatType, Timetype, buildDict, path)
             # (1) Generate an instance of subModel and store it in buildDict[path]
             # (2) Define subModel states and store them in xxx
-            Core.eval(modelModule, :($stateInfoFunction($current, $FloatType, $TimeType, $buildDict, $eqInfo, $path)))
+            Core.eval(modelModule, :($instantiateFunction($current, $FloatType, $TimeType, $buildDict, $eqInfo, $path)))
             if log
-                println(" 13:    +++ Instantiated $path: $stateInfoFunction called to define hidden states\n\n")
+                println(" 13:    +++ Instantiated $path: $instantiateFunction called to instantiate sub-model and define hidden states\n\n")
             end
         end    
         return current

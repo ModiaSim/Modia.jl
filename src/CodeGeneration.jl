@@ -398,6 +398,9 @@ mutable struct SimulationModel{FloatType,TimeType}
         if isnothing(evaluatedParameters)
             return nothing
         end
+        # Resize linear equation systems if dimensions of vector valued tearing variables changed
+        # resizeLinearEquations!(m, m.options.log)
+        
         x_start      = updateEquationInfo!(equationInfo, FloatType)
         nx           = length(x_start)
         nextPrevious = deepcopy(previous)
