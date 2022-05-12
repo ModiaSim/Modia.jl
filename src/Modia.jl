@@ -164,9 +164,10 @@ include("EquationAndStateInfo.jl")
 include("StateSelection.jl")
 
 include("ModelCollections.jl")
-include("EvaluateParameters.jl")
 include("EventHandler.jl")
 include("CodeGeneration.jl")
+include("EvaluateParameters.jl")
+
 # include("GenerateGetDerivatives.jl")
 include("Synchronous.jl")
 include("SimulateAndPlot.jl")

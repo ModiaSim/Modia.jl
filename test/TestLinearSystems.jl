@@ -136,18 +136,16 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
 end
 
 
-function instantiateLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type,
-                                      buildDict::OrderedCollections.OrderedDict{String,Any},
-                                      eqInfo::Modia.EquationInfo,
-                                      path::String)::Nothing
+function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationModel{FloatType,TimeType},
+                                      model::AbstractDict, path::String)::Nothing where {FloatType,TimeType}
     # Called during evaluation of the parameters (before initialization)
     #println("... 3: instantiateLinearStateSpace! called for $path with model = $model")
-    lsBuild::LinearStateSpaceBuild{FloatType} = buildDict[path]
+    lsBuild::LinearStateSpaceBuild{FloatType} = partiallyInstantiatedModel.buildDict[path]
     ls = LinearStateSpaceStruct{FloatType}(; path, model...)
     @assert(size(ls.A,2) == size(ls.A,1))
     @assert(size(ls.B,2) == lsBuild.nu)
     @assert(size(ls.C,1) == lsBuild.ny)
-    ls.ix = Modia.addState(eqInfo, path*".x", path*".der(x)", ls.x_init)
+    ls.ix = Modia.addState(partiallyInstantiatedModel.equationInfo, path*".x", path*".der(x)", ls.x_init)
     lsBuild.ls = ls
     return nothing
 end

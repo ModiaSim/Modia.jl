@@ -50,10 +50,9 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(FloatType, unitless::Bool, modelModule::Module, parameters,
-                   eqInfo::Modia.EquationInfo; log=false)
+    map = propagateEvaluateAndInstantiate!(partiallyInstantiatedModel::SimulationModel; log=false)
 
-Recursively traverse the hierarchical collection `parameters` and perform the following actions:
+Recursively traverse the hierarchical collection `partiallyInstantiatedModel.parameters` and perform the following actions:
 
 - Propagate values.
 - Evaluate expressions in the context of `modelModule`.
@@ -61,10 +60,10 @@ Recursively traverse the hierarchical collection `parameters` and perform the fo
 - Return the evaluated `parameters` if successfully evaluated, and otherwise
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitless::Bool, modelModule, parameters, eqInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold; log=false)
-    removeHiddenStates(eqInfo)
-    x_found = fill(false, length(eqInfo.x_info))
-    map = propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitless, modelModule, parameters, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold, [], ""; log=log)
+function propagateEvaluateAndInstantiate!(m::SimulationModel{FloatType,TimeType}; log=false) where {FloatType,TimeType}
+    removeHiddenStates(m.equationInfo)
+    x_found = fill(false, length(m.equationInfo.x_info))
+    map = propagateEvaluateAndInstantiate2!(m, m.parameters, x_found, [], ""; log=log)
 
     if isnothing(map)
         return nothing
@@ -82,8 +81,8 @@ function propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitle
     missingInitValues = false
     namesOfMissingValues = ""
     first = true
-    for (name,index) in previous_dict
-        if ismissing(previous[index])
+    for (name,index) in m.previous_dict
+        if ismissing(m.previous[index])
             missingInitValues = true
             if first
                 first = false
@@ -95,8 +94,8 @@ function propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitle
 
     # Check that all pre values are set:
     first = true
-    for (name,index) in pre_dict
-        if ismissing(pre[index])
+    for (name,index) in m.pre_dict
+        if ismissing(m.pre[index])
             missingInitValues = true
             if first
                 first = false
@@ -108,8 +107,8 @@ function propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitle
 
     # Check that all hold values are set:
     first = true
-    for (name,index) in hold_dict
-        if ismissing(hold[index])
+    for (name,index) in m.hold_dict
+        if ismissing(m.hold[index])
             missingInitValues = true
             if first
                 first = false
@@ -164,9 +163,8 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitless::Bool, modelModule, parameters, eqInfo::Modia.EquationInfo, x_found::Vector{Bool},
-                                           previous_dict, previous, pre_dict, pre, hold_dict, hold,
-                                           environment, path::String; log=false)
+function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType}, parameters, x_found::Vector{Bool},
+                                           environment, path::String; log=false) where {FloatType,TimeType}
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)
     end
@@ -176,6 +174,9 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
     constructor         = nothing
     instantiateFunction = nothing
     usePath             = false
+    modelModule         = m.modelModule
+    eqInfo              = m.equationInfo
+    
     if haskey(parameters, :_constructor)
         # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
         #          or: rev = (_constructor = (_class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)
@@ -253,8 +254,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
                         println(" 7:    ... key = $k, v = $v")
                     end
                     # For example: k = (a = 2.0, b = :(2*Lx))
-                    value = propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitless, modelModule, v, eqInfo, x_found, previous_dict, previous, pre_dict, pre, hold_dict, hold,
-                                                              vcat(environment, [current]), appendKey(path, k); log=log)
+                    value = propagateEvaluateAndInstantiate2!(m, v, x_found, vcat(environment, [current]), appendKey(path, k); log=log)
                     if log
                         println(" 8:    ... key = $k, value = $value")
                     end
@@ -282,7 +282,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
                 end
             end
             subv = Core.eval(modelModule, subv)
-            if unitless && eltype(subv) <: Number
+            if m.unitless && eltype(subv) <: Number
                 # Remove unit
                 subv = stripUnit(subv)
             end
@@ -321,14 +321,14 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
                 #    end
                 #end
 
-            elseif haskey(previous_dict, full_key)
-                previous[ previous_dict[full_key] ] = current[k]
+            elseif haskey(m.previous_dict, full_key)
+                m.previous[ m.previous_dict[full_key] ] = current[k]
 
-            elseif haskey(pre_dict, full_key)
-                pre[ pre_dict[full_key] ] = current[k]
+            elseif haskey(m.pre_dict, full_key)
+                m.pre[ m.pre_dict[full_key] ] = current[k]
 
-            elseif haskey(hold_dict, full_key)
-                hold[ hold_dict[full_key] ] = current[k]
+            elseif haskey(m.hold_dict, full_key)
+                m.hold[ m.hold_dict[full_key] ] = current[k]
             end
         end
     end
@@ -338,7 +338,7 @@ function propagateEvaluateAndInstantiate2!(FloatType, TimeType, buildDict, unitl
             # Call: instantiateFunction(model, FloatType, Timetype, buildDict, path)
             # (1) Generate an instance of subModel and store it in buildDict[path]
             # (2) Define subModel states and store them in xxx
-            Core.eval(modelModule, :($instantiateFunction($current, $FloatType, $TimeType, $buildDict, $eqInfo, $path)))
+            Core.eval(modelModule, :($instantiateFunction($m, $current, $path)))
             if log
                 println(" 13:    +++ Instantiated $path: $instantiateFunction called to instantiate sub-model and define hidden states\n\n")
             end

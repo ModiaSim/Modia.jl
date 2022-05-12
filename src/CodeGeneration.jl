@@ -296,6 +296,7 @@ end
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
 mutable struct SimulationModel{FloatType,TimeType}
+    # Available before propagateEvaluateAndInstantiate!(..) called (= partiallyInstantedModel)
     modelModule::Module
     modelName::String
     buildDict::OrderedDict{String,Any}
@@ -309,20 +310,15 @@ mutable struct SimulationModel{FloatType,TimeType}
     eventHandler::EventHandler{FloatType,TimeType}
     vSolvedWithInitValuesAndUnit::OrderedDict{String,Any}   # Dictionary of (names, init values with units) for all explicitly solved variables with init-values defined
 
-    parameters::OrderedDict{Symbol,Any}
-    evaluatedParameters::OrderedDict{Symbol,Any}
     previous::AbstractVector                # previous[i] is the value of previous(...., i)
-    nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     previous_names::Vector{String}          # previous_names[i] is the name of previous-variable i
     previous_dict::OrderedDict{String,Int}  # previous_dict[name] is the index of previous-variable name
 
     pre::AbstractVector
-    nextPre::AbstractVector
     pre_names::Vector{String}
     pre_dict::OrderedDict{String,Int}
 
     hold::AbstractVector
-    nextHold::AbstractVector
     hold_names::Vector{String}
     hold_dict::OrderedDict{String,Int}
 
@@ -334,13 +330,6 @@ mutable struct SimulationModel{FloatType,TimeType}
     time::TimeType
     nGetDerivatives::Int                        # Number of getDerivatives! calls
     nf::Int                                     # Number of getDerivatives! calls from integrator (without zero-crossing calls)
-    x::Vector{FloatType}                        # Reference of x-vector passed to getDerivatives!(..)
-    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of (visible) state vector element equationInfo.x_info[equationInfo.nxFixedLength+i]
-    x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
-    x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
-    der_x_visible::Vector{FloatType}            # Derivatives of states x or x_init that correspond to visible states
-    der_x_hidden::Vector{FloatType}             # Derivatives of states x or x_init that correspond to hidden states (defined in functions and not visible in getDerivatives!(..))
-    der_x_full::Vector{FloatType}               # Derivatives of states x (needed in DAE mode)
     odeIntegrator::Bool                         # = true , if ODE integrator used
                                                 # = false, if DAE integrator used
 
@@ -348,30 +337,51 @@ mutable struct SimulationModel{FloatType,TimeType}
     algorithmName::Union{String,Missing}        # Name of integration algorithm as string (used in default-heading of plot)
     addEventPointsDueToDEBug::Bool              # = true, if event points are explicitly stored for Sundials integrators, due to bug in DifferentialEquations
                                                 #         (https://github.com/SciML/Sundials.jl/issues/309)
-    result_info::OrderedDict{String,ResultInfo} # key  : Full path name of result variables
-                                                # value: Storage location and index into the storage.
-    result_vars::AbstractVector                 # result_vars[ti][j] is result of variable with index j at time instant ti
-    result_x::Union{Any,Missing}                # Return value of DifferentialEquations.solve(..) (is a struct)
-    result_der_x::Vector{Vector{FloatType}}     # result_der_x[ti][j] is der_x[j] at time instant ti
     success::Bool                               # = true, if after first outputs!(..) call and no error was triggered
                                                 # = false, either before first outputs!(..) call or at first outputs!(..) after init!(..) and
                                                 #          an error was triggered and simulate!(..) should be returned with nothing.
     unitless::Bool                              # = true, if simulation is performed without units.
 
+    result_info::OrderedDict{String,ResultInfo} # key  : Full path name of result variables
+                                                # value: Storage location and index into the storage.
+    result_vars::AbstractVector                 # result_vars[ti][j] is result of variable with index j at time instant ti
+    result_x::Union{Any,Missing}                # Return value of DifferentialEquations.solve(..) (is a struct)
+    result_der_x::Vector{Vector{FloatType}}     # result_der_x[ti][j] is der_x[j] at time instant ti
+
+    parameters::OrderedDict{Symbol,Any}
+
+    # Available after propagateEvaluateAndInstantiate!(..) called
+    evaluatedParameters::OrderedDict{Symbol,Any}
+    nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
+    nextPre::AbstractVector
+    nextHold::AbstractVector  
+    x::Vector{FloatType}                        # Reference of x-vector passed to getDerivatives!(..)
+    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of (visible) state vector element equationInfo.x_info[equationInfo.nxFixedLength+i]
+    x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
+    x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
+    der_x_visible::Vector{FloatType}            # Derivatives of states x or x_init that correspond to visible states
+    der_x_hidden::Vector{FloatType}             # Derivatives of states x or x_init that correspond to hidden states (defined in functions and not visible in getDerivatives!(..))
+    der_x_full::Vector{FloatType}               # Derivatives of states x (needed in DAE mode)
+
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, buildDict, getDerivatives!, equationInfo, x_startValues,
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
-                                        unitless=true,
+                                        unitless::Bool=true,
                                         nz::Int = 0,
                                         nAfter::Int = 0,
                                         vSolvedWithInitValuesAndUnit::AbstractDict = OrderedDict{String,Any}(),
                                         vEliminated::Vector{Int} = Int[],
                                         vProperty::Vector{Int}   = Int[],
                                         var_name::Function       = v -> nothing) where {FloatType,TimeType}
-        # Construct result dictionary
-        result_info = OrderedDict{String, ResultInfo}()
+        # Construct data structure for linear equations
+        linearEquations = Modia.LinearEquations{FloatType}[]
+        for leq in equationInfo.linearEquations
+            push!(linearEquations, Modia.LinearEquations{FloatType}(leq...))
+        end
+
         vSolvedWithInitValuesAndUnit2 = OrderedDict{String,Any}( [(string(key),vSolvedWithInitValuesAndUnit[key]) for key in keys(vSolvedWithInitValuesAndUnit)] )
+
             # Build previous-arrays
             previous       = Vector{Any}(missing, length(previousVars))
             previous_names = string.(previousVars)
@@ -387,36 +397,59 @@ mutable struct SimulationModel{FloatType,TimeType}
             hold_names = string.(holdVars)
             hold_dict  = OrderedDict{String,Int}(zip(hold_names, 1:length(holdVars)))
 
-        # Construct parameter values that are copied into the code
-        #parameterValues = [eval(p) for p in values(parameters)]
-        #@show typeof(parameterValues)
-        #@show parameterValues
-        parameters = deepcopy(parameterDefinition)
+        # Initialize execution flags
+        eventHandler = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
+        eventHandler.initial = true
+        isInitial   = true
+        storeResult = false
+        solve_leq   = true
+        nGetDerivatives = 0
+        nf = 0
+        odeIntegrator = true
+        daeCopyInfo = LinearEquationsCopyInfoForDAEMode[]
+        algorithmName = missing
+        addEventPointsDueToDEBug = false
+        success = false
 
-        # Determine x_start and previous values
-        evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, TimeType, buildDict, unitless, modelModule, parameters, equationInfo, previous_dict, previous, pre_dict, pre, hold_dict, hold)
+        # Result data structure
+        result_info  = OrderedDict{String, ResultInfo}()
+        result_vars  = Tuple[]
+        result_x     = missing
+        result_der_x = Vector{FloatType}[]
+
+        parameters = deepcopy(parameterDefinition)
+        obj = new(modelModule, modelName, buildDict, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
+                  equationInfo, linearEquations, eventHandler,
+                  vSolvedWithInitValuesAndUnit2,
+                  previous, previous_names, previous_dict,
+                  pre, pre_names, pre_dict,
+                  hold, hold_names, hold_dict,
+                  isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+                  odeIntegrator, daeCopyInfo, algorithmName, addEventPointsDueToDEBug, success, unitless,
+                  result_info, result_vars, result_x, result_der_x, parameters)
+
+        evaluatedParameters = propagateEvaluateAndInstantiate!(obj, log=false)
         if isnothing(evaluatedParameters)
             return nothing
         end
+        obj.evaluatedParameters = evaluatedParameters
+        obj.nextPrevious = deepcopy(previous)
+        obj.nextPre      = deepcopy(pre)
+        obj.nextHold     = deepcopy(hold)
+            
         # Resize linear equation systems if dimensions of vector valued tearing variables changed
         # resizeLinearEquations!(m, m.options.log)
-        
-        x_start      = updateEquationInfo!(equationInfo, FloatType)
-        nx           = length(x_start)
-        nextPrevious = deepcopy(previous)
-        nextPre      = deepcopy(pre)
-        nextHold     = deepcopy(hold)
-        #@show equationInfo.nx
-        #@show nx
 
-        # Provide storage for x_vec
-        x_vec = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.nxVisibleLength)]
+        obj.x_start = updateEquationInfo!(equationInfo, FloatType)
+        nx          = length(obj.x_start)
 
-        # Construct data structure for linear equations
-        linearEquations = Modia.LinearEquations{FloatType}[]
-        for leq in equationInfo.linearEquations
-            push!(linearEquations, Modia.LinearEquations{FloatType}(leq...))
-        end
+        # Provide storage for x_vec and utility vectors
+        obj.x         = zeros(FloatType,0)
+        obj.x_vec     = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.nxVisibleLength)]
+        obj.x_init    = zeros(FloatType,nx)
+        obj.der_x_visible = zeros(FloatType,equationInfo.nxVisible)
+        obj.der_x_hidden  = zeros(FloatType,nx-equationInfo.nxVisible)
+        obj.der_x_full    = zeros(FloatType,nx)
 
         # Define result
             # Store x and der_x
@@ -448,26 +481,7 @@ mutable struct SimulationModel{FloatType,TimeType}
                 end
             end
 
-
-        # Initialize execution flags
-        eventHandler = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
-        eventHandler.initial = true
-        isInitial   = true
-        storeResult = false
-        solve_leq   = true
-        nGetDerivatives = 0
-        nf = 0
-
-        new(modelModule, modelName, buildDict, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
-            equationInfo, linearEquations, eventHandler,
-            vSolvedWithInitValuesAndUnit2, parameters, evaluatedParameters,
-            previous, nextPrevious, previous_names, previous_dict,
-            pre, nextPre, pre_names, pre_dict,
-            hold, nextHold, hold_names, hold_dict,
-            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, zeros(FloatType,0),
-            x_vec, x_start, zeros(FloatType,nx), zeros(FloatType,equationInfo.nxVisible), zeros(FloatType,nx-equationInfo.nxVisible),
-            zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
-            missing, false, result_info, Tuple[], missing, Vector{FloatType}[], false, unitless)
+        return obj
     end
 
 
@@ -486,20 +500,31 @@ mutable struct SimulationModel{FloatType,TimeType}
         solve_leq   = true
         nGetDerivatives = 0
         nf = 0
+        odeIntegrator = true
+        daeCopyInfo = LinearEquationsCopyInfoForDAEMode[]
+        algorithmName = missing
+        addEventPointsDueToDEBug = false
+        success = false
         nx = m.equationInfo.nx
 
-         new(m.modelModule, m.modelName, deepcopy(m.buildDict), TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
+        new(m.modelModule, m.modelName, deepcopy(m.buildDict), TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
             eventHandler,
-            m.vSolvedWithInitValuesAndUnit, deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
-            deepcopy(m.previous), deepcopy(m.nextPrevious), m.previous_names, m.previous_dict,
-            deepcopy(m.pre), deepcopy(m.nextPre), m.pre_names, m.pre_dict,
-            deepcopy(m.hold), deepcopy(m.nextHold), m.hold_names, m.hold_dict,
-            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf, zeros(FloatType,0), deepcopy(m.x_vec),
+            m.vSolvedWithInitValuesAndUnit,
+            deepcopy(m.previous), m.previous_names, m.previous_dict,
+            deepcopy(m.pre), m.pre_names, m.pre_dict,
+            deepcopy(m.hold), m.hold_names, m.hold_dict,
+            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+            true, LinearEquationsCopyInfoForDAEMode[],
+            odeIntegrator, daeCopyInfo, addEventPointsDueToDEBug, success, m.unitless,
+            m.result_info, Tuple[], missing, Vector{FloatType}[],
+            deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
+            deepcopy(m.nextPrevious), deepcopy(m.nextPre), deepcopy(m.nextHold), 
+            zeros(FloatType,0), deepcopy(m.x_vec),
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,equationInfo.nxVisible), zeros(FloatType,nx-equationInfo.nxVisible),
-            zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
-            missing, false, m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)
+            zeros(FloatType,nx))
     end
 end
+
 
 # Default constructors
 SimulationModel{FloatType}(args...; kwargs...) where {FloatType} = SimulationModel{FloatType,FloatType}(args...; kwargs...)
@@ -1092,7 +1117,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if length(m.options.merge) > 0
         m.parameters = mergeModels(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(FloatType, TimeType, m.buildDict, m.unitless, m.modelModule, m.parameters, m.equationInfo, m.previous_dict, m.previous, m.pre_dict, m.pre, m.hold_dict, m.hold)
+        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m)
         if isnothing(m.evaluatedParameters)
             return false
         end
