@@ -68,6 +68,9 @@ mutable struct EventHandler{FloatType,TimeType}
     # For state events:
     zEps::FloatType         # Epsilon for zero-crossing hysteresis
     nz::Int                 # Number of event indicators
+    nzVisible::Int          # Number of event indicators defined in visible model equations
+                            # More event indicators can be defined by objects that are not visible in the generated code, i.e. nz >= nzVisible
+                            # These event indicators are defined in propagateEvaluateAndInstantiate!(..) via _instantiateFunction(..)
     z::Vector{FloatType}    # Vector of event indicators (zero crossings). If one of z[i] passes
                             # zero, that is beforeEvent(z[i])*z[i] < 0, an event is triggered
                             # (allocated during instanciation according to nz).
@@ -88,7 +91,7 @@ mutable struct EventHandler{FloatType,TimeType}
         zEps   = FloatType(1e-10)
         new(floatmax(TimeType), logEvents, 0, 0, 0, 0, convert(TimeType,0),
             false, false, false, false, false, false, false, false, false, floatmax(TimeType), floatmax(TimeType),
-            true, NoRestart, false, false, zEps, nz, ones(FloatType,nz), fill(false, nz), nAfter, fill(false,nAfter),
+            true, NoRestart, false, false, zEps, nz, nz, ones(FloatType,nz), fill(false, nz), nAfter, fill(false,nAfter),
             fill(convert(TimeType,0),nClock), Vector{Any}(undef, nSample))
     end
 end
@@ -126,6 +129,11 @@ function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, stopTime::Time
     eh.z .= convert(FloatType, 0)
     eh.after .= false
 
+    if eh.nz > eh.nzVisible
+        resize!(eh.z, eh.nzVisible)
+        resize!(eh.zPositive, eh.nzVisible)
+        eh.nz = eh.nzVisible
+    end
     return nothing
 end
 

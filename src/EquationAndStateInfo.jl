@@ -682,7 +682,7 @@ end
                 nz                   = 0,
                 x_info               = StateElementInfo[],
                 nx                   = -1,
-                nxFixedLength        = nx,
+                nx_infoFixed         = -1,
                 residualCategories   = ResidualCategory[],
                 linearEquations      = Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}[],
                 vSolvedWithFixedTrue = String[],
@@ -729,10 +729,10 @@ mutable struct EquationInfo
     linearEquations::Vector{Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}}
     vSolvedWithFixedTrue::Vector{String}
     nx::Int                                        # = length(x) or -1 if not yet known
-    nxVisible::Int                                 # = number of visible x-elements or -1 if not yet known
-    nxFixedLength::Int                             # x_info[1:nxFixedLength] are states with fixed length (does not change after compilation) or -1 if not yet known
-    nxVisibleLength::Int                           # x_info[1:nxVisibleLength] are states that are visible in getDerivatives!(..) or -1 if not yet known
-                                                   # x_info[nxVisibleLength+1:end] are states defined in functions that are not visible in getDerivatives!(..)
+    nxVisible::Int                                 # = number of visible x-elements (so x[1:nxVisible] are visible states) or -1 if not yet known
+    nx_infoFixed::Int                              # x_info[1:nx_infoFixed] are states with fixed length (does not change after compilation) or -1 if not yet known
+    nx_infoVisible::Int                            # x_info[1:nx_infoVisible] are states that are visible in getDerivatives!(..) or -1 if not yet known
+                                                   # x_info[nx_infoVisible+1:end] are states defined in functions that are not visible in getDerivatives!(..)
     #x_infoByIndex::Vector{Int}                     # i = x_infoByIndex[j] -> x_info[i]
     #                                               # or empty vector, if not yet known.
     x_dict::OrderedCollections.OrderedDict{String,Int}      # x_dict[x_name] returns the index of x_name with respect to x_info
@@ -750,14 +750,14 @@ EquationInfo(; status                = MANUAL,
                residualCategories    = ResidualCategory[],
                linearEquations       = Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}[],
                vSolvedWithFixedTrue  = String[],
-               nxFixedLength         = -1,
-               nxVisibleLength       = -1,
+               nx_infoFixed          = -1,
+               nx_infoVisible        = -1,
                defaultParameterAndStartValues::Union{AbstractDict,Nothing} = nothing,
                ResultType = nothing,
                ResultTypeHasFloatType = false) = EquationInfo(status, ode, nz, x_info,
                                                     residualCategories, linearEquations,
                                                     vSolvedWithFixedTrue, -1, -1,
-                                                    nxFixedLength, nxVisibleLength,
+                                                    nx_infoFixed, nx_infoVisible,
                                                     OrderedCollections.OrderedDict{String,Int}(),
                                                     OrderedCollections.OrderedDict{String,Int}(),
                                                     defaultParameterAndStartValues,
@@ -781,7 +781,7 @@ function initEquationInfo!(eqInfo::EquationInfo)::Nothing
     end
     eqInfo.nx        = startIndex - 1
     eqInfo.nxVisible = eqInfo.nx
-    eqInfo.nxVisibleLength = length(eqInfo.x_info)
+    eqInfo.nx_infoVisible = length(eqInfo.x_info)
     return nothing
 end
 
@@ -792,7 +792,7 @@ end
 Return initial state vector `Vector{FloatType}` with stripped units.
 """
 function initialStateVector(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
-    x_start = fill(FloatType(0), eqInfo.nx)
+    x_start = zeros(FloatType, eqInfo.nx)
     startIndex = 1
     for xe_info in eqInfo.x_info
         if xe_info.scalar
@@ -818,12 +818,12 @@ Remove all hidden (non-visible) states from `eqInfo`.
 """
 function removeHiddenStates(eqInfo::EquationInfo)::Nothing
     if eqInfo.nx > eqInfo.nxVisible
-        for i = eqInfo.nxVisibleLength+1:length(eqInfo.x_info)
+        for i = eqInfo.nx_infoVisible+1:length(eqInfo.x_info)
             xi_info = eqInfo.x_info[i]
             delete!(eqInfo.x_dict    , xi_info.x_name)
             delete!(eqInfo.der_x_dict, xi_info.der_x_name)
         end
-        resize!(eqInfo.x_info, eqInfo.nxVisibleLength)
+        resize!(eqInfo.x_info, eqInfo.nx_infoVisible)
         eqInfo.nx = eqInfo.nxVisible
     end
     return nothing
@@ -831,13 +831,13 @@ end
 
 
 """
-    xindex = addState(eqInfo::EquationInfo,
-                x_name::String, der_x_name::String, startOrInit::Vector{FloatType};
-                stateCategory::StateCategory = XD,
-                unit::String     = "",
-                fixed::Bool      = true,
-                nominal::Float64 = NaN,
-                unbounded::Bool  = false)::Int where {FloatType}
+    x_infoIndex = addState(eqInfo::EquationInfo,
+                           x_name::String, der_x_name::String, startOrInit::Vector{FloatType};
+                           stateCategory::StateCategory = XD,
+                           unit::String     = "",
+                           fixed::Bool      = true,
+                           nominal::Float64 = NaN,
+                           unbounded::Bool  = false)::Int where {FloatType}
 
 Add new state to model and return its index (new state info is stored in eqInfo.x_info[xindex]).
 """
@@ -855,10 +855,10 @@ function addState(eqInfo::EquationInfo, x_name::String, der_x_name::String, star
     xi_info = StateElementInfo(x_name, Symbol(x_name), der_x_name, Symbol(der_x_name),
                                stateCategory, unit, startOrInit, fixed, nominal, unbounded)
     push!(eqInfo.x_info, xi_info)
-    ix = length(eqInfo.x_info)
-    eqInfo.x_dict[x_name]         = ix
-    eqInfo.der_x_dict[der_x_name] = ix
-    return ix
+    x_infoIndex = length(eqInfo.x_info)
+    eqInfo.x_dict[x_name]         = x_infoIndex
+    eqInfo.der_x_dict[der_x_name] = x_infoIndex
+    return x_infoIndex
 end
 
 
@@ -869,7 +869,7 @@ Set eqInfo.x_dict, eqInfo.der_x_dict, eqInfo.nx and eqInfo.x_info[:].startIndex
 and return initial state vector x_start
 """
 function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
-    nxFixedLength = eqInfo.nxFixedLength
+    nx_infoFixed = eqInfo.nx_infoFixed
     x_info        = eqInfo.x_info
     if length(x_info) == 0
         # Handle systems with only algebraic variables, by introducing a dummy
@@ -879,14 +879,14 @@ function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
         startIndex = 1
         eqInfo.x_dict["_dummy_x"]          = 1
         eqInfo.der_x_dict["der(_dummy_x)"] = 1
-    elseif nxFixedLength == 0
+    elseif nx_infoFixed == 0
         startIndex = 1
     else
-        xi_info = x_info[nxFixedLength]
+        xi_info = x_info[nx_infoFixed]
         startIndex = xi_info.startIndex + xi_info.length
     end
 
-    for i = nxFixedLength+1:length(x_info)
+    for i = nx_infoFixed+1:length(x_info)
         xi_info = x_info[i]
         xi_info.length     = length(xi_info.startOrInit)
         xi_info.startIndex = startIndex
@@ -895,7 +895,7 @@ function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
     eqInfo.nx = startIndex - 1
     
     nxVisible = 0
-    for i = 1:eqInfo.nxVisibleLength
+    for i = 1:eqInfo.nx_infoVisible
         xi_info = x_info[i]
         nxVisible += x_info[i].length
     end

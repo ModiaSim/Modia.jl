@@ -355,11 +355,12 @@ mutable struct SimulationModel{FloatType,TimeType}
     nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     nextPre::AbstractVector
     nextHold::AbstractVector  
-    x::Vector{FloatType}                        # Reference of x-vector passed to getDerivatives!(..)
-    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of (visible) state vector element equationInfo.x_info[equationInfo.nxFixedLength+i]
+    
+    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of (visible) state vector element equationInfo.x_info[equationInfo.nx_infoFixed+i]
     x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
     der_x_visible::Vector{FloatType}            # Derivatives of states x or x_init that correspond to visible states
+    x_hidden::Vector{FloatType}                 # A copy of the states x that correspond to hidden states (defined in functions and not visible in getDerivatives!(..))
     der_x_hidden::Vector{FloatType}             # Derivatives of states x or x_init that correspond to hidden states (defined in functions and not visible in getDerivatives!(..))
     der_x_full::Vector{FloatType}               # Derivatives of states x (needed in DAE mode)
 
@@ -436,19 +437,17 @@ mutable struct SimulationModel{FloatType,TimeType}
         obj.nextPrevious = deepcopy(previous)
         obj.nextPre      = deepcopy(pre)
         obj.nextHold     = deepcopy(hold)
-            
-        # Resize linear equation systems if dimensions of vector valued tearing variables changed
-        # resizeLinearEquations!(m, m.options.log)
 
         obj.x_start = updateEquationInfo!(equationInfo, FloatType)
         nx          = length(obj.x_start)
-
+        nxHidden    = nx-equationInfo.nxVisible
+        
         # Provide storage for x_vec and utility vectors
-        obj.x         = zeros(FloatType,0)
-        obj.x_vec     = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nxFixedLength+1:length(equationInfo.nxVisibleLength)]
+        obj.x_vec     = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nx_infoFixed+1:length(equationInfo.nx_infoVisible)]
         obj.x_init    = zeros(FloatType,nx)
         obj.der_x_visible = zeros(FloatType,equationInfo.nxVisible)
-        obj.der_x_hidden  = zeros(FloatType,nx-equationInfo.nxVisible)
+        obj.x_hidden      = zeros(FloatType, nxHidden)
+        obj.der_x_hidden  = zeros(FloatType, nxHidden)
         obj.der_x_full    = zeros(FloatType,nx)
 
         # Define result
@@ -561,29 +560,30 @@ end
 export copyState!
 
 """
-    copyState!(m::SimulationModel, x_index::Int, xi)
+    copyState!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, xi::Vector{FloatType})
 
-Copy state of m.equationInfo.x_info[x_index] from m.x into pre-allocated vector xi.
+Copy state of m.equationInfo.x_info[x_infoIndex] from m.x_hidden into pre-allocated vector xi.
 """
-function copyState!(m::SimulationModel{FloatType,TimeType}, x_index::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
-    @assert(length(xi) == m.equationInfo.x_info[x_index].length)
-    startIndex = m.equationInfo.x_info[x_index].startIndex - 1
+function copyState!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
+    @assert(length(xi) == m.equationInfo.x_info[x_infoIndex].length)
+    startIndex = m.equationInfo.x_info[x_infoIndex].startIndex - m.equationInfo.nxVisible - 1
     for i = 1:length(xi)
-        xi[i] = m.x[startIndex+i]
+        xi[i] = m.x_hidden[startIndex+i]
     end
     return nothing
 end
 
 
 """
-    set_hiddenStateDerivative!(m::SimulationModel, x_index, der_x)
+    set_hiddenStateDerivative!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, der_x::Vector{FloatType})
 
-Copy hidden state derivative der_x of m.equationInfo.x_info[x_index] into full state derivative vector
+Copy hidden state derivative der_x of m.equationInfo.x_info[x_infoIndex] into m.der_x_hidden.
 """
-function set_hiddenStateDerivative!(m::SimulationModel, x_index::Int, der_x)::Nothing
-    @assert(length(der_x) == m.equationInfo.x_info[x_index].length)
+function set_hiddenStateDerivative!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, der_x::Vector{FloatType})::Nothing where {FloatType,TimeType}
+    ix_info = m.equationInfo.x_info[x_infoIndex]
+    @assert(length(der_x) == ix_info.length)
     #println("set_hiddenStateDerivative!: x_index = $x_index, der_x = $der_x")
-    startIndex = m.equationInfo.x_info[x_index].startIndex - m.equationInfo.nxVisible - 1
+    startIndex = ix_info.startIndex - m.equationInfo.nxVisible - 1
     for i = 1:length(der_x)
         m.der_x_hidden[startIndex+i] = der_x[i]
     end
@@ -1071,15 +1071,19 @@ invokelatest_getDerivatives_without_der_x!(x, m, t)::Nothing = TimerOutputs.@tim
         eqInfo = m.equationInfo
         x_vec  = m.x_vec
         j      = 0
-        for i in eqInfo.nxFixedLength+1:eqInfo.nxVisibleLength
+        for i in eqInfo.nx_infoFixed+1:eqInfo.nx_infoVisible
             j += 1
             xe = eqInfo.x_info[i]
             x_vec[j] .= x[xe.startIndex:(xe.startIndex+xe.length-1)]
         end
     end
     empty!(m.der_x_visible)
+    j::Int = 0
+    for i in m.equationInfo.nxVisible+1:length(x)
+        j += 1
+        m.x_hidden[j] = x[i]
+    end
     m.der_x_hidden .= 0   # Handles also the case for a dummy differential equation (if model has no states): der(_dummy_x) = 0.0
-    m.x = x
     Base.invokelatest(m.getDerivatives!, x, m, t)
 
     @assert(length(m.der_x_visible) + length(m.der_x_hidden) == length(x))
@@ -1117,23 +1121,23 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if length(m.options.merge) > 0
         m.parameters = mergeModels(m.parameters, m.options.merge)
-        m.evaluatedParameters = propagateEvaluateAndInstantiate!(m)
-        if isnothing(m.evaluatedParameters)
+        evaluatedParameters = propagateEvaluateAndInstantiate!(m)
+        if isnothing(evaluatedParameters)
             return false
         end
-
-        # Resize linear equation systems if dimensions of vector valued tearing variables changed
-        resizeLinearEquations!(m, m.options.log)
+        m.evaluatedParameters = evaluatedParameters
 
         # Resize state vector memory
         m.x_start = updateEquationInfo!(m.equationInfo, FloatType)
-        nx = length(m.x_start)
+        nx       = length(m.x_start)
+        nxHidden = nx - m.equationInfo.nxVisible
         resize!(m.x_init, nx)
         resize!(m.der_x_visible, m.equationInfo.nxVisible)
-        resize!(m.der_x_hidden , nx - m.equationInfo.nxVisible)
+        resize!(m.x_hidden     , nxHidden)
+        resize!(m.der_x_hidden , nxHidden)
         resize!(m.der_x_full   , nx)
         eqInfo = m.equationInfo
-        m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nxFixedLength+1:eqInfo.nxVisibleLength]
+        m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nx_infoFixed+1:eqInfo.nx_infoVisible]
     end
 
     # Initialize auxiliary arrays for event iteration
@@ -1670,7 +1674,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
         push!(code_der_x, :( Modia.appendVariable!(_m.der_x_visible, -_x[1]) ))
     else
         i1 = 1
-        for i in 1:equationInfo.nxFixedLength
+        for i in 1:equationInfo.nx_infoFixed
             xe = x_info[i]
             x_name = xe.x_name_julia
             # x_name     = Meta.parse("m."*xe.x_name)
@@ -1703,7 +1707,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
         end
 
         i1 = 0
-        for i in equationInfo.nxFixedLength+1:equationInfo.nxVisibleLength
+        for i in equationInfo.nx_infoFixed+1:equationInfo.nx_infoVisible
             # x-element is a dynamic vector (length can change before initialization)
             xe     = x_info[i]
             x_name = xe.x_name_julia
@@ -1716,7 +1720,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
             end
         end
 
-        for i in 1:equationInfo.nxVisibleLength
+        for i in 1:equationInfo.nx_infoVisible
             xe = equationInfo.x_info[i]
             der_x_name = xe.der_x_name_julia
             if hasUnits

@@ -56,8 +56,8 @@ LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace
                                         kwargs...)
 
 mutable struct LinearStateSpaceStruct{FloatType}
-    path::String  # Path name of instance
-    ix::Int       # Index with respect to equationInfo.x_info
+    path::String      # Path name of instance
+    x_infoIndex::Int  # Index with respect to equationInfo.x_info
     A::Matrix{FloatType}
     B::Matrix{FloatType}
     C::Matrix{FloatType}
@@ -126,7 +126,7 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
                          u = Var(input  = true, start = u_zeros),
                          y = Var(output = true, start = y_zeros),
                     equations = :[
-                        ls = getLinearStateSpace!(instantiatedModel, $pathAsString)
+                        ls = openLinearStateSpace!(instantiatedModel, $pathAsString)
                         y = computeOutputs!(instantiatedModel, ls)
                         success = computeStateDerivatives!(instantiatedModel, ls, u)])
 
@@ -145,15 +145,15 @@ function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationMode
     @assert(size(ls.A,2) == size(ls.A,1))
     @assert(size(ls.B,2) == lsBuild.nu)
     @assert(size(ls.C,1) == lsBuild.ny)
-    ls.ix = Modia.addState(partiallyInstantiatedModel.equationInfo, path*".x", path*".der(x)", ls.x_init)
+    ls.x_infoIndex = Modia.addState(partiallyInstantiatedModel.equationInfo, path*".x", path*".der(x)", ls.x_init)
     lsBuild.ls = ls
     return nothing
 end
 
 
-function getLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
+function openLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = instantiatedModel.buildDict[path].ls
-    copyState!(instantiatedModel, ls.ix, ls.x)
+    copyState!(instantiatedModel, ls.x_infoIndex, ls.x)
     return ls
 end
 
@@ -166,7 +166,7 @@ function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
     # ls.derx .= ls.A*ls.x + ls.B*u
     mul!(ls.derx, ls.A, ls.x)
     mul!(ls.derx, ls.B, u, 1.0, 1.0)
-    Modia.set_hiddenStateDerivative!(instantiatedModel, ls.ix, ls.derx)
+    Modia.set_hiddenStateDerivative!(instantiatedModel, ls.x_infoIndex, ls.derx)
     return true
 end
 

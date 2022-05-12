@@ -126,6 +126,9 @@ function propagateEvaluateAndInstantiate!(m::SimulationModel{FloatType,TimeType}
         return nothing
     end
 
+    # Resize linear equation systems if dimensions of vector valued tearing variables changed
+    resizeLinearEquations!(m, m.options.log)
+        
     #if length(x_start_missing) > 0
     #    printstyled("Model error: ", bold=true, color=:red)
     #    printstyled("Missing start/init values for variables: ", x_start_missing,
@@ -301,7 +304,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
                 xe_info = eqInfo.x_info[j]
                 x_value = current[k]
                 len = hasParticles(x_value) ? 1 : length(x_value)
-                if j <= eqInfo.nxFixedLength && len != xe_info.length
+                if j <= eqInfo.nx_infoFixed && len != xe_info.length
                     printstyled("Model error: ", bold=true, color=:red)
                     printstyled("Length of ", xe_info.x_name, " shall be changed from ",
                                 xe_info.length, " to $len\n",

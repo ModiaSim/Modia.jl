@@ -1500,7 +1500,7 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
             push!(x_vec_fixed      , v_fixed)
         end
     end
-    eq.equationInfo.nxFixedLength = length(x_info)
+    eq.equationInfo.nx_infoFixed = length(x_info)
     for (i,v) in enumerate(x_vec)
         v_startOrInit      = x_vec_startOrInit[i]
         v_fixed            = x_vec_fixed[i]
