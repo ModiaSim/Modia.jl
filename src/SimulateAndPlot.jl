@@ -603,22 +603,12 @@ end
 
 
 """
-    signalNames(instantiatedModel)
+    names = signalNames(instantiatedModel::Modia.SimulationModel)
 
 Return the variable names (parameters, time-varying variables) of an
-[`@instantiateModel`](@ref) that can be accessed and can be used for plotting.
+[`@instantiateModel`](@ref) that are present in the result (e.g. can be accessed for plotting).
 """
-function ModiaResult.signalNames(m::SimulationModel)
-    #if m.save_x_in_solution
-    #    names = ["time"]
-    #    append!(names, collect( keys(m.equationInfo.x_dict) ))
-    #else
-        all_names = get_names(m.evaluatedParameters)
-        append!(all_names, setdiff(collect( keys(m.result_info) ), all_names) )
-    #end
-    sort!(all_names)
-    return all_names
-end
+ModiaResult.signalNames(m::SimulationModel) = collect(keys(m.result_info))
 
 
 #=

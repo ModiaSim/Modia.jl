@@ -18,8 +18,13 @@ function getConstructorAsString(path, constructor, parameters):String
             end
             if typeof(value) == Symbol
                 svalue = ":" * string(value)
+            elseif typeof(value) <: AbstractDict
+                svalue = "..."  # Do not show dictionaries, since too much output, especially due to pointers to Object3Ds
             else
                 svalue = string(value)
+                if length(svalue) > 20
+                    svalue = svalue[1:20] * "..."   # Restrict the length of the output
+                end
             end
             str = str * skey * "=" * svalue
         end

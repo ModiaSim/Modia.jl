@@ -36,6 +36,13 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.9.0-dev
+
+** Bug fixes
+
+- `signalNames(instantiatedModel)` did sometimes not show the signal names in the result (is now fixed).
+
+
 ### Version 0.8.3
 
 - Bug fix: Parameters that are Numbers, but not AbstractFloats, and have no unit defined, 
