@@ -812,11 +812,11 @@ end
 
 
 """
-    removeHiddenStates(eqInfo::EquationInfo)
+    removeHiddenStates!(eqInfo::EquationInfo)
 
 Remove all hidden (non-visible) states from `eqInfo`.
 """
-function removeHiddenStates(eqInfo::EquationInfo)::Nothing
+function removeHiddenStates!(eqInfo::EquationInfo)::Nothing
     if eqInfo.nx > eqInfo.nxVisible
         for i = eqInfo.nx_infoVisible+1:length(eqInfo.x_info)
             xi_info = eqInfo.x_info[i]

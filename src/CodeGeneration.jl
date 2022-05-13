@@ -1036,12 +1036,16 @@ getTime(m::SimulationModel) = m.time
 Add nz new zero crossing functions and return the start index with respect to
 instantiatedModel.eventHandler.z.
 """
-function addZeroCrossings(m::SimulationModel, nz::Int)::Int
+function addZeroCrossings(m::SimulationModel{F,TimeType}, nz::Int)::Int where {F,TimeType}
     eh = m.eventHandler
     zStartIndex = eh.nz + 1
     eh.nz += nz
     resize!(eh.z, eh.nz)
     resize!(eh.zPositive, eh.nz)
+    for i = zStartIndex:eh.nz
+        eh.z[i] = convert(F, 1.0)
+        eh.zPositive[i] = false
+    end
     return zStartIndex
 end
 
@@ -1115,7 +1119,7 @@ If initialization is successful return true, otherwise false.
 function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,TimeType}
     emptyResult!(m)
     eh = m.eventHandler
-    reinitEventHandler(eh, m.options.stopTime, m.options.logEvents)
+    reinitEventHandler!(eh, m.options.stopTime, m.options.logEvents)
     eh.firstInitialOfAllSegments = true
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
@@ -1573,13 +1577,13 @@ end
 
 
 """
-    resizeLinearEquations!(instantiatedModel)
+    resizeLinearEquations!(partiallyInstantiatedModel, evaluatedParameters, log::Bool)
 
 Inspect all linear equations inside the instantiatedModel and resize the
 internal storage, of the length of vector-valued elements of the iteration variables
 has changed due to changed parameter values.
 """
-function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothing where {FloatType}
+function resizeLinearEquations!(m::SimulationModel{FloatType,TimeType}, evaluatedParameters, log::Bool)::Nothing where {FloatType,TimeType}
     for (i,leq) in enumerate(m.linearEquations)
         nx_vec = length(leq.x_names) - leq.nx_fixedLength
         if nx_vec > 0
@@ -1587,7 +1591,7 @@ function resizeLinearEquations!(m::SimulationModel{FloatType}, log::Bool)::Nothi
             for i = leq.nx_fixedLength+1:length(leq.x_names)
                 # Length  of element is determined by start or init value
                 xi_name  = leq.x_names[i]
-                xi_param = get_value(m.evaluatedParameters, xi_name)
+                xi_param = get_value(evaluatedParameters, xi_name)
                 if ismissing(xi_param)
                     @error "resizeLinearEquations!(instantiatedModel,$i): $xi_name is not part of the evaluated parameters."
                 end

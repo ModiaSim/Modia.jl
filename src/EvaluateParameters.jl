@@ -8,6 +8,30 @@ Recursively instantiate dependent objects and propagate value in hierarchical Na
 
 =#
 
+function getConstructorAsString(path, constructor, parameters):String
+    str = ""
+    for (key,value) in parameters
+        skey = string(key)
+        if length(skey) > 0 && skey[1] != '_'
+            if str != ""
+                str = str*", "
+            end
+            if typeof(value) == Symbol
+                svalue = ":" * string(value)
+            else
+                svalue = string(value)
+            end
+            str = str * skey * "=" * svalue
+        end
+    end
+    if isnothing(path)
+        str = string(constructor) * "(" * str * ")"
+    else
+        str = path * " = " * string(constructor) * "(" * str * ")"
+    end
+    return str
+end
+
 
 using OrderedCollections: OrderedDict
 
@@ -61,7 +85,9 @@ Recursively traverse the hierarchical collection `partiallyInstantiatedModel.par
   return nothing, if an error occurred (an error message was printed).
 """
 function propagateEvaluateAndInstantiate!(m::SimulationModel{FloatType,TimeType}; log=false) where {FloatType,TimeType}
-    removeHiddenStates(m.equationInfo)
+    removeHiddenStates!(m.equationInfo)
+    removeHiddenCrossingFunctions!(m.eventHandler)
+
     x_found = fill(false, length(m.equationInfo.x_info))
     map = propagateEvaluateAndInstantiate2!(m, m.parameters, x_found, [], ""; log=log)
 
@@ -126,9 +152,13 @@ function propagateEvaluateAndInstantiate!(m::SimulationModel{FloatType,TimeType}
         return nothing
     end
 
+    if isnothing(map)
+        return nothing
+    end
+
     # Resize linear equation systems if dimensions of vector valued tearing variables changed
-    resizeLinearEquations!(m, m.options.log)
-        
+    resizeLinearEquations!(m, map, m.options.log)
+
     #if length(x_start_missing) > 0
     #    printstyled("Model error: ", bold=true, color=:red)
     #    printstyled("Missing start/init values for variables: ", x_start_missing,
@@ -179,7 +209,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
     usePath             = false
     modelModule         = m.modelModule
     eqInfo              = m.equationInfo
-    
+
     if haskey(parameters, :_constructor)
         # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
         #          or: rev = (_constructor = (_class = :Par, value = :(Modia3D.ModiaRevolute), _path=true), kwargs...)
@@ -234,7 +264,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
                     #          or: k = (_class = :Par, value = :(bar.frame0)) -> k = ref(bar.frame0)
                     if log
                         println(" 4:    v[:value] = ", v[:value], ", typeof(v[:value]) = ", typeof(v[:value]))
-                        println("        vcat(environment, [current]) = ", vcat(environment, [current]))
+                        #println("        vcat(environment, [current]) = ", vcat(environment, [current]))
                     end
                     subv = subst(v[:value], vcat(environment, [current]), modelModule)
                     if log
@@ -341,22 +371,28 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             # Call: instantiateFunction(model, FloatType, Timetype, buildDict, path)
             # (1) Generate an instance of subModel and store it in buildDict[path]
             # (2) Define subModel states and store them in xxx
-            Core.eval(modelModule, :($instantiateFunction($m, $current, $path)))
             if log
-                println(" 13:    +++ Instantiated $path: $instantiateFunction called to instantiate sub-model and define hidden states\n\n")
+                println(" 13:    +++ Instantiated $path: $instantiateFunction will be called to instantiate sub-model and define hidden states\n\n")
             end
-        end    
+            Core.eval(modelModule, :($instantiateFunction($m, $current, $path)))
+        end
         return current
     else
-        if usePath
-            obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
-        else
-            obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; $current...)))
+        try
+            if usePath
+                obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
+            else
+                obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; $current...)))
+            end
+            if log
+                println(" 14:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")
+            end
+            return obj
+        catch
+            str = getConstructorAsString(path, constructor, parameters)
+            printstyled("\nError in model $(m.modelName) when instantiating\n$str\n", bold=true, color=:red)
+            Base.rethrow()
         end
-        if log
-            println(" 14:    +++ Instantiated $path: typeof(obj) = ", typeof(obj), ", obj = ", obj, "\n\n")
-        end
-        return obj
     end
 end
 

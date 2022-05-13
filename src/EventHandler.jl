@@ -101,7 +101,17 @@ end
 #EventHandler{FloatType}(; kwargs...) where {FloatType} = EventHandler{FloatType,Float64}(; kwargs...)
 
 
-function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType}
+function removeHiddenCrossingFunctions!(eh::EventHandler{FloatType,TimeType})::Nothing where {FloatType,TimeType}
+    if eh.nz > eh.nzVisible
+        resize!(eh.z, eh.nzVisible)
+        resize!(eh.zPositive, eh.nzVisible)
+        eh.nz = eh.nzVisible
+    end
+    return nothing
+end
+
+    
+function reinitEventHandler!(eh::EventHandler{FloatType,TimeType}, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType}
     eh.logEvents      = logEvents
     eh.nZeroCrossings = 0
     eh.nRestartEvents = 0
@@ -126,14 +136,10 @@ function reinitEventHandler(eh::EventHandler{FloatType,TimeType}, stopTime::Time
     eh.restart          = Restart
     eh.newEventIteration   = false
     eh.firstEventIteration = true
-    eh.z .= convert(FloatType, 0)
+    eh.z .= convert(FloatType, 1.0)
+    eh.zPositive .= false
     eh.after .= false
-
-    if eh.nz > eh.nzVisible
-        resize!(eh.z, eh.nzVisible)
-        resize!(eh.zPositive, eh.nzVisible)
-        eh.nz = eh.nzVisible
-    end
+    
     return nothing
 end
 
