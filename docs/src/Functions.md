@@ -103,7 +103,7 @@ The following functions are provided to **define/inquire the current plot packag
 The following functions are available after
 
 1. `ENV["MODIA_PLOT"] = XXX` (e.g. in startup.jl file) or
-    `@usingModiaPlot(XXX)` has been executed (XXX = "PyPlot", "GLMakie", "WGLMakie", "CairoMakie", "NoPlot" or "SilentNoPlot") and
+    `usePlotPackage(XXX)` has been executed (XXX = "PyPlot", "GLMakie", "WGLMakie", "CairoMakie", "NoPlot" or "SilentNoPlot") and
 2. `@usingModiaPlot` has been called,
 
 to **plot with the currently defined plot package**
@@ -125,7 +125,7 @@ names and units of the variables. Example:
 using Modia
 @usingModiaPlot
 
-instantiatedModel = @instantiatedModel(...)
+instantiatedModel = @instantiateModel(...)
 simulate!(instantiatedModel, ...)
 plot(instantiatedModel,
      [ ("phi", "r")        ("phi", "phi2", "w");
