@@ -456,10 +456,12 @@ mutable struct SimulationModel{FloatType,TimeType}
         # Define result
             # Store x and der_x
             for (xe_index, xe_info) in enumerate(equationInfo.x_info)
-                result_info[xe_info.x_name]     = ResultInfo(RESULT_X    , xe_index)
+                result_info[xe_info.x_name] = ResultInfo(RESULT_X, xe_index)
+            end
+            for (xe_index, xe_info) in enumerate(equationInfo.x_info)
                 result_info[xe_info.der_x_name] = ResultInfo(RESULT_DER_X, xe_index)
             end
-
+            
             # Store variables
             for (i, name) in enumerate(variableNames)
                 str_name = string(name)
