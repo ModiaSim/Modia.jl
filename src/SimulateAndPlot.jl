@@ -95,16 +95,18 @@ The simulation results are stored in `instantiatedModel` and can be plotted with
 `plot(instantiatedModel, ...)` and the result values
 can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`. `printResultInfo(instantiatedModel)`
 prints information about the signals in the result file.
-For more details, see chapter [Results and Plotting](@ref)).
+For more details, see sections [Parameters/Init/Start](@ref), [Results](@ref), [Plotting](@ref).
 
-The (optional) return argument `solution` is the return argument from `DifferentialEquations.solve(..)` and
+The return argument `solution` is the return argument from `DifferentialEquations.solve(..)` and
 therefore all post-processing functionality from `DifferentialEqautions.jl` can be used. Especially,
 - solution.t[i] # time-instant at storage point i (solution.t[end] = stopTime)
 - solution.u[i] # states at storage point i
 
-A simulation run can be aborted with `<CTRL> C` (SIGINT).
+A simulation run can be aborted with `<CTRL> C` (SIGINT), provided `using PyPlot` or `import PyPlot` was
+not called before (the signals in Python module matplotlib.pyplot intervene with Julias signals, see
+[PyPlot.jl issue 305](https://github.com/JuliaPy/PyPlot.jl/issues/305)).
 
-# Optional Arguments
+# Optional ArgumentsS
 
 - `merge`: Define parameters and init/start values that shall be merged with the previous values
            stored in `model`, before simulation is started. If, say, an init value `phi = Var(init=1.0)`
@@ -303,7 +305,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                 end
             else
                 # ODE integrator
-                m.odeIntegrator = true
+                m.odeIntegrator = true            
                 TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
             end
 
@@ -478,8 +480,6 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     return solution
 end
 
-#get_x_startIndexAndLength(m::SimulationModel, name) = Modia.get_x_startIndexAndLength(m.equationInfo, name)
-
 
 #---------------------------------------------------------------------
 #                          Linearization
@@ -589,7 +589,7 @@ ModiaResult.hasOneTimeSignal(m::SimulationModel) = true
 """
     hasSignal(instantiatedModel, name::AbstractString)
 
-Return true if parameter or time-varying variable `name` (for example `name = "a.b.c"`)
+Return true if time-varying variable `name` (for example `name = "a.b.c"`)
 is defined in the instantiateModel that can be accessed and can be used for plotting.
 """
 ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
@@ -601,11 +601,66 @@ ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
 end
 
 
+"""
+    hasParameter(instantiatedModel, name::AbstractString)
+
+Return true if parameter `name` (for example `name = "a.b.c"`)
+is defined in the instantiateModel.
+"""
+hasParameter(m::SimulationModel, name::AbstractString) = begin
+    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_vars) || ismissing(m.result_der_x)
+        return false
+    end
+    !ismissing(get_value(m.evaluatedParameters, name))
+end
+
+
+"""
+    getParameter(instantiatedModel, name::AbstractString)
+
+Return the value of parameter or init/start value `name` (for example `name = "a.b.c"`).
+If `name` is not known, `missing` is returned.
+"""
+getParameter(m::SimulationModel, name::AbstractString) = get_value(m.parameters, name)
+
+
+"""
+    getEvaluatedParameter(instantiatedModel, name::AbstractString)
+
+Return the value of evaluated parameter or init/start value `name` (for example `name = "a.b.c"`).
+If `name` is not known, `missing` is returned.
+"""
+getEvaluatedParameter(m::SimulationModel, name::AbstractString) = get_value(m.evaluatedParameters, name)
+
+
+"""
+    showParameters(instantiatedModel)
+
+Print the parameters and the init/start values.
+"""
+function showParameters(m::SimulationModel)::Nothing
+    parameters = m.parameters
+    @showModel parameters
+    return nothing
+end
+
+
+"""
+    showEvaluatedParameters(instantiatedModel)
+
+Print the evaluated parameters and the evaluated init/start values.
+"""
+function showEvaluatedParameters(m::SimulationModel)::Nothing
+    evaluatedParameters = m.evaluatedParameters
+    @showModel evaluatedParameters
+    return nothing
+end
+    
 
 """
     names = signalNames(instantiatedModel::Modia.SimulationModel)
 
-Return the variable names (parameters, time-varying variables) of an
+Return the names of the time-varying variables of an
 [`@instantiateModel`](@ref) that are present in the result (e.g. can be accessed for plotting).
 """
 ModiaResult.signalNames(m::SimulationModel) = collect(keys(m.result_info))
@@ -625,6 +680,12 @@ function ChainRules.rrule(::typeof(ResultView), v, i)
 end
 =#
 
+"""
+    (timeSignal, signal, signalType) = ModiaResult.rawSignal(instantiatedModel, name)
+    (timeSignal, signal, signalType) = Modia.rawSignal(      instantiatedModel, name)
+    
+Get raw signal of result from an instantiated model of Modia.
+"""
 function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
     tsig = m.result_x.t
     if !m.unitless

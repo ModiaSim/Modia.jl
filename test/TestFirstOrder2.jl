@@ -2,7 +2,7 @@ module TestFirstOrder2
 
 using Modia
 @usingModiaPlot
-using Test
+using Modia.Test
 
 # using RuntimeGeneratedFunctions
 # RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -68,6 +68,7 @@ simulate!(firstOrder3, Tsit5(), stopTime = 10u"hr")
 plot(firstOrder3, [("u", "x"), "der(x)"], figure=2)
 
 # Test all options
+println("\n... Test all options of @instantiateModel(..)")
 firstOrder3b = @instantiateModel(FirstOrder3, evaluateParameters=true, log=true, logModel=true, logDetails=true, logStateSelection=true,
                                 logCode=true, logExecution=true, logCalculations=true, logTiming=true)
 

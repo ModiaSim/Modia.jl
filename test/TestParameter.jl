@@ -2,7 +2,7 @@ module TestParameter
 
 using Modia
 @usingModiaPlot
-using Test
+using Modia.Test
 
 
 include("$(Modia.path)/models/Blocks.jl")

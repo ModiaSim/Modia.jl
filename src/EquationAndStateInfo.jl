@@ -17,11 +17,7 @@ export ResidualCategory, FD, FC_ALG, FC_LOW_HIGH, FC_MUE
 
 export LinearEquations
 
-export EquationInfo, StateElementInfo, update_equationInfo!, get_stateNames, get_x_table
-export initialStateVector, updateEquationInfo!
-
-export EquationInfoStatus, MANUAL, CODE_GENERATION, SOLVER_MODEL
-
+export EquationInfo, StateElementInfo, get_stateNames, get_x_table
 
 
 """
@@ -159,7 +155,7 @@ mutable struct LinearEquations{FloatType <: Real}
         @assert(length(x_names) > 0)
         @assert(length(x_names) == length(x_lengths))
         nx = sum(x_lengths)
-        @assert(nx > 0)
+        @assert(nx >= 0)
         useRecursiveFactorization = nx <= useRecursiveFactorizationUptoSize
 
         # Allocate value storage for vector elements
@@ -507,47 +503,13 @@ function LinearEquationsIteration!(leq::LinearEquations{FloatType}, isInitial::B
 end
 
 
-
 """
-    @enum EquationInfoStatus
-
-Status of an EquationInfo instance:
-
-- `MANUAL`: Is defined manually. The following variables in x_info::Vector{StateElementInfo}
-   are **not** defined:
-   x_names_julia, der_x_names_julia, length, unit, startIndex, nx.
-   With function [`update_equationInfo!`](@ref), the variables length, unit, startIndex
-   in x_info::Vector{StateElementInfo} are computed, as well as nx.
-
-- `CODE_GENERATION`: Is constructed during code generation with getSortedAndSolvedAST(..).
-  The following variables in x_info::Vector{StateElementInfo}
-  are **not** defined: startIndex, nx.
-  With function [`update_equationInfo!`](@ref), the variables startIndex
-  in x_info::Vector{StateElementInfo} are computed, as well as nx.
-
-- `SOLVER_MODEL`: Is used during simulation in a SolverModel. With function
-  [`update_equationInfo!`](@ref), missing variables are constructed depending
-  on the information given with `MANUAL` or `CODE_GENERATION` and the actual
-  modelValues instance (here unit and length information is available).
-"""
-@enum EquationInfoStatus MANUAL=1 CODE_GENERATION SOLVER_MODEL
-
-
-
-"""
-    xe_info = StateElementInfo(...)
+    xe_info = StateElementInfo(x_name, x_name_julia, der_x_name, der_x_name_julia,
+                               stateCategory, unit, startOrInit, fixed, nominal, unbounded;
+                               startIndex=-1)
 
 Return an instance of the mutable struct `StateElementInfo` that defines the information
-for one element of the state vector. There are three constructors:
-
-- Default constructor (all variables under section Arguments are given;
-  used to write/read the complete information).
-
-- All variables under section Arguments are given with exception of startIndex
-  (used for `EquationInfoStatus = CODE_GENERATION`).
-
-- StateElementInfo(x_name, der_x_name, stateCategory; fixed=nothing, nominal=NaN, unbounded=false)
-  (used for `EquationInfoStatus = MANUAL`):
+for one element of the state vector.
 
 # Arguments
 - x_name: Name of x-element or "" if no name (if stateCatebory = XLAMBDA or XMUE)
@@ -558,17 +520,16 @@ for one element of the state vector. There are three constructors:
 - der_x_name_julia: Julia name of der_x-element in getDerivatives!/getResiduals! function
   or "" if not needed (since no code generation).
 - stateCategory::StateCategory: Category of the state
-- length: length of x-element (or -1 if not yet known)
 - unit: unit of XD, XALG (x_name) or XLAMBDA, XMUE (der_x_name) or "" if not yet known)
+- startOrInit: Start or init value (scalar or vector)
 - fixed: false (= guess value) or true (= not changed by initialization).
          Only relevant for ode=false, otherwise ignored.
-- nominal: Nominal value (NaN if determined via start value)
+- nominal: Nominal value (NaN if determined via startOrInit value)
 - unbounded: false or true
-- startIndex: start index of x-element with respect to x-vector
-              or -1 if not yet known.
+- startIndex: = -1, if not yet known. If hidden state, startIndex with respect to x_hidden.
 """
 mutable struct StateElementInfo
-    x_name::String                # Modia name of x-element or "" if no name (for )
+    x_name::String                # Modia name of x-element or "" if no name
     x_name_julia                  # Julia name of x-element in getDerivatives! function
                                   # or "", if not needed (since no code generation).
     der_x_name::String            # Modia name of der_x-element or "" if either "der(x_name)" or if no name,
@@ -587,32 +548,23 @@ mutable struct StateElementInfo
                                   # = false, if length of value is determined before initialization
     scalar::Bool                  # = true, if scalar
                                   # = false, if vector
-    length::Int                   # length of x-element
-    startIndex::Int               # start index of element with respect to x-vector (if fixedLength=true)
-                                  # or with respect to x_vec-vector (if fixedLength=false)
+    length::Int                   # length of x-element or -1 if not yet known
+    startIndex::Int               # start index of state with respect to x-vector or -1 if not yet known
+    x_hidden_startIndex::Int      # start index of hidden state with respect to x_hidden vector
+                                  # or -1, if it is no hidden state (for a hidden state, x_hidden_startIndex
+                                  # is consistently set when it is added via addHiddenState(..)).
 end
 
 
 
 # Constructor for code-generation
 StateElementInfo(x_name, x_name_julia, der_x_name, der_x_name_julia,
-                 stateCategory, unit, startOrInit, fixed, nominal, unbounded) = StateElementInfo(
+                 stateCategory, unit, startOrInit, fixed, nominal, unbounded;
+                 startIndex = -1, x_hidden_startIndex=-1) = StateElementInfo(
                  x_name, x_name_julia, der_x_name, der_x_name_julia,
-                 stateCategory, unit, startOrInit, fixed, nominal, unbounded,
+                 stateCategory, unit, deepcopy(startOrInit), fixed, nominal, unbounded,
                  isFixedLengthStartOrInit(startOrInit, x_name), !(startOrInit isa AbstractArray),
-                 startOrInit isa Nothing ? 1 : length(startOrInit), -1)
-
-
-# Constructor for reading StateElementInfo after code-generation (x_name_julia and der_x_name_julia are not included
-#StateElementInfo(x_name, der_x_name,
-#                 stateCategory, unit, startOrInit, fixed, nominal, unbounded) = StateElementInfo(
-#                 x_name, :(), der_x_name, :(),
-#                 stateCategory, unit, startOrInit, fixed, nominal, unbounded, -1)
-
-# Constructor for manually generated equation info.
-#StateElementInfo(x_name, der_x_name, stateCategory=XD; fixed=false, nominal=NaN, unbounded=false) =
-#    StateElementInfo(x_name, :(), der_x_name, :(), stateCategory, "", nothing, fixed, nominal, unbounded, -1)
-
+                 startOrInit isa Nothing ? 1 : length(startOrInit), startIndex, x_hidden_startIndex)
 
 function Base.show(io::IO, xe_info::StateElementInfo)
     print(io, "Modia.StateElementInfo(")
@@ -634,6 +586,7 @@ function Base.show(io::IO, xe_info::StateElementInfo)
     print(io, ",", xe_info.scalar)
     print(io, ",", xe_info.length)
     print(io, ",", xe_info.startIndex)
+    print(io, ",", xe_info.x_hidden_startIndex)
     print(io, ")")
     return nothing
 end
@@ -660,116 +613,94 @@ function get_x_table(x_info::Vector{StateElementInfo})
 end
 
 
-"""
-    nx = stateVectorLength(x_info::Vector{StateElementInfo})
-
-Return the length of the state vector
-"""
-function stateVectorLength(x_info::Vector{StateElementInfo})::Int
-    nx = 0
-    for xe_info in x_info
-        nx += xe_info.length
-    end
-    return nx
-end
-
-
+@enum EquationInfoStatus EquationInfo_Instantiated EquationInfo_Initialized_Before_Code_Generation EquationInfo_After_All_States_Are_Known
 
 """
-    eqInfo = EquationInfo(;
-                status               = MANUAL,
-                ode                  = true,
-                nz                   = 0,
-                x_info               = StateElementInfo[],
-                nx                   = -1,
-                nx_infoFixed         = -1,
-                residualCategories   = ResidualCategory[],
-                linearEquations      = Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}[],
-                vSolvedWithFixedTrue = String[],
-                defaultParameterAndStartValues = nothing,
-                ResultType = nothing,
-                ResultTypeHasFloatType = false)
+    eqInfo = EquationInfo()
 
-Return instance `eqInfo` that defines the information for the equation system.
-
-# Arguments
-- status::EquationInfoStatus: Defines the variables that have a value.
-- ode: = true if ODE-interface (`getDerivatives!`),
-       = false if DAE-interface (`getResiduals!`).
-- nz: Number of zero crossing functions.
-- x_info: Vector of StateElementInfo elements provding info for every x-element
-- residualCategories: If ode=true, length(residualCategories) = 0.
-             If ode=false: residualCategories[i] is the `ResidualCategory`](@ref) of x-element "i".
-- `linearEquations::Vector{Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}}`:
-               linearEquations[i] defines a
-               Modia.LinearEquations system, where the first tuple value
-               is a vector of the names of the unknowns,
-               the second tuple value is a vector of the Julia names of the vector-valued elements,
-               the third tuple value is a vector with the lengths of the unknowns,
-               the fourth tuple value is the number of residuals and the fifth tuple value
-               defines whether the coefficient matrix A
-               has only constant entries (=true) or not (=false).
-- `vSolvedWithFixedTrue::Vector{String}`: Vector of variables that are computed
-               from other variables and have `fixed=true`. During initialization
-               it is checked whether the calculated values and the start values of
-               these variables agree. If this is not the case, an error is triggered.
-- `defaultParameterAndStartValues`: Dictionary of default paramter and default start values.
-- `ResultType::AbstractModelValues`: ModelValues type that shall be used for the result generation
-               (= ModelValues struct without parameters).
-- `ResultTypeHasFloatType::Bool`: = false, if `ResultType` is not parameterized.
-                                  = true, if `ResultType` has parameter `FloatType`.
+Return initial instance `eqInfo` that defines the information for the model equations
+(especially, states and linear equation systems).
 """
 mutable struct EquationInfo
-    status::EquationInfoStatus
-    ode::Bool                                      # = true if ODE model interface, otherwise DAE model interface
+    status::EquationInfoStatus                     # Defines which information is consistent in EquationInfo
+    ode::Bool                                      # = true  if ODE-interface (`getDerivatives!`),
+                                                   # = false if DAE-interface (`getResiduals!`).
     nz::Int                                        # Number of crossing functions
-    x_info::Vector{StateElementInfo}
+    x_info::Vector{StateElementInfo}               # Vector of StateElementInfo elements provding info for every x-element
     residualCategories::Vector{ResidualCategory}   # If ode=true, length(residualCategories) = 0
                                                    # If ode=false, residualCategories[j] is the ResidualCategory of residual[j]
     linearEquations::Vector{Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}}
-    vSolvedWithFixedTrue::Vector{String}
+                                                   # linearEquations[i] defines a
+                                                   # Modia.LinearEquations system, where the first tuple value
+                                                   # is a vector of the names of the unknowns,
+                                                   # the second tuple value is a vector of the Julia names of the vector-valued elements,
+                                                   # the third tuple value is a vector with the lengths of the unknowns,
+                                                   # the fourth tuple value is the number of residuals and the fifth tuple value
+                                                   # defines whether the coefficient matrix A
+                                                   # has only constant entries (=true) or not (=false).
+    vSolvedWithFixedTrue::Vector{String}           # Vector of variables that are computed
+                                                   # from other variables and have `fixed=true`. During initialization
+                                                   # it is checked whether the calculated values and the start values of
+                                                   # these variables agree. If this is not the case, an error is triggered.
     nx::Int                                        # = length(x) or -1 if not yet known
+                                                   #   This variable is updated once all states are known.
     nxVisible::Int                                 # = number of visible x-elements (so x[1:nxVisible] are visible states) or -1 if not yet known
+                                                   #   This variable is updated once all states are known.
+    nxHidden::Int                                  # = number of hidden x-elements (x[nxVisible+1:nxVisible+nxHidden].
+                                                   #   This variable is always updated consistently via function addHiddenState!(..)
+                                                   #   (nxHidden=0, if there are no hidden states yet).
     nx_infoFixed::Int                              # x_info[1:nx_infoFixed] are states with fixed length (does not change after compilation) or -1 if not yet known
     nx_infoVisible::Int                            # x_info[1:nx_infoVisible] are states that are visible in getDerivatives!(..) or -1 if not yet known
                                                    # x_info[nx_infoVisible+1:end] are states defined in functions that are not visible in getDerivatives!(..)
     #x_infoByIndex::Vector{Int}                     # i = x_infoByIndex[j] -> x_info[i]
     #                                               # or empty vector, if not yet known.
-    x_dict::OrderedCollections.OrderedDict{String,Int}      # x_dict[x_name] returns the index of x_name with respect to x_info
-    der_x_dict::OrderedCollections.OrderedDict{String,Int}  # der_x_dict[der_x_name]  returns the index of der_x_name with respect to x_info
-    defaultParameterAndStartValues::Union{AbstractDict,Nothing}
-    ResultType
-    ResultTypeHasFloatType::Bool
+    x_dict::OrderedCollections.OrderedDict{String,Int}           # x_dict[x_name] returns the index of x_name with respect to x_info
+    der_x_dict::OrderedCollections.OrderedDict{String,Int}       # der_x_dict[der_x_name]  returns the index of der_x_name with respect to x_info
+    defaultParameterAndStartValues::Union{AbstractDict,Nothing}  # Dictionary of default parameter and default start values.
+
+    function EquationInfo()
+        ode                   = true
+        nz                    = 0
+        x_info                = StateElementInfo[]
+        residualCategories    = ResidualCategory[]
+        linearEquations       = Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}[]
+        vSolvedWithFixedTrue  = String[]
+        nx                    = -1
+        nxVisible             = -1
+        nxHidden              =  0
+        nx_infoFixed          = -1
+        nx_infoVisible        = -1
+        x_dict                = OrderedCollections.OrderedDict{String,Int}()
+        der_x_dict            = OrderedCollections.OrderedDict{String,Int}()
+        defaultParameterAndStartValues = nothing
+        new(EquationInfo_Instantiated, ode, nz, x_info, residualCategories, linearEquations, vSolvedWithFixedTrue,
+            nx, nxVisible, nxHidden, nx_infoFixed, nx_infoVisible, x_dict, der_x_dict,
+            defaultParameterAndStartValues)
+    end
 end
 
 
-EquationInfo(; status                = MANUAL,
-               ode                   = true,
-               nz                    = 0,
-               x_info                = StateElementInfo[],
-               residualCategories    = ResidualCategory[],
-               linearEquations       = Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}[],
-               vSolvedWithFixedTrue  = String[],
-               nx_infoFixed          = -1,
-               nx_infoVisible        = -1,
-               defaultParameterAndStartValues::Union{AbstractDict,Nothing} = nothing,
-               ResultType = nothing,
-               ResultTypeHasFloatType = false) = EquationInfo(status, ode, nz, x_info,
-                                                    residualCategories, linearEquations,
-                                                    vSolvedWithFixedTrue, -1, -1,
-                                                    nx_infoFixed, nx_infoVisible,
-                                                    OrderedCollections.OrderedDict{String,Int}(),
-                                                    OrderedCollections.OrderedDict{String,Int}(),
-                                                    defaultParameterAndStartValues,
-                                                    ResultType, ResultTypeHasFloatType)
-
-
 """
-    initEquationInfo!(eqInfo::EquationInfo)
+    initEquationInfo!(eqInfo::EquationInfo, nx_infoFixed)
 
-Set eqInfo.x_dict, eqInfo.der_x_dict, eqInfo.nx and eqInfo.x_info[:].startIndex
+Initialize `eqInfo` before code generation.
+`nx_infoFixed` are the number of states with fixed length (do not change after compilation).
+
+The following variables get a consistent value:
+
+```
+eqInfo.x_dict[x_name]         = ...,
+eqInfo.der_x_dict[der_x_name] = ...,
+eqInfo.nx, eqInfo.nxVisible,
+eqInfo.nx_infoFixed, eqInfo.nx_infoVisible,
+eqInfo.x_info[:].startIndex.
+```
+
+This function must be called before hidden states are set (eqInfo.nxHidden=0).
 """
-function initEquationInfo!(eqInfo::EquationInfo)::Nothing
+function initEquationInfo!(eqInfo::EquationInfo, nx_infoFixed::Int)::Nothing
+    @assert(eqInfo.status == EquationInfo_Instantiated)
+    @assert(eqInfo.nxHidden == 0)
     x_dict     = eqInfo.x_dict
     der_x_dict = eqInfo.der_x_dict
     startIndex = 1
@@ -781,33 +712,55 @@ function initEquationInfo!(eqInfo::EquationInfo)::Nothing
     end
     eqInfo.nx        = startIndex - 1
     eqInfo.nxVisible = eqInfo.nx
+    eqInfo.nx_infoFixed   = nx_infoFixed
     eqInfo.nx_infoVisible = length(eqInfo.x_info)
+
+    eqInfo.status = EquationInfo_Initialized_Before_Code_Generation
     return nothing
 end
 
 
 """
-    x_init = initialStateVector(eqInfo::EquationInfo, FloatType)
+    x_hidden_startIndex = addHiddenState!(
+                            eqInfo::EquationInfo,
+                            x_name::String,
+                            der_x_name::String,
+                            startOrInit;   # Scalar or Vector
+                            stateCategory::StateCategory = XD,
+                            unit::String     = "",
+                            fixed::Bool      = true,
+                            nominal::Float64 = NaN,
+                            unbounded::Bool  = false)
 
-Return initial state vector `Vector{FloatType}` with stripped units.
+Add new hidden state to model and return its index with respect to x_hidden, der_x_hidden.
+The state is stored at place m.x_hidden[x_hidden_startIndex:x_hidden_startIndex+length(startOrInit)-1].
 """
-function initialStateVector(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
-    x_start = zeros(FloatType, eqInfo.nx)
-    startIndex = 1
-    for xe_info in eqInfo.x_info
-        if xe_info.scalar
-            if !(xe_info.startOrInit isa Nothing)
-                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
-                startIndex += 1
-            end
-        else
-            for i = 1:xe_info.length
-                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit[i]))
-                startIndex += 1
-            end
-        end
+function addHiddenState!(
+                    eqInfo::EquationInfo,
+                    x_name::String,
+                    der_x_name::String,
+                    startOrInit;
+                    stateCategory::StateCategory = XD,
+                    unit::String     = "",
+                    fixed::Bool      = true,
+                    nominal::Float64 = NaN,
+                    unbounded::Bool  = false)::Int
+    @assert(eqInfo.status == EquationInfo_Initialized_Before_Code_Generation)
+    if haskey(eqInfo.x_dict, x_name) ||
+       haskey(eqInfo.der_x_dict, der_x_name)
+       error("Trying to add hidden state x_name=$x_name, der_x_name=$der_x_name but one or both names are already in use!")
     end
-    return x_start
+
+    x_hidden_startIndex = eqInfo.nxHidden+1
+    xi_info = StateElementInfo(x_name, Symbol(x_name), der_x_name, Symbol(der_x_name),
+                               stateCategory, unit, startOrInit, fixed, nominal, unbounded,
+                               x_hidden_startIndex = x_hidden_startIndex)
+    push!(eqInfo.x_info, xi_info)
+    x_infoIndex = length(eqInfo.x_info)
+    eqInfo.x_dict[x_name]         = x_infoIndex
+    eqInfo.der_x_dict[der_x_name] = x_infoIndex
+    eqInfo.nxHidden += length(startOrInit)
+    return x_hidden_startIndex
 end
 
 
@@ -817,6 +770,7 @@ end
 Remove all hidden (non-visible) states from `eqInfo`.
 """
 function removeHiddenStates!(eqInfo::EquationInfo)::Nothing
+    @assert(eqInfo.status == EquationInfo_After_All_States_Are_Known)
     if eqInfo.nx > eqInfo.nxVisible
         for i = eqInfo.nx_infoVisible+1:length(eqInfo.x_info)
             xi_info = eqInfo.x_info[i]
@@ -826,59 +780,29 @@ function removeHiddenStates!(eqInfo::EquationInfo)::Nothing
         resize!(eqInfo.x_info, eqInfo.nx_infoVisible)
         eqInfo.nx = eqInfo.nxVisible
     end
+    eqInfo.nxHidden = 0
+    eqInfo.status = EquationInfo_Initialized_Before_Code_Generation
     return nothing
 end
 
 
 """
-    x_infoIndex = addState(eqInfo::EquationInfo,
-                           x_name::String, der_x_name::String, startOrInit::Vector{FloatType};
-                           stateCategory::StateCategory = XD,
-                           unit::String     = "",
-                           fixed::Bool      = true,
-                           nominal::Float64 = NaN,
-                           unbounded::Bool  = false)::Int where {FloatType}
+    x_start = initialStateVector!(eqInfo::EquationInfo, FloatType)::Vector{FloatType}
 
-Add new state to model and return its index (new state info is stored in eqInfo.x_info[xindex]).
+The function updates `eqInfo` (e.g. sets eqInfo.nx, eqInfo.nxVisible) and returns the initial state vector x_start.
+
+This function must be called, after all states are known (after calling propagateEvaluateAndInstantiate!(..)).
 """
-function addState(eqInfo::EquationInfo, x_name::String, der_x_name::String, startOrInit::Vector{FloatType};
-                  stateCategory::StateCategory = XD,
-                  unit::String     = "",
-                  fixed::Bool      = true,
-                  nominal::Float64 = NaN,
-                  unbounded::Bool  = false)::Int where {FloatType}
-    if haskey(eqInfo.x_dict, x_name) ||
-       haskey(eqInfo.der_x_dict, der_x_name)
-       error("Trying to add hidden state x_name=$x_name, der_x_name=$der_x_name but one or both names are already in use!")
-    end
-
-    xi_info = StateElementInfo(x_name, Symbol(x_name), der_x_name, Symbol(der_x_name),
-                               stateCategory, unit, startOrInit, fixed, nominal, unbounded)
-    push!(eqInfo.x_info, xi_info)
-    x_infoIndex = length(eqInfo.x_info)
-    eqInfo.x_dict[x_name]         = x_infoIndex
-    eqInfo.der_x_dict[der_x_name] = x_infoIndex
-    return x_infoIndex
-end
-
-
-"""
-    x_start = updateEquationInfo!(eqInfo::EquationInfo, FloatType)
-
-Set eqInfo.x_dict, eqInfo.der_x_dict, eqInfo.nx and eqInfo.x_info[:].startIndex
-and return initial state vector x_start
-"""
-function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
+function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
+    @assert(eqInfo.status == EquationInfo_Initialized_Before_Code_Generation)
     nx_infoFixed = eqInfo.nx_infoFixed
-    x_info        = eqInfo.x_info
+    x_info       = eqInfo.x_info
+
     if length(x_info) == 0
         # Handle systems with only algebraic variables, by introducing a dummy
         # differential equation der_x[1] = -x[1], with state name _dummy_x
-        push!(x_info, Modia.StateElementInfo(
-              "_dummy_x", :(), "der(_dummy_x)", :(), XD, "", 0.0, true, NaN, false))
+        addHiddenState!(eqInfo, "_dummy_x", "der(_dummy_x)", FloatType(0.0))
         startIndex = 1
-        eqInfo.x_dict["_dummy_x"]          = 1
-        eqInfo.der_x_dict["der(_dummy_x)"] = 1
     elseif nx_infoFixed == 0
         startIndex = 1
     else
@@ -886,28 +810,49 @@ function updateEquationInfo!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
         startIndex = xi_info.startIndex + xi_info.length
     end
 
-    for i = nx_infoFixed+1:length(x_info)
+    # Set startIndex for visible states where the size was not fixed before code generation
+    for i = nx_infoFixed+1:eqInfo.nx_infoVisible
+        xi_info = x_info[i]
+        xi_info.length     = length(xi_info.startOrInit)
+        xi_info.startIndex = startIndex
+        startIndex        += xi_info.length
+    end
+    eqInfo.nxVisible = startIndex - 1
+
+    # Set startIndex for hidden states
+    for i = eqInfo.nx_infoVisible+1:length(x_info)
         xi_info = x_info[i]
         xi_info.length     = length(xi_info.startOrInit)
         xi_info.startIndex = startIndex
         startIndex        += xi_info.length
     end
     eqInfo.nx = startIndex - 1
-    
-    nxVisible = 0
-    for i = 1:eqInfo.nx_infoVisible
-        xi_info = x_info[i]
-        nxVisible += x_info[i].length
+    @assert(eqInfo.nx == eqInfo.nxVisible + eqInfo.nxHidden)
+
+    # Construct x_start
+    x_start = zeros(FloatType, eqInfo.nx)
+    startIndex = 1
+    for xe_info in eqInfo.x_info
+        if xe_info.scalar
+            if isnothing(xe_info.startOrInit)
+                x_name = xe_info.x_name
+                @warn "State $x_name has no start or init value defined. Using start value = 0.0."
+            else
+                @assert(length(xe_info.startOrInit) == 1)
+                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
+            end
+            startIndex += 1
+        else
+            xe_start = Vector{FloatType}(ustrip(xe_info.startOrInit))
+            @assert(length(xe_start) == xe_info.length)
+            copyto!(x_start, startIndex, xe_start, 1, length(xe_start))
+            startIndex += length(xe_start)
+        end
     end
-    eqInfo.nxVisible = nxVisible
 
-    return initialStateVector(eqInfo, FloatType)
-end
-
-
-get_x_startIndexAndLength(eqInfo::EquationInfo, name::String) = begin
-    xe_info = eqInfo.x_info[ eqInfo.x_dict[name] ]
-    (xe_info.startIndex, xe_info.length)
+    @assert(eqInfo.nx == startIndex - 1)
+    eqInfo.status = EquationInfo_After_All_States_Are_Known
+    return x_start
 end
 
 
@@ -926,7 +871,6 @@ function Base.show(io::IO, eqInfo::EquationInfo; indent=4)
     indentation2 = repeat(" ", 2*indent)
     indentation3 = repeat(" ", 3*indent)
     println(io, "Modia.EquationInfo(")
-    println(io, indentation2, "status = Modia.", eqInfo.status, ",")
     println(io, indentation2, "ode = ", eqInfo.ode, ",")
     if eqInfo.nz > 0
         println(io, indentation2, "nz = ", eqInfo.nz, ",")
@@ -973,25 +917,20 @@ function Base.show(io::IO, eqInfo::EquationInfo; indent=4)
         show(io, eqInfo.vSolvedWithFixedTrue)
     end
 
-    if eqInfo.nx > 0
-        print(io, ",\n", indentation2, "nx = ", eqInfo.nx)
+    if eqInfo.nx >= 0
+        nx = eqInfo.nx
+        nxVisible = eqInfo.nxVisible
+        nxHidden  = eqInfo.nxHidden
+        nx_infoFixed = eqInfo.nx_infoFixed
+        nx_infoVisible = eqInfo.nx_infoVisible
+        print(io, ",\n", indentation2, "nx = $nx, nxVisible = $nxVisible, nxHidden = $nxHidden")
+        print(io, ",\n", indentation2, "nx_infoFixed = $nx_infoFixed, nx_infoVisible = $nx_infoVisible")
     end
 
     if !isnothing(eqInfo.defaultParameterAndStartValues)
         print(io, ",\n", indentation2, "defaultParameterAndStartValues = ")
         show(io, eqInfo.defaultParameterAndStartValues, indent=12, finalLineBreak=false)
     end
-
-    if !isnothing(eqInfo.ResultType)
-        print(io, ",\n", indentation2, "ResultType = ")
-        show(io, eqInfo.ResultType)
-
-        if eqInfo.ResultTypeHasFloatType
-            print(io, ",\n", indentation2, "ResultTypeHasFloatType = ")
-            show(io, eqInfo.ResultTypeHasFloatType)
-        end
-    end
-
 
     println(io, "\n", indentation, ")")
     return nothing
@@ -1025,68 +964,3 @@ function get_xNames(eqInfo::EquationInfo)::Vector{String}
     end
     return xNames
 end
-
-
-
-#=
-"""
-    update_equationInfo!(eqInfo::EquationInfo)
-
-Update equationInfo as needed for [`EquationInfoStatus`](@ref)` = SOLVER_MODEL`.
-"""
-function update_equationInfo!(eqInfo::EquationInfo, modelValues::Modia.AbstractModelValues)::Nothing
-    x_info = eqInfo.x_info
-
-    if eqInfo.status == MANUAL
-        # Determine length and unit
-		count = 0
-        for xi_info in x_info
-            if xi_info.x_name != "" # XD or XALG
-                (component,name) = Modia.get_modelValuesAndName(modelValues, xi_info.x_name)
-            elseif xi_info.der_x_name != ""  # XLAMBDA or XMUE
-                (component,name) = Modia.get_modelValuesAndName(modelValues, xi_info.der_x_name)
-            else
-				# Pure algebraic with dummy equation der(x) = -x, x(0) = 0
-				xi_info.length = 1
-				count = count+1
-				continue
-            end
-
-	        xi_type        = fieldtype(typeof(component), name)
-			xi_numberType  = Modia.numberType(xi_type)
-            xi_info.unit   = replace(string(unit(xi_numberType)), " " => "*")
-            xi_info.length = Base.length(xi_type)  # Base.length(::Type{<:Number})=1 is defined in Modia, since not defined in Base
-        end
-		if count == 1 && length(x_info) > 1 || count >  1
-			error("Error in update_equationInfo!: x_info is wrong.\n",
-				  "x_info = $x_info")
-		end
-    end
-
-    # Set startIndex in x_info and compute nx
-    startIndex = 1
-    for xi_info in x_info
-        xi_info.startIndex = startIndex
-        startIndex += xi_info.length
-    end
-    nx = startIndex - 1
-    eqInfo.nx = nx
-
-    # Set x_infoByIndex::Vector{Int}
-    eqInfo.x_infoByIndex = zeros(Int,nx)
-    i1 = 0
-    i2 = 0
-    for (i,xi_info) in enumerate(x_info)
-        i1 = xi_info.startIndex
-        i2 = i1 + xi_info.length - 1
-        for j = i1:i2
-            eqInfo.x_infoByIndex[j] = i
-        end
-    end
-
-    eqInfo.status = SOLVER_MODEL
-
-    return nothing
-end
-=#
-

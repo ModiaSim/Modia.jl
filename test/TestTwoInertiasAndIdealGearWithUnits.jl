@@ -2,7 +2,7 @@ module TestTwoInertiasAndIdealGearWithUnits
 
 using Modia
 @usingModiaPlot
-using Test
+using Modia.Test
 
 TwoInertiasAndIdealGearWithUnits = Model(
     J1 = 0.0025u"kg*m^2",

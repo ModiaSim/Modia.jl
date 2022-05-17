@@ -1,7 +1,7 @@
 module TestStateSelection
 
 using Modia
-using Test
+using Modia.Test
 
 function checkStateSelection(model, x_names, linearEquations=[])
     # Check names of the states

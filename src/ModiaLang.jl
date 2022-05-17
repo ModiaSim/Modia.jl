@@ -723,12 +723,10 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
 #    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
-     x_startValues = nothing    # deprecated, is no longer used; just temporarily kept for backwards compatibility 
-                                # = initialStateVector(equationInfo, FloatType)
-
+ 
 #    println("Build SimulationModel")
 
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
+    model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
                                          mappedParameters, extraResults;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
@@ -738,7 +736,6 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     if logExecution
         println("\nExecute getDerivatives")
     #    @show startValues
-        #derx = deepcopy(x_startValues)     # deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
         println("First executions of getDerivatives")
         @timeit to "execute getDerivatives" try
             #@time Base.invokelatest(getDerivatives, derx, x_startValues, model, convert(TimeType, 0.0))

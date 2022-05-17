@@ -74,14 +74,18 @@ function showModel(m::OrderedDict, level=0)
             for e in v.args
                 println("  "^(level+1), e)
             end
-            println("  "^level, "]")
+            println("  "^level, "]")         
         elseif typeof(v) <: AbstractArray
-            println("  "^level, k, " = [")  
-            for e in v
-                print("  "^(level+1))
-                showModel(e, level+1)
+            if eltype(v) <: Number
+                println("  "^level, k, " = ", v)
+            else
+                println("  "^level, k, " = [")  
+                for e in v
+                    print("  "^(level+1))
+                    showModel(e, level+1)
+                end
+                println("  "^level, "]")
             end
-            println("  "^level, "]")
         elseif k != :_class
             #println("  "^level, k, " = ", stringifyDefinition(v), ",")
             print("  "^level, k, " = ")

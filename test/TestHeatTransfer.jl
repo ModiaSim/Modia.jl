@@ -2,7 +2,7 @@ module TestHeatTransfer
 
 using Modia
 @usingModiaPlot
-using Test
+using Modia.Test
 
 
 include("$(Modia.path)/models/HeatTransfer.jl")

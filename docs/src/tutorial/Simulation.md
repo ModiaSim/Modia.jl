@@ -85,7 +85,7 @@ used on the return argument `sol` of `simulate!`.
 ## 3.4 Plotting
 
 A short overview of the most important plot commands is given in
-section [Results and Plotting](@ref)
+section [Plotting](@ref)
 
 
 ## 3.5 State selection (DAEs)

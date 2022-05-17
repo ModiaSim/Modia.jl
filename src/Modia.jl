@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.9.0-dev"
-const Date = "2022-05-11"
+const Date = "2022-05-17"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -48,8 +48,10 @@ export simulate!, linearize!, get_result
 export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
 export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
 export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
+export hasParameter, getParameter, getEvaluatedParameter
+export showParameters, showEvaluatedParameters
 
-export SimulationModel, measurementToString, get_lastValue
+export SimulationModel, measurementToString, get_lastValue, getLastValue
 export positive, negative, previous, edge, after, reinit, pre
 export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames
@@ -158,6 +160,14 @@ v = Data{Float64}(2.0u"mm/s")
 quantity(numberType, numberUnit::Unitful.FreeUnits) = Quantity{numberType, dimension(numberUnit), typeof(numberUnit)} 
 
 quantityTypes(::Type{Unitful.Quantity{T,D,U}}) where {T,D,U} = (T,D,U)
+
+
+"""
+    str = modelPathAsString(modelPath::Union{Expr,Symbol,Nothing})
+    
+Return modelPath of submodel as string.
+"""
+modelPathAsString(modelPath::Union{Expr,Symbol,Nothing}) = isnothing(modelPath) ? "" : string(modelPath)
 
 
 include("EquationAndStateInfo.jl")

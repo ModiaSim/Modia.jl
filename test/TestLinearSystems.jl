@@ -3,6 +3,8 @@ module TestLinearSystems
 using Modia
 using Modia.OrderedCollections
 using Modia.LinearAlgebra
+using Modia.StaticArrays
+using Modia.Test
 @usingModiaPlot
 
 """
@@ -37,7 +39,7 @@ SSTest = Model(
                           y = ss.y[1]]
          )
 
-ssTest = @instantiateModel(SSTest, logCode=true)
+ssTest = @instantiateModel(SSTest, logCode=false)
 simulate!(ssTest, stopTime=1.0, log=true, logStates=true)
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=1)
 
@@ -56,15 +58,15 @@ LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace
                                         kwargs...)
 
 mutable struct LinearStateSpaceStruct{FloatType}
-    path::String      # Path name of instance
-    x_infoIndex::Int  # Index with respect to equationInfo.x_info
+    path::String              # Path name of instance
+    x_hidden_startIndex::Int
     A::Matrix{FloatType}
     B::Matrix{FloatType}
     C::Matrix{FloatType}
     x_init::Vector{FloatType}  # Initial values of states
     y::Vector{FloatType}       # Internal memory for y
     x::Vector{FloatType}       # Internal memory for x
-    derx::Vector{FloatType}    # Internal memory for derx
+    der_x::Vector{FloatType}   # Internal memory for der(x)
 
     function LinearStateSpaceStruct{FloatType}(; A::AbstractMatrix, B::AbstractMatrix, C::AbstractMatrix,
                                                  x_init::Union{AbstractVector,Nothing}=nothing,
@@ -100,6 +102,8 @@ mutable struct LinearStateSpaceBuild{FloatType}
 
     function LinearStateSpaceBuild{FloatType}(path::String, nu::Int, ny::Int) where {FloatType}
         #println("... 2: LinearStateSpaceBuild called with path = $path")
+        @assert(nu >= 0)
+        @assert(ny >= 0)
         new(path,nu,ny,nothing)
     end
 end
@@ -109,7 +113,7 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
                                 buildDict::OrderedCollections.OrderedDict{String,Any},
                                 path::Union{Expr,Symbol,Nothing})
     # Called from @instantiatedModel, during instantiation of the model.
-    pathAsString = isnothing(path) ? "" : string(path)
+    pathAsString = Modia.modelPathAsString(path)
     #println("... 1: buildLinearStateSpace! called for path = ", pathAsString)
 
     # Determine nu,ny from model
@@ -137,15 +141,17 @@ end
 
 
 function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationModel{FloatType,TimeType},
-                                      model::AbstractDict, path::String)::Nothing where {FloatType,TimeType}
+                                      model::AbstractDict, path::String; log=false)::Nothing where {FloatType,TimeType}
     # Called during evaluation of the parameters (before initialization)
-    #println("... 3: instantiateLinearStateSpace! called for $path with model = $model")
+    if log
+        println("instantiateLinearStateSpace! called for $path with model = $model")
+    end
     lsBuild::LinearStateSpaceBuild{FloatType} = partiallyInstantiatedModel.buildDict[path]
     ls = LinearStateSpaceStruct{FloatType}(; path, model...)
     @assert(size(ls.A,2) == size(ls.A,1))
     @assert(size(ls.B,2) == lsBuild.nu)
     @assert(size(ls.C,1) == lsBuild.ny)
-    ls.x_infoIndex = Modia.addState(partiallyInstantiatedModel.equationInfo, path*".x", path*".der(x)", ls.x_init)
+    ls.x_hidden_startIndex = Modia.addHiddenState!(partiallyInstantiatedModel.equationInfo, path*".x", "der("*path*".x)", ls.x_init)
     lsBuild.ls = ls
     return nothing
 end
@@ -153,7 +159,7 @@ end
 
 function openLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = instantiatedModel.buildDict[path].ls
-    copyState!(instantiatedModel, ls.x_infoIndex, ls.x)
+    Modia.copyFromHiddenState!(instantiatedModel, ls.x_hidden_startIndex, ls.x)
     return ls
 end
 
@@ -163,10 +169,10 @@ function computeOutputs!(instantiatedModel, ls)
 end
 
 function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
-    # ls.derx .= ls.A*ls.x + ls.B*u
-    mul!(ls.derx, ls.A, ls.x)
-    mul!(ls.derx, ls.B, u, 1.0, 1.0)
-    Modia.set_hiddenStateDerivative!(instantiatedModel, ls.x_infoIndex, ls.derx)
+    # ls.der_x .= ls.A*ls.x + ls.B*u
+    mul!(ls.der_x, ls.A, ls.x)
+    mul!(ls.der_x, ls.B, u, 1.0, 1.0)
+    Modia.copyToHiddenStateDerivative!(instantiatedModel, ls.x_hidden_startIndex, ls.der_x)
     return true
 end
 
@@ -180,7 +186,7 @@ SSTest = Model(
 
 ssTest = @instantiateModel(SSTest, logCode=true)
 simulate!(ssTest, stopTime=1.0, log=false, logStates=true, requiredFinalStates = [1.987867388853733])
-#Modia.printResultInfo(ssTest)
+Modia.printResultInfo(ssTest)
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=1)
 
 simulate!(ssTest, stopTime=1.0, log=false, logStates=true,
@@ -193,5 +199,61 @@ simulate!(ssTest, stopTime=1.0, log=false, logStates=true,
           requiredFinalStates = [1.98786636233743, 1.9892145443000466])
 Modia.printResultInfo(ssTest)
 plot(ssTest, ("ss.x", "ss.u", "y"), figure=2)
+
+
+println("\n... Test init vectors of scalars, fixed-size, variable-size, hidden-size vectors")
+
+T = 0.2
+                
+SSTest2 = Model(
+                submodel = Model(   ss = LinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], x_init=[0.2]), 
+                                    x1 = Var(init = 1.1), 
+                                    x3 = Var(init = SVector{3}(0.5, 0.6, 0.7)),
+                                    x4 = Var(init = [0.8, 0.9]),
+                                equations = :[ der(x1) = -x1
+                                               der(x2) = -x2
+                                               der(x3) = -x3
+                                               der(x4) = -x4 ]),
+                ss = LinearStateSpace(A=[-1/T   0.0;
+                                         0.0   -1/T],
+                                      B=[1.0/T;
+                                         1.0/T;;],
+                                      C=[0.4 0.4;],
+                                      x_init=[0.3,0.4]),
+            equations = :[ss.u = [2.0], submodel.ss.u = [2.1],
+                          y1 = ss.y[1], y2 = submodel.ss.y[1]]                                 
+          )
+ssTest2 = @instantiateModel(SSTest2, logCode=false)  
+simulate!(ssTest2, stopTime=1.0, log=true, logStates=true)
+printResultInfo(ssTest2)
+
+plot(ssTest2, [("submodel.ss.x", "submodel.x1", "submodel.x2", "submodel.x3", "submodel.x4", "ss.x" ),
+               ("submodel.ss.u", "ss.u", "y1", "y2"),
+               ("der(submodel.ss.x)", "der(submodel.x1)", "der(submodel.x2)", "der(submodel.x3)", "der(submodel.x4)", "der(ss.x)")], figure=3)
+
+simulate!(ssTest2, stopTime=1.0, log=false, logStates=true,
+          merge = Map(submodel = Map(x4 = [0.85]), 
+                      ss = LinearStateSpace(A=[-1/T   0.0   0.0;
+                                               0.0   -1/T   0.0;
+                                               0.0    0.0  -1/T],
+                                               B=[1.0/T;
+                                                  1.0/T;
+                                                  1.0/T;;],
+                                               C=[0.5 0.5 0.5;],
+                                               x_init=[0.35,0.45,0.55]))
+         ) 
+printResultInfo(ssTest2)
+
+println("\n... Check functions for parameters and signals")
+showParameters(         ssTest2)
+showEvaluatedParameters(ssTest2)
+@test hasParameter(         ssTest2, "submodel.ss.A")
+@test getParameter(         ssTest2, "ss.x_init") == [0.35,0.45,0.55]
+@test getEvaluatedParameter(ssTest2, "ss.x_init") == [0.35,0.45,0.55]
+@test getLastValue(         ssTest2, "ss.x_init") == [0.35,0.45,0.55]
+
+plot(ssTest2, [("submodel.ss.x", "submodel.x1", "submodel.x2", "submodel.x3", "submodel.x4", "ss.x" ),
+               ("submodel.ss.u", "ss.u", "y1", "y2"),
+               ("der(submodel.ss.x)", "der(submodel.x1)", "der(submodel.x2)", "der(submodel.x3)", "der(submodel.x4)", "der(ss.x)")], figure=4, maxLegend=12)
 
 end

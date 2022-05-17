@@ -354,18 +354,21 @@ mutable struct SimulationModel{FloatType,TimeType}
     evaluatedParameters::OrderedDict{Symbol,Any}
     nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     nextPre::AbstractVector
-    nextHold::AbstractVector  
-    
-    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of (visible) state vector element equationInfo.x_info[equationInfo.nx_infoFixed+i]
+    nextHold::AbstractVector
+
+    x_vec::Vector{Vector{FloatType}}            # x_vec[i] holds the actual values of (visible) state vector element
+                                                # equationInfo.x_info[equationInfo.nx_infoFixed+i:equationInfo.nx_infoVisible]
     x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
     der_x_visible::Vector{FloatType}            # Derivatives of states x or x_init that correspond to visible states
+                                                # This vector is filled with derivatives of visible states with appendVariable!(m.der_x_visible, ...) calls,
+                                                # including derivatives of x_vec[i]
     x_hidden::Vector{FloatType}                 # A copy of the states x that correspond to hidden states (defined in functions and not visible in getDerivatives!(..))
     der_x_hidden::Vector{FloatType}             # Derivatives of states x or x_init that correspond to hidden states (defined in functions and not visible in getDerivatives!(..))
     der_x_full::Vector{FloatType}               # Derivatives of states x (needed in DAE mode)
 
 
-    function SimulationModel{FloatType,TimeType}(modelModule, modelName, buildDict, getDerivatives!, equationInfo, x_startValues,
+    function SimulationModel{FloatType,TimeType}(modelModule, modelName, buildDict, getDerivatives!, equationInfo,
                                         previousVars, preVars, holdVars,
                                         parameterDefinition, variableNames;
                                         unitless::Bool=true,
@@ -438,12 +441,12 @@ mutable struct SimulationModel{FloatType,TimeType}
         obj.nextPre      = deepcopy(pre)
         obj.nextHold     = deepcopy(hold)
 
-        obj.x_start = updateEquationInfo!(equationInfo, FloatType)
+        obj.x_start = initialStateVector!(equationInfo, FloatType)
         nx          = length(obj.x_start)
         nxHidden    = nx-equationInfo.nxVisible
-        
+
         # Provide storage for x_vec and utility vectors
-        obj.x_vec     = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nx_infoFixed+1:length(equationInfo.nx_infoVisible)]
+        obj.x_vec     = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nx_infoFixed+1:equationInfo.nx_infoVisible]
         obj.x_init    = zeros(FloatType,nx)
         obj.der_x_visible = zeros(FloatType,equationInfo.nxVisible)
         obj.x_hidden      = zeros(FloatType, nxHidden)
@@ -506,8 +509,9 @@ mutable struct SimulationModel{FloatType,TimeType}
         success = false
         nx = m.equationInfo.nx
 
-        new(m.modelModule, m.modelName, deepcopy(m.buildDict), TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), m.options, m.getDerivatives!, m.equationInfo, linearEquations,
-            eventHandler,
+        new(m.modelModule, m.modelName, deepcopy(m.buildDict), TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), deepcopy(m.options), m.getDerivatives!,
+            deepcopy(m.equationInfo), deepcopy(linearEquations),
+            deepcopy(eventHandler),
             m.vSolvedWithInitValuesAndUnit,
             deepcopy(m.previous), m.previous_names, m.previous_dict,
             deepcopy(m.pre), m.pre_names, m.pre_dict,
@@ -517,7 +521,7 @@ mutable struct SimulationModel{FloatType,TimeType}
             odeIntegrator, daeCopyInfo, addEventPointsDueToDEBug, success, m.unitless,
             m.result_info, Tuple[], missing, Vector{FloatType}[],
             deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
-            deepcopy(m.nextPrevious), deepcopy(m.nextPre), deepcopy(m.nextHold), 
+            deepcopy(m.nextPrevious), deepcopy(m.nextPre), deepcopy(m.nextHold),
             zeros(FloatType,0), deepcopy(m.x_vec),
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,equationInfo.nxVisible), zeros(FloatType,nx-equationInfo.nxVisible),
             zeros(FloatType,nx))
@@ -557,37 +561,37 @@ function get_xinfo(m::SimulationModel, x_index::Int)::Tuple{Int, Int, String}
     return (ibeg, iend, xinfo.unit)
 end
 
-export copyState!
 
 """
-    copyState!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, xi::Vector{FloatType})
+    copyFromHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{FloatType})
 
-Copy state of m.equationInfo.x_info[x_infoIndex] from m.x_hidden into pre-allocated vector xi.
+Copy state from `m` at index `x_hidden_startIndex` into pre-allocated vector `xi`.
 """
-function copyState!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
-    @assert(length(xi) == m.equationInfo.x_info[x_infoIndex].length)
-    startIndex = m.equationInfo.x_info[x_infoIndex].startIndex - m.equationInfo.nxVisible - 1
-    for i = 1:length(xi)
-        xi[i] = m.x_hidden[startIndex+i]
-    end
+@inline function copyFromHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
+    copyto!(xi, 1, m.x_hidden, x_hidden_startIndex, length(xi))
     return nothing
 end
 
 
 """
-    set_hiddenStateDerivative!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, der_x::Vector{FloatType})
+    scalar_x_hidden = getScalarHiddenState(m::SimulationModel, x_hidden_startIndex::Int)
 
-Copy hidden state derivative der_x of m.equationInfo.x_info[x_infoIndex] into m.der_x_hidden.
+Return scalar hidden state scalar_x_hidden = m.x_hidden[x_hidden_startIndex].
 """
-function set_hiddenStateDerivative!(m::SimulationModel{FloatType,TimeType}, x_infoIndex::Int, der_x::Vector{FloatType})::Nothing where {FloatType,TimeType}
-    ix_info = m.equationInfo.x_info[x_infoIndex]
-    @assert(length(der_x) == ix_info.length)
-    #println("set_hiddenStateDerivative!: x_index = $x_index, der_x = $der_x")
-    startIndex = ix_info.startIndex - m.equationInfo.nxVisible - 1
-    for i = 1:length(der_x)
-        m.der_x_hidden[startIndex+i] = der_x[i]
-    end
-    #println("m.der_x_hidden = ", m.der_x_hidden)
+getScalarHiddenState(m::SimulationModel, x_hidden_startIndex::Int) = m.x_hidden[x_hidden_startIndex]
+
+
+"""
+    copyToHiddenStateDerivative!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, der_x::Union{FloatType,Vector{FloatType}})
+
+Copy hidden state derivative `der_x` into `m` starting at index `x_hidden_startIndex`.
+"""
+@inline function copyToHiddenStateDerivative!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, der_x::FloatType)::Nothing where {FloatType,TimeType}
+    m.der_x_hidden[x_hidden_startIndex] = der_x
+    return nothing
+end
+@inline function copyToHiddenStateDerivative!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, der_x::Vector{FloatType})::Nothing where {FloatType,TimeType}
+    copyto!(m.der_x_hidden, x_hidden_startIndex, der_x, 1, length(der_x))
     return nothing
 end
 
@@ -741,20 +745,22 @@ end
 
 
 """
-    get_lastValue(model::SimulationModel, name::String; unit=true)
+    getLastValue(model::SimulationModel, name::String; unit=true)
 
 Return the last stored value of variable `name` from `model`.
 If `unit=true` return the value with its unit, otherwise with stripped unit.
 
 If `name` is not known or no result values yet available, an info message is printed
 and the function returns `nothing`.
+
+`name` can be a time-varying variable or a parameter.
 """
-function get_lastValue(m::SimulationModel{FloatType,TimeType}, name::String; unit::Bool=true) where {FloatType,TimeType}
+function getLastValue(m::SimulationModel{FloatType,TimeType}, name::String; unit::Bool=true) where {FloatType,TimeType}
     if haskey(m.result_info, name)
         # Time varying variable stored in m.result_xxx
         resInfo = m.result_info[name]
         if ismissing(m.result_x) || length(m.result_x.t) == 0
-            @info "get_lastValue(model,\"$name\"): No results yet available."
+            @info "getLastValue(model,\"$name\"): No results yet available."
             return nothing
         end
 
@@ -795,7 +801,7 @@ function get_lastValue(m::SimulationModel{FloatType,TimeType}, name::String; uni
             value = convert(FloatType, 0)
 
         else
-            error("Bug in get_lastValue(...), name = $name, resInfo.store = $resInfo.store.")
+            error("Bug in getLastValue(...), name = $name, resInfo.store = $resInfo.store.")
         end
 
         if resInfo.negate
@@ -806,13 +812,14 @@ function get_lastValue(m::SimulationModel{FloatType,TimeType}, name::String; uni
         # Parameter stored in m.evaluatedParameters
         value = get_value(m.evaluatedParameters, name)
         if ismissing(value)
-            @info "get_lastValue: $name is not known and is ignored."
+            @info "getLastValue: $name is not known and is ignored."
             return nothing;
         end
     end
 
     return value
 end
+get_lastValue(m, name; unit=true) = getLastValue(m, name, unit=unit)
 
 
 """
@@ -1062,35 +1069,33 @@ get_xe(x, xe_info) = xe_info.length == 1 ? x[xe_info.startIndex] : x[xe_info.sta
 #end
 import Printf
 
-invokelatest_getDerivatives_without_der_x!(x, m, t)::Nothing = TimerOutputs.@timeit m.timer "Modia getDerivatives!" begin
-    if m.options.logProgress && m.cpuLast != UInt64(0)
-        cpuNew = time_ns()
-        if (cpuNew - m.cpuLast) * 1e-9 > 5.0
-            m.cpuLast = cpuNew
-            Printf.@printf("      progress: integrated up to time = %.3g s (in cpu-time = %.3g s)\n", t, (cpuNew-m.cpuFirst)*1e-9)
+function invokelatest_getDerivatives_without_der_x!(x, m, t)::Nothing
+    TimerOutputs.@timeit m.timer "Modia getDerivatives!" begin
+        if m.options.logProgress && m.cpuLast != UInt64(0)
+            cpuNew = time_ns()
+            if (cpuNew - m.cpuLast) * 1e-9 > 5.0
+                m.cpuLast = cpuNew
+                Printf.@printf("      progress: integrated up to time = %.3g s (in cpu-time = %.3g s)\n", t, (cpuNew-m.cpuFirst)*1e-9)
+            end
         end
-    end
-    if length(m.x_vec) > 0
-        # copy vector-valued x-elements from x to m.x_vec
-        eqInfo = m.equationInfo
-        x_vec  = m.x_vec
-        j      = 0
-        for i in eqInfo.nx_infoFixed+1:eqInfo.nx_infoVisible
-            j += 1
-            xe = eqInfo.x_info[i]
-            x_vec[j] .= x[xe.startIndex:(xe.startIndex+xe.length-1)]
+        if length(m.x_vec) > 0
+            # copy vector-valued x-elements from x to m.x_vec
+            eqInfo = m.equationInfo
+            x_vec  = m.x_vec
+            j = 1
+            for i in eqInfo.nx_infoFixed+1:eqInfo.nx_infoVisible
+                xe = eqInfo.x_info[i]
+                copyto!(x_vec[j], 1, x, xe.startIndex, xe.length)
+                j += 1
+            end
         end
-    end
-    empty!(m.der_x_visible)
-    j::Int = 0
-    for i in m.equationInfo.nxVisible+1:length(x)
-        j += 1
-        m.x_hidden[j] = x[i]
-    end
-    m.der_x_hidden .= 0   # Handles also the case for a dummy differential equation (if model has no states): der(_dummy_x) = 0.0
-    Base.invokelatest(m.getDerivatives!, x, m, t)
+        copyto!(m.x_hidden, 1, x, m.equationInfo.nxVisible+1, m.equationInfo.nxHidden)
+        empty!(m.der_x_visible)
+        m.der_x_hidden .= 0   # Handles also the case for a dummy differential equation (if model has no states): der(_dummy_x) = 0.0
+        Base.invokelatest(m.getDerivatives!, x, m, t)
 
-    @assert(length(m.der_x_visible) + length(m.der_x_hidden) == length(x))
+        @assert(length(m.der_x_visible) + length(m.der_x_hidden) == length(x))
+    end
     return nothing
 end
 
@@ -1124,15 +1129,15 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if length(m.options.merge) > 0
+        removeHiddenStates!(m.equationInfo)
+        removeHiddenCrossingFunctions!(m.eventHandler)
         m.parameters = mergeModels(m.parameters, m.options.merge)
         evaluatedParameters = propagateEvaluateAndInstantiate!(m)
         if isnothing(evaluatedParameters)
             return false
         end
         m.evaluatedParameters = evaluatedParameters
-
-        # Resize state vector memory
-        m.x_start = updateEquationInfo!(m.equationInfo, FloatType)
+        m.x_start = initialStateVector!(m.equationInfo, FloatType)
         nx       = length(m.x_start)
         nxHidden = nx - m.equationInfo.nxVisible
         resize!(m.x_init, nx)
@@ -1226,7 +1231,7 @@ function check_vSolvedWithInitValuesAndUnit(m::SimulationModel)::Bool
         tolerance = m.options.tolerance
 
         for (name, valueBefore) in m.vSolvedWithInitValuesAndUnit
-            valueAfterInit  = get_lastValue(m, name, unit=false)
+            valueAfterInit  = getLastValue(m, name, unit=false)
             valueBeforeInit = stripUnit.(valueBefore)
             if !isnothing(valueAfterInit) && abs(valueBeforeInit - valueAfterInit) >= max(abs(valueBeforeInit),abs(valueAfterInit),0.01*tolerance)*tolerance
                 push!(names, name)
@@ -1350,16 +1355,9 @@ Copy der_x_visible and der_x_hidden to der_x (der_x .= [der_x_visible, der_x_hid
     if length(der_x_hidden) == 0
         der_x .= der_x_visible
     else
-        @inbounds begin
-            @assert(length(der_x) == length(der_x_visible) + length(der_x_hidden))
-            for i = 1:length(der_x_visible)
-                der_x[i] = der_x_visible[i]
-            end
-            istart = length(der_x_visible)
-            for i = 1:length(der_x_hidden)
-                der_x[istart+i] = der_x_hidden[i]
-            end
-        end
+        @assert(length(der_x) == length(der_x_visible) + length(der_x_hidden))
+        unsafe_copyto!(der_x, 1, der_x_visible, 1, length(der_x_visible))
+        unsafe_copyto!(der_x, length(der_x_visible)+1, der_x_hidden, 1, length(der_x_hidden))
     end
     return nothing
 end
@@ -1373,6 +1371,7 @@ DifferentialEquations callback function to get the derivatives.
 function derivatives!(der_x, x, m, t)
     m.nf += 1
     invokelatest_getDerivatives_without_der_x!(x, m, t)
+    #println("t = $t, m.der_x_hidden = ", m.der_x_hidden)
     copyDerivatives!(der_x, m.der_x_visible, m.der_x_hidden)
     return nothing
 end
@@ -1522,9 +1521,7 @@ function zeroCrossings!(z, x, t, integrator)::Nothing
     invokelatest_getDerivatives_without_der_x!(x, m, t)
     m.solve_leq = true
     eh.crossing = false
-    for i = 1:eh.nz
-        z[i] = eh.z[i]
-    end
+    copyto!(z, eh.z)
     #println("... t = $t, z = $z")
     #println("... time = ", t, ", z = ", z)
     return nothing

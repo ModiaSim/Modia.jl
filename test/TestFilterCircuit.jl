@@ -2,7 +2,7 @@ module TestFilterCircuit
 
 using Modia
 @usingModiaPlot
-using Test
+using Modia.Test
 
 setLogMerge(false)
 
@@ -24,26 +24,26 @@ filterCircuit = @instantiateModel(FilterCircuit)
 
 simulate!(filterCircuit, Tsit5(), stopTime = 10, merge = Map(R = Map(R = 5u"Ω"), C = Map(v = 3.0u"V")), 
           logParameters = true, logStates = true, requiredFinalStates = [7.424843902110655]) 
-
+Modia.printResultInfo(filterCircuit)
 # Test access functions  
 @testset "Test variable access functions (TestFilterCircuit.jl)" begin  
     currentNames  = signalNames(filterCircuit)
-    requiredNames = String["C.C", "C.i", "C.n.i", "C.n.v", "C.p.i", "C.p.v", "C.v", "R.R", "R.i", "R.n.i", "R.n.v", "R.p.i", "R.p.v", "R.v", "V.V", "V.i", "V.n.i", "V.n.v", "V.p.i", "V.p.v", "V.v", "der(C.v)", "ground.p.i", "ground.p.v", "time"]
+    requiredNames = String["C.i", "C.n.i", "C.n.v", "C.p.i", "C.p.v", "C.v", "R.i", "R.n.i", "R.n.v", "R.p.i", "R.p.v", "R.v", "V.i", "V.n.i", "V.n.v", "V.p.i", "V.p.v", "V.v", "der(C.v)", "ground.p.i", "ground.p.v", "time"]
     @test sort!(currentNames) == sort!(requiredNames)
 
     @test hasSignal(filterCircuit, "R.v")
     @test hasSignal(filterCircuit, "C.n.v")   
-    @test hasSignal(filterCircuit, "R.R")
+    @test hasParameter(filterCircuit, "R.R")
     @test hasSignal(filterCircuit, "ground.p.i")
     @test hasSignal(filterCircuit, "R.p.vv") == false
-    @test isapprox(get_lastValue(filterCircuit, "R.v") , 2.5751560978893453u"V" )
-    @test isapprox(get_lastValue(filterCircuit, "C.n.v"), 0.0u"V")
-    @test isapprox(get_lastValue(filterCircuit, "R.R")  , 5.0u"Ω")
-    @test isapprox(get_lastValue(filterCircuit, "ground.p.i"), 0.0)
+    @test isapprox(getLastValue(filterCircuit, "R.v") , 2.5751560978893453u"V" )
+    @test isapprox(getLastValue(filterCircuit, "C.n.v"), 0.0u"V")
+    @test isapprox(getEvaluatedParameter(filterCircuit, "R.R")  , 5.0u"Ω")
+    @test isapprox(getLastValue(filterCircuit, "ground.p.i"), 0.0)
 end
 
 # Test plotting of variables, zero variables, parameters 
-plot(filterCircuit, [("R.v", "C.v"), ("R.R", "ground.p.i")], figure=1)
+plot(filterCircuit, [("R.v", "C.v"), "ground.p.i"], figure=1)
 
 
 # Simulate with lower precision
@@ -51,7 +51,7 @@ filterCircuitLow = @instantiateModel(FilterCircuit, unitless=true, FloatType = F
 simulate!(filterCircuitLow, RK4(), adaptive=false, stopTime=10.0, interval=0.01, 
           merge = Map(R = Map(R = 5.0), C = Map(v = 3.0)),                              #    merge = Map(R = Map(R = 5u"Ω"), C = Map(v = 3.0u"V")),
           requiredFinalStates = Float32[7.4248414])
-plot(filterCircuitLow, [("R.v", "C.v"), ("R.R", "ground.p.i")], figure=2)
+plot(filterCircuitLow, [("R.v", "C.v"), "ground.p.i"], figure=2)
 
 
 # Simulate with DAE integrator

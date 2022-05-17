@@ -90,9 +90,6 @@ Recursively traverse the hierarchical collection `partiallyInstantiatedModel.par
   return nothing, if an error occurred (an error message was printed).
 """
 function propagateEvaluateAndInstantiate!(m::SimulationModel{FloatType,TimeType}; log=false) where {FloatType,TimeType}
-    removeHiddenStates!(m.equationInfo)
-    removeHiddenCrossingFunctions!(m.eventHandler)
-
     x_found = fill(false, length(m.equationInfo.x_info))
     map = propagateEvaluateAndInstantiate2!(m, m.parameters, x_found, [], ""; log=log)
 
@@ -252,7 +249,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
         if log
             println(" 2:    ... key = $k, value = $v")
         end
-        if k == :_constructor || k == :_instantiateFunction || k == :_path || (k == :_class && !isnothing(constructor))
+        if k == :_constructor || k == :_buildFunction || k == :_buildOption || k == :_instantiateFunction || k == :_path || (k == :_class && !isnothing(constructor))
             if log
                 println(" 3:    ... key = $k")
             end
@@ -379,7 +376,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             if log
                 println(" 13:    +++ Instantiated $path: $instantiateFunction will be called to instantiate sub-model and define hidden states\n\n")
             end
-            Core.eval(modelModule, :($instantiateFunction($m, $current, $path)))
+            Core.eval(modelModule, :($instantiateFunction($m, $current, $path, log=$log)))
         end
         return current
     else
@@ -395,7 +392,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             return obj
         catch
             str = getConstructorAsString(path, constructor, parameters)
-            printstyled("\nError in model $(m.modelName) when instantiating\n$str\n", bold=true, color=:red)
+            printstyled("\nError in model $(m.modelName) when instantiating\n  $str\n", bold=true, color=:red)
             Base.rethrow()
         end
     end

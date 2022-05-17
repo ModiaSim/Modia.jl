@@ -582,7 +582,7 @@ mutable struct EquationGraph
             TearingSetup(Gunknowns,length(Arev)),
             Int[], Int[], Int[], Int[], Int[], Int[], Int[], Int[], Int[], Int[],
             Vector{Int}[Int[], Int[], Int[], Int[], Int[], Int[]], fill(false, length(Arev)),
-            Modia.EquationInfo(status=Modia.CODE_GENERATION),
+            Modia.EquationInfo(),
             fill(0, length(B)), TearedEquations[], fill(0, length(B)),
             Vector{Expr}(undef, length(B)), Expr[], Expr[])
     end
@@ -1500,7 +1500,7 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
             push!(x_vec_fixed      , v_fixed)
         end
     end
-    eq.equationInfo.nx_infoFixed = length(x_info)
+    nx_infoFixed = length(x_info)
     for (i,v) in enumerate(x_vec)
         v_startOrInit      = x_vec_startOrInit[i]
         v_fixed            = x_vec_fixed[i]
@@ -1521,21 +1521,8 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
                         v_nominal, v_unbounded))
     end
 
-    # Handle systems with only algebraic variables, by introducing a dummy
-    # differential equation der_x[1] = -x[1].
-    #=
-    if length(ODE_states) == 0
-        if log
-            println("Model has only algebraic variables.\n",
-                    "Added a dummy differential equation der(_dummy_x) = -_dummy_x, _dummy_x(t0) = 0")
-        end
-        push!(eq.equationInfo.x_info, Modia.StateElementInfo(
-              "_dummy_x", :(), "der(_dummy_x)", :(), XD, "", 0.0, true, NaN, false))
-    end
-    =#
-
     # Finalize equationInfo
-    initEquationInfo!(eq.equationInfo)
+    initEquationInfo!(eq.equationInfo, nx_infoFixed)
 
     # Print ODE states
     if logStates
