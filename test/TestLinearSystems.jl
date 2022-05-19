@@ -151,7 +151,7 @@ function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationMode
     @assert(size(ls.A,2) == size(ls.A,1))
     @assert(size(ls.B,2) == lsBuild.nu)
     @assert(size(ls.C,1) == lsBuild.ny)
-    ls.x_hidden_startIndex = Modia.addHiddenState!(partiallyInstantiatedModel.equationInfo, path*".x", "der("*path*".x)", ls.x_init)
+    ls.x_hidden_startIndex = Modia.addHiddenState!(partiallyInstantiatedModel, path*".x", path*".der(x)", ls.x_init)
     lsBuild.ls = ls
     return nothing
 end
@@ -229,7 +229,7 @@ printResultInfo(ssTest2)
 
 plot(ssTest2, [("submodel.ss.x", "submodel.x1", "submodel.x2", "submodel.x3", "submodel.x4", "ss.x" ),
                ("submodel.ss.u", "ss.u", "y1", "y2"),
-               ("der(submodel.ss.x)", "der(submodel.x1)", "der(submodel.x2)", "der(submodel.x3)", "der(submodel.x4)", "der(ss.x)")], figure=3)
+               ("submodel.ss.der(x)", "submodel.der(x1)", "submodel.der(x2)", "submodel.der(x3)", "submodel.der(x4)", "ss.der(x)")], figure=3)
 
 simulate!(ssTest2, stopTime=1.0, log=false, logStates=true,
           merge = Map(submodel = Map(x4 = [0.85]), 
@@ -254,6 +254,6 @@ showEvaluatedParameters(ssTest2)
 
 plot(ssTest2, [("submodel.ss.x", "submodel.x1", "submodel.x2", "submodel.x3", "submodel.x4", "ss.x" ),
                ("submodel.ss.u", "ss.u", "y1", "y2"),
-               ("der(submodel.ss.x)", "der(submodel.x1)", "der(submodel.x2)", "der(submodel.x3)", "der(submodel.x4)", "der(ss.x)")], figure=4, maxLegend=12)
+               ("submodel.ss.der(x)", "submodel.der(x1)", "submodel.der(x2)", "submodel.der(x3)", "submodel.der(x4)", "ss.der(x)")], maxLegend=12, figure=4)
 
 end

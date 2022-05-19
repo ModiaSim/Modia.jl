@@ -36,6 +36,6 @@ HeatedRod = Model(
 heatedRod = @instantiateModel(HeatedRod)
 simulate!(heatedRod, stopTime = 1e5, log=true,
           requiredFinalStates = [492.9629728925529, 492.607421697723, 492.30480548105595, 492.0850627579106, 491.9694736486912])
-plot(heatedRod, [("fixedT.port.T", "rod.T"), "der(rod.T)"], figure=2)
+plot(heatedRod, [("fixedT.port.T", "rod.T"), "rod.der(T)"], figure=2)
 
 end

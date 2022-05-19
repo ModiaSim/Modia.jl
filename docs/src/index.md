@@ -47,11 +47,18 @@ functionalities of these packages.
 
 ** Bug fixes
 
-- The initial state vector was not always correctly filled with start/init values of the model  (is now fixed).
-- `signalNames(instantiatedModel)` did sometimes not show the correct signal names available in the result (is now fixed).
+1. A hierarchical model name with a derivative operator, say `der(a.b.c)`, has now the correct name `a.b.der(c)`
+   in the result. For example, the plot command needs to be changed to `plot(..., "a.b.der(c)")` instead of the previous
+   command `plot(..., "der(a.b.c)")`.
+2. The initial state vector was not always correctly filled with start/init values of the model  (is now fixed).
+3. `signalNames(instantiatedModel)` did sometimes not show the correct signal names available in the result (is now fixed).
 
 
 **Non-backwards compatible changes**
+
+- Bug fix 1 can lead for some models to warnings and the selected variable is no longer plotted (-> the model needs to be changed).
+
+- Bug fix 2 can lead for some models to a different result (without notice).
 
 - Parameters are no longer seen as part of the result (since parameters can be complex internal datastructures, e.g. for Modia3D).
   Therefore, they are no longer available in result access functions (`printResultInfo, signalNames, rawSignal, getPlotSignal, plot, ...`).

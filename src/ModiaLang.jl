@@ -30,6 +30,44 @@ function printArray(array, heading; order=1:length(array), log=false, number=tru
     end
 end
 
+
+"""
+    newName = moveDerToLeaf(name::String)::String
+
+Move `der(..)` to leaf name part.
+
+# Examples
+```
+moveDerToLeaf("a.b.c")                     # = "a.b.c"
+moveDerToLeaf("der(x)")                    # = "der(x)"
+moveDerToLeaf("der(der(x)")                # = "der(der(x))"
+moveDerToLeaf("der(a.x)")                  # = "a.der(x)"
+moveDerToLeaf("der(a.b.x)")                # = "a.b.der(x)"
+moveDerToLeaf("der(der(der(a.b.c.x)))")    # = "a.b.c.der(der(der(x)))"
+```
+"""
+function moveDerToLeaf(name::String)::String
+    if length(name) >= 4 && name[1:4] == "der(" && !isnothing(findfirst(".", name))
+        # name starts with der(..) and name has a dot (".")
+        i = 5
+        indexRange_old = 1:4
+        while true
+            indexRange = findnext("der(", name, i)
+            if isnothing(indexRange)
+                j1 = indexRange_old.stop
+                j2 = findlast(".", name).stop
+                newName = name[j1+1:j2] * name[1:j1] * name[j2+1:end]
+                return newName
+            end
+            i = indexRange[2]+1
+            indexRange_old = indexRange
+        end
+        @error("moveDerToLeaf($name): Error should not occur")
+    end
+    return name
+end
+
+
 function performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log=false)
     nUnknowns = length(unknowns) - length(states)
     nEquations = length(equations)
@@ -582,7 +620,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
 
     stateSelectionFunctions = StateSelectionFunctions(
-        var_name               = v -> stringVariables[v],
+        var_name               = v -> moveDerToLeaf(stringVariables[v]),
         var_julia_name         = v -> juliaVariables[v],
         var_unit               = var_unit,
         var_startInitFixed     = var_startInitFixed,
@@ -723,7 +761,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
 #    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
- 
+
 #    println("Build SimulationModel")
 
     model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
@@ -890,7 +928,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         unitless=true
         printstyled("  @instantiateModel(...,unitless=true, ..) set automatically, because\n  FloatType=MonteCarloMeasurements often fails if units are involved.\n", color=:red)
     end
-    
+
     #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
         println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
