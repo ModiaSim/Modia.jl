@@ -565,6 +565,32 @@ end
 
 
 """
+    x_hidden_startIndex = addHiddenState!(
+                            m::SimulationModel,
+                            x_name::String,
+                            der_x_name::String,
+                            startOrInit;   # Scalar or Vector
+                            unit::String     = "",
+                            fixed::Bool      = true,
+                            nominal::Float64 = NaN,
+                            unbounded::Bool  = false)
+
+Add new hidden state to instantiated model and return its index that allows fast copying to x and der(x) vectors.
+"""
+addHiddenState!(m::SimulationModel,
+                x_name::String,
+                der_x_name::String,
+                startOrInit;
+                stateCategory::StateCategory = XD,
+                unit::String     = "",
+                fixed::Bool      = true,
+                nominal::Float64 = NaN,
+                unbounded::Bool  = false)::Int = addHiddenState!(m.equationInfo, x_name, der_x_name, startOrInit;
+                                                                 stateCategory = stateCategory, unit = unit, fixed = fixed, 
+                                                                 nominal = nominal, unbounded = unbounded)
+                    
+                    
+"""
     copyFromHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{FloatType})
 
 Copy state from `m` at index `x_hidden_startIndex` into pre-allocated vector `xi`.

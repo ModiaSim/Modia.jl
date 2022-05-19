@@ -720,21 +720,6 @@ function initEquationInfo!(eqInfo::EquationInfo, nx_infoFixed::Int)::Nothing
 end
 
 
-"""
-    x_hidden_startIndex = addHiddenState!(
-                            eqInfo::EquationInfo,
-                            x_name::String,
-                            der_x_name::String,
-                            startOrInit;   # Scalar or Vector
-                            stateCategory::StateCategory = XD,
-                            unit::String     = "",
-                            fixed::Bool      = true,
-                            nominal::Float64 = NaN,
-                            unbounded::Bool  = false)
-
-Add new hidden state to model and return its index with respect to x_hidden, der_x_hidden.
-The state is stored at place m.x_hidden[x_hidden_startIndex:x_hidden_startIndex+length(startOrInit)-1].
-"""
 function addHiddenState!(
                     eqInfo::EquationInfo,
                     x_name::String,
