@@ -228,7 +228,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
 
         # Initialize/re-initialize SimulationModel
         if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
-            println("... Simulate model ", m.modelName)
+            println("\n... Simulate model ", m.modelName)
         end
 
         useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
@@ -305,7 +305,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
                 end
             else
                 # ODE integrator
-                m.odeIntegrator = true            
+                m.odeIntegrator = true
                 TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
             end
 
@@ -360,7 +360,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             sol_t = solution.t
             sol_x = solution.u
             m.storeResult = true
-            for i = length(m.result_vars)+1:length(sol_t)
+            for i = length(m.result_code)+1:length(sol_t)
                 invokelatest_getDerivatives_without_der_x!(sol_x[i], m, sol_t[i])
             end
             m.storeResult = false
@@ -594,7 +594,7 @@ is defined in the instantiateModel that can be accessed and can be used for plot
 """
 ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
     # m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
-    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_vars) || ismissing(m.result_der_x)
+    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_code) || ismissing(m.result_extra) || ismissing(m.result_der_x)
         return false
     end
     haskey(m.result_info, name) || !ismissing(get_value(m.evaluatedParameters, name))
@@ -608,7 +608,7 @@ Return true if parameter `name` (for example `name = "a.b.c"`)
 is defined in the instantiateModel.
 """
 hasParameter(m::SimulationModel, name::AbstractString) = begin
-    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_vars) || ismissing(m.result_der_x)
+    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_code) || ismissing(m.result_extra) || ismissing(m.result_der_x)
         return false
     end
     !ismissing(get_value(m.evaluatedParameters, name))
@@ -655,7 +655,7 @@ function showEvaluatedParameters(m::SimulationModel)::Nothing
     @showModel evaluatedParameters
     return nothing
 end
-    
+
 
 """
     names = signalNames(instantiatedModel::Modia.SimulationModel)
@@ -683,7 +683,7 @@ end
 """
     (timeSignal, signal, signalType) = ModiaResult.rawSignal(instantiatedModel, name)
     (timeSignal, signal, signalType) = Modia.rawSignal(      instantiatedModel, name)
-    
+
 Get raw signal of result from an instantiated model of Modia.
 """
 function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
@@ -739,8 +739,17 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
             end
             return ([tsig], [derxSig], ModiaResult.Continuous)
 
-        elseif resInfo.store == RESULT_VARS
-            signal = ModiaResult.SignalView(m.result_vars, resInfo.index, resInfo.negate)
+        elseif resInfo.store == RESULT_CODE
+            signal = ModiaResult.SignalView(m.result_code, resInfo.index, resInfo.negate)
+            if length(signal) != length(tsig)
+                lens = length(signal)
+                lent = length(tsig)
+                error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\",\nlength(signal) = $lens, length(tsig) = $lent")
+            end
+            return ([tsig], [signal], ModiaResult.Continuous)
+
+        elseif resInfo.store == RESULT_EXTRA
+            signal = ModiaResult.SignalView(m.result_extra, resInfo.index, resInfo.negate)
             if length(signal) != length(tsig)
                 lens = length(signal)
                 lent = length(tsig)

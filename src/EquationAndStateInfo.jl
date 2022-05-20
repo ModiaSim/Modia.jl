@@ -647,7 +647,7 @@ mutable struct EquationInfo
     nxVisible::Int                                 # = number of visible x-elements (so x[1:nxVisible] are visible states) or -1 if not yet known
                                                    #   This variable is updated once all states are known.
     nxHidden::Int                                  # = number of hidden x-elements (x[nxVisible+1:nxVisible+nxHidden].
-                                                   #   This variable is always updated consistently via function addHiddenState!(..)
+                                                   #   This variable is always updated consistently via function newHiddenState!(..)
                                                    #   (nxHidden=0, if there are no hidden states yet).
     nx_infoFixed::Int                              # x_info[1:nx_infoFixed] are states with fixed length (does not change after compilation) or -1 if not yet known
     nx_infoVisible::Int                            # x_info[1:nx_infoVisible] are states that are visible in getDerivatives!(..) or -1 if not yet known
@@ -720,7 +720,7 @@ function initEquationInfo!(eqInfo::EquationInfo, nx_infoFixed::Int)::Nothing
 end
 
 
-function addHiddenState!(
+function newHiddenState!(
                     eqInfo::EquationInfo,
                     x_name::String,
                     der_x_name::String,
@@ -786,7 +786,7 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
     if length(x_info) == 0
         # Handle systems with only algebraic variables, by introducing a dummy
         # differential equation der_x[1] = -x[1], with state name _dummy_x
-        addHiddenState!(eqInfo, "_dummy_x", "der(_dummy_x)", FloatType(0.0))
+        newHiddenState!(eqInfo, "_dummy_x", "der(_dummy_x)", FloatType(0.0))
         startIndex = 1
     elseif nx_infoFixed == 0
         startIndex = 1

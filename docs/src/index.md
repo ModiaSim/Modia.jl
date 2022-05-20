@@ -42,6 +42,9 @@ functionalities of these packages.
   get parameter/init/start values by name (e.g. `getEvaluatedParameter(instantiatedModel, "a.b.c")`) or
   show all parameters. For details see the [function docu](https://modiasim.github.io/ModiaResult.jl/stable/Functions.html).
 
+- New functions to add hidden states and extra results from within functions that are not visible in the generated code:
+  `Modia.newHiddenState!, Modia.newExtraResult!, Modia.addHiddenState!, Modia.addExtraResult!, Modia.storeResults`.
+  
 - Docu improved (e.g. links to utility functions documentation added)
 
 

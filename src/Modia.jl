@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.9.0-dev"
-const Date = "2022-05-19"
+const Date = "2022-05-20"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -132,7 +132,7 @@ v2 = eval(code)
 ```
 
 # Notes
-Transforms unit to string representation that is parseable again 
+Transforms unit to string representation that is parseable again
 (see also Unitful [issue 412](https://github.com/PainterQubits/Unitful.jl/issues/412)).
 This implementation is a hack and only works in common cases.
 Implementation is performed in the following way:
@@ -144,7 +144,7 @@ unitAsString(unitOfQuantity::Unitful.FreeUnits) = replace(repr(unitOfQuantity,co
 
 """
     quantityType = quantity(numberType, numberUnit::Unitful.FreeUnits)
-    
+
 Return the quantity type given the numberType and the numberUnit.
 
 # Example
@@ -154,17 +154,17 @@ mutable struct Data{FloatType <: AbstractFloat}
 end
 
 v = Data{Float64}(2.0u"mm/s")
-@show v                         # v = 
+@show v                         # v =
 ```
 """
-quantity(numberType, numberUnit::Unitful.FreeUnits) = Quantity{numberType, dimension(numberUnit), typeof(numberUnit)} 
+quantity(numberType, numberUnit::Unitful.FreeUnits) = Quantity{numberType, dimension(numberUnit), typeof(numberUnit)}
 
 quantityTypes(::Type{Unitful.Quantity{T,D,U}}) where {T,D,U} = (T,D,U)
 
 
 """
     str = modelPathAsString(modelPath::Union{Expr,Symbol,Nothing})
-    
+
 Return modelPath of submodel as string.
 """
 modelPathAsString(modelPath::Union{Expr,Symbol,Nothing}) = isnothing(modelPath) ? "" : string(modelPath)

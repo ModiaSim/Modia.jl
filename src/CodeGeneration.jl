@@ -235,22 +235,24 @@ end
 
 
 """
-    @enum ResultStore RESULT_VARS RESULT_X RESULT_DER_X RESULT_ZERO
+    @enum ResultStore RESULT_CODE RESULT_EXTRA RESULT_X RESULT_DER_X RESULT_ZERO
 
 SimulationModel field name where result is stored:
 
-- RESULT_VARS : stored in `result_vars`
+- RESULT_CODE : stored in `result_code` (variables known before code is compiled)
+- RESULT_EXTRA: stored in `result_extra` (variables known after code is compiled)
 - RESULT_X    : stored in `result_x` (return argument of DifferentialEquations.solve(...))
 - RESULT_DER_X: stored in `result_der_x`
 - RESULT_ZERO : value is zero
 """
-@enum ResultStore RESULT_VARS RESULT_X RESULT_DER_X RESULT_ZERO
+@enum ResultStore RESULT_CODE RESULT_EXTRA RESULT_X RESULT_DER_X RESULT_ZERO
 
 
 struct ResultInfo
     store::ResultStore  # Location where variable is stored
     index::Int          # Index, depending on store-type
-                        #   store = RESULT_VARS : result_vars[ti][index]
+                        #   store = RESULT_CODE : result_code[ti][index]
+                        #         = RESULT_EXTRA: result_extra[ti][index]
                         #         = RESULT_X    : result_x[ti][ibeg:iend]
                         #                           ibeg = equationInfo.x_info[index].startIndex
                         #                           iend = ibeg + equationInfo.x_info[index].length-1
@@ -344,15 +346,19 @@ mutable struct SimulationModel{FloatType,TimeType}
 
     result_info::OrderedDict{String,ResultInfo} # key  : Full path name of result variables
                                                 # value: Storage location and index into the storage.
-    result_vars::AbstractVector                 # result_vars[ti][j] is result of variable with index j at time instant ti
+    result_code::Vector{Tuple}                  # result_code[ti][j] is result of variable with index j at time instant ti
+    n_result_code::Int                          # Number of result_code variables
+    result_extra::Vector{Vector{Any}}           # result_extra[ti][j] is extra result of variable with index j at time instant ti
+    result_extra_info::OrderedDict{String,ResultInfo}  # Extra result variables info (needed to remove extra results before a simulate!(..., merge=...))
+    result_extra_temp::Vector{Any}              # Memory to store temporarily references to extra results; length(result_extra_temp) = length(result_extra_info)
     result_x::Union{Any,Missing}                # Return value of DifferentialEquations.solve(..) (is a struct)
     result_der_x::Vector{Vector{FloatType}}     # result_der_x[ti][j] is der_x[j] at time instant ti
 
-    parameters::OrderedDict{Symbol,Any}
+    parameters::OrderedDict{Symbol,Any}         # Parameters as provided to SimulationModel constructor
 
     # Available after propagateEvaluateAndInstantiate!(..) called
-    evaluatedParameters::OrderedDict{Symbol,Any}
-    nextPrevious::AbstractVector            # nextPrevious[i] is the current value of the variable identified by previous(...., i)
+    evaluatedParameters::OrderedDict{Symbol,Any}  # Evaluated parameters
+    nextPrevious::AbstractVector                  # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     nextPre::AbstractVector
     nextHold::AbstractVector
 
@@ -416,10 +422,14 @@ mutable struct SimulationModel{FloatType,TimeType}
         success = false
 
         # Result data structure
-        result_info  = OrderedDict{String, ResultInfo}()
-        result_vars  = Tuple[]
-        result_x     = missing
-        result_der_x = Vector{FloatType}[]
+        result_info        = OrderedDict{String, ResultInfo}()
+        result_code        = Tuple[]
+        n_result_code      = length(variableNames)
+        result_extra       = Vector{Any}[]
+        result_extra_info  = OrderedDict{String, ResultInfo}()
+        result_extra_temp  = Any[]
+        result_x       = missing
+        result_der_x   = Vector{FloatType}[]
 
         parameters = deepcopy(parameterDefinition)
         obj = new(modelModule, modelName, buildDict, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
@@ -430,7 +440,7 @@ mutable struct SimulationModel{FloatType,TimeType}
                   hold, hold_names, hold_dict,
                   isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
                   odeIntegrator, daeCopyInfo, algorithmName, addEventPointsDueToDEBug, success, unitless,
-                  result_info, result_vars, result_x, result_der_x, parameters)
+                  result_info, result_code, n_result_code, result_extra, result_extra_info, result_extra_temp, result_x, result_der_x, parameters)
 
         evaluatedParameters = propagateEvaluateAndInstantiate!(obj, log=false)
         if isnothing(evaluatedParameters)
@@ -454,19 +464,21 @@ mutable struct SimulationModel{FloatType,TimeType}
         obj.der_x_full    = zeros(FloatType,nx)
 
         # Define result
-            # Store x and der_x
-            for (xe_index, xe_info) in enumerate(equationInfo.x_info)
+            # Store visible x and der_x
+            for xe_index = 1:equationInfo.nx_infoVisible
+                xe_info = equationInfo.x_info[xe_index]
                 result_info[xe_info.x_name] = ResultInfo(RESULT_X, xe_index)
             end
-            for (xe_index, xe_info) in enumerate(equationInfo.x_info)
+            for xe_index = 1:equationInfo.nx_infoVisible
+                xe_info = equationInfo.x_info[xe_index]
                 result_info[xe_info.der_x_name] = ResultInfo(RESULT_DER_X, xe_index)
             end
-            
-            # Store variables
+
+            # Store result_code variables
             for (i, name) in enumerate(variableNames)
                 str_name = string(name)
                 if !haskey(result_info, str_name)
-                    result_info[str_name] = ResultInfo(RESULT_VARS, i)
+                    result_info[str_name] = ResultInfo(RESULT_CODE, i)
                 end
             end
 
@@ -484,6 +496,9 @@ mutable struct SimulationModel{FloatType,TimeType}
                     result_info[name] = ResultInfo(info2.store, info2.index, true)
                 end
             end
+
+            # Add hidden states/state derivatives and extra results
+            addHiddenStatesAndExtraResultsTo_result_info!(obj)
 
         return obj
     end
@@ -521,7 +536,8 @@ mutable struct SimulationModel{FloatType,TimeType}
             isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             true, LinearEquationsCopyInfoForDAEMode[],
             odeIntegrator, daeCopyInfo, addEventPointsDueToDEBug, success, m.unitless,
-            m.result_info, Tuple[], missing, Vector{FloatType}[],
+            m.result_info, Tuple[], m.n_result_code, Vector{Any}[], deepcopy(m.result_extra_info),
+            Vector{Any}(nothing,length(m.result_extra_info)), missing, Vector{FloatType}[],
             deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
             deepcopy(m.nextPrevious), deepcopy(m.nextPre), deepcopy(m.nextHold),
             zeros(FloatType,0), deepcopy(m.x_vec),
@@ -550,7 +566,8 @@ pre(     m::SimulationModel, i)                  = m.pre[i]
 
 
 function emptyResult!(m::SimulationModel)::Nothing
-    empty!(m.result_vars)
+    empty!(m.result_code)
+    empty!(m.result_extra)
     empty!(m.result_der_x)
     m.result_x = missing
     return nothing
@@ -565,7 +582,7 @@ end
 
 
 """
-    x_hidden_startIndex = addHiddenState!(
+    x_hidden_startIndex = newHiddenState!(
                             m::SimulationModel,
                             x_name::String,
                             der_x_name::String,
@@ -577,7 +594,7 @@ end
 
 Add new hidden state to instantiated model and return its index that allows fast copying to x and der(x) vectors.
 """
-addHiddenState!(m::SimulationModel,
+newHiddenState!(m::SimulationModel,
                 x_name::String,
                 der_x_name::String,
                 startOrInit;
@@ -585,17 +602,17 @@ addHiddenState!(m::SimulationModel,
                 unit::String     = "",
                 fixed::Bool      = true,
                 nominal::Float64 = NaN,
-                unbounded::Bool  = false)::Int = addHiddenState!(m.equationInfo, x_name, der_x_name, startOrInit;
-                                                                 stateCategory = stateCategory, unit = unit, fixed = fixed, 
+                unbounded::Bool  = false)::Int = newHiddenState!(m.equationInfo, x_name, der_x_name, startOrInit;
+                                                                 stateCategory = stateCategory, unit = unit, fixed = fixed,
                                                                  nominal = nominal, unbounded = unbounded)
-                    
-                    
+
+
 """
-    copyFromHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{FloatType})
+    addHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{FloatType})
 
 Copy state from `m` at index `x_hidden_startIndex` into pre-allocated vector `xi`.
 """
-@inline function copyFromHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
+@inline function addHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{Float64})::Nothing where {FloatType,TimeType}
     copyto!(xi, 1, m.x_hidden, x_hidden_startIndex, length(xi))
     return nothing
 end
@@ -792,8 +809,14 @@ function getLastValue(m::SimulationModel{FloatType,TimeType}, name::String; unit
             return nothing
         end
 
-        if resInfo.store == RESULT_VARS
-            value = m.result_vars[end][resInfo.index]
+        if resInfo.store == RESULT_CODE
+            value = m.result_code[end][resInfo.index]
+            if !unit
+                value = stripUnit(value)
+            end
+
+        elseif resInfo.store == RESULT_EXTRA
+            value = m.result_extra[end][resInfo.index]
             if !unit
                 value = stripUnit(value)
             end
@@ -1157,7 +1180,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if length(m.options.merge) > 0
-        removeHiddenStates!(m.equationInfo)
+        removeHiddenStatesAndExtraResults!(m)
         removeHiddenCrossingFunctions!(m.eventHandler)
         m.parameters = mergeModels(m.parameters, m.options.merge)
         evaluatedParameters = propagateEvaluateAndInstantiate!(m)
@@ -1175,22 +1198,15 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
         resize!(m.der_x_full   , nx)
         eqInfo = m.equationInfo
         m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nx_infoFixed+1:eqInfo.nx_infoVisible]
+        addHiddenStatesAndExtraResultsTo_result_info!(m)
     end
 
     # Initialize auxiliary arrays for event iteration
-    m.x_init .= 0
-    m.der_x_visible .= 0
-    m.der_x_hidden  .= 0
-    m.der_x_full    .= 0
-    #=
-    @show m.equationInfo.nx
-    @show m.x_vec
-    @show m.x_start
-    @show m.x_init
-    @show m.der_x_visible
-    @show m.der_x_hidden
-    @show m.equationInfo
-    =#
+    m.x_init        .= FloatType(0)
+    m.der_x_visible .= FloatType(0)
+    m.x_hidden      .= FloatType(0)
+    m.der_x_hidden  .= FloatType(0)
+    m.der_x_full    .= FloatType(0)
 
     # Log parameters
     if m.options.logParameters
@@ -1462,14 +1478,14 @@ function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
     sol_t = integrator.sol.t
     sol_x = integrator.sol.u
     ilast = length(sol_t)
-    for i = length(m.result_vars)+1:ilast    # -1
+    for i = length(m.result_code)+1:ilast    # -1
         outputs!(sol_x[i], sol_t[i], integrator)
     end
     # A better solution is needed.
     #if sol_t[ilast] == sol_t[ilast-1]
     #    # Continuous time instant is present twice because "saveat" and "DiscreteCallback" occur at the same time instant
     #    # Do not compute the model again
-    #    push!(m.result_vars , m.result_vars[end])
+    #    push!(m.result_code , m.result_code[end])
     #    push!(m.result_der_x, m.result_der_x[end])
     #else
     #    outputs!(sol_x[ilast], sol_t[ilast], integrator)
@@ -1655,9 +1671,99 @@ Add `variableValues...` to `simulationModel::SimulationModel`.
 It is assumed that the first variable in `variableValues` is `time`.
 """
 @inline function addToResult!(m::SimulationModel, variableValues...)::Nothing
-    push!(m.result_vars , deepcopy(variableValues))
+    @assert(length(variableValues) == m.n_result_code)
+    push!(m.result_code , deepcopy(variableValues))
+    push!(m.result_extra, deepcopy(m.result_extra_temp))
     return nothing
 end
+
+
+"""
+    addHiddenStatesAndExtraResultsTo_result_info!(simulationModel)
+
+Add hidden states and its derivatives, as well as extra results to result_info.
+"""
+function addHiddenStatesAndExtraResultsTo_result_info!(m::SimulationModel)::Nothing
+    result_info = m.result_info
+
+    # Add hidden x and der_x to result_info
+    eqInfo = m.equationInfo
+    for xe_index = eqInfo.nx_infoVisible+1:length(eqInfo.x_info)
+        xe_info = eqInfo.x_info[xe_index]
+        result_info[xe_info.x_name] = ResultInfo(RESULT_X, xe_index)
+    end
+    for xe_index = eqInfo.nx_infoVisible+1:length(eqInfo.x_info)
+        xe_info = eqInfo.x_info[xe_index]
+        result_info[xe_info.der_x_name] = ResultInfo(RESULT_DER_X, xe_index)
+    end
+
+    # Add extra results to result_info
+    merge!(result_info, m.result_extra_info)
+    resize!(m.result_extra_temp, length(m.result_extra_info))
+    m.result_extra_temp .= nothing
+
+    return nothing
+end
+
+
+"""
+    removeHiddenStatesAndExtraResults!(simulationModel)
+
+Remove hidden states, their derivatives, as well as extra result from result_info,
+and remove hidden states from equationInfo.
+"""
+function removeHiddenStatesAndExtraResults!(m::SimulationModel)::Nothing
+    # Remove hiddens states and their derivatives from result_info
+    x_info = m.equationInfo.x_info
+    for xe_index = m.equationInfo.nx_infoVisible+1:length(x_info)
+        delete!(m.result_info, x_info[xe_index].x_name)
+        delete!(m.result_info, x_info[xe_index].der_x_name)
+    end
+
+    # Remove hidden states from equationInfo
+    removeHiddenStates!(m.equationInfo)
+
+    # Remove extra results from result_info
+    for (name,index) in m.result_extra_info
+        delete!(m.result_info, name)
+    end
+    empty!(m.result_extra_info)
+    m.result_extra_temp  .= nothing
+    resize!(m.result_extra_temp , 0)
+    return nothing
+end
+
+
+
+"""
+    extraResult_index = newExtraResult!(partiallyInstantiatedModel::SimulationModel, name::String)::Int
+
+Reserve storage location for one extra result variable. The returned extraResult_index is
+used to store extra results at communication points in the result data structure.
+"""
+function newExtraResult!(m::SimulationModel, name::String)::Int
+    if haskey(m.result_info, name) || haskey(m.result_extra_info, name)
+       error("Trying to add extra result variable $name but this name is already in use!")
+    end
+    extraResult_index = length(m.result_extra_info)+1
+    m.result_extra_info[name] = ResultInfo(RESULT_EXTRA, extraResult_index)
+    return extraResult_index
+end
+
+
+"""
+    addExtraResult!(instantiatedModel::SimulationModel, extraResult_index::Int, extraResult)::Nothing
+
+Store deepcopy(extraResult) at extraResult_index in instantiatedModel.
+"""
+@inline function addExtraResult!(m::SimulationModel, extraResult_index::Int, extraResult)::Nothing
+    m.result_extra_temp[extraResult_index] = extraResult
+    return nothing
+end
+
+
+
+
 
 
 """
@@ -1823,7 +1929,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
                     $(code_previous...)
                     $(code_pre...)
 
-                    if _m.storeResult
+                    if Modia.storeResults(_m)
                         Modia.TimerOutputs.@timeit _m.timer "Modia addToResult!" Modia.addToResult!(_m, $(variables...))
                     end
                     return nothing
