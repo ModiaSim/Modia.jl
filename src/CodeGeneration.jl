@@ -606,6 +606,13 @@ newHiddenState!(m::SimulationModel,
                                                                  stateCategory = stateCategory, unit = unit, fixed = fixed,
                                                                  nominal = nominal, unbounded = unbounded)
 
+"""
+    x_startIndex = getStateStartIndexFromHiddenStateStartIndex(instantiatedModel::SimulationModel, x_hidden_startIndex)
+
+Return the startindex of hidden staten with respect to x-vector, given the startIndex with respect to the x_hidden vector.
+"""
+getStateStartIndexFromHiddenStateStartIndex(m::SimulationModel, x_hidden_startIndex::Int) = m.equationInfo.nxVisible + x_hidden_startIndex
+
 
 """
     addHiddenState!(m::SimulationModel{FloatType,TimeType}, x_hidden_startIndex::Int, xi::Vector{FloatType})
@@ -1089,12 +1096,12 @@ getTime(m::SimulationModel) = m.time
 
 
 """
-    zStartIndex = addZeroCrossings(instantiatedModel, nz)
+    zStartIndex = newZeroCrossings(instantiatedModel, nz)
 
 Add nz new zero crossing functions and return the start index with respect to
 instantiatedModel.eventHandler.z.
 """
-function addZeroCrossings(m::SimulationModel{F,TimeType}, nz::Int)::Int where {F,TimeType}
+function newZeroCrossings(m::SimulationModel{F,TimeType}, nz::Int)::Int where {F,TimeType}
     eh = m.eventHandler
     zStartIndex = eh.nz + 1
     eh.nz += nz
@@ -1699,9 +1706,7 @@ function addHiddenStatesAndExtraResultsTo_result_info!(m::SimulationModel)::Noth
 
     # Add extra results to result_info
     merge!(result_info, m.result_extra_info)
-    resize!(m.result_extra_temp, length(m.result_extra_info))
-    m.result_extra_temp .= nothing
-
+    @assert(length(m.result_extra_info) == length(m.result_extra_temp))
     return nothing
 end
 
@@ -1736,17 +1741,20 @@ end
 
 
 """
-    extraResult_index = newExtraResult!(partiallyInstantiatedModel::SimulationModel, name::String)::Int
+    extraResult_index = newExtraResult!(partiallyInstantiatedModel::SimulationModel, name::String, defaultExtraResult)::Int
 
 Reserve storage location for one extra result variable. The returned extraResult_index is
 used to store extra results at communication points in the result data structure.
+Value defaultExtraResult is stored as default value for the extra result
+(`addExtraResult!(.., extraResult)`: `defaultExtraResult` and `extraResult` must have the same type and size)
 """
-function newExtraResult!(m::SimulationModel, name::String)::Int
+function newExtraResult!(m::SimulationModel, name::String, defaultExtraResult)::Int
     if haskey(m.result_info, name) || haskey(m.result_extra_info, name)
        error("Trying to add extra result variable $name but this name is already in use!")
     end
     extraResult_index = length(m.result_extra_info)+1
     m.result_extra_info[name] = ResultInfo(RESULT_EXTRA, extraResult_index)
+    push!(m.result_extra_temp, defaultExtraResult)
     return extraResult_index
 end
 

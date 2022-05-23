@@ -162,7 +162,9 @@ function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationMode
     ls = LinearStateSpaceStruct{FloatType}(; path, model...)
     ls.x_hidden_startIndex = Modia.newHiddenState!(partiallyInstantiatedModel, path*".x", path*".der(x)", ls.x_init)
     if length(ls.W) > 0
-        ls.w_extraResult_index = Modia.newExtraResult!(partiallyInstantiatedModel, path*".w")
+        # w = W*x_init
+        ls.w = ls.W*ls.x_init
+        ls.w_extraResult_index = Modia.newExtraResult!(partiallyInstantiatedModel, path*".w", ls.w)
     end
     lsBuild.ls = ls
     return nothing
