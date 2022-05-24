@@ -21,6 +21,7 @@ function getConstructorAsString(path, constructor, parameters):String
             elseif typeof(value) <: AbstractDict
                 svalue = "..."  # Do not show dictionaries, since too much output, especially due to pointers to Object3Ds
             else
+                value = ustrip.(value)
                 svalue = string(value)
                 if length(svalue) > 20
                     svalue = svalue[1:20] * "..."   # Restrict the length of the output
