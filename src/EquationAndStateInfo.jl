@@ -552,7 +552,7 @@ mutable struct StateElementInfo
     startIndex::Int               # start index of state with respect to x-vector or -1 if not yet known
     x_hidden_startIndex::Int      # start index of hidden state with respect to x_hidden vector
                                   # or -1, if it is no hidden state (for a hidden state, x_hidden_startIndex
-                                  # is consistently set when it is added via addHiddenState(..)).
+                                  # is consistently set when it is added via newHiddenState(..)).
 end
 
 
