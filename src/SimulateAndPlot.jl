@@ -142,8 +142,10 @@ not called before (the signals in Python module matplotlib.pyplot intervene with
                             are used for initialization and during simulation.
 - `requiredFinalStates`: is not `missing`: Test with `@test` whether the ODE state vector at the
               final time instant is in agreement to vector `requiredFinalStates` with respect
-              to some relative tolerance `requiredFinalStates_rtol`. If this is not the case, print the
+              to tolerances `requiredFinalStates_rtol, requiredFinalStates_atol`. If this is not the case, print the
               final state vector (so that it can be included with copy-and-paste in the simulate!(..) call).
+              If you checked that the result of the simulation is correct, use `requiredFinalStates = []` to get
+              a printout of the required final states and then copy it in your test.
 - `requiredFinalStates_rtol`: Relative tolerance used for `requiredFinalStates`.
 - `requiredFinalStates_atol`: Absolute tolerance used for `requiredFinalStates` (see atol in `?isapprox`)
 - `useRecursiveFactorizationUptoSize`: = 0: Linear equation systems A*v=b are solved with
@@ -441,15 +443,17 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             else
                 println("\nrequiredFinalStates_rtol = $rtol")
                 println("requiredFinalStates_atol = $atol")
+                diff = requiredFinalStates-finalStates
                 if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
-                    println(  "\nrequiredFinalStates = ", measurementToString(requiredFinalStates))
-                    printstyled("finalStates         = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
-                    printstyled("difference          = ", measurementToString(requiredFinalStates-finalStates), "\n\n", bold=true, color=:red)
+                    println(  "\nrequiredFinalStates   = ", measurementToString(requiredFinalStates))
+                    printstyled("finalStates           = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
+                    printstyled("difference            = ", measurementToString(diff), "\n\n", bold=true, color=:red)
                 else
-                    println(  "\nrequiredFinalStates = ", requiredFinalStates)
-                    printstyled("finalStates         = ", finalStates, "\n\n", bold=true, color=:red)
-                    printstyled("difference          = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)
+                    println(  "\nrequiredFinalStates   = ", requiredFinalStates)
+                    printstyled("finalStates           = ", finalStates, "\n\n", bold=true, color=:red)
+                    printstyled("difference            = ", diff, "\n\n", bold=true, color=:red)
                 end
+                printstyled("maximum(|difference|) = ", maximum(abs.(diff)), "\n\n", bold=true, color=:red)
                 @test isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
             end
         end
