@@ -443,17 +443,22 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             else
                 println("\nrequiredFinalStates_rtol = $rtol")
                 println("requiredFinalStates_atol = $atol")
-                diff = requiredFinalStates-finalStates
                 if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
                     println(  "\nrequiredFinalStates   = ", measurementToString(requiredFinalStates))
                     printstyled("finalStates           = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
-                    printstyled("difference            = ", measurementToString(diff), "\n\n", bold=true, color=:red)
+                    if length(finalStates) == length(requiredFinalStates)
+                        printstyled("difference            = ", measurementToString(requiredFinalStates-finalStates), "\n\n", bold=true, color=:red)
+                    end
                 else
                     println(  "\nrequiredFinalStates   = ", requiredFinalStates)
                     printstyled("finalStates           = ", finalStates, "\n\n", bold=true, color=:red)
-                    printstyled("difference            = ", diff, "\n\n", bold=true, color=:red)
+                    if length(finalStates) == length(requiredFinalStates)
+                        printstyled("difference            = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)
+                    end
                 end
-                printstyled("maximum(|difference|) = ", maximum(abs.(diff)), "\n\n", bold=true, color=:red)
+                if length(finalStates) == length(requiredFinalStates)
+                    printstyled("maximum(|difference|) = ", maximum(abs.(requiredFinalStates-finalStates)), "\n\n", bold=true, color=:red)
+                end
                 @test isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
             end
         end
