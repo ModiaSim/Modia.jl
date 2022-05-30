@@ -44,7 +44,9 @@ functionalities of these packages.
 
 - New functions to add hidden states and extra results from within functions that are not visible in the generated code:
   `Modia.newHiddenState!, Modia.newExtraResult!, Modia.addHiddenState!, Modia.addExtraResult!, Modia.storeResults`.
-  
+
+- simulate!(..): Maximum number of iterations is switched off (DifferentialEquations.jl option set to: maxiters = Int(typemax(Int32)) ≈ 2e9).
+
 - Docu improved (e.g. links to utility functions documentation added)
 
 

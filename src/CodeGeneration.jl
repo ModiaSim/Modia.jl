@@ -140,12 +140,13 @@ convertTimeVariable(Float32, 2.0u"hr")  # = 7200.0f0
 convertTimeVariable(TimeType, t) = typeof(t) <: Unitful.AbstractQuantity ? convert(TimeType, stripUnit(t)) : convert(TimeType, t)
 
 
-struct SimulationOptions{FloatType,TimeType}
+mutable struct SimulationOptions{FloatType,TimeType}
     merge::OrderedDict{Symbol,Any}
     tolerance::Float64
-    startTime::TimeType   # u"s"
-    stopTime::TimeType    # u"s"
-    interval::TimeType    # u"s"
+    startTimeFirstSegment::TimeType   # u"s"; startTime of first segment
+    startTime::TimeType               # u"s"; startTime of actual segment
+    stopTime::TimeType                # u"s"
+    interval::TimeType                # u"s"
     desiredResultTimeUnit
     interp_points::Int
     dtmax::Float64
@@ -178,7 +179,8 @@ struct SimulationOptions{FloatType,TimeType}
                         "tolerance changed to $newTolerance.\n\n", bold=true, color=:red)
             tolerance = newTolerance
         end
-        startTime   = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
+        startTimeFirstSegment = convertTimeVariable(TimeType, get(kwargs, :startTime, 0.0) )
+        startTime             = startTimeFirstSegment
         rawStopTime = get(kwargs, :stopTime, startTime)
         stopTime    = convertTimeVariable(TimeType, rawStopTime)
         interval    = convertTimeVariable(TimeType, get(kwargs, :interval , (stopTime - startTime)/500.0) )
@@ -226,7 +228,7 @@ struct SimulationOptions{FloatType,TimeType}
         end
 
 #        obj = new(isnothing(merge) ? NamedTuple() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
-        obj = new(ismissing(merge) || isnothing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
+        obj = new(ismissing(merge) || isnothing(merge) ? OrderedDict{Symbol,Any}() : merge, tolerance, startTimeFirstSegment, startTime, stopTime, interval, desiredResultTimeUnit, interp_points,
                   dtmax, adaptive, nlinearMinForDAE, log, logStates, logEvents, logProgress, logTiming, logParameters, logEvaluatedParameters,
                   requiredFinalStates, requiredFinalStates_rtol, requiredFinalStates_atol, useRecursiveFactorizationUptoSize, extra_kwargs)
         return success ? obj : nothing
@@ -341,6 +343,7 @@ mutable struct SimulationModel{FloatType,TimeType}
 
     daeCopyInfo::Vector{LinearEquationsCopyInfoForDAEMode}  # Info to efficiently copy between DAE and linear equation systems
     algorithmName::Union{String,Missing}        # Name of integration algorithm as string (used in default-heading of plot)
+    sundials::Bool                              # = true, if algorithm is a Sundials integrator
     addEventPointsDueToDEBug::Bool              # = true, if event points are explicitly stored for Sundials integrators, due to bug in DifferentialEquations
                                                 #         (https://github.com/SciML/Sundials.jl/issues/309)
     success::Bool                               # = true, if after first outputs!(..) call and no error was triggered
@@ -422,6 +425,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         odeIntegrator = true
         daeCopyInfo = LinearEquationsCopyInfoForDAEMode[]
         algorithmName = missing
+        sundials = false
         addEventPointsDueToDEBug = false
         success = false
 
@@ -443,7 +447,7 @@ mutable struct SimulationModel{FloatType,TimeType}
                   pre, pre_names, pre_dict,
                   hold, hold_names, hold_dict,
                   isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
-                  odeIntegrator, daeCopyInfo, algorithmName, addEventPointsDueToDEBug, success, unitless,
+                  odeIntegrator, daeCopyInfo, algorithmName, sundials, addEventPointsDueToDEBug, success, unitless,
                   result_info, result_code, n_result_code, result_extra, result_extra_info, result_extra_temp, result_x, result_der_x, parameters)
 
         evaluatedParameters = propagateEvaluateAndInstantiate!(obj, log=false)
@@ -526,7 +530,6 @@ mutable struct SimulationModel{FloatType,TimeType}
         odeIntegrator = true
         daeCopyInfo = LinearEquationsCopyInfoForDAEMode[]
         algorithmName = missing
-        addEventPointsDueToDEBug = false
         success = false
         nx = m.equationInfo.nx
 
@@ -539,7 +542,7 @@ mutable struct SimulationModel{FloatType,TimeType}
             deepcopy(m.hold), m.hold_names, m.hold_dict,
             isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             true, LinearEquationsCopyInfoForDAEMode[],
-            odeIntegrator, daeCopyInfo, addEventPointsDueToDEBug, success, m.unitless,
+            odeIntegrator, daeCopyInfo, m.sundials, m.addEventPointsDueToDEBug, success, m.unitless,
             m.result_info, Tuple[], m.n_result_code, Vector{Any}[], deepcopy(m.result_extra_info),
             Vector{Any}(nothing,length(m.result_extra_info)), missing, Vector{FloatType}[],
             deepcopy(m.parameters), deepcopy(m.evaluatedParameters),

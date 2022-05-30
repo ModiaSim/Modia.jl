@@ -220,248 +220,131 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         return nothing
     end
     m.options = options
+
+    if ismissing(algorithm) && FloatType == Float64
+        algorithm = Sundials.CVODE_BDF()
+    end
+    m.algorithmName = getAlgorithmName(algorithm)
+    m.sundials      = !ismissing(algorithm) && (typeof(algorithm) <: Sundials.SundialsODEAlgorithm || typeof(algorithm) <: Sundials.SundialsDAEAlgorithm)
+    m.addEventPointsDueToDEBug = m.sundials
+
+    # Initialize/re-initialize SimulationModel
+    if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
+        println("\n... Simulate model ", m.modelName)
+    end
+
+    useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
+    for leq in m.linearEquations
+        leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
+    end
+
+    if m.options.log || m.options.logTiming
+        @time (success = init!(m); if m.options.log || m.options.logTiming; print("      Initialization finished within") end)
+    else
+        success = init!(m)
+    end
+    if !success
+        @test false
+        return nothing
+    end
+
+    enable_timer!(m.timer)
+    reset_timer!(m.timer)
+    m.cpuLast  = time_ns()
+    m.cpuFirst = m.cpuLast
+
     solution = nothing
-
-    #try
-        if ismissing(algorithm) && FloatType == Float64
-            algorithm = Sundials.CVODE_BDF()
+    TimerOutputs.@timeit m.timer "Modia.simulate!" while true
+        solution = simulateSegment!(m, algorithm; merge=merge, kwargs...)
+        if m.eventHandler.restart != Modia.FullRestart
+            break
         end
-        m.algorithmName = getAlgorithmName(algorithm)
+        m.options.startTime = m.time
+    end
 
-        # Initialize/re-initialize SimulationModel
-        if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
-            println("\n... Simulate model ", m.modelName)
-        end
+    disable_timer!(m.timer)
 
-        useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
-        for leq in m.linearEquations
-            leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
-        end
+    if !m.success
+        return nothing
+    end
 
-        #TimerOutputs.@timeit m.timer "Modia.init!" success = init!(m)
-        if m.options.log || m.options.logTiming
-            @time (success = init!(m); if m.options.log || m.options.logTiming; print("      Initialization finished within") end)
+    if m.options.log
+        eh = m.eventHandler
+        useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
+        println("      Termination of ", m.modelName, " at time = ", solution.t[end], " s")
+        println("        cpuTime (without init.)   = ", round(TimerOutputs.time(m.timer["Modia.simulate!"])*1e-9, sigdigits=3), " s")
+        println("        allocated (without init.) = ", round(TimerOutputs.allocated(m.timer["Modia.simulate!"])/1048576.0, sigdigits=3), " MiB")
+        println("        algorithm                 = ", get_algorithmName_for_heading(m))
+        println("        FloatType                 = ", FloatType)
+        println("        interval                  = ", m.options.interval, " s")
+        println("        tolerance                 = ", m.options.tolerance, " (relative tolerance)")
+        println("        nStates                   = ", length(m.x_start))
+        println("        linearSystemSizes         = ", Int[length(leq.b) for leq in m.linearEquations])
+        println("        useRecursiveFactorization = ", useRecursiveFactorization)
+        println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])
+        println("        nResults                  = ", length(m.result_x.t))
+        println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
+        println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
+        println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
+
+        if m.sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
+            # statistics is wrong, due to a bug in the Sundials.jl interface
+            println("        nJac                      = ??? (number of Jacobian computations)")
+            println("        nAcceptedSteps            = ???")
+            println("        nRejectedSteps            = ???")
+            println("        nErrTestFails             = ???")
         else
-            success = init!(m)
+            println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
+            println("        nAcceptedSteps            = ", solution.destats.naccept)
+            println("        nRejectedSteps            = ", solution.destats.nreject)
+            println("        nErrTestFails             = ", solution.destats.nreject)
         end
-        if !success
-            @test false
-            return nothing
-        end
+        println("        nTimeEvents               = ", eh.nTimeEvents)
+        println("        nStateEvents              = ", eh.nStateEvents)
+        println("        nRestartEvents            = ", eh.nRestartEvents)
+    end
+    if m.options.logTiming
+        println("\n... Timings for simulation of ", m.modelName," (without initialization):")
+        TimerOutputs.print_timer(TimerOutputs.flatten(m.timer), compact=true)
+    end
 
-        enable_timer!(m.timer)
-        reset_timer!(m.timer)
-
-        TimerOutputs.@timeit m.timer "Modia.simulate!" begin
-            sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
-
-            # Define problem and callbacks based on algorithm and model type
-            interval = m.options.interval
-            if  abs(m.options.stopTime - m.options.startTime) <= 0
-                interval = 1.0
-                tspan2   = [m.options.startTime]
-            elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
-                tspan2 = m.options.startTime:m.options.interval:m.options.stopTime
-            else
-                tspan2 = [m.options.startTime, m.options.stopTime]
-            end
-            tspan = (m.options.startTime, m.options.stopTime)
-
-            eh = m.eventHandler
-            m.odeMode   = true
-            m.solve_leq = true
-            if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
-                # DAE integrator
-                m.odeIntegrator = false
-                nx = length(m.x_init)
-                differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
-                copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)
-                TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x_full, m.x_init, tspan, m, differential_vars = differential_vars)
-                empty!(m.daeCopyInfo)
-                if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
-                    # Prepare data structure to efficiently perform copy operations for DAE integrator
-                    x_info      = m.equationInfo.x_info
-                    der_x_dict  = m.equationInfo.der_x_dict
-                    der_x_names = keys(der_x_dict)
-                    for (ileq,leq) in enumerate(m.linearEquations)
-                        if sizesOfLinearEquationSystems[ileq] >= options.nlinearMinForDAE &&
-                           length(intersect(leq.x_names,der_x_names)) == length(leq.x_names)
-                            # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
-                            leq.odeMode = false
-                            m.odeMode   = false
-                            leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
-                            for ix in 1:length(leq.x_names)
-                                x_name   = leq.x_names[ix]
-                                x_length = leq.x_lengths[ix]
-                                x_info_i = x_info[ der_x_dict[x_name] ]
-                                @assert(x_length == x_info_i.length)
-                                startIndex = x_info_i.startIndex
-                                endIndex   = startIndex + x_length - 1
-                                append!(leq_copy.index, startIndex:endIndex)
-                            end
-                            push!(m.daeCopyInfo, leq_copy)
-                        else
-                            leq.odeMode = true
-                        end
-                    end
-                end
-            else
-                # ODE integrator
-                m.odeIntegrator = true
-                TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
-            end
-
-            callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)
-            if eh.nz > 0
-                #println("\n!!! Callback set with crossing functions")
-                # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
-                # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
-                # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
-                # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
-                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
-                callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!,
-                                affectStateEvent!, eh.nz, interp_points=m.options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)
-                #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)
-                callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
-            else
-                #println("\n!!! Callback set without crossing functions")
-                callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2)
-                callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
-            end
-
-            # Initial step size (the default of DifferentialEquations is too large) + step-size of fixed-step algorithm
-            if !ismissing(algorithm) && (typeof(algorithm) <: Sundials.SundialsODEAlgorithm ||
-                                         typeof(algorithm) <: Sundials.SundialsDAEAlgorithm)
-                sundials = true
-            else
-                sundials = false
-                dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
-            end
-            m.addEventPointsDueToDEBug = sundials
-
-            # Compute solution
-            abstol = 0.1*m.options.tolerance
-            tstops = (m.eventHandler.nextEventTime,)
-            m.cpuLast  = time_ns()
-            m.cpuFirst = m.cpuLast
-            if ismissing(algorithm)
-                TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
-                                                                                initializealg = DifferentialEquations.NoInit())
-            elseif sundials
-                TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, tstops = tstops,
-                                                                                initializealg = DifferentialEquations.NoInit())
-            else
-                TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                                callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, tstops = tstops,
-                                                                                initializealg = DifferentialEquations.NoInit())
-            end
-
-            # Compute and store outputs from last event until final time
-            sol_t = solution.t
-            sol_x = solution.u
-            m.storeResult = true
-            for i = length(m.result_code)+1:length(sol_t)
-                invokelatest_getDerivatives_without_der_x!(sol_x[i], m, sol_t[i])
-            end
-            m.storeResult = false
-
-            # Final update of instantiatedModel
-            m.result_x = solution
-            if ismissing(algorithm)
-                m.algorithmName = getAlgorithmName(solution.alg)
-            end
-
-            # Terminate simulation
-            finalStates = solution.u[end]
-            finalTime   = solution.t[end]
-            terminate!(m, finalStates, finalTime)
-
-            # Raise an error, if simulation was not successful
-            if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
-                error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
-            end
-        end
-        disable_timer!(m.timer)
-
-        if !m.success
-            return nothing
+    requiredFinalStates = m.options.requiredFinalStates
+    if !ismissing(requiredFinalStates)
+        finalStates = solution.u[end]
+        rtol = m.options.requiredFinalStates_rtol
+        atol = m.options.requiredFinalStates_atol
+        if length(finalStates) != length(requiredFinalStates)
+            success = false
+        else
+            success = isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
         end
 
-        if m.options.log
-            useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
-            println("      Termination of ", m.modelName, " at time = ", finalTime, " s")
-            println("        cpuTime (without init.)   = ", round(TimerOutputs.time(m.timer["Modia.simulate!"])*1e-9, sigdigits=3), " s")
-            println("        allocated (without init.) = ", round(TimerOutputs.allocated(m.timer["Modia.simulate!"])/1048576.0, sigdigits=3), " MiB")
-            println("        algorithm                 = ", get_algorithmName_for_heading(m))
-            println("        FloatType                 = ", FloatType)
-            println("        interval                  = ", m.options.interval, " s")
-            println("        tolerance                 = ", m.options.tolerance, " (relative tolerance)")
-            println("        nStates                   = ", length(m.x_start))
-            println("        linearSystemSizes         = ", sizesOfLinearEquationSystems)
-            println("        useRecursiveFactorization = ", useRecursiveFactorization)
-            println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])
-            println("        nResults                  = ", length(m.result_x.t))
-            println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
-            println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
-            println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
-
-            if sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
-                # statistics is wrong, due to a bug in the Sundials.jl interface
-                println("        nJac                      = ??? (number of Jacobian computations)")
-                println("        nAcceptedSteps            = ???")
-                println("        nRejectedSteps            = ???")
-                println("        nErrTestFails             = ???")
-            else
-                println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
-                println("        nAcceptedSteps            = ", solution.destats.naccept)
-                println("        nRejectedSteps            = ", solution.destats.nreject)
-                println("        nErrTestFails             = ", solution.destats.nreject)
-            end
-            println("        nTimeEvents               = ", eh.nTimeEvents)
-            println("        nStateEvents              = ", eh.nStateEvents)
-            println("        nRestartEvents            = ", eh.nRestartEvents)
-        end
-        if m.options.logTiming
-            println("\n... Timings for simulation of ", m.modelName," (without initialization):")
-            TimerOutputs.print_timer(TimerOutputs.flatten(m.timer), compact=true)
-        end
-
-        requiredFinalStates = m.options.requiredFinalStates
-        if !ismissing(requiredFinalStates)
-            rtol = m.options.requiredFinalStates_rtol
-            atol = m.options.requiredFinalStates_atol
-            if length(finalStates) != length(requiredFinalStates)
-                success = false
-            else
-                success = isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
-            end
-
-            if success
-                @test success
-            else
-                println("\nrequiredFinalStates_rtol = $rtol")
-                println("requiredFinalStates_atol = $atol")
-                if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
-                    println(  "\nrequiredFinalStates   = ", measurementToString(requiredFinalStates))
-                    printstyled("finalStates           = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
-                    if length(finalStates) == length(requiredFinalStates)
-                        printstyled("difference            = ", measurementToString(requiredFinalStates-finalStates), "\n\n", bold=true, color=:red)
-                    end
-                else
-                    println(  "\nrequiredFinalStates   = ", requiredFinalStates)
-                    printstyled("finalStates           = ", finalStates, "\n\n", bold=true, color=:red)
-                    if length(finalStates) == length(requiredFinalStates)
-                        printstyled("difference            = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)
-                    end
-                end
+        if success
+            @test success
+        else
+            println("\nrequiredFinalStates_rtol = $rtol")
+            println("requiredFinalStates_atol = $atol")
+            if length(requiredFinalStates) > 0 && typeof(requiredFinalStates[1]) <: Measurements.Measurement
+                println(  "\nrequiredFinalStates   = ", measurementToString(requiredFinalStates))
+                printstyled("finalStates           = ", measurementToString(finalStates), "\n\n", bold=true, color=:red)
                 if length(finalStates) == length(requiredFinalStates)
-                    printstyled("maximum(|difference|) = ", maximum(abs.(requiredFinalStates-finalStates)), "\n\n", bold=true, color=:red)
+                    printstyled("difference            = ", measurementToString(requiredFinalStates-finalStates), "\n\n", bold=true, color=:red)
                 end
-                @test isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
+            else
+                println(  "\nrequiredFinalStates   = ", requiredFinalStates)
+                printstyled("finalStates           = ", finalStates, "\n\n", bold=true, color=:red)
+                if length(finalStates) == length(requiredFinalStates)
+                    printstyled("difference            = ", requiredFinalStates-finalStates, "\n\n", bold=true, color=:red)
+                end
             end
+            if length(finalStates) == length(requiredFinalStates)
+                printstyled("maximum(|difference|) = ", maximum(abs.(requiredFinalStates-finalStates)), "\n\n", bold=true, color=:red)
+            end
+            @test isapprox(finalStates, requiredFinalStates, rtol=rtol, atol=atol)
         end
+    end
+
+    return solution
 
     #=
     catch e
@@ -485,6 +368,135 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         end
     end
     =#
+end
+
+
+function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType}
+    solution = nothing
+
+    sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
+
+    # Define problem and callbacks based on algorithm and model type
+    interval = m.options.interval
+    if  abs(m.options.stopTime - m.options.startTime) <= 0
+        interval = 1.0
+        tspan2   = [m.options.startTime]
+    elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
+        tspan2 = m.options.startTime:m.options.interval:m.options.stopTime
+    else
+        tspan2 = [m.options.startTime, m.options.stopTime]
+    end
+    tspan = (m.options.startTime, m.options.stopTime)
+
+    eh = m.eventHandler
+    m.odeMode   = true
+    m.solve_leq = true
+    if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
+        # DAE integrator
+        m.odeIntegrator = false
+        nx = length(m.x_init)
+        differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
+        copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)
+        TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x_full, m.x_init, tspan, m, differential_vars = differential_vars)
+        empty!(m.daeCopyInfo)
+        if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
+            # Prepare data structure to efficiently perform copy operations for DAE integrator
+            x_info      = m.equationInfo.x_info
+            der_x_dict  = m.equationInfo.der_x_dict
+            der_x_names = keys(der_x_dict)
+            for (ileq,leq) in enumerate(m.linearEquations)
+                if sizesOfLinearEquationSystems[ileq] >= options.nlinearMinForDAE &&
+                   length(intersect(leq.x_names,der_x_names)) == length(leq.x_names)
+                    # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
+                    leq.odeMode = false
+                    m.odeMode   = false
+                    leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
+                    for ix in 1:length(leq.x_names)
+                        x_name   = leq.x_names[ix]
+                        x_length = leq.x_lengths[ix]
+                        x_info_i = x_info[ der_x_dict[x_name] ]
+                        @assert(x_length == x_info_i.length)
+                        startIndex = x_info_i.startIndex
+                        endIndex   = startIndex + x_length - 1
+                        append!(leq_copy.index, startIndex:endIndex)
+                    end
+                    push!(m.daeCopyInfo, leq_copy)
+                else
+                    leq.odeMode = true
+                end
+            end
+        end
+    else
+        # ODE integrator
+        m.odeIntegrator = true
+        TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
+    end
+
+    callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)
+    if eh.nz > 0
+        #println("\n!!! Callback set with crossing functions")
+        # Due to DifferentialEquations bug https://github.com/SciML/DifferentialEquations.jl/issues/686
+        # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
+        # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
+        # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
+        callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
+        callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!,
+                        affectStateEvent!, eh.nz, interp_points=m.options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)
+        #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)
+        callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
+    else
+        #println("\n!!! Callback set without crossing functions")
+        callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=tspan2)
+        callbacks = DifferentialEquations.CallbackSet(callback1, callback2)
+    end
+
+    # Initial step size (the default of DifferentialEquations integrators is too large) + step-size of fixed-step algorithm
+    if !m.sundials
+        dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
+    end
+
+    # Compute solution
+    abstol = 0.1*m.options.tolerance
+    tstops = (m.eventHandler.nextEventTime,)
+    maxiters = Int(typemax(Int32))  # switch off maximum number of iterations (typemax(Int) gives an inexact error for Sundials)
+    if ismissing(algorithm)
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+                                                                        initializealg = DifferentialEquations.NoInit())
+    elseif m.sundials
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+                                                                        initializealg = DifferentialEquations.NoInit())
+    else
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+                                                                        initializealg = DifferentialEquations.NoInit())
+    end
+
+    # Compute and store outputs from last event until final time
+    sol_t = solution.t
+    sol_x = solution.u
+    m.storeResult = true
+    for i = length(m.result_code)+1:length(sol_t)
+        invokelatest_getDerivatives_without_der_x!(sol_x[i], m, sol_t[i])
+    end
+    m.storeResult = false
+
+    # Final update of instantiatedModel
+    m.result_x = solution
+    if ismissing(algorithm)
+        m.algorithmName = getAlgorithmName(solution.alg)
+    end
+
+    # Terminate simulation
+    finalStates = solution.u[end]
+    finalTime   = solution.t[end]
+    terminate!(m, finalStates, finalTime)
+
+    # Raise an error, if simulation was not successful
+    if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
+        error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
+    end
 
     return solution
 end
