@@ -362,10 +362,14 @@ mutable struct SimulationModel{FloatType,TimeType}
     result_der_x::Vector{Vector{FloatType}}     # result_der_x[ti][j] is der_x[j] at time instant ti
 
     parameters::OrderedDict{Symbol,Any}         # Parameters as provided to SimulationModel constructor
+    instantiateFunctions::Vector{Tuple{Union{Expr,Symbol},OrderedDict{Symbol,Any},String}}
+                                                # All definitions `_instantiateFunction = Par(functionName = XXX)` in the model to call
+                                                # `XXX(instantiatedModel, submodel, submodelPath)` in the order occurring  during evaluation
+                                                # of the parameters where, instantiatedFunctions[i] = (XXX, submodel, submodelPath)
 
     # Available after propagateEvaluateAndInstantiate!(..) called
-    evaluatedParameters::OrderedDict{Symbol,Any}  # Evaluated parameters
-    nextPrevious::AbstractVector                  # nextPrevious[i] is the current value of the variable identified by previous(...., i)
+    evaluatedParameters::OrderedDict{Symbol,Any}     # Evaluated parameters
+    nextPrevious::AbstractVector                     # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     nextPre::AbstractVector
     nextHold::AbstractVector
 
@@ -416,7 +420,6 @@ mutable struct SimulationModel{FloatType,TimeType}
 
         # Initialize execution flags
         eventHandler = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
-        eventHandler.initial = true
         isInitial   = true
         storeResult = false
         solve_leq   = true
@@ -440,6 +443,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         result_der_x   = Vector{FloatType}[]
 
         parameters = deepcopy(parameterDefinition)
+        instantiateFunctions = Tuple{Any,String}[]
         obj = new(modelModule, modelName, buildDict, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
                   equationInfo, linearEquations, eventHandler,
                   vSolvedWithInitValuesAndUnit2,
@@ -448,7 +452,7 @@ mutable struct SimulationModel{FloatType,TimeType}
                   hold, hold_names, hold_dict,
                   isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
                   odeIntegrator, daeCopyInfo, algorithmName, sundials, addEventPointsDueToDEBug, success, unitless,
-                  result_info, result_code, n_result_code, result_extra, result_extra_info, result_extra_temp, result_x, result_der_x, parameters)
+                  result_info, result_code, n_result_code, result_extra, result_extra_info, result_extra_temp, result_x, result_der_x, parameters, instantiateFunctions)
 
         evaluatedParameters = propagateEvaluateAndInstantiate!(obj, log=false)
         if isnothing(evaluatedParameters)
@@ -545,7 +549,7 @@ mutable struct SimulationModel{FloatType,TimeType}
             odeIntegrator, daeCopyInfo, m.sundials, m.addEventPointsDueToDEBug, success, m.unitless,
             m.result_info, Tuple[], m.n_result_code, Vector{Any}[], deepcopy(m.result_extra_info),
             Vector{Any}(nothing,length(m.result_extra_info)), missing, Vector{FloatType}[],
-            deepcopy(m.parameters), deepcopy(m.evaluatedParameters),
+            deepcopy(m.parameters), deepcopy(m.instantiateFunctions), deepcopy(m.evaluatedParameters),
             deepcopy(m.nextPrevious), deepcopy(m.nextPre), deepcopy(m.nextHold),
             zeros(FloatType,0), deepcopy(m.x_vec),
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,equationInfo.nxVisible), zeros(FloatType,nx-equationInfo.nxVisible),
@@ -1165,6 +1169,22 @@ function invokelatest_getDerivatives_without_der_x!(x, m, t)::Nothing
 end
 
 
+function resizeStatesAndResults!(m::SimulationModel{FloatType,TimeType})::Nothing where {FloatType,TimeType}
+        nx       = length(m.x_start)
+        nxHidden = nx - m.equationInfo.nxVisible
+        resize!(m.x_init, nx)
+        resize!(m.der_x_visible, m.equationInfo.nxVisible)
+        resize!(m.x_hidden     , nxHidden)
+        resize!(m.der_x_hidden , nxHidden)
+        resize!(m.der_x_full   , nx)
+        eqInfo = m.equationInfo
+        m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nx_infoFixed+1:eqInfo.nx_infoVisible]
+        addHiddenStatesAndExtraResultsTo_result_info!(m)
+        return nothing
+end
+
+
+
 """
     success = init!(simulationModel)
 
@@ -1189,8 +1209,6 @@ If initialization is successful return true, otherwise false.
 function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,TimeType}
     emptyResult!(m)
     eh = m.eventHandler
-    reinitEventHandler!(eh, m.options.stopTime, m.options.logEvents)
-    eh.firstInitialOfAllSegments = true
 
 	# Apply updates from merge Map and propagate/instantiate/evaluate the resulting evaluatedParameters
     if length(m.options.merge) > 0
@@ -1203,16 +1221,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
         end
         m.evaluatedParameters = evaluatedParameters
         m.x_start = initialStateVector!(m.equationInfo, FloatType)
-        nx       = length(m.x_start)
-        nxHidden = nx - m.equationInfo.nxVisible
-        resize!(m.x_init, nx)
-        resize!(m.der_x_visible, m.equationInfo.nxVisible)
-        resize!(m.x_hidden     , nxHidden)
-        resize!(m.der_x_hidden , nxHidden)
-        resize!(m.der_x_full   , nx)
-        eqInfo = m.equationInfo
-        m.x_vec = [zeros(FloatType, eqInfo.x_info[i].length) for i in eqInfo.nx_infoFixed+1:eqInfo.nx_infoVisible]
-        addHiddenStatesAndExtraResultsTo_result_info!(m)
+        resizeStatesAndResults!(m)
     end
 
     # Initialize auxiliary arrays for event iteration

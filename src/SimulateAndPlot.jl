@@ -219,7 +219,10 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         @test false
         return nothing
     end
-    m.options = options
+    m.options   = options
+    m.time      = options.startTime
+    m.isInitial = true
+    reinitEventHandler!(m.eventHandler, m.options.stopTime, m.options.logEvents)
 
     if ismissing(algorithm) && FloatType == Float64
         algorithm = Sundials.CVODE_BDF()
@@ -252,15 +255,87 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     reset_timer!(m.timer)
     m.cpuLast  = time_ns()
     m.cpuFirst = m.cpuLast
-
+    eh = m.eventHandler
     solution = nothing
+
+    # --------------------------------------------------------- Core simulation loop ---------------------------------
     TimerOutputs.@timeit m.timer "Modia.simulate!" while true
-        solution = simulateSegment!(m, algorithm; merge=merge, kwargs...)
+        solution = simulateSegment!(m, algorithm; kwargs...)
+
+        # Terminate simulation of current segment
+        finalStates = solution.u[end]
+        finalTime   = solution.t[end]
+        m.result_x = solution
+        if m.eventHandler.restart != Modia.FullRestart
+            eh.terminalOfAllSegments = true
+        end
+        terminate!(m, finalStates, finalTime)
+        eh.terminalOfAllSegments = false
+
+        # Raise an error, if simulation was not successful
+        if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
+            error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
+        end
+
         if m.eventHandler.restart != Modia.FullRestart
             break
         end
+
+        # Re-initialize model for FullRestart
         m.options.startTime = m.time
-    end
+        reinitEventHandlerForFullRestart!(eh, m.time, m.options.stopTime, m.options.logEvents)
+
+        # Evaluate instantiate functions
+        removeHiddenStatesAndExtraResults!(m)
+        removeHiddenCrossingFunctions!(m.eventHandler)
+        for fc in m.instantiatedFunctions
+            logInstantiatedFunctionCalls = false
+            Core.eval(m.modelModule, :($(fc[1])($m, $(fc[2]), $(fc[3]), log=$logInstantiatedFunctionCalls)))
+        end
+        m.x_start = initialStateVector!(m.equationInfo, FloatType)
+        resizeStatesAndResults!(m)
+
+        # Initialize auxiliary arrays for event iteration
+        m.x_init        .= FloatType(0)
+        m.der_x_visible .= FloatType(0)
+        m.x_hidden      .= FloatType(0)
+        m.der_x_hidden  .= FloatType(0)
+        m.der_x_full    .= FloatType(0)
+
+        if m.options.logStates
+            # List init/start values
+            x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[])   #, nominal=String[])
+            for xe_info in m.equationInfo.x_info
+                xe_init = get_xe(m.x_start, xe_info)
+                if hasParticles(xe_init)
+                    xe_init = string(minimum(xe_init)) * " .. " * string(maximum(xe_init))
+                end
+                # xe_nominal = isnan(xe_info.nominal) ? "" : xe_info.nominal
+                push!(x_table, (xe_info.x_name, xe_init, xe_info.unit))   #, xe_nominal))
+            end
+            show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
+            println("\n")
+        end
+
+        # Initialize model, linearEquations and compute and store all variables at the initial time
+        if m.options.log
+            println("      Reinitialization due to FullRestart at time = ", m.time, " s")
+        end
+
+        # Perform event iteration
+        m.isInitial   = true
+        eh.initial    = true
+        for i in eachindex(m.x_init)
+            m.x_init[i] = deepcopy(m.x_start[i])
+        end
+        eventIteration!(m, m.x_init, m.options.startTime)
+        m.success      = false   # is set to true at the first outputs! call.
+        eh.fullRestart = false
+        eh.initial     = false
+        m.isInitial    = false
+        m.storeResult  = false
+        eh.afterSimulationStart = true
+    end # --------------------------------------------------------- End of core simulation loop ------------------------------
 
     disable_timer!(m.timer)
 
@@ -301,6 +376,9 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         end
         println("        nTimeEvents               = ", eh.nTimeEvents)
         println("        nStateEvents              = ", eh.nStateEvents)
+        if eh.nFullRestartEvents > 0
+            println("        nFullRestartEvents        = ", eh.nFullRestartEvents)
+        end
         println("        nRestartEvents            = ", eh.nRestartEvents)
     end
     if m.options.logTiming
@@ -371,7 +449,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
 end
 
 
-function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType}
+function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; kwargs...) where {FloatType,TimeType}
     solution = nothing
 
     sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
@@ -482,20 +560,8 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
     end
     m.storeResult = false
 
-    # Final update of instantiatedModel
-    m.result_x = solution
     if ismissing(algorithm)
         m.algorithmName = getAlgorithmName(solution.alg)
-    end
-
-    # Terminate simulation
-    finalStates = solution.u[end]
-    finalTime   = solution.t[end]
-    terminate!(m, finalStates, finalTime)
-
-    # Raise an error, if simulation was not successful
-    if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
-        error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
     end
 
     return solution

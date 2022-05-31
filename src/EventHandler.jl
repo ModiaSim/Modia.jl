@@ -34,15 +34,16 @@ mutable struct EventHandler{FloatType,TimeType}
     # Logging
     logEvents::Bool                 # = true, if events shall be logged
     nZeroCrossings::Int             # Number of zero crossing calls
-    nRestartEvents::Int             # Number of Restart events
+    nRestartEvents::Int             # Number of Restart events (= nStateEvents + nTimeEvents + nFullRestartEvents)
     nStateEvents::Int               # Number of state events
     nTimeEvents::Int                # Number of time events
+    nFullRestartEvents::Int         # Number of full restart events
 
     # Input values for the event functions
     time::TimeType                  # Current simulation time
-    initial::Bool                   # = true, if model is called at initialization
+    initial::Bool                   # = true, if model is called at initialization of current simulation segment
                                     #         (if initial, event=true)
-    terminal::Bool                  # = true, if model is called for termination (close files, streams, visualization, ...)
+    terminal::Bool                  # = true, if model is called for termination at current simulation segment (close files, streams, visualization, ...)
     event::Bool                     # = true, if model is called at an event
     afterSimulationStart::Bool      # = true, if model is called after simulation start
     crossing::Bool                  # = true, if model is called to compute crossing function
@@ -52,6 +53,8 @@ mutable struct EventHandler{FloatType,TimeType}
     # Values especially for simulations with several segments
     firstInitialOfAllSegments::Bool # = true, if model is called at initialization of the first simulation segment.
     terminalOfAllSegments::Bool     # = true, if model is called for termination at the last simulation segment.
+    fullRestart::Bool               # = true, if model is called at initialization of a FullRestart
+                                    # (if fullRestart==true -> initial=event=true; if firstInitialOfAllSegments==true -> fullRestart=false)
 
     # Computed by the event functions
     # For time events:
@@ -89,12 +92,25 @@ mutable struct EventHandler{FloatType,TimeType}
         @assert(nAfter >= 0)
         nAfter = nAfter > 0 ? nAfter : nAfterDefault
         zEps   = FloatType(1e-10)
-        new(floatmax(TimeType), logEvents, 0, 0, 0, 0, convert(TimeType,0),
-            false, false, false, false, false, false, false, false, false, floatmax(TimeType), floatmax(TimeType),
+
+        initial  = true
+        terminal = false
+        event    = true
+        afterSimulationStart = false
+        crossing             = false
+        firstEventIterationDirectlyAfterInitial = false
+        triggerEventDirectlyAfterInitial        = false
+        firstInitialOfAllSegments               = true
+        terminalOfAllSegments                   = false
+        fullRestart                             = false
+        new(floatmax(TimeType), logEvents, 0, 0, 0, 0, 0, convert(TimeType,0),
+            initial, terminal, event, afterSimulationStart, crossing, firstEventIterationDirectlyAfterInitial, triggerEventDirectlyAfterInitial,
+            firstInitialOfAllSegments, terminalOfAllSegments, fullRestart, floatmax(TimeType), floatmax(TimeType),
             true, NoRestart, false, false, zEps, nz, nz, ones(FloatType,nz), fill(false, nz), nAfter, fill(false,nAfter),
             fill(convert(TimeType,0),nClock), Vector{Any}(undef, nSample))
     end
 end
+
 
 # Default constructors
 #EventHandler(           ; kwargs...)                   = EventHandler{Float64  ,Float64}(; kwargs...)
@@ -110,16 +126,17 @@ function removeHiddenCrossingFunctions!(eh::EventHandler{FloatType,TimeType})::N
     return nothing
 end
 
-    
+
 function reinitEventHandler!(eh::EventHandler{FloatType,TimeType}, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType}
     eh.logEvents      = logEvents
     eh.nZeroCrossings = 0
     eh.nRestartEvents = 0
     eh.nStateEvents   = 0
     eh.nTimeEvents    = 0
+    eh.nFullRestartEvents = 0
 
     eh.time     = convert(TimeType, 0)
-    eh.initial  = false
+    eh.initial  = true
     eh.terminal = false
     eh.event    = false
     eh.crossing = false
@@ -127,8 +144,10 @@ function reinitEventHandler!(eh::EventHandler{FloatType,TimeType}, stopTime::Tim
     eh.triggerEventDirectlyAfterInitial = false
 
     eh.afterSimulationStart = false
-    eh.firstInitialOfAllSegments = false
+    eh.firstInitialOfAllSegments = true
     eh.terminalOfAllSegments     = false
+    eh.fullRestart               = false
+
     eh.stopTime      = stopTime
     eh.maxTime       = floatmax(TimeType)
     eh.nextEventTime = floatmax(TimeType)
@@ -139,7 +158,36 @@ function reinitEventHandler!(eh::EventHandler{FloatType,TimeType}, stopTime::Tim
     eh.z .= convert(FloatType, 1.0)
     eh.zPositive .= false
     eh.after .= false
-    
+
+    return nothing
+end
+
+function reinitEventHandlerForFullRestart!(eh::EventHandler{FloatType,TimeType}, currentTime::TimeType, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType}
+    eh.nRestartEvents += 1
+    eh.nFullRestartEvents += 1
+    eh.initial  = true
+    eh.terminal = false
+    eh.event    = false
+    eh.crossing = false
+    eh.firstEventIterationDirectlyAfterInitial = false
+    eh.triggerEventDirectlyAfterInitial = false
+
+    eh.afterSimulationStart  = false
+    eh.terminalOfAllSegments = false
+    eh.fullRestart = true
+
+    eh.time          = currentTime
+    eh.stopTime      = stopTime
+    eh.maxTime       = floatmax(TimeType)
+    eh.nextEventTime = floatmax(TimeType)
+    eh.integrateToEvent = false
+    eh.restart          = Restart
+    eh.newEventIteration   = false
+    eh.firstEventIteration = true
+    eh.z .= convert(FloatType, 1.0)
+    eh.zPositive .= false
+    eh.after .= false
+
     return nothing
 end
 

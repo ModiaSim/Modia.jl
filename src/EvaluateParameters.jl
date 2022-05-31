@@ -378,6 +378,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
                 println(" 13:    +++ Instantiated $path: $instantiateFunction will be called to instantiate sub-model and define hidden states\n\n")
             end
             Core.eval(modelModule, :($instantiateFunction($m, $current, $path, log=$log)))
+            push!(m.instantiateFunctions, (instantiateFunction, current, path))
         end
         return current
     else
