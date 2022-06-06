@@ -1500,7 +1500,7 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
             push!(x_vec_fixed      , v_fixed)
         end
     end
-    nx_infoFixed = length(x_info)
+    nx_info_fixedLength = length(x_info)
     for (i,v) in enumerate(x_vec)
         v_startOrInit      = x_vec_startOrInit[i]
         v_fixed            = x_vec_fixed[i]
@@ -1522,7 +1522,7 @@ function getSortedAndSolvedAST(Goriginal,     # Typically ::Vector{Vector{Int}}
     end
 
     # Finalize equationInfo
-    initEquationInfo!(eq.equationInfo, nx_infoFixed)
+    initEquationInfo!(eq.equationInfo, nx_info_fixedLength)
 
     # Print ODE states
     if logStates

@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.9.0-dev"
-const Date = "2022-05-31"
+const Date = "2022-06-06"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -169,8 +169,8 @@ Return modelPath of submodel as string.
 """
 modelPathAsString(modelPath::Union{Expr,Symbol,Nothing}) = isnothing(modelPath) ? "" : string(modelPath)
 
-
 include("EquationAndStateInfo.jl")
+include("Result.jl")
 include("StateSelection.jl")
 
 include("ModelCollections.jl")

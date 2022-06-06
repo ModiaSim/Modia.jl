@@ -71,8 +71,8 @@ mutable struct EventHandler{FloatType,TimeType}
     # For state events:
     zEps::FloatType         # Epsilon for zero-crossing hysteresis
     nz::Int                 # Number of event indicators
-    nzVisible::Int          # Number of event indicators defined in visible model equations
-                            # More event indicators can be defined by objects that are not visible in the generated code, i.e. nz >= nzVisible
+    nzInvariant::Int          # Number of event indicators defined in visible model equations
+                            # More event indicators can be defined by objects that are not visible in the generated code, i.e. nz >= nzInvariant
                             # These event indicators are defined in propagateEvaluateAndInstantiate!(..) via _instantiateFunction(..)
     z::Vector{FloatType}    # Vector of event indicators (zero crossings). If one of z[i] passes
                             # zero, that is beforeEvent(z[i])*z[i] < 0, an event is triggered
@@ -117,11 +117,11 @@ end
 #EventHandler{FloatType}(; kwargs...) where {FloatType} = EventHandler{FloatType,Float64}(; kwargs...)
 
 
-function removeHiddenCrossingFunctions!(eh::EventHandler{FloatType,TimeType})::Nothing where {FloatType,TimeType}
-    if eh.nz > eh.nzVisible
-        resize!(eh.z, eh.nzVisible)
-        resize!(eh.zPositive, eh.nzVisible)
-        eh.nz = eh.nzVisible
+function removeSegmentCrossingFunctions!(eh::EventHandler)::Nothing
+    if eh.nz > eh.nzInvariant
+        resize!(eh.z, eh.nzInvariant)
+        resize!(eh.zPositive, eh.nzInvariant)
+        eh.nz = eh.nzInvariant
     end
     return nothing
 end
@@ -159,8 +159,10 @@ function reinitEventHandler!(eh::EventHandler{FloatType,TimeType}, stopTime::Tim
     eh.zPositive .= false
     eh.after .= false
 
+    removeSegmentCrossingFunctions!(eh)
     return nothing
 end
+
 
 function reinitEventHandlerForFullRestart!(eh::EventHandler{FloatType,TimeType}, currentTime::TimeType, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType}
     eh.nRestartEvents += 1
@@ -188,6 +190,7 @@ function reinitEventHandlerForFullRestart!(eh::EventHandler{FloatType,TimeType},
     eh.zPositive .= false
     eh.after .= false
 
+    removeSegmentCrossingFunctions!(eh)
     return nothing
 end
 

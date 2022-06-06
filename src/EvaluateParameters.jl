@@ -337,7 +337,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
                 xe_info = eqInfo.x_info[j]
                 x_value = current[k]
                 len = hasParticles(x_value) ? 1 : length(x_value)
-                if j <= eqInfo.nx_infoFixed && len != xe_info.length
+                if j <= eqInfo.nx_info_fixedLength && len != xe_info.length
                     printstyled("Model error: ", bold=true, color=:red)
                     printstyled("Length of ", xe_info.x_name, " shall be changed from ",
                                 xe_info.length, " to $len\n",
@@ -375,7 +375,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             # (1) Generate an instance of subModel and store it in buildDict[path]
             # (2) Define subModel states and store them in xxx
             if log
-                println(" 13:    +++ Instantiated $path: $instantiateFunction will be called to instantiate sub-model and define hidden states\n\n")
+                println(" 13:    +++ Instantiated $path: $instantiateFunction will be called to instantiate sub-model and define varying states\n\n")
             end
             Core.eval(modelModule, :($instantiateFunction($m, $current, $path, log=$log)))
             push!(m.instantiateFunctions, (instantiateFunction, current, path))

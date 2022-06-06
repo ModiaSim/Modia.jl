@@ -222,6 +222,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     m.options   = options
     m.time      = options.startTime
     m.isInitial = true
+    m.nsegment  = 1
     reinitEventHandler!(m.eventHandler, m.options.stopTime, m.options.logEvents)
 
     if ismissing(algorithm) && FloatType == Float64
@@ -265,7 +266,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         # Terminate simulation of current segment
         finalStates = solution.u[end]
         finalTime   = solution.t[end]
-        m.result_x = solution
+        #m.result_x = solution
         if m.eventHandler.restart != Modia.FullRestart
             eh.terminalOfAllSegments = true
         end
@@ -282,59 +283,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         end
 
         # Re-initialize model for FullRestart
-        m.options.startTime = m.time
-        reinitEventHandlerForFullRestart!(eh, m.time, m.options.stopTime, m.options.logEvents)
 
-        # Evaluate instantiate functions
-        removeHiddenStatesAndExtraResults!(m)
-        removeHiddenCrossingFunctions!(m.eventHandler)
-        for fc in m.instantiatedFunctions
-            logInstantiatedFunctionCalls = false
-            Core.eval(m.modelModule, :($(fc[1])($m, $(fc[2]), $(fc[3]), log=$logInstantiatedFunctionCalls)))
-        end
-        m.x_start = initialStateVector!(m.equationInfo, FloatType)
-        resizeStatesAndResults!(m)
-
-        # Initialize auxiliary arrays for event iteration
-        m.x_init        .= FloatType(0)
-        m.der_x_visible .= FloatType(0)
-        m.x_hidden      .= FloatType(0)
-        m.der_x_hidden  .= FloatType(0)
-        m.der_x_full    .= FloatType(0)
-
-        if m.options.logStates
-            # List init/start values
-            x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[])   #, nominal=String[])
-            for xe_info in m.equationInfo.x_info
-                xe_init = get_xe(m.x_start, xe_info)
-                if hasParticles(xe_init)
-                    xe_init = string(minimum(xe_init)) * " .. " * string(maximum(xe_init))
-                end
-                # xe_nominal = isnan(xe_info.nominal) ? "" : xe_info.nominal
-                push!(x_table, (xe_info.x_name, xe_init, xe_info.unit))   #, xe_nominal))
-            end
-            show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
-            println("\n")
-        end
-
-        # Initialize model, linearEquations and compute and store all variables at the initial time
-        if m.options.log
-            println("      Reinitialization due to FullRestart at time = ", m.time, " s")
-        end
-
-        # Perform event iteration
-        m.isInitial   = true
-        eh.initial    = true
-        for i in eachindex(m.x_init)
-            m.x_init[i] = deepcopy(m.x_start[i])
-        end
-        eventIteration!(m, m.x_init, m.options.startTime)
-        m.success      = false   # is set to true at the first outputs! call.
-        eh.fullRestart = false
-        eh.initial     = false
-        m.isInitial    = false
-        m.storeResult  = false
-        eh.afterSimulationStart = true
     end # --------------------------------------------------------- End of core simulation loop ------------------------------
 
     disable_timer!(m.timer)
@@ -357,7 +306,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         println("        linearSystemSizes         = ", Int[length(leq.b) for leq in m.linearEquations])
         println("        useRecursiveFactorization = ", useRecursiveFactorization)
         println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])
-        println("        nResults                  = ", length(m.result_x.t))
+        println("        nResults                  = ", length(m.result.t[end]))
         println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
         println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
         println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
@@ -474,8 +423,8 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         m.odeIntegrator = false
         nx = length(m.x_init)
         differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
-        copyDerivatives!(m.der_x_full, m.der_x_visible, m.der_x_hidden)
-        TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x_full, m.x_init, tspan, m, differential_vars = differential_vars)
+        copyDerivatives!(m.der_x, m.der_x_invariant, m.der_x_segment)
+        TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
         empty!(m.daeCopyInfo)
         if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
             # Prepare data structure to efficiently perform copy operations for DAE integrator
@@ -555,7 +504,8 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
     sol_t = solution.t
     sol_x = solution.u
     m.storeResult = true
-    for i = length(m.result_code)+1:length(sol_t)
+#   for i = length(m.result_code)+1:length(sol_t)
+    for i = length(m.result.t[end])+1:length(sol_t)
         invokelatest_getDerivatives_without_der_x!(sol_x[i], m, sol_t[i])
     end
     m.storeResult = false
@@ -669,22 +619,21 @@ end
 #        Provide the overloaded ModiaResult Abstract Interface for the results of SimulationModel
 #------------------------------------------------------------------------------------------------
 
-ModiaResult.timeSignalName(  m::SimulationModel) = "time"
-ModiaResult.hasOneTimeSignal(m::SimulationModel) = true
+ModiaResult.timeSignalName(  m::SimulationModel) = m.result.timeName
+ModiaResult.hasOneTimeSignal(m::SimulationModel) = length(m.result.t) == 1
 
 
 """
-    hasSignal(instantiatedModel, name::AbstractString)
+    hasSignal(instantiatedModel::Modia.SimulationModel, name::AbstractString)
 
 Return true if time-varying variable `name` (for example `name = "a.b.c"`)
 is defined in the instantiateModel that can be accessed and can be used for plotting.
 """
 ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
-    # m.save_x_in_solution ? name == "time" || haskey(m.equationInfo.x_dict, name) :
-    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_code) || ismissing(m.result_extra) || ismissing(m.result_der_x)
+    if isnothing(m) || ismissing(m) || ismissing(m.result)
         return false
     end
-    haskey(m.result_info, name) || !ismissing(get_value(m.evaluatedParameters, name))
+    haskey(m.result.info, name) || !ismissing(get_value(m.evaluatedParameters, name))
 end
 
 
@@ -695,7 +644,7 @@ Return true if parameter `name` (for example `name = "a.b.c"`)
 is defined in the instantiateModel.
 """
 hasParameter(m::SimulationModel, name::AbstractString) = begin
-    if isnothing(m) || ismissing(m) || ismissing(m.result_x) || ismissing(m.result_code) || ismissing(m.result_extra) || ismissing(m.result_der_x)
+    if isnothing(m) || ismissing(m) || ismissing(m.result)
         return false
     end
     !ismissing(get_value(m.evaluatedParameters, name))
@@ -750,7 +699,7 @@ end
 Return the names of the time-varying variables of an
 [`@instantiateModel`](@ref) that are present in the result (e.g. can be accessed for plotting).
 """
-ModiaResult.signalNames(m::SimulationModel) = collect(keys(m.result_info))
+ModiaResult.signalNames(m::SimulationModel) = collect(keys(m.result.info))
 
 
 #=
@@ -774,6 +723,17 @@ end
 Get raw signal of result from an instantiated model of Modia.
 """
 function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
+    if haskey(m.result.info, name)
+        return rawSignal(m.result, name, unitless=m.unitless)
+    else
+        value = get_value(m.evaluatedParameters, name)
+        if ismissing(value)
+            error("rawSignal: \"$name\" not in result and not a parameter of model $(m.modelName))")
+        end
+        signal = [ ModiaResult.OneValueVector(value, length(tk)) for tk in m.result.t ]
+        return (m.result.t, signal, ModiaResult.Continuous)
+    end
+#=
     tsig = m.result_x.t
     if !m.unitless
         tsig = tsig*u"s"
@@ -851,15 +811,8 @@ function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
         else
             error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\", resInfo=$resInfo")
         end
-
-    else
-        value = get_value(m.evaluatedParameters, name)
-        if ismissing(value)
-            error("rawSignal: \"$name\" not in result of model $(m.modelName))")
-        end
-        signal = ModiaResult.OneValueVector(value, length(tsig))
-        return ([tsig], [signal], ModiaResult.Continuous)
     end
+=#
 end
 
 
@@ -995,6 +948,11 @@ function get_result(m::SimulationModel, name::AbstractString; unit=true)
     #resIndex = m.variables[name]
     #ysig = ResultView(m.result, abs(resIndex), resIndex < 0)
 
+    #if ModiaResult.timeSignalName(m) != 1
+    if length(m.result.t) > 1
+        error("Error in Modia.get_result(\"$name\"), because function cannot be used for a segmented simulation with more as one segment.")
+    end
+
     (tsig2, ysig2, ysigType) = ModiaResult.rawSignal(m, name)
     ysig = ysig2[1]
     ysig = unit ? ysig : stripUnit.(ysig)
@@ -1025,7 +983,12 @@ function setEvaluatedParametersInDataFrame!(obj::OrderedDict{Symbol,Any}, result
     return nothing
 end
 
+
 function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
+    if length(m.result.t) > 1
+        error("Error in Modia.get_result(...), because function cannot be used for a segmented simulation with more as one segment.")
+    end
+
     dataFrame = DataFrames.DataFrame()
 
     (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, "time")
@@ -1046,14 +1009,14 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
         end
 
     else
-        for name in keys(m.result_info)
+        for name in keys(m.result.info)
             if name != "time"
                 (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
                 dataFrame[!,name] = signal[1]
             end
         end
 
-        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.result_info, dataFrame, "", length(timeSignal[1]))
+        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.result.info, dataFrame, "", length(timeSignal[1]))
     end
     return dataFrame
 end

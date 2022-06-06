@@ -506,7 +506,7 @@ end
 """
     xe_info = StateElementInfo(x_name, x_name_julia, der_x_name, der_x_name_julia,
                                stateCategory, unit, startOrInit, fixed, nominal, unbounded;
-                               startIndex=-1)
+                               startIndex=-1, x_segment_startIndex=-1)
 
 Return an instance of the mutable struct `StateElementInfo` that defines the information
 for one element of the state vector.
@@ -526,7 +526,8 @@ for one element of the state vector.
          Only relevant for ode=false, otherwise ignored.
 - nominal: Nominal value (NaN if determined via startOrInit value)
 - unbounded: false or true
-- startIndex: = -1, if not yet known. If hidden state, startIndex with respect to x_hidden.
+- startIndex: = -1, if not yet known. startIndex with respect to x.
+- x_segment_startIndex: =-1, if not yet known. startIndex with respect to x_segment.
 """
 mutable struct StateElementInfo
     x_name::String                # Modia name of x-element or "" if no name
@@ -550,8 +551,8 @@ mutable struct StateElementInfo
                                   # = false, if vector
     length::Int                   # length of x-element or -1 if not yet known
     startIndex::Int               # start index of state with respect to x-vector or -1 if not yet known
-    x_hidden_startIndex::Int      # start index of hidden state with respect to x_hidden vector
-                                  # or -1, if it is no hidden state (for a hidden state, x_hidden_startIndex
+    x_segment_startIndex::Int     # start index of segment state with respect to x_segment vector
+                                  # or -1, if it is no segment state (for a segment state, x_segment_startIndex
                                   # is consistently set when it is added via newHiddenState(..)).
 end
 
@@ -560,11 +561,11 @@ end
 # Constructor for code-generation
 StateElementInfo(x_name, x_name_julia, der_x_name, der_x_name_julia,
                  stateCategory, unit, startOrInit, fixed, nominal, unbounded;
-                 startIndex = -1, x_hidden_startIndex=-1) = StateElementInfo(
+                 startIndex = -1, x_segment_startIndex=-1) = StateElementInfo(
                  x_name, x_name_julia, der_x_name, der_x_name_julia,
                  stateCategory, unit, deepcopy(startOrInit), fixed, nominal, unbounded,
                  isFixedLengthStartOrInit(startOrInit, x_name), !(startOrInit isa AbstractArray),
-                 startOrInit isa Nothing ? 1 : length(startOrInit), startIndex, x_hidden_startIndex)
+                 startOrInit isa Nothing ? 1 : length(startOrInit), startIndex, x_segment_startIndex)
 
 function Base.show(io::IO, xe_info::StateElementInfo)
     print(io, "Modia.StateElementInfo(")
@@ -586,7 +587,7 @@ function Base.show(io::IO, xe_info::StateElementInfo)
     print(io, ",", xe_info.scalar)
     print(io, ",", xe_info.length)
     print(io, ",", xe_info.startIndex)
-    print(io, ",", xe_info.x_hidden_startIndex)
+    print(io, ",", xe_info.x_segment_startIndex)
     print(io, ")")
     return nothing
 end
@@ -613,7 +614,7 @@ function get_x_table(x_info::Vector{StateElementInfo})
 end
 
 
-@enum EquationInfoStatus EquationInfo_Instantiated EquationInfo_Initialized_Before_Code_Generation EquationInfo_After_All_States_Are_Known
+@enum EquationInfoStatus EquationInfo_Instantiated EquationInfo_Initialized_Before_All_States_Are_Known EquationInfo_After_All_States_Are_Known
 
 """
     eqInfo = EquationInfo()
@@ -643,17 +644,17 @@ mutable struct EquationInfo
                                                    # it is checked whether the calculated values and the start values of
                                                    # these variables agree. If this is not the case, an error is triggered.
     nx::Int                                        # = length(x) or -1 if not yet known
-                                                   #   This variable is updated once all states are known.
-    nxVisible::Int                                 # = number of visible x-elements (so x[1:nxVisible] are visible states) or -1 if not yet known
-                                                   #   This variable is updated once all states are known.
-    nxHidden::Int                                  # = number of hidden x-elements (x[nxVisible+1:nxVisible+nxHidden].
-                                                   #   This variable is always updated consistently via function newHiddenState!(..)
-                                                   #   (nxHidden=0, if there are no hidden states yet).
-    nx_infoFixed::Int                              # x_info[1:nx_infoFixed] are states with fixed length (does not change after compilation) or -1 if not yet known
-    nx_infoVisible::Int                            # x_info[1:nx_infoVisible] are states that are visible in getDerivatives!(..) or -1 if not yet known
-                                                   # x_info[nx_infoVisible+1:end] are states defined in functions that are not visible in getDerivatives!(..)
-    #x_infoByIndex::Vector{Int}                     # i = x_infoByIndex[j] -> x_info[i]
-    #                                               # or empty vector, if not yet known.
+                                                   # This variable is updated once all states are known.
+    nxInvariant::Int                               # = number of invariant x-elements (so x[1:nxInvariant] are invariant states) or -1 if not yet known
+                                                   # This variable is updated once all states are known.
+    nxSegment::Int                                 # = number of segment x-elements (x[nxInvariant+1:nxInvariant+nxSegment]).
+                                                   # This variable is always updated consistently via function new_x_segment_variable!(..)
+                                                   # (nxSegment=0, if there are no segment states yet).
+    nx_info_fixedLength::Int                       # x_info[1:nx_info_fixedLength] are states with fixed length (does not change after compilation) or -1 if not yet known
+    nx_info_invariant::Int                         # x_info[1:nx_info_invariant] are states that are visible in getDerivatives!(..) or -1 if not yet known
+                                                   # x_info[nx_info_invariant+1:end] are states defined in functions that are not visible in getDerivatives!(..)
+    #x_infoByIndex::Vector{Int}                    # i = x_infoByIndex[j] -> x_info[i]
+    #                                              # or empty vector, if not yet known.
     x_dict::OrderedCollections.OrderedDict{String,Int}           # x_dict[x_name] returns the index of x_name with respect to x_info
     der_x_dict::OrderedCollections.OrderedDict{String,Int}       # der_x_dict[der_x_name]  returns the index of der_x_name with respect to x_info
     defaultParameterAndStartValues::Union{AbstractDict,Nothing}  # Dictionary of default parameter and default start values.
@@ -666,41 +667,41 @@ mutable struct EquationInfo
         linearEquations       = Tuple{Vector{String},AbstractVector,Vector{Int},Int,Bool}[]
         vSolvedWithFixedTrue  = String[]
         nx                    = -1
-        nxVisible             = -1
-        nxHidden              =  0
-        nx_infoFixed          = -1
-        nx_infoVisible        = -1
+        nxInvariant           = -1
+        nxSegment             =  0
+        nx_info_fixedLength   = -1
+        nx_info_invariant     = -1
         x_dict                = OrderedCollections.OrderedDict{String,Int}()
         der_x_dict            = OrderedCollections.OrderedDict{String,Int}()
         defaultParameterAndStartValues = nothing
         new(EquationInfo_Instantiated, ode, nz, x_info, residualCategories, linearEquations, vSolvedWithFixedTrue,
-            nx, nxVisible, nxHidden, nx_infoFixed, nx_infoVisible, x_dict, der_x_dict,
+            nx, nxInvariant, nxSegment, nx_info_fixedLength, nx_info_invariant, x_dict, der_x_dict,
             defaultParameterAndStartValues)
     end
 end
 
 
 """
-    initEquationInfo!(eqInfo::EquationInfo, nx_infoFixed)
+    initEquationInfo!(eqInfo::EquationInfo, nx_info_fixedLength)
 
 Initialize `eqInfo` before code generation.
-`nx_infoFixed` are the number of states with fixed length (do not change after compilation).
+`nx_info_fixedLength` are the number of states with fixed length (do not change after compilation).
 
 The following variables get a consistent value:
 
 ```
 eqInfo.x_dict[x_name]         = ...,
 eqInfo.der_x_dict[der_x_name] = ...,
-eqInfo.nx, eqInfo.nxVisible,
-eqInfo.nx_infoFixed, eqInfo.nx_infoVisible,
+eqInfo.nx, eqInfo.nxInvariant,
+eqInfo.nx_info_fixedLength, eqInfo.nx_info_invariant,
 eqInfo.x_info[:].startIndex.
 ```
 
-This function must be called before hidden states are set (eqInfo.nxHidden=0).
+This function must be called before segment states are set (eqInfo.nxSegment=0).
 """
-function initEquationInfo!(eqInfo::EquationInfo, nx_infoFixed::Int)::Nothing
+function initEquationInfo!(eqInfo::EquationInfo, nx_info_fixedLength::Int)::Nothing
     @assert(eqInfo.status == EquationInfo_Instantiated)
-    @assert(eqInfo.nxHidden == 0)
+    @assert(eqInfo.nxSegment == 0)
     x_dict     = eqInfo.x_dict
     der_x_dict = eqInfo.der_x_dict
     startIndex = 1
@@ -710,63 +711,34 @@ function initEquationInfo!(eqInfo::EquationInfo, nx_infoFixed::Int)::Nothing
         xi_info.startIndex = startIndex
         startIndex += xi_info.length
     end
-    eqInfo.nx        = startIndex - 1
-    eqInfo.nxVisible = eqInfo.nx
-    eqInfo.nx_infoFixed   = nx_infoFixed
-    eqInfo.nx_infoVisible = length(eqInfo.x_info)
+    eqInfo.nx           = startIndex - 1
+    eqInfo.nxInvariant  = eqInfo.nx
+    eqInfo.nx_info_fixedLength = nx_info_fixedLength
+    eqInfo.nx_info_invariant = length(eqInfo.x_info)
 
-    eqInfo.status = EquationInfo_Initialized_Before_Code_Generation
+    eqInfo.status = EquationInfo_Initialized_Before_All_States_Are_Known
     return nothing
 end
 
 
-function newHiddenState!(
-                    eqInfo::EquationInfo,
-                    x_name::String,
-                    der_x_name::String,
-                    startOrInit;
-                    stateCategory::StateCategory = XD,
-                    unit::String     = "",
-                    fixed::Bool      = true,
-                    nominal::Float64 = NaN,
-                    unbounded::Bool  = false)::Int
-    @assert(eqInfo.status == EquationInfo_Initialized_Before_Code_Generation)
-    if haskey(eqInfo.x_dict, x_name) ||
-       haskey(eqInfo.der_x_dict, der_x_name)
-       error("Trying to add hidden state x_name=$x_name, der_x_name=$der_x_name but one or both names are already in use!")
-    end
-
-    x_hidden_startIndex = eqInfo.nxHidden+1
-    xi_info = StateElementInfo(x_name, Symbol(x_name), der_x_name, Symbol(der_x_name),
-                               stateCategory, unit, startOrInit, fixed, nominal, unbounded,
-                               x_hidden_startIndex = x_hidden_startIndex)
-    push!(eqInfo.x_info, xi_info)
-    x_infoIndex = length(eqInfo.x_info)
-    eqInfo.x_dict[x_name]         = x_infoIndex
-    eqInfo.der_x_dict[der_x_name] = x_infoIndex
-    eqInfo.nxHidden += length(startOrInit)
-    return x_hidden_startIndex
-end
-
-
 """
-    removeHiddenStates!(eqInfo::EquationInfo)
+    removeSegmentStates!(eqInfo::EquationInfo)
 
-Remove all hidden (non-visible) states from `eqInfo`.
+Remove all segment states from `eqInfo`.
 """
-function removeHiddenStates!(eqInfo::EquationInfo)::Nothing
+function removeSegmentStates!(eqInfo::EquationInfo)::Nothing
     @assert(eqInfo.status == EquationInfo_After_All_States_Are_Known)
-    if eqInfo.nx > eqInfo.nxVisible
-        for i = eqInfo.nx_infoVisible+1:length(eqInfo.x_info)
+    if eqInfo.nx > eqInfo.nxInvariant
+        for i = eqInfo.nx_info_invariant+1:length(eqInfo.x_info)
             xi_info = eqInfo.x_info[i]
             delete!(eqInfo.x_dict    , xi_info.x_name)
             delete!(eqInfo.der_x_dict, xi_info.der_x_name)
         end
-        resize!(eqInfo.x_info, eqInfo.nx_infoVisible)
-        eqInfo.nx = eqInfo.nxVisible
+        resize!(eqInfo.x_info, eqInfo.nx_info_invariant)
+        eqInfo.nx = eqInfo.nxInvariant
     end
-    eqInfo.nxHidden = 0
-    eqInfo.status = EquationInfo_Initialized_Before_Code_Generation
+    eqInfo.nxSegment = 0
+    eqInfo.status = EquationInfo_Initialized_Before_All_States_Are_Known
     return nothing
 end
 
@@ -774,45 +746,40 @@ end
 """
     x_start = initialStateVector!(eqInfo::EquationInfo, FloatType)::Vector{FloatType}
 
-The function updates `eqInfo` (e.g. sets eqInfo.nx, eqInfo.nxVisible) and returns the initial state vector x_start.
+The function updates `eqInfo` (e.g. sets eqInfo.nx, eqInfo.nxInvariant) and returns the initial state vector x_start.
 
 This function must be called, after all states are known (after calling propagateEvaluateAndInstantiate!(..)).
 """
 function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
-    @assert(eqInfo.status == EquationInfo_Initialized_Before_Code_Generation)
-    nx_infoFixed = eqInfo.nx_infoFixed
-    x_info       = eqInfo.x_info
+    @assert(eqInfo.status == EquationInfo_Initialized_Before_All_States_Are_Known)
+    nx_info_fixedLength = eqInfo.nx_info_fixedLength
+    x_info = eqInfo.x_info
 
-    if length(x_info) == 0
-        # Handle systems with only algebraic variables, by introducing a dummy
-        # differential equation der_x[1] = -x[1], with state name _dummy_x
-        newHiddenState!(eqInfo, "_dummy_x", "der(_dummy_x)", FloatType(0.0))
-        startIndex = 1
-    elseif nx_infoFixed == 0
+    if nx_info_fixedLength == 0
         startIndex = 1
     else
-        xi_info = x_info[nx_infoFixed]
+        xi_info = x_info[nx_info_fixedLength]
         startIndex = xi_info.startIndex + xi_info.length
     end
 
-    # Set startIndex for visible states where the size was not fixed before code generation
-    for i = nx_infoFixed+1:eqInfo.nx_infoVisible
+    # Set startIndex for invariant states where the size was not fixed before code generation
+    for i = nx_info_fixedLength+1:eqInfo.nx_info_invariant
         xi_info = x_info[i]
         xi_info.length     = length(xi_info.startOrInit)
         xi_info.startIndex = startIndex
         startIndex        += xi_info.length
     end
-    eqInfo.nxVisible = startIndex - 1
+    eqInfo.nxInvariant = startIndex - 1
 
-    # Set startIndex for hidden states
-    for i = eqInfo.nx_infoVisible+1:length(x_info)
+    # Set startIndex for segment states
+    for i = eqInfo.nx_info_invariant+1:length(x_info)
         xi_info = x_info[i]
         xi_info.length     = length(xi_info.startOrInit)
         xi_info.startIndex = startIndex
         startIndex        += xi_info.length
     end
     eqInfo.nx = startIndex - 1
-    @assert(eqInfo.nx == eqInfo.nxVisible + eqInfo.nxHidden)
+    @assert(eqInfo.nx == eqInfo.nxInvariant + eqInfo.nxSegment)
 
     # Construct x_start
     x_start = zeros(FloatType, eqInfo.nx)
@@ -904,12 +871,12 @@ function Base.show(io::IO, eqInfo::EquationInfo; indent=4)
 
     if eqInfo.nx >= 0
         nx = eqInfo.nx
-        nxVisible = eqInfo.nxVisible
-        nxHidden  = eqInfo.nxHidden
-        nx_infoFixed = eqInfo.nx_infoFixed
-        nx_infoVisible = eqInfo.nx_infoVisible
-        print(io, ",\n", indentation2, "nx = $nx, nxVisible = $nxVisible, nxHidden = $nxHidden")
-        print(io, ",\n", indentation2, "nx_infoFixed = $nx_infoFixed, nx_infoVisible = $nx_infoVisible")
+        nxInvariant = eqInfo.nxInvariant
+        nxSegment  = eqInfo.nxSegment
+        nx_info_fixedLength = eqInfo.nx_info_fixedLength
+        nx_info_invariant = eqInfo.nx_info_invariant
+        print(io, ",\n", indentation2, "nx = $nx, nxInvariant = $nxInvariant, nxSegment = $nxSegment")
+        print(io, ",\n", indentation2, "nx_info_fixedLength = $nx_info_fixedLength, nx_info_invariant = $nx_info_invariant")
     end
 
     if !isnothing(eqInfo.defaultParameterAndStartValues)

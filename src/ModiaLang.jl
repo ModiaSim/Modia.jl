@@ -715,21 +715,22 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     holdVars = Symbol.(holdVars)
 
     # Variables added to result
-    result_code_names = vcat(:time, setdiff([Symbol(u) for u in unknowns],
-                                            [Symbol(h) for h in hideResults],
-                                            Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
-                                            Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info]))
+    timeName = :time
+    w_invariant_names = setdiff([Symbol(u) for u in unknowns],
+                                [Symbol(h) for h in hideResults],
+                                Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
+                                Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info])
 
     if true # logTiming
 #        println("Generate code")
         if useNewCodeGeneration
-            @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], result_code_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], timeName, w_invariant_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         else
-            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(FloatType, TimeType, AST, equationInfo, [:(_p)], result_code_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(FloatType, TimeType, AST, equationInfo, [:(_p)], timeName, w_invariant_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         end
     else
-#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), result_code_names, :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], result_code_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), timeName, w_invariant_names, :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], timeName, w_invariant_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         #@show mappedParameters
@@ -765,7 +766,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 #    println("Build SimulationModel")
 
     model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
-                                         mappedParameters, result_code_names;
+                                         mappedParameters, timeName, w_invariant_names;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
                                          nz=nCrossingFunctions, nAfter=nAfter,  unitless=unitless)
