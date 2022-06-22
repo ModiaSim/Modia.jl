@@ -117,7 +117,7 @@ end
 #EventHandler{FloatType}(; kwargs...) where {FloatType} = EventHandler{FloatType,Float64}(; kwargs...)
 
 
-function removeSegmentCrossingFunctions!(eh::EventHandler)::Nothing
+function removeSegmentedCrossingFunctions!(eh::EventHandler)::Nothing
     if eh.nz > eh.nzInvariant
         resize!(eh.z, eh.nzInvariant)
         resize!(eh.zPositive, eh.nzInvariant)
@@ -159,7 +159,7 @@ function reinitEventHandler!(eh::EventHandler{FloatType,TimeType}, stopTime::Tim
     eh.zPositive .= false
     eh.after .= false
 
-    removeSegmentCrossingFunctions!(eh)
+    removeSegmentedCrossingFunctions!(eh)
     return nothing
 end
 
@@ -190,7 +190,7 @@ function reinitEventHandlerForFullRestart!(eh::EventHandler{FloatType,TimeType},
     eh.zPositive .= false
     eh.after .= false
 
-    removeSegmentCrossingFunctions!(eh)
+    removeSegmentedCrossingFunctions!(eh)
     return nothing
 end
 

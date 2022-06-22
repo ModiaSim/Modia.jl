@@ -98,7 +98,7 @@ Pendulum = MyModelWithBuild(_buildOption = "MyBuildOption",
         
 pendulum = @instantiateModel(Pendulum , unitless=true, log=false, logDetails=false, logCode=true, logStateSelection=false)
 simulate!(pendulum, stopTime = 2.0, log=true)
-printResultInfo(pendulum)
+showResultInfo(pendulum)
 
 plot(pendulum, [("phi1", "w1"), "der(w1)", "qdd"])
 

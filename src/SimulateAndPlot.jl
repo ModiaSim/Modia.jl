@@ -93,7 +93,7 @@ can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.
 
 The simulation results are stored in `instantiatedModel` and can be plotted with
 `plot(instantiatedModel, ...)` and the result values
-can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`. `printResultInfo(instantiatedModel)`
+can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`. `showResultInfo(instantiatedModel)`
 prints information about the signals in the result file.
 For more details, see sections [Parameters/Init/Start](@ref), [Results](@ref), [Plotting](@ref).
 
@@ -222,7 +222,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     m.options   = options
     m.time      = options.startTime
     m.isInitial = true
-    m.nsegment  = 1
+    m.nsegmented  = 1
     reinitEventHandler!(m.eventHandler, m.options.stopTime, m.options.logEvents)
 
     if ismissing(algorithm) && FloatType == Float64
@@ -423,7 +423,7 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         m.odeIntegrator = false
         nx = length(m.x_init)
         differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
-        copyDerivatives!(m.der_x, m.der_x_invariant, m.der_x_segment)
+        copyDerivatives!(m.der_x, m.der_x_invariant, m.der_x_segmented)
         TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
         empty!(m.daeCopyInfo)
         if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
@@ -615,27 +615,6 @@ function linearize!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
 end
 
 
-#------------------------------------------------------------------------------------------------
-#        Provide the overloaded ModiaResult Abstract Interface for the results of SimulationModel
-#------------------------------------------------------------------------------------------------
-
-ModiaResult.timeSignalName(  m::SimulationModel) = m.result.timeName
-ModiaResult.hasOneTimeSignal(m::SimulationModel) = length(m.result.t) == 1
-
-
-"""
-    hasSignal(instantiatedModel::Modia.SimulationModel, name::AbstractString)
-
-Return true if time-varying variable `name` (for example `name = "a.b.c"`)
-is defined in the instantiateModel that can be accessed and can be used for plotting.
-"""
-ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
-    if isnothing(m) || ismissing(m) || ismissing(m.result)
-        return false
-    end
-    haskey(m.result.info, name) || !ismissing(get_value(m.evaluatedParameters, name))
-end
-
 
 """
     hasParameter(instantiatedModel, name::AbstractString)
@@ -693,15 +672,6 @@ function showEvaluatedParameters(m::SimulationModel)::Nothing
 end
 
 
-"""
-    names = signalNames(instantiatedModel::Modia.SimulationModel)
-
-Return the names of the time-varying variables of an
-[`@instantiateModel`](@ref) that are present in the result (e.g. can be accessed for plotting).
-"""
-ModiaResult.signalNames(m::SimulationModel) = collect(keys(m.result.info))
-
-
 #=
 import ChainRules
 
@@ -715,308 +685,3 @@ function ChainRules.rrule(::typeof(ResultView), v, i)
     return y, ResultView_pullback
 end
 =#
-
-"""
-    (timeSignal, signal, signalType) = ModiaResult.rawSignal(instantiatedModel, name)
-    (timeSignal, signal, signalType) = Modia.rawSignal(      instantiatedModel, name)
-
-Get raw signal of result from an instantiated model of Modia.
-"""
-function ModiaResult.rawSignal(m::SimulationModel, name::AbstractString)
-    if haskey(m.result.info, name)
-        return rawSignal(m.result, name, unitless=m.unitless)
-    else
-        value = get_value(m.evaluatedParameters, name)
-        if ismissing(value)
-            error("rawSignal: \"$name\" not in result and not a parameter of model $(m.modelName))")
-        end
-        signal = [ ModiaResult.OneValueVector(value, length(tk)) for tk in m.result.t ]
-        return (m.result.t, signal, ModiaResult.Continuous)
-    end
-#=
-    tsig = m.result_x.t
-    if !m.unitless
-        tsig = tsig*u"s"
-        if !(m.options.desiredResultTimeUnit == NoUnits ||
-            m.options.desiredResultTimeUnit == u"s")
-            tsig = uconvert.(m.options.desiredResultTimeUnit, tsig)
-        end
-    end
-
-    if name == "time"
-        return ([tsig], [tsig], ModiaResult.Independent)
-    end
-
-    if haskey(m.result_info, name)
-        #println("rawSignal: name = $name")
-        resInfo = m.result_info[name]
-
-        if resInfo.store == RESULT_X
-            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
-            if ibeg == iend
-                xSig = [v[ibeg] for v in m.result_x.u]
-            else
-                xSig = [v[ibeg:iend] for v in m.result_x.u]
-            end
-            if resInfo.negate
-                xSig *= -1
-            end
-            if !m.unitless && xunit != ""
-                xSig = xSig*uparse(xunit)
-            end
-            return ([tsig], [xSig], ModiaResult.Continuous)
-
-        elseif resInfo.store == RESULT_DER_X
-            (ibeg,iend,xunit) = get_xinfo(m, resInfo.index)
-            if ibeg == iend
-                derxSig = [v[ibeg] for v in m.result_der_x]
-            else
-                derxSig = [v[ibeg:iend] for v in m.result_der_x]
-            end
-            if resInfo.negate
-                derxSig *= -1
-            end
-
-            if !m.unitless
-                if xunit == ""
-                    derxSig = derxSig/u"s"
-                else
-                    derxSig = derxSig*(uparse(xunit)/u"s")
-                end
-            end
-            return ([tsig], [derxSig], ModiaResult.Continuous)
-
-        elseif resInfo.store == RESULT_CODE
-            signal = ModiaResult.SignalView(m.result_code, resInfo.index, resInfo.negate)
-            if length(signal) != length(tsig)
-                lens = length(signal)
-                lent = length(tsig)
-                error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\",\nlength(signal) = $lens, length(tsig) = $lent")
-            end
-            return ([tsig], [signal], ModiaResult.Continuous)
-
-        elseif resInfo.store == RESULT_EXTRA
-            signal = ModiaResult.SignalView(m.result_extra, resInfo.index, resInfo.negate)
-            if length(signal) != length(tsig)
-                lens = length(signal)
-                lent = length(tsig)
-                error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\",\nlength(signal) = $lens, length(tsig) = $lent")
-            end
-            return ([tsig], [signal], ModiaResult.Continuous)
-
-        elseif resInfo.store == RESULT_ZERO
-            signal = ModiaResult.OneValueVector(0.0, length(tsig))
-            return ([tsig], [signal], ModiaResult.Continuous)
-
-        else
-            error("Bug in SimulateAndPlot.jl (rawSignal(..)): name=\"$name\", resInfo=$resInfo")
-        end
-    end
-=#
-end
-
-
-
-
-"""
-    leaveName = get_leaveName(pathName::String)
-
-Return the `leaveName` of `pathName`.
-"""
-get_leaveName(pathName::String) =
-    begin
-        j = findlast('.', pathName);
-        typeof(j) == Nothing || j >= length(pathName) ? pathName : pathName[j+1:end]
-    end
-
-
-function get_algorithmName_for_heading(m::SimulationModel)::String
-    if ismissing(m.algorithmName)
-        algorithmName = "???"
-    else
-        algorithmName = m.algorithmName
-        i1 = findfirst("CompositeAlgorithm", algorithmName)
-        if !isnothing(i1)
-            i2 = findfirst("Vern" , algorithmName)
-            i3 = findfirst("Rodas", algorithmName)
-            success = false
-            if !isnothing(i2) && !isnothing(i3)
-                i2b = findnext(',', algorithmName, i2[1])
-                i3b = findnext('{', algorithmName, i3[1])
-                if !isnothing(i2b) && !isnothing(i3b)
-                    algorithmName = algorithmName[i2[1]:i2b[1]-1] * "(" * algorithmName[i3[1]:i3b[1]-1] * "())"
-                    success = true
-                end
-            end
-            if !success
-                algorithmName = "CompositeAlgorithm"
-            end
-        else
-            i1 = findfirst('{', algorithmName)
-            if !isnothing(i1)
-                algorithmName = algorithmName[1:i1-1]
-            end
-            i1 = findlast('.', algorithmName)
-            if !isnothing(i1)
-                algorithmName = algorithmName[i1+1:end]
-            end
-        end
-    end
-    return algorithmName
-end
-
-
-function ModiaResult.defaultHeading(m::SimulationModel)
-    FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
-
-    algorithmName = get_algorithmName_for_heading(m)
-    if FloatType == "Float64"
-        heading = m.modelName * " (" * algorithmName * ")"
-    else
-        heading = m.modelName * " (" * algorithmName * ", " * FloatType * ")"
-    end
-    return heading
-end
-
-
-
-# For backwards compatibility
-
-"""
-    signal    = get_result(instantiatedModel, name; unit=true)
-    dataFrame = get_result(instantiatedModel; onlyStates=false, extraNames=missing)
-
-- First form: After a successful simulation of `instantiatedModel`, return
-  the result for the signal `name::String` as vector of points
-  together with its unit. The time vector has path name `"time"`.
-  If `unit=false`, the signal is returned, **without unit**.
-
-- Second form: Return the **complete result** in form of a DataFrame object.
-  Therefore, the whole functionality of package [DataFrames](https://dataframes.juliadata.org/stable/)
-  can be used, including storing the result on file in different formats.
-  Furthermore, also plot can be used on dataFrame.
-  Parameters and zero-value variables are stored as ModiaResult.OneValueVector inside dataFrame
-  (are treated as vectors, but actually only the value and the number
-  of time points is stored). If `onlyStates=true`, then only the states and the signals
-  identified with `extraNames::Vector{String}` are stored in `dataFrame`.
-  If `onlyStates=false` and `extraNames` given, then only the signals
-  identified with `extraNames` are stored in `dataFrame`.
-  These keyword arguments are useful, if `dataFrame` shall be
-  utilized as reference result used in compareResults(..).
-
-In both cases, a **view** on the internal result memory is provided
-(so result data is not copied).
-
-# Example
-
-```julia
-using Modia
-@usingModiaPlot
-using Unitful
-
-include("\$(Modia.path)/examples/Pendulum.jl")
-using  .Model_Pendulum
-
-pendulum = simulationModel(Pendulum)
-simulate!(pendulum, stopTime=7.0)
-
-# Get one signal from the result and plot with the desired plot package
-time = get_result(pendulum, "time")  # vector with unit u"s"
-phi  = get_result(pendulum, "phi")   # vector with unit u"rad"
-
-import PyPlot
-PyPlot.figure(4)   # Change to figure 4 (or create it, if it does not exist)
-PyPlot.clf()       # Clear current figure
-PyPlot.plot(stripUnit(time), stripUnit(phi), "b--", label="phi in " * string(unit(phi[1])))
-PyPlot.xlabel("time in " * string(unit(time[1])))
-PyPlot.legend()
-
-# Get complete result and plot one signal
-result = get_result(pendulum)
-plot(result, "phi")
-
-# Get only states to be used as reference and compare result with reference
-reference = get_result(pendulum, onlyStates=true)
-(success, diff, diff_names, max_error, within_tolerance) =
-    ModiaResult.compareResults(result, reference, tolerance=0.01)
-println("Check results: success = $success")
-```
-"""
-function get_result(m::SimulationModel, name::AbstractString; unit=true)
-    #(xsig, xsigLegend, ysig, ysigLegend, yIsConstant) = ModiaResult.getPlotSignal(m, "time", name)
-
-    #resIndex = m.variables[name]
-    #ysig = ResultView(m.result, abs(resIndex), resIndex < 0)
-
-    #if ModiaResult.timeSignalName(m) != 1
-    if length(m.result.t) > 1
-        error("Error in Modia.get_result(\"$name\"), because function cannot be used for a segmented simulation with more as one segment.")
-    end
-
-    (tsig2, ysig2, ysigType) = ModiaResult.rawSignal(m, name)
-    ysig = ysig2[1]
-    ysig = unit ? ysig : stripUnit.(ysig)
-
-    #=
-    if yIsConstant
-        if ndims(ysig) == 1
-            ysig = fill(ysig[1], length(xsig))
-        else
-            ysig = fill(ysig[1,:], length(xsig))
-        end
-    end
-    =#
-
-    return ysig
-end
-
-
-function setEvaluatedParametersInDataFrame!(obj::OrderedDict{Symbol,Any}, result_info, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing
-    for (key,value) in zip(keys(obj), obj)
-        name = appendName(path, key)
-        if typeof(value) <: OrderedDict{Symbol,Any}
-            setEvaluatedParametersInDataFrame!(value, result_info, dataFrame, name, nResult)
-        elseif !haskey(result_info, name)
-            dataFrame[!,name] = ModiaResult.OneValueVector(value,nResult)
-        end
-    end
-    return nothing
-end
-
-
-function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
-    if length(m.result.t) > 1
-        error("Error in Modia.get_result(...), because function cannot be used for a segmented simulation with more as one segment.")
-    end
-
-    dataFrame = DataFrames.DataFrame()
-
-    (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, "time")
-    dataFrame[!,"time"] = timeSignal[1]
-
-    if onlyStates || !ismissing(extraNames)
-        if onlyStates
-            for name in keys(m.equationInfo.x_dict)
-                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
-                dataFrame[!,name] = signal[1]
-            end
-        end
-        if !ismissing(extraNames)
-            for name in extraNames
-                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
-                dataFrame[!,name] = signal[1]
-            end
-        end
-
-    else
-        for name in keys(m.result.info)
-            if name != "time"
-                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
-                dataFrame[!,name] = signal[1]
-            end
-        end
-
-        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.result.info, dataFrame, "", length(timeSignal[1]))
-    end
-    return dataFrame
-end

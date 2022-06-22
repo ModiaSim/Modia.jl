@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.9.0-dev"
-const Date = "2022-06-06"
+const Date = "2022-06-10"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -46,8 +46,8 @@ export stripUnit
 
 export simulate!, linearize!, get_result
 export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
-export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
+export resultInfo, showResultInfo, rawSignal, getPlotSignal, defaultHeading
+export signalNames, timeSignalName, hasSignal
 export hasParameter, getParameter, getEvaluatedParameter
 export showParameters, showEvaluatedParameters
 
@@ -77,8 +77,8 @@ using ModiaBase.Differentiate
 
 import ModiaResult
 import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-import ModiaResult: resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
-import ModiaResult: signalNames, timeSignalName, hasOneTimeSignal, hasSignal
+import ModiaResult: resultInfo, showResultInfo, getPlotSignal, defaultHeading
+import ModiaResult: signalNames, timeSignalName, hasSignal
 
 import StaticArrays   # Make StaticArrays available for the tests
 
@@ -181,6 +181,7 @@ include("EvaluateParameters.jl")
 # include("GenerateGetDerivatives.jl")
 include("Synchronous.jl")
 include("SimulateAndPlot.jl")
+include("ModiaResultInterface.jl")
 include("ReverseDiffInterface.jl")
 include("PathPlanning.jl")
 include("JSONModel.jl")

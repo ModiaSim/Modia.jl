@@ -506,7 +506,7 @@ end
 """
     xe_info = StateElementInfo(x_name, x_name_julia, der_x_name, der_x_name_julia,
                                stateCategory, unit, startOrInit, fixed, nominal, unbounded;
-                               startIndex=-1, x_segment_startIndex=-1)
+                               startIndex=-1, x_segmented_startIndex=-1)
 
 Return an instance of the mutable struct `StateElementInfo` that defines the information
 for one element of the state vector.
@@ -527,7 +527,7 @@ for one element of the state vector.
 - nominal: Nominal value (NaN if determined via startOrInit value)
 - unbounded: false or true
 - startIndex: = -1, if not yet known. startIndex with respect to x.
-- x_segment_startIndex: =-1, if not yet known. startIndex with respect to x_segment.
+- x_segmented_startIndex: =-1, if not yet known. startIndex with respect to x_segmented.
 """
 mutable struct StateElementInfo
     x_name::String                # Modia name of x-element or "" if no name
@@ -551,8 +551,8 @@ mutable struct StateElementInfo
                                   # = false, if vector
     length::Int                   # length of x-element or -1 if not yet known
     startIndex::Int               # start index of state with respect to x-vector or -1 if not yet known
-    x_segment_startIndex::Int     # start index of segment state with respect to x_segment vector
-                                  # or -1, if it is no segment state (for a segment state, x_segment_startIndex
+    x_segmented_startIndex::Int     # start index of segmented state with respect to x_segmented vector
+                                  # or -1, if it is no segmented state (for a segmented state, x_segmented_startIndex
                                   # is consistently set when it is added via newHiddenState(..)).
 end
 
@@ -561,11 +561,11 @@ end
 # Constructor for code-generation
 StateElementInfo(x_name, x_name_julia, der_x_name, der_x_name_julia,
                  stateCategory, unit, startOrInit, fixed, nominal, unbounded;
-                 startIndex = -1, x_segment_startIndex=-1) = StateElementInfo(
+                 startIndex = -1, x_segmented_startIndex=-1) = StateElementInfo(
                  x_name, x_name_julia, der_x_name, der_x_name_julia,
                  stateCategory, unit, deepcopy(startOrInit), fixed, nominal, unbounded,
                  isFixedLengthStartOrInit(startOrInit, x_name), !(startOrInit isa AbstractArray),
-                 startOrInit isa Nothing ? 1 : length(startOrInit), startIndex, x_segment_startIndex)
+                 startOrInit isa Nothing ? 1 : length(startOrInit), startIndex, x_segmented_startIndex)
 
 function Base.show(io::IO, xe_info::StateElementInfo)
     print(io, "Modia.StateElementInfo(")
@@ -587,7 +587,7 @@ function Base.show(io::IO, xe_info::StateElementInfo)
     print(io, ",", xe_info.scalar)
     print(io, ",", xe_info.length)
     print(io, ",", xe_info.startIndex)
-    print(io, ",", xe_info.x_segment_startIndex)
+    print(io, ",", xe_info.x_segmented_startIndex)
     print(io, ")")
     return nothing
 end
@@ -647,9 +647,9 @@ mutable struct EquationInfo
                                                    # This variable is updated once all states are known.
     nxInvariant::Int                               # = number of invariant x-elements (so x[1:nxInvariant] are invariant states) or -1 if not yet known
                                                    # This variable is updated once all states are known.
-    nxSegment::Int                                 # = number of segment x-elements (x[nxInvariant+1:nxInvariant+nxSegment]).
-                                                   # This variable is always updated consistently via function new_x_segment_variable!(..)
-                                                   # (nxSegment=0, if there are no segment states yet).
+    nxSegmented::Int                                 # = number of segmented x-elements (x[nxInvariant+1:nxInvariant+nxSegmented]).
+                                                   # This variable is always updated consistently via function new_x_segmented_variable!(..)
+                                                   # (nxSegmented=0, if there are no segmented states yet).
     nx_info_fixedLength::Int                       # x_info[1:nx_info_fixedLength] are states with fixed length (does not change after compilation) or -1 if not yet known
     nx_info_invariant::Int                         # x_info[1:nx_info_invariant] are states that are visible in getDerivatives!(..) or -1 if not yet known
                                                    # x_info[nx_info_invariant+1:end] are states defined in functions that are not visible in getDerivatives!(..)
@@ -668,14 +668,14 @@ mutable struct EquationInfo
         vSolvedWithFixedTrue  = String[]
         nx                    = -1
         nxInvariant           = -1
-        nxSegment             =  0
+        nxSegmented             =  0
         nx_info_fixedLength   = -1
         nx_info_invariant     = -1
         x_dict                = OrderedCollections.OrderedDict{String,Int}()
         der_x_dict            = OrderedCollections.OrderedDict{String,Int}()
         defaultParameterAndStartValues = nothing
         new(EquationInfo_Instantiated, ode, nz, x_info, residualCategories, linearEquations, vSolvedWithFixedTrue,
-            nx, nxInvariant, nxSegment, nx_info_fixedLength, nx_info_invariant, x_dict, der_x_dict,
+            nx, nxInvariant, nxSegmented, nx_info_fixedLength, nx_info_invariant, x_dict, der_x_dict,
             defaultParameterAndStartValues)
     end
 end
@@ -697,11 +697,11 @@ eqInfo.nx_info_fixedLength, eqInfo.nx_info_invariant,
 eqInfo.x_info[:].startIndex.
 ```
 
-This function must be called before segment states are set (eqInfo.nxSegment=0).
+This function must be called before segmented states are set (eqInfo.nxSegmented=0).
 """
 function initEquationInfo!(eqInfo::EquationInfo, nx_info_fixedLength::Int)::Nothing
     @assert(eqInfo.status == EquationInfo_Instantiated)
-    @assert(eqInfo.nxSegment == 0)
+    @assert(eqInfo.nxSegmented == 0)
     x_dict     = eqInfo.x_dict
     der_x_dict = eqInfo.der_x_dict
     startIndex = 1
@@ -722,11 +722,11 @@ end
 
 
 """
-    removeSegmentStates!(eqInfo::EquationInfo)
+    removeSegmentedStates!(eqInfo::EquationInfo)
 
-Remove all segment states from `eqInfo`.
+Remove all segmented states from `eqInfo`.
 """
-function removeSegmentStates!(eqInfo::EquationInfo)::Nothing
+function removeSegmentedStates!(eqInfo::EquationInfo)::Nothing
     @assert(eqInfo.status == EquationInfo_After_All_States_Are_Known)
     if eqInfo.nx > eqInfo.nxInvariant
         for i = eqInfo.nx_info_invariant+1:length(eqInfo.x_info)
@@ -737,7 +737,7 @@ function removeSegmentStates!(eqInfo::EquationInfo)::Nothing
         resize!(eqInfo.x_info, eqInfo.nx_info_invariant)
         eqInfo.nx = eqInfo.nxInvariant
     end
-    eqInfo.nxSegment = 0
+    eqInfo.nxSegmented = 0
     eqInfo.status = EquationInfo_Initialized_Before_All_States_Are_Known
     return nothing
 end
@@ -771,7 +771,7 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
     end
     eqInfo.nxInvariant = startIndex - 1
 
-    # Set startIndex for segment states
+    # Set startIndex for segmented states
     for i = eqInfo.nx_info_invariant+1:length(x_info)
         xi_info = x_info[i]
         xi_info.length     = length(xi_info.startOrInit)
@@ -779,7 +779,7 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
         startIndex        += xi_info.length
     end
     eqInfo.nx = startIndex - 1
-    @assert(eqInfo.nx == eqInfo.nxInvariant + eqInfo.nxSegment)
+    @assert(eqInfo.nx == eqInfo.nxInvariant + eqInfo.nxSegmented)
 
     # Construct x_start
     x_start = zeros(FloatType, eqInfo.nx)
@@ -872,10 +872,10 @@ function Base.show(io::IO, eqInfo::EquationInfo; indent=4)
     if eqInfo.nx >= 0
         nx = eqInfo.nx
         nxInvariant = eqInfo.nxInvariant
-        nxSegment  = eqInfo.nxSegment
+        nxSegmented  = eqInfo.nxSegmented
         nx_info_fixedLength = eqInfo.nx_info_fixedLength
         nx_info_invariant = eqInfo.nx_info_invariant
-        print(io, ",\n", indentation2, "nx = $nx, nxInvariant = $nxInvariant, nxSegment = $nxSegment")
+        print(io, ",\n", indentation2, "nx = $nx, nxInvariant = $nxInvariant, nxSegmented = $nxSegmented")
         print(io, ",\n", indentation2, "nx_info_fixedLength = $nx_info_fixedLength, nx_info_invariant = $nx_info_invariant")
     end
 

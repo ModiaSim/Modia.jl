@@ -205,7 +205,7 @@ SSTest = Model(
 
 ssTest = @instantiateModel(SSTest, logCode=true)
 simulate!(ssTest, stopTime=1.0, log=false, logStates=true, requiredFinalStates = [1.987867388853733])
-Modia.printResultInfo(ssTest)
+Modia.showResultInfo(ssTest)
 plot(ssTest, ("ss.x", "ss.u","ss.w", "y"), figure=1)
 
 simulate!(ssTest, stopTime=1.0, log=false, logStates=true,
@@ -219,7 +219,7 @@ simulate!(ssTest, stopTime=1.0, log=false, logStates=true,
                                                       0.9 1.0],
                                                    x_init=[0.3,0.4])),  # two states
           requiredFinalStates = [1.98786636233743, 1.9892145443000466])
-Modia.printResultInfo(ssTest)
+Modia.showResultInfo(ssTest)
 plot(ssTest, ("ss.x", "ss.u", "y", "ss.w"), figure=2)
 
 
@@ -247,7 +247,7 @@ SSTest2 = Model(
           )
 ssTest2 = @instantiateModel(SSTest2, logCode=false)
 simulate!(ssTest2, stopTime=1.0, log=true, logStates=true)
-printResultInfo(ssTest2)
+showResultInfo(ssTest2)
 
 plot(ssTest2, [("submodel.ss.x", "submodel.x1", "submodel.x2", "submodel.x3", "submodel.x4", "ss.x" ),
                ("submodel.ss.u", "ss.u", "y1", "y2", "submodel.ss.w"),
@@ -264,7 +264,7 @@ simulate!(ssTest2, stopTime=1.0, log=false, logStates=true,
                                                C=[0.5 0.5 0.5;],
                                                x_init=[0.35,0.45,0.55]))
          )
-printResultInfo(ssTest2)
+showResultInfo(ssTest2)
 
 println("\n... Check functions for parameters and signals")
 showParameters(         ssTest2)
