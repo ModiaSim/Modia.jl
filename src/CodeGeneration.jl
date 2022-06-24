@@ -1047,11 +1047,11 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     nx             = length(m.x_start)
     nxSegmented      = nx-equationInfo.nxInvariant
 
-    # Update locationIDs of all states and state derivatives (indices are known, after initialStateVector!(..) was called
+    # Update ValueIDs of all states and state derivatives (indices are known, after initialStateVector!(..) was called
     for xe_info in equationInfo.x_info
-        locationID = ValuesID(1, xe_info.startIndex, size(xe_info.startOrInit))
-        push!(result.info[xe_info.x_name    ].locationID, locationID)
-        push!(result.info[xe_info.der_x_name].locationID, locationID)
+        valueID = ValuesID(1, xe_info.startIndex, size(xe_info.startOrInit))
+        push!(result.info[xe_info.x_name    ].id, valueID)
+        push!(result.info[xe_info.der_x_name].id, valueID)
     end
 
     # Provide storage for x and der_x utility vectors

@@ -71,28 +71,28 @@ struct ResultInfo
 
     aliasName::String                     # Name of non-eliminated variable
     aliasNegate::Bool                     # = true, if info[aliasName] signal must be negated
-    value::Union{Any,Missing}             # Value of constant variable (without unit)
+    value    #::Union{Any,Missing}             # Value of constant variable (without unit)
     
-    VariableType::Union{DataType,Missing} # Type of variable, if known (to make sure that the VariableType is not changing)
+    VariableType  #::Union{DataType,Missing} # Type of variable, if known (to make sure that the VariableType is not changing)
     unit::String                          # Unit of variable as a parseable string. If not known, unit="".
     id::Vector{ValuesID}                  # Location of the variable values with respect to ResultKind and Result
 
     ResultInfo(kind::ResultKind, aliasName::String; negate::Bool=false) = begin
                                                                             @assert(kind == RESULT_ELIMINATED)
-                                                                            (kind, aliasName, negate, missing, missing, "", ValuesID[])
+                                                                            new(kind, aliasName, negate, missing, missing, "", ValuesID[])
                                                                           end
     ResultInfo(kind::ResultKind, defaultOrValue, unit::String)          = begin
                                                                             @assert(kind == RESULT_CONSTANT || kind == RESULT_X || kind == RESULT_DER_X)
                                                                             if kind == RESULT_CONSTANT
-                                                                                (kind, "", false, defaultOrValue, typeof(defaultOrValue), unit, ValuesID[])
+                                                                                new(kind, "", false, defaultOrValue, typeof(defaultOrValue), unit, ValuesID[])
                                                                             else
-                                                                                (kind, "", false, missing, typeof(defaultOrValue), unit, ValuesID[])
+                                                                                new(kind, "", false, missing, typeof(defaultOrValue), unit, ValuesID[])
                                                                             end
                                                                           end
     ResultInfo(kind::ResultKind, default, unit::String, index)          = ResultInfo(kind,default,unit,-1,index)
     ResultInfo(kind::ResultKind, default, unit::String, segment, index) = begin
                                                                             @assert(kind != RESULT_ELIMINATED && kind != RESULT_CONSTANT)
-                                                                            new(kind, "", false, default, unit, ValuesID[ValuesID(segment,index,ismissing(default) ? missing : size(default))])
+                                                                            new(kind, "", false, default, typeof(default), unit, ValuesID[ValuesID(segment,index,ismissing(default) ? missing : size(default))])
                                                                           end
 end
 
@@ -149,7 +149,7 @@ mutable struct Result{FloatType,TimeType}
             info[xi_info.x_name]     = ResultInfo(RESULT_X    , xi_info.startOrInit, x_unit    )
             info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, xi_info.startOrInit, der_x_unit)
         end
-
+        
         # Fill info with w_invariant
         for (w_invariant_index, w_invariant_name) in enumerate(w_invariant_names)
             name = string(w_invariant_name)
