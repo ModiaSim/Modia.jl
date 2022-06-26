@@ -1,90 +1,131 @@
 # License for this file: MIT (expat)
 # Copyright 2022, DLR Institute of System Dynamics and Control
 
-#------------------------------------------------------------------------------------------------
-#        Provide the overloaded ModiaResult Abstract Interface for the results of SimulationModel
-#------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#        Provide the overloaded Abstract Signal Tables Interface for the results of SimulationModel
+#--------------------------------------------------------------------------------------------------
+
+@inline function checkMissingResult(m::SimulationModel, name::String)::Bool
+    if isnothing(m) || ismissing(m) || ismissing(m.result)
+        error("$name: No simulation results available.")
+    end
+    return true
+end
+
+SignalTables.isSignalTable(r::Result) = true
+SignalTables.isSignalTable(m::SimulationModel) = true
+
 
 """
-    hasSignal(instantiatedModel::Modia.SimulationModel, name::AbstractString)
-
-Return true if time-varying variable `name` (for example `name = "a.b.c"`)
-is defined in the instantiateModel that can be accessed and can be used for plotting.
+    independentSignalNames(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Vector{String}
+    
+Return the name of the independent variable of the result stored in instantiatedModel or in result.
 """
-ModiaResult.hasSignal(m::SimulationModel, name::AbstractString) = begin
+SignalTables.independentSignalNames(result::Result)     = [result.timeName]
+SignalTables.independentSignalNames(m::SimulationModel) = begin
+    if ismissing(m.result)
+        error("independentSignalName(..): No simulation results available in instantiated model of $(m.modelName)")
+    end
+    SignalTables.independentSignalNames(m.result)
+end
+
+
+"""
+    signalNames(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Vector{String}
+
+Returns a string vector of the time-varying variables of an
+[`@instantiateModel`](@ref) that are present in the result (e.g. can be accessed for plotting).
+"""
+SignalTables.signalNames(result::Result)     = collect(keys(result.info))
+SignalTables.signalNames(m::SimulationModel) = begin
+    if ismissing(m.result)
+        error("signalNames(..): No simulation results available in instantiated model of $(m.modelName)")
+    end
+    SignalTables.signalNames(m.result) 
+end
+
+
+"""
+    getSignal(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+
+Returns signal `name` of the result present in instantiatedModel
+(that is a [`SignalTables.Var`](@ref) or a [`SignalTables.Par`](@ref)).
+If `name` does not exist, an error is raised.
+"""
+SignalTables.getSignal(m::SimulationModel, name::String) = begin
+    checkMissingResult(m, name)
+    SignalTables.getSignal(m.result, name)
+end
+function SignalTables.getSignal(result::Result, name::String)
+    resInfo = result.info[name]
+    if haskey(resInfo.signal, :values)
+        return resInfo.signal
+    end
+
+    if resInfo.kind == RESULT_ELIMINATED
+        signal      = resInfo.signal
+        aliasName   = resInfo.aliasName
+        aliasNegate = resInfo.aliasNegate
+        aliasSignal = SignalTables.getSignal(result, aliasName)
+        signal      = merge(aliasSignal, signal)
+        if aliasNegate
+            signal[:values] = -deepcopy(aliasSignal[:values])
+        else
+            signal[:alias]  = aliasName
+            signal[:values] = aliasSignal[:values]
+        end
+        return signal
+    end
+
+    if resInfo.kind == RESULT_T
+        sigValues = signalResultValues(result.t, result.t, resInfo)
+    elseif resInfo.kind == RESULT_X
+        sigValues = signalResultValues(result.t, result.x, resInfo)
+    elseif resInfo.kind == RESULT_DER_X
+        sigValues = signalResultValues(result.t, result.der_x, resInfo)
+    elseif resInfo.kind == RESULT_W_INVARIANT
+        sigValues = signalResultValues(result.t, result.w_invariant, resInfo)  
+        w_unit = unitAsParseableString(sigValues)
+        if w_unit != ""
+            resInfo.signal[:unit] = w_unit
+            sigValues = ustrip(sigValues)
+        end
+    elseif resInfo.kind == RESULT_W_SEGMENTED
+        sigValues = signalResultValues(result.t, result.w_segmented, resInfo)
+    elseif resInfo.kind == RESULT_CONSTANT
+        value = resInfo.value
+        t     = getSignal(result, result.timeName)
+        if typeof(value) <: AbstractArray
+            sigValues = Array{eltype(value), ndims(values)}(undef, (length(t), size(value)...))
+            for i = 1:length(sigValues)
+                for j = 1:length(value)
+                    sigValues[i,j] = value[j]
+                end
+            end
+        else
+            sigValues = fill(value, length(t))
+        end
+    else
+        error("Bug in getSignal: name=\"$name\" has ResultInfo=$resInfo, but ResultInfo.kind = $(resInfo.kind) is not known.")
+    end
+
+    resInfo.signal[:values] = sigValues
+    return resInfo.signal
+end
+
+
+"""
+    hasSignal(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+
+Returns `true` if signal `name` is present in the instantiatedModel result.
+"""
+SignalTables.hasSignal(m::SimulationModel, name::String) = begin
     if isnothing(m) || ismissing(m) || ismissing(m.result)
         return false
     end
-    haskey(m.result.info, name) #|| !ismissing(get_value(m.evaluatedParameters, name))
+    SignalTables.hasSignal(m.result, name)
 end
-
-
-"""
-    timeSignalName(instantiatedModel::Modia.SimulationModel)
-    
-Return the name of the independent variable of the result stored in instantiatedModel.
-"""
-ModiaResult.timeSignalName(m::SimulationModel) = m.result.timeName
-
-
-"""
-    names = signalNames(instantiatedModel::Modia.SimulationModel)
-
-Return the names of the time-varying variables of an
-[`@instantiateModel`](@ref) that are present in the result (e.g. can be accessed for plotting).
-"""
-ModiaResult.signalNames(m::SimulationModel) = collect(keys(m.result.info))
-
-
-function getVariableType(result::Result, resInfo::ResultInfo)::DataType
-    if ismissing(resInfo.VariableType)
-        @assert(resInfo.kind == RESULT_W_INVARIANT)
-        return typeof( result.w_invariant[1][1][resInfo.id[1].index] )
-    else
-        return resInfo.VariableType
-    end
-end
-
-
-"""
-    info = SignalInfo(instantiatedModel::SimulationModel, name::AbstractString)
-
-Return information about signal `name` of the result present in instantiatedModel.
-"""
-function ModiaResult.SignalInfo(m::SimulationModel, name::AbstractString)
-    resInfo = m.result.info[name]
-    if resInfo.kind == RESULT_ELIMINATED
-        aliasResInfo = m.result.info[resInfo.aliasName]
-        VariableType = getVariableType(m.result, aliasResInfo)
-        return ModiaResult.SignalInfo(ModiaResult.Eliminated, VariableType, aliasResInfo.unit, aliasResInfo.value, resInfo.aliasName, resInfo.aliasNegate)
-    end
-
-    kind = resInfo.kind == RESULT_T        ? ModiaResult.Independent :
-          (resInfo.kind == RESULT_CONSTANT ? ModiaResult.Constant    :
-          ( (resInfo.kind == RESULT_X || resInfo.kind == RESULT_DER_X) && isInvariant(resInfo.id) || (resInfo.W_INVARIANT ? ModiaResult.Invariant : ModiaResult.Segmenteded)))
-
-    VariableType = getVariableType(m.result, resInfo)
-    return ModiaResult.SignalInfo(kind, VariableType, resInfo.unit, resInfo.value, "", false)
-end
-
-
-"""
-    s = signalValues(instantiatedModel::Modia.SimulationModel, name; unitless=false)
-    
-Return signal `name` of the result present in instantiatedModel.
-If `unitless=false`, the signal is returned with its unit.
-"""
-function ModiaResult.signalValues(m::SimulationModel, name; unitless=false)
-    if haskey(m.result.info, name)
-        return signalResultValues(m.result, name; unitless=unitless)
-    else
-        value = get_value(m.evaluatedParameters, name)
-        if ismissing(value)
-            error("signal(..): \"$name\" not in result and not a parameter of model $(m.modelName))")
-        end
-        return ModiaResult.OneValueVector(value, sum(length(tk) for tk in m.result.t))
-    end
-end
+SignalTables.hasSignal(result::Result, name::String) = haskey(result.info, name) #|| !ismissing(get_value(m.evaluatedParameters, name))
 
 
 function get_algorithmName_for_heading(m::SimulationModel)::String
@@ -136,23 +177,21 @@ get_leaveName(pathName::String) =
     
 
 """
-    ModiaResult.defaultHeading(instantiatedModel::Modia.SimulationModel)
+    SignalTables.getDefaultHeading(instantiatedModel::Modia.SimulationModel)
     
-Return default heading of instantiatedModel result as a string 
-(can be used as default heading for a plot).
+Return default heading of instantiatedModel as a string.
 """ 
-function ModiaResult.defaultHeading(m::SimulationModel)
-    FloatType = get_leaveName( string( typeof( m.x_start[1] ) ) )
-
+function SignalTables.getDefaultHeading(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType}
+    if isnothing(m) || ismissing(m) || ismissing(m.result)
+        return ""
+    end
     algorithmName = get_algorithmName_for_heading(m)
     if FloatType == "Float64"
         heading = m.modelName * " (" * algorithmName * ")"
     else
-        heading = m.modelName * " (" * algorithmName * ", " * FloatType * ")"
-    end
-    return heading
+        heading = m.modelName * " (" * algorithmName * ", " * string(FloatType) * ")"
+    end    
 end
-
 
 
 # For backwards compatibility
@@ -170,7 +209,7 @@ end
   Therefore, the whole functionality of package [DataFrames](https://dataframes.juliadata.org/stable/)
   can be used, including storing the result on file in different formats.
   Furthermore, also plot can be used on dataFrame.
-  Parameters and zero-value variables are stored as ModiaResult.OneValueVector inside dataFrame
+  Parameters and zero-value variables are stored as SignalTables.OneValueVector inside dataFrame
   (are treated as vectors, but actually only the value and the number
   of time points is stored). If `onlyStates=true`, then only the states and the signals
   identified with `extraNames::Vector{String}` are stored in `dataFrame`.
@@ -213,22 +252,22 @@ plot(result, "phi")
 # Get only states to be used as reference and compare result with reference
 reference = get_result(pendulum, onlyStates=true)
 (success, diff, diff_names, max_error, within_tolerance) =
-    ModiaResult.compareResults(result, reference, tolerance=0.01)
+    SignalTables.compareResults(result, reference, tolerance=0.01)
 println("Check results: success = $success")
 ```
 """
 function get_result(m::SimulationModel, name::AbstractString; unit=true)
-    #(xsig, xsigLegend, ysig, ysigLegend, yIsConstant) = ModiaResult.getPlotSignal(m, "time", name)
+    #(xsig, xsigLegend, ysig, ysigLegend, yIsConstant) = SignalTables.getPlotSignal(m, "time", name)
 
     #resIndex = m.variables[name]
     #ysig = ResultView(m.result, abs(resIndex), resIndex < 0)
 
-    #if ModiaResult.timeSignalName(m) != 1
+    #if SignalTables.timeSignalName(m) != 1
     if length(m.result.t) > 1
         error("Error in Modia.get_result(\"$name\"), because function cannot be used for a segmenteded simulation with more as one segmented.")
     end
 
-    (tsig2, ysig2, ysigType) = ModiaResult.rawSignal(m, name)
+    (tsig2, ysig2, ysigType) = SignalTables.rawSignal(m, name)
     ysig = ysig2[1]
     ysig = unit ? ysig : stripUnit.(ysig)
 
@@ -252,7 +291,7 @@ function setEvaluatedParametersInDataFrame!(obj::OrderedDict{Symbol,Any}, result
         if typeof(value) <: OrderedDict{Symbol,Any}
             setEvaluatedParametersInDataFrame!(value, result_info, dataFrame, name, nResult)
         elseif !haskey(result_info, name)
-            dataFrame[!,name] = ModiaResult.OneValueVector(value,nResult)
+            dataFrame[!,name] = SignalTables.OneValueVector(value,nResult)
         end
     end
     return nothing
@@ -266,19 +305,19 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
 
     dataFrame = DataFrames.DataFrame()
 
-    (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, "time")
+    (timeSignal, signal, signalType) = SignalTables.rawSignal(m, "time")
     dataFrame[!,"time"] = timeSignal[1]
 
     if onlyStates || !ismissing(extraNames)
         if onlyStates
             for name in keys(m.equationInfo.x_dict)
-                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
+                (timeSignal, signal, signalType) = SignalTables.rawSignal(m, name)
                 dataFrame[!,name] = signal[1]
             end
         end
         if !ismissing(extraNames)
             for name in extraNames
-                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
+                (timeSignal, signal, signalType) = SignalTables.rawSignal(m, name)
                 dataFrame[!,name] = signal[1]
             end
         end
@@ -286,7 +325,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
     else
         for name in keys(m.result.info)
             if name != "time"
-                (timeSignal, signal, signalType) = ModiaResult.rawSignal(m, name)
+                (timeSignal, signal, signalType) = SignalTables.rawSignal(m, name)
                 dataFrame[!,name] = signal[1]
             end
         end

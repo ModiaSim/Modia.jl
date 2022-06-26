@@ -551,7 +551,7 @@ mutable struct StateElementInfo
                                   # = false, if vector
     length::Int                   # length of x-element or -1 if not yet known
     startIndex::Int               # start index of state with respect to x-vector or -1 if not yet known
-    x_segmented_startIndex::Int     # start index of segmented state with respect to x_segmented vector
+    x_segmented_startIndex::Int   # start index of segmented state with respect to x_segmented vector
                                   # or -1, if it is no segmented state (for a segmented state, x_segmented_startIndex
                                   # is consistently set when it is added via newHiddenState(..)).
 end
@@ -647,7 +647,7 @@ mutable struct EquationInfo
                                                    # This variable is updated once all states are known.
     nxInvariant::Int                               # = number of invariant x-elements (so x[1:nxInvariant] are invariant states) or -1 if not yet known
                                                    # This variable is updated once all states are known.
-    nxSegmented::Int                                 # = number of segmented x-elements (x[nxInvariant+1:nxInvariant+nxSegmented]).
+    nxSegmented::Int                               # = number of segmented x-elements (x[nxInvariant+1:nxInvariant+nxSegmented]).
                                                    # This variable is always updated consistently via function new_x_segmented_variable!(..)
                                                    # (nxSegmented=0, if there are no segmented states yet).
     nx_info_fixedLength::Int                       # x_info[1:nx_info_fixedLength] are states with fixed length (does not change after compilation) or -1 if not yet known
@@ -668,7 +668,7 @@ mutable struct EquationInfo
         vSolvedWithFixedTrue  = String[]
         nx                    = -1
         nxInvariant           = -1
-        nxSegmented             =  0
+        nxSegmented           =  0
         nx_info_fixedLength   = -1
         nx_info_invariant     = -1
         x_dict                = OrderedCollections.OrderedDict{String,Int}()

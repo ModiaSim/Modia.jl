@@ -4,7 +4,6 @@
 # Modia result datastrucure and functions operating on results.
 
 using  OrderedCollections: OrderedDict, OrderedSet
-import ModiaResult
 
 """
     @enum ResultKind RESULT_ELIMINATED RESULT_CONSTANT RESULT_T RESULT_X RESULT_DER_X RESULT_W_INVARIANT RESULT_W_SEGMENTED
@@ -31,17 +30,17 @@ Kind of result variable.
 Return a new id that defines where the values of a variable are stored.
 """
 struct ValuesID
-    segment::Int               # Index of simulation segment (= -1, if invariant variable)
-    index::Int                 # Index or start index with respect to simulation segment
-    dims::Union{Dims,Missing}  # Dimensions with respect to simulation segment (dims=missing, if dimensions not known)
+    segment::Int   # Index of simulation segment (= -1, if index holds for every segment)
+    index::Int     # Index or start index with respect to simulation segment
+    dims::Dims     # Dimensions with respect to simulation segment
 
-    ValuesID(index, dims) = new(-1, index, dims)
-    ValuesID(segmented, index, dims) = new(segmented, index, dims)
+    ValuesID(index, dims)          = new(     -1, index, dims)
+    ValuesID(segment, index, dims) = new(segment, index, dims)
 end
 
 
-hasIinlineValues(kind::ResultKind) = kind == RESULT_X || RESULT_DER_X
-hasDims(          kind::ResultKind) = kind != RESULT_W_INVARIANT
+hasInlineValues(kind::ResultKind) = kind == RESULT_X || RESULT_DER_X
+hasDims(        kind::ResultKind) = kind != RESULT_W_INVARIANT
 
 isInvariant(id::Vector{ValuesID})                    = length(id) == 1
 isSegmented(id::Vector{ValuesID}, t::AbstractVector) = !(length(id) == 1 || length(id) == length(t))
@@ -49,58 +48,41 @@ isSegmented(id::Vector{ValuesID}, t::AbstractVector) = !(length(id) == 1 || leng
 index_i(id::Vector{ValuesID}, i::Int)                                      = isInvariant(id) ? id[1].index : id[i].index 
 dims_i( id::Vector{ValuesID}, i::Int, kind::ResultKind, v::AbstractVector) = hasDims(kind) ? (isInvariant(id) ? id[1].dims : id[i].dims) :
                                                                                              (isInvariant(id) ? size(v[1][1][id[1].index]) : size(v[i][1][id[i].index]))                      
-                                                                                                                                  
+
 
 """
-    info = ResultInfo(kind, aliasName; negate=false)               # Define alias ResultInfo
-    info = ResultInfo(kind, defaultOrValue, unit)                  # Define constant ResultInfo or partial ResultInfo of x or der_x
-    info = ResultInfo(kind, default       , unit, index)           # Define ResultInfo for invariant variable
-    info = ResultInfo(kind, default       , unit, segment, index)  # Define ResultInfo for segmented variable
-
+    info = ResultInfo(kind, signal, id)                # t, x, der_x, w_invariant, w_segmented
+    info = ResultInfo(signal, value)                   # constant   
+    info = ResultInfo(signal, aliasName, aliasNegate)  # alias and negative alias
+    
 Return info how to access a result variable.
 """
 struct ResultInfo
-    kind::ResultKind  # Kind of result variable in simulation segment sk at time instant ti with index = index_i(..):
-                      # = RESULT_ELIMINATED : Variable is eliminated. Alias info is stored in result.info
-                      # = RESULT_CONSTANT   : Variable is constant all the time. Value is stored in result.info
-                      # = RESULT_T          : result.t[          sk][ti]
-                      # = RESULT_X          : result.x[          sk][ti][index:index+prod(dims_i(..))-1]
-                      # = RESULT_DER_X      : result.der_x[      sk][ti][index:index+prod(dims_i(..))-1]
-                      # = RESULT_W_INVARIANT: result.w_invariant[sk][ti][index]
-                      # = RESULT_W_SEGMENTED: result.w_segmented[sk][ti][index]
-
-    aliasName::String                     # Name of non-eliminated variable
-    aliasNegate::Bool                     # = true, if info[aliasName] signal must be negated
-    value    #::Union{Any,Missing}             # Value of constant variable (without unit)
+    kind::ResultKind                 # Kind of result variable in simulation segment sk at time instant ti with index = index_i(..):
+                                     # = RESULT_ELIMINATED : Variable is eliminated. Alias info is stored in result.info
+                                     # = RESULT_CONSTANT   : Variable is constant all the time. Value is stored in result.info
+                                     # = RESULT_T          : result.t[          sk][ti]
+                                     # = RESULT_X          : result.x[          sk][ti][index:index+prod(dims_i(..))-1]
+                                     # = RESULT_DER_X      : result.der_x[      sk][ti][index:index+prod(dims_i(..))-1]
+                                     # = RESULT_W_INVARIANT: result.w_invariant[sk][ti][index]
+                                     # = RESULT_W_SEGMENTED: result.w_segmented[sk][ti][index]
+    signal::SignalTables.SymbolDictType # = Var() or Par()
     
-    VariableType  #::Union{DataType,Missing} # Type of variable, if known (to make sure that the VariableType is not changing)
-    unit::String                          # Unit of variable as a parseable string. If not known, unit="".
-    id::Vector{ValuesID}                  # Location of the variable values with respect to ResultKind and Result
-
-    ResultInfo(kind::ResultKind, aliasName::String; negate::Bool=false) = begin
-                                                                            @assert(kind == RESULT_ELIMINATED)
-                                                                            new(kind, aliasName, negate, missing, missing, "", ValuesID[])
-                                                                          end
-    ResultInfo(kind::ResultKind, defaultOrValue, unit::String)          = begin
-                                                                            @assert(kind == RESULT_CONSTANT || kind == RESULT_X || kind == RESULT_DER_X)
-                                                                            if kind == RESULT_CONSTANT
-                                                                                new(kind, "", false, defaultOrValue, typeof(defaultOrValue), unit, ValuesID[])
-                                                                            else
-                                                                                new(kind, "", false, missing, typeof(defaultOrValue), unit, ValuesID[])
-                                                                            end
-                                                                          end
-    ResultInfo(kind::ResultKind, default, unit::String, index)          = ResultInfo(kind,default,unit,-1,index)
-    ResultInfo(kind::ResultKind, default, unit::String, segment, index) = begin
-                                                                            @assert(kind != RESULT_ELIMINATED && kind != RESULT_CONSTANT)
-                                                                            new(kind, "", false, default, typeof(default), unit, ValuesID[ValuesID(segment,index,ismissing(default) ? missing : size(default))])
-                                                                          end
+    aliasName::String                # Name of non-eliminated variable
+    aliasNegate::Bool                # = true, if info[aliasName] signal must be negated  
+    id::Vector{ValuesID}             # Location of the variable values with respect to ResultKind and Result
+    value::Any                       # Value of constant variable (without unit)    
+ 
+    ResultInfo(kind::ResultKind, signal, id::ValuesID)                                   = new(kind             , signal, ""       , false      , ValuesID[id])     
+    ResultInfo(signal::SignalTables.SymbolDictType, value)                               = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[], value)    
+    ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Int) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate)
 end
 
 
 """
-    result = Result{FloatType,TimeType}(timeNameAsString, equationInfo, w_invariant_names, vEliminated, vProperty, var_name)
+    result = Result{FloatType,TimeType}(timeNameAsString, equationInfo, w_invariant_names, w_invariant_initial, vEliminated, vProperty, var_name)
 
-Return a new result data structure filled with invariant variable definitions.
+Return a new result data structure.
 """
 mutable struct Result{FloatType,TimeType}
     # Result access information
@@ -120,41 +102,51 @@ mutable struct Result{FloatType,TimeType}
     w_invariant::Vector{Vector{Tuple}}          # w_invariant[sk][ti][j] - invariant algebraic variables
     w_segmented::Vector{Vector{Vector{Any}}}    # w_segmented[sk][ti][j] - segmented algebraic variables
 
-    function Result{FloatType,TimeType}(timeNameAsString::String, eqInfo::EquationInfo, w_invariant_names, vEliminated, vProperty, var_name) where {FloatType,TimeType}
+    function Result{FloatType,TimeType}(eqInfo::EquationInfo, timeNameAsString::String, w_invariant_names, w_invariant_initial, vEliminated, vProperty, var_name) where {FloatType,TimeType}
+        @assert(length(w_invariant_names) == length(w_invariant_initial))    
         info                  = OrderedDict{String, ResultInfo}()
         n_w_invariant         = length(w_invariant_names)
         alias_segmented_names = OrderedSet{String}()
         w_segmented_names     = OrderedSet{String}()
         w_segmented_temp      = Any[]
-        t                     = fill(TimeType[],0)
-        x                     = fill(Vector{FloatType}[], 0)
-        der_x                 = fill(Vector{FloatType}[], 0)
-        w_invariant           = fill(Tuple[],0)
-        w_segmented           = fill(Vector{Any}[], 0)
+        t                     = fill(TimeType[],1)
+        x                     = fill(Vector{FloatType}[], 1)
+        der_x                 = fill(Vector{FloatType}[], 1)
+        w_invariant           = fill(Tuple[], 1)
+        w_segmented           = fill(Vector{Any}[], 1)
+
 
         # Fill info with time
-        timeResultInfo = ResultInfo(RESULT_T, TimeType(0), "s", 1)
+        timeResultInfo = ResultInfo(RESULT_T, Var(_basetype=TimeType, unit="s", independent=true), ValuesID(1,()))
         info[timeNameAsString] = timeResultInfo
 
-        # Fill info with x_invariant, der_x_invariant (but with dummy id, since not yet known)
-        for i = 1:eqInfo.nx_info_invariant
+        # Fill info with x, der_x
+        for i in 1:length(eqInfo.x_info)
             xi_info = eqInfo.x_info[i]
-            x_unit  = xi_info.unit
-            der_x_unit = x_unit == "" ? "1/s" : unitAsString(unit(uparse(x_unit)/u"s"))
             @assert(!haskey(info, xi_info.x_name))
             @assert(!haskey(info, xi_info.der_x_name))
-            if isnothing(xi_info.startOrInit)
-                xi_info.startOrInit = FloatType(0)
+            id      = ValuesID(i > eqInfo.nx_info_invariant ? 1 : -1, xi_info.startIndex, size(xi_info.startOrInit))
+            index   = xi_info.startIndex
+            x_unit  = xi_info.unit
+            der_x_unit = x_unit == "" ? "1/s" : unitAsString(unit(uparse(x_unit)/u"s"))
+            x_var = Var(_basetype=FloatType, unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+            if !isnan(xi_info.nominal)
+                x_var[:nominal] = xi_info.nominal
             end
-            info[xi_info.x_name]     = ResultInfo(RESULT_X    , xi_info.startOrInit, x_unit    )
-            info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, xi_info.startOrInit, der_x_unit)
+            if xi_info.unbounded
+                x_var[:unbounded] = true
+            end
+            info[xi_info.x_name]     = ResultInfo(RESULT_X    , x_var, id)
+            info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(_basetype=FloatType, unit=der_x_unit), id)
         end
         
         # Fill info with w_invariant
         for (w_invariant_index, w_invariant_name) in enumerate(w_invariant_names)
             name = string(w_invariant_name)
             @assert(!haskey(info, name))
-            info[name] = ResultInfo(RESULT_W_INVARIANT, missing, "", w_invariant_index)
+            wi_invariant = w_invariant_initial[w_invariant_index]
+            w_var = Var(_basetype=SignalTables.basetype(wi_invariant))           
+            info[name] = ResultInfo(RESULT_W_INVARIANT, w_var, ValuesID(w_invariant_index, size(wi_invariant)))
         end
 
         # Fill info with eliminated variables
@@ -162,15 +154,15 @@ mutable struct Result{FloatType,TimeType}
             name = var_name(v)
             @assert(!haskey(info, name))
             if ModiaBase.isZero(vProperty, v)
-                info[name] = ResultInfo(RESULT_CONSTANT, FloatType(0), "")
+                info[name] = ResultInfo(Var(_basetype=FloatType), FloatType(0))
             elseif ModiaBase.isAlias(vProperty, v)
                 aliasName = var_name( ModiaBase.alias(vProperty, v) )
                 @assert(haskey(info, aliasName))
-                info[name] = ResultInfo(RESULT_ELIMINATED, aliasName)
+                info[name] = ResultInfo(Var(), aliasName, false)
             else # negated alias
                 negatedAliasName = var_name( ModiaBase.negAlias(vProperty, v) )
                 @assert(haskey(info, negatedAliasName))
-                info[name] = ResultInfo(RESULT_ELIMINATED, negatedAliasName, negate=true)
+                info[name] = ResultInfo(Var(), aliasName, true)
             end
         end
 
@@ -179,12 +171,36 @@ mutable struct Result{FloatType,TimeType}
 end
 
 
-function newResultSegment!(result::Result{FloatType,TimeType})::Nothing where {FloatType,TimeType}
+"""
+    newResultSegment!(result, equationInfo)
+    
+Start a new result segment.
+"""
+function newResultSegment!(result::Result{FloatType,TimeType}, equationInfo::EquationInfo, nsegments::Int)::Nothing where {FloatType,TimeType}
+    empty!(result.alias_segmented_names)
+    empty!(result.w_segmented_names)
+    empty!(result.w_segmented_temp)
+    
+    # Update id's for x_segmented and der_x_segmented
+    eqInfo     = equationInfo
+    x_info     = eqInfo.x_info
+    resultInfo = result.info
+    @assert(eqInfo.status == EquationInfo_After_All_States_Are_Known)
+    for i = eqInfo.nx_info_invariant+1:length(x_info)
+        xi_info = x_info[i]
+        resInfo = resultInfo[xi_info.x_name]
+        push!(resInfo.id, ValuesID(nsegments, resInfo.startIndex, size(resInfo.startOrInit)))
+        resInfo = resultInfo[xi_info.der_x_name]
+        push!(resInfo.id, ValuesID(nsegments, resInfo.startIndex, size(resInfo.startOrInit)))
+    end    
+   
+    # Start new segment   
     push!(result.t          , TimeType[])
     push!(result.x          , Vector{FloatType}[])
     push!(result.der_x      , Vector{FloatType}[])
     push!(result.w_invariant, Tuple[])
-    push!(result.w_segmented  , Vector{Any}[])
+    push!(result.w_segmented, Vector{Any}[])
+
     return nothing
 end
 
@@ -192,17 +208,23 @@ end
 dims_range(dims::Dims) = Tuple([1:i for i in dims])
 dims_i( inlineValues::Bool, id::Vector{ValuesID}, k::Int, s::AbstractVector) = inlineValues ? id[k].dims         : size( s[k][1][id[k].index])  
 ndims_i(inlineValues::Bool, id::Vector{ValuesID}, k::Int, s::AbstractVector) = inlineValues ? length(id[k].dims) : ndims(s[k][1][id[k].index]) 
-   
-signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::ResultInfo; log=false, name::AbstractString="") =
-    signalResultValues(t, s, resultInfo.id, kind == RESULT_X || kind == RESULT_DER_X, resultInfo.VariableType, log=log, name=name)
 
-function signalResultValues(t::AbstractVector, s::AbstractVector, id::Vector{ValuesID}, inlineValues::Bool, VariableType=Float64; log=false, name::AbstractString="")  
-    @assert(length(id) > 0)
+
+"""
+    signalResultValues(t, s, resultInfo::ResultInfo; log=false, name="")
+    
+Return a Var() values vector from independent values t, dependent values s, and resultInfo.    
+"""
+function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::ResultInfo; log=false, name::AbstractString="")
+    id = resultInfo.id
+    @assert(length(id) > 0)    
+    inlineValues = resultInfo.kind == RESULT_X || resultInfo.kind == RESULT_DER_X
+    _basetype    = resultInfo.signal[:_basetype]    
     
     if length(id) == 1 && ndims_i(inlineValues,id,1,s) == 0
         # Scalar signal that is defined in every segment
         index = id[1].index
-        sc = VariableType[ti[index] for sk in s for ti in sk]
+        sc = _basetype[ti[index] for sk in s for ti in sk]
         
     else
         # Find largest dims = dimsMax in all segments
@@ -230,11 +252,11 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, id::Vector{Val
         dims  = (dims1, dimsMax...)
         if hasMissing
             # Allocate target memory with missing values
-            sc = Array{Union{VariableType,Missing}, length(dims)}(missing, dims)
+            sc = Array{Union{_basetype,Missing}, length(dims)}(missing, dims)
         else
             # Allocate target memory with undef values
             @assert(length(dimsMax) > 0)
-            sc = Array{VariableType, length(dims)}(undef, dims)
+            sc = Array{_basetype, length(dims)}(undef, dims)
         end
         
         # Copy subset of s-values to target sc
@@ -315,45 +337,4 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, id::Vector{Val
         println("typeof($name[id]) = ", typeof(sc)) 
     end
     return sc
-end
-
-
-function signalResultValues(result::Result, name::AbstractString; unitless=true)
-    resInfo = result.info[name]
-    negate  = false
-
-    if resInfo.kind == RESULT_ELIMINATED
-        resInfo = result.info[resInfo.aliasName]
-        negate  = result.info[resInfo.aliasNegate]
-    end
-
-    if resInfo.kind == RESULT_T
-        sig = signal(result.t, result.t, resInfo)
-    elseif resInfo.kind == RESULT_X
-        sig = signal(result.t, result.x, resInfo)
-    elseif resInfo.kind == RESULT_DER_X
-        sig = signal(result.t, result.der_x, resInfo)
-    elseif resInfo.kind == RESULT_W_INVARIANT
-        sig = signal(result.t, result.w_invariant, resInfo)
-    elseif resInfo.kind == RESULT_W_SEGMENTED
-        sig = signal(result.t, result.w_segmented, resInfo)
-    elseif resInfo.kind == RESULT_CONSTANT
-        sig = ModiaResult.OneValueVector(resInf.value, sum(length(tk) for tk in result.t))
-    else
-        error("Bug in Modia.signal: name=\"$name\" has ResultInfo=$resInfo, but ResultInfo.kind = $(resInfo.kind) is not known.")
-    end
-    
-    if negate
-        sig *= -1
-    end
-    if resInfo.kind == RESULT_W_INVARIANT
-        # Result has already unit, if compiled with unitless=false
-        if unitless && !m.unitless
-            sig = stripUnit(sig)
-        end
-    elseif !unitless && resInfo.unit != ""
-        sig *= uparse(resInfo.unit)
-    end    
-    
-    return sig
 end

@@ -318,17 +318,25 @@ mutable struct SimulationModel{FloatType,TimeType}
                                                 # = false, either before first outputs!(..) call or at first outputs!(..) after init!(..) and
                                                 #          an error was triggered and simulate!(..) should be returned with nothing.
     unitless::Bool                              # = true, if simulation is performed without units.
-    initialResult::Result                       # Initial result data structure (includes all invariant variable definitions and empty result vectors)
+   
+    timeName::String
+    w_invariant_names::Vector{String}
+    vEliminated::Vector{Int} 
+    vProperty::Vector{Int}
+    var_name::Function 
+    result::Union{Result,Missing}               # Result data structure upto current time instant
+    instantiateResult::Bool                     # = true, if result shall be newly instantiated in addToResult!(..)
+    newResultSegment::Bool                      # = true, if new result segment shall be generated in addToResult!(..)
+    
     parameters::OrderedDict{Symbol,Any}         # Parameters as provided to SimulationModel constructor
 
     # Available after propagateEvaluateAndInstantiate!(..) called
     equationInfo::Modia.EquationInfo
-    result::Result                              # Result data structure upto current time instant
     instantiateFunctions::Vector{Tuple{Union{Expr,Symbol},OrderedDict{Symbol,Any},String}}
                                                 # All definitions `_instantiateFunction = Par(functionName = XXX)` in the model to call
                                                 # `XXX(instantiatedModel, submodel, submodelPath)` in the order occurring  during evaluation
                                                 # of the parameters where, instantiatedFunctions[i] = (XXX, submodel, submodelPath)
-    nsegmented::Int                               # Current simulation segment
+    nsegments::Int                               # Current simulation segment
     evaluatedParameters::OrderedDict{Symbol,Any}     # Evaluated parameters
     nextPrevious::AbstractVector                     # nextPrevious[i] is the current value of the variable identified by previous(...., i)
     nextPre::AbstractVector
@@ -338,12 +346,12 @@ mutable struct SimulationModel{FloatType,TimeType}
                                                 # equationInfo.x_info[equationInfo.nx_info_fixedLength+i:equationInfo.nx_info_invariant]
     x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
-    x_segmented::Vector{FloatType}                # A copy of the current segment states
+    x_segmented::Vector{FloatType}              # A copy of the current segment states
 
     der_x_invariant::Vector{FloatType}          # Derivatives of states x or x_init that correspond to invariant states
                                                 # This vector is filled with derivatives of invariants states with appendVariable!(m.der_x_invariant, ...) calls,
                                                 # including derivatives of x_vec[i]
-    der_x_segmented::Vector{FloatType}            # Derivatives of states x or x_init that correspond to segmented states (defined in functions and not visible in getDerivatives!(..))
+    der_x_segmented::Vector{FloatType}          # Derivatives of states x or x_init that correspond to segmented states (defined in functions and not visible in getDerivatives!(..))
     der_x::Vector{FloatType}                    # Derivatives of states x
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, buildDict, getDerivatives!, equationInfo,
@@ -394,8 +402,12 @@ mutable struct SimulationModel{FloatType,TimeType}
         addEventPointsDueToDEBug = false
         success  = false
 
+        w_invariant_names = String[string(name) for name in w_invariant_names]
+        
         # Initialize other data
-        initialResult = Result{FloatType,TimeType}(string(timeName), equationInfo, w_invariant_names, vEliminated, vProperty, var_name)
+        result = missing
+        instantiateResult = true        
+        newResultSegment = false
         parameters = deepcopy(parameterDefinition)
 
        new(modelModule, modelName, buildDict, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
@@ -406,7 +418,7 @@ mutable struct SimulationModel{FloatType,TimeType}
            hold, hold_names, hold_dict,
            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
            odeIntegrator, daeCopyInfo, algorithmName, sundials, addEventPointsDueToDEBug, success, unitless,
-           initialResult, parameters)
+           string(timeName), w_invariant_names, vEliminated, vProperty, var_name, result, instantiateResult, newResultSegment, parameters)
     end
 
 #=
@@ -435,7 +447,7 @@ mutable struct SimulationModel{FloatType,TimeType}
 
         emptyResult!(m.result)
         result   = deepcopy(m.result)
-        nsegmented = 1
+        nsegments = 1
 
         x_vec           = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nx_info_fixedLength+1:equationInfo.nx_info_invariant]
         x_start         = convert(Vector{FloatType}, m.x_start)
@@ -455,7 +467,7 @@ mutable struct SimulationModel{FloatType,TimeType}
             isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
             true, LinearEquationsCopyInfoForDAEMode[],
             odeIntegrator, daeCopyInfo, m.sundials, m.addEventPointsDueToDEBug, success, m.unitless,
-            result, nsegmented,
+            result, nsegments,
             deepcopy(m.parameters), deepcopy(m.instantiateFunctions), deepcopy(m.evaluatedParameters),
             deepcopy(m.nextPrevious), deepcopy(m.nextPre), deepcopy(m.nextHold),
             x_vec, x_start, x_init, x_segmented, der_x_invariant, der_x_segmented, der_x)
@@ -859,12 +871,12 @@ initial(  m::SimulationModel) = m.eventHandler.initial
 
 
 """
-    isFirstInitialOfAllSegmenteds(instantiatedModel)
+    isFirstInitialOfAllSegments(instantiatedModel)
 
 Return true, if **initialization phase** of simulation of the **first segmented**
 of a segmenteded simulation.
 """
-isFirstInitialOfAllSegmenteds(m::SimulationModel) = m.eventHandler.firstInitialOfAllSegments
+isFirstInitialOfAllSegments(m::SimulationModel) = m.eventHandler.firstInitialOfAllSegments
 
 
 """
@@ -1025,13 +1037,11 @@ If initialization is successful return true, otherwise false.
 """
 function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,TimeType}
     m.equationInfo         = deepcopy(m.initialEquationInfo)
-    m.result               = deepcopy(m.initialResult)
     equationInfo           = m.equationInfo
-    result                 = m.result
     eh                     = m.eventHandler
     m.instantiateFunctions = Tuple{Any,String}[]
-    m.nsegmented             = 1
-    newResultSegment!(result)
+    m.nsegments            = 1
+
     if length(m.options.merge) > 0
         m.parameters = mergeModels(m.parameters, m.options.merge)
     end
@@ -1045,21 +1055,14 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.nextHold     = deepcopy(m.hold)
     m.x_start      = initialStateVector!(m)
     nx             = length(m.x_start)
-    nxSegmented      = nx-equationInfo.nxInvariant
-
-    # Update ValueIDs of all states and state derivatives (indices are known, after initialStateVector!(..) was called
-    for xe_info in equationInfo.x_info
-        valueID = ValuesID(1, xe_info.startIndex, size(xe_info.startOrInit))
-        push!(result.info[xe_info.x_name    ].id, valueID)
-        push!(result.info[xe_info.der_x_name].id, valueID)
-    end
+    nxSegmented    = nx-equationInfo.nxInvariant
 
     # Provide storage for x and der_x utility vectors
     m.x_vec           = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nx_info_fixedLength+1:equationInfo.nx_info_invariant]
     m.x_init          = zeros(FloatType,nx)
-    m.x_segmented       = zeros(FloatType, nxSegmented)
+    m.x_segmented     = zeros(FloatType, nxSegmented)
     m.der_x_invariant = zeros(FloatType,equationInfo.nxInvariant)
-    m.der_x_segmented   = zeros(FloatType, nxSegmented)
+    m.der_x_segmented = zeros(FloatType, nxSegmented)
     m.der_x           = zeros(FloatType,nx)
 
     # Log parameters
@@ -1121,13 +1124,9 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
         println("      Reinitialization due to FullRestart at time = ", m.time, " s")
     end
     eh = m.eventHandler
-    result = m.result
     removeSegmentedStates!(m.equationInfo)
-    empty!(result.alias_segmented_names)
-    empty!(result.w_segmented_names)
-    empty!(result.w_segmented_temp)
-    newResultSegment!(m.result)
-    m.nsegmented += 1
+    m.nsegments += 1
+    m.newResultSegment = true
     m.options.startTime = m.time
     reinitEventHandlerForFullRestart!(eh, m.time, m.options.stopTime, m.options.logEvents)
 
@@ -1141,33 +1140,18 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
     m.x_start = initialStateVector!(m.equationInfo, m.result, FloatType)
 
     # Resize states and results
-    nx        = length(m.x_start)
+    nx          = length(m.x_start)
     nxSegmented = nx - m.equationInfo.nxInvariant
     resize!(m.x_init         , nx)
-    resize!(m.x_segmented      , nxSegmented)
+    resize!(m.x_segmented    , nxSegmented)
     resize!(m.der_x_invariant, m.equationInfo.nxInvariant)
-    resize!(m.der_x_segmented  , nxSegmented)
+    resize!(m.der_x_segmented, nxSegmented)
     resize!(m.der_x          , nx)
     m.x_init          .= FloatType(0)
-    m.x_segmented       .= FloatType(0)
+    m.x_segmented     .= FloatType(0)
     m.der_x_invariant .= FloatType(0)
-    m.der_x_segmented   .= FloatType(0)
+    m.der_x_segmented .= FloatType(0)
     m.der_x           .= FloatType(0)
-
-    # Update locationIDs for x_segmented and der_x_segmented
-    eqInfo = m.equationInfo
-    x_info = eqInfo.x_info
-    resultInfo = m.result.info
-    nsegmented = m.nsegmented
-    @assert(eqInfo.status == EquationInfo_Initialized_Before_All_States_Are_Known)
-    for i = eqInfo.nx_info_invariant+1:length(x_info)
-        xi_info = x_info[i]
-        resInfo = resultInfo[xi_info.x_name]
-        push!(resInfo.locationID, ValuesID(nsegmented, resInfo.startIndex, size(resInfo.startOrInit)))
-        resInfo = resultInfo[xi_info.der_x_name]
-        push!(resInfo.locationID, ValuesID(nsegmented, resInfo.startIndex, size(resInfo.startOrInit)))
-    end
-    eqInfo.status = EquationInfo_After_All_States_Are_Known
 
     if m.options.logStates
         # List init/start values
@@ -1605,15 +1589,22 @@ end
 
 Add result of current time instant (`time, x, der_x, w_invariant, w_segmented`) to `instantiatedModel`.
 """
-function addToResult!(m::SimulationModel, x, time, w_invariant...)::Nothing
-    @assert(length(w_invariant) == m.result.n_w_invariant)
+function addToResult!(m::SimulationModel{FloatType,TimeType}, x, time, w_invariant...)::Nothing where {FloatType,TimeType}
+    if m.instantiateResult
+        m.instantiateResult = false    
+        m.result = Result{FloatType,TimeType}(m.equationInfo, m.timeName, m.w_invariant_names, w_invariant, m.vEliminated, m.vProperty, m.var_name)   
+    elseif m.newResultSegment
+        m.newResultSegment = false      
+        @assert(length(w_invariant) == m.result.n_w_invariant)
+        newResultSegment!(m.result)
+    end
     copyDerivatives!(m.der_x, m.der_x_invariant, m.der_x_segmented)
-    result = m.result
+    result::Result = m.result
     push!(result.t[          end], time)
     push!(result.x[          end], deepcopy(x))
     push!(result.der_x[      end], deepcopy(m.der_x))
     push!(result.w_invariant[end], deepcopy(w_invariant))
-    push!(result.w_segmented[  end], deepcopy(m.result.w_segmented_temp))
+    push!(result.w_segmented[end], deepcopy(m.result.w_segmented_temp))
     return nothing
 end
 
@@ -1639,21 +1630,19 @@ function new_x_segmented_variable!(eqInfo::EquationInfo, result::Result, x_name:
         new_result_info = false
         x_info = result.info[x_name]
         @assert(x_info.kind == RESULT_X)
-        @assert(x_info.type == typeof(startOrInit))
-        @assert(x_info.unit == x_unit)
-        @assert(x_info.ndims == ndims(startOrInit))
-        @assert(x_info.signalKind == ModiaResult.Continuous)
-        @assert(!x_info.invariant)
+        #@assert(x_info.type == typeof(startOrInit))
+        #@assert(x_info.unit == x_unit)
+        #@assert(x_info.ndims == ndims(startOrInit))
+        #@assert(!x_info.invariant)
         @assert(eqInfo.x_dict, x_name)
 
         @assert(haskey(result.info, der_x_name))
         der_x_info = result.info[der_x_name]
-        @assert(der_x_info.kind == RESULT_DER_X)
-        @assert(der_x_info.type == typeof(startOrInit))
+        #@assert(der_x_info.kind == RESULT_DER_X)
+        #@assert(der_x_info.type == typeof(startOrInit))
         #@assert(der_x_info.unit == der_x_unit)
-        @assert(der_x_info.ndims == ndims(startOrInit))
-        @assert(der_x_info.signalKind == ModiaResult.Continuous)
-        @assert(!der_x_info.invariant)
+        #@assert(der_x_info.ndims == ndims(startOrInit))
+        #@assert(!der_x_info.invariant)
         @assert(eqInfo.der_x_dict, der_x_name)
     end
 
@@ -1682,14 +1671,14 @@ new_x_segmented_variable!(m::SimulationModel, args...; kwargs...) = new_x_segmen
 
 """
     index = new_w_segmented_variable!(partiallyInstantiatedModel::SimulationModel, name::String,
-                                    w_segmented_default, unit::String=""; signalKind=ModiaResult.Continuous)::Int
+                                    w_segmented_default, unit::String="")::Int
 
 Reserve storage location for a new w_segmented variable. The returned `index` is
 used to store the w_segmented value at communication points in the result data structure.
 Value w_segmented_default is stored as default value and defines type and (fixed) size of the variable
 in this segmented.
 """
-function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented_default, unit::String=""; signalKind=ModiaResult.Continuous)::Int
+function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented_default, unit::String="")::Int
     result = m.result
     w_size = size(w_segmented_default)
 
@@ -1698,21 +1687,20 @@ function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented
         v_info = result.info[name]
         @assert(!haskey(result.w_segmented_names, name))
         @assert(v_info.kind == RESULT_W_SEGMENTED)
-        @assert(v_info.type == typeof(w_segmented_default))
-        @assert(v_info.unit == unit)
-        @assert(v_info.ndims == ndims(w_segmented_default))
-        @assert(v_info.signalKind == signalKind)
-        @assert(!v_info.invariant)
+        #@assert(v_info.type == typeof(w_segmented_default))
+        #@assert(v_info.unit == unit)
+        #@assert(v_info.ndims == ndims(w_segmented_default))
+        #@assert(!v_info.invariant)
         push!(result.w_segmented_names, name)
         push!(result.w_segmented_temp, deepcopy(w_segmented_default))
         w_segmented_index = length(result_w_segmented_temp)
-        push!(v_info.locationID, ValuesID(m.nsegmented, w_segmented_index, size(w_segmented_default)))
+        push!(v_info.id, ValuesID(m.nsegments, w_segmented_index, size(w_segmented_default)))
     else
-        # Variable is defined the first time in the segmenteded simulation
+        # Variable is defined the first time in the segmented simulation
         push!(result.w_segmented_names, name)
         push!(result.w_segmented_temp, deepcopy(w_segmented_default))
         w_segmented_index = length(result.w_segmented_temp)
-        result.info[name] = ResultInfo(RESULT_W_SEGMENTED, w_segmented_default, unit, signalKind, m.nsegmented, w_segmented_index)
+        #result.info[name] = ResultInfo(RESULT_W_SEGMENTED, w_segmented_default, unit, signalKind, m.nsegments, w_segmented_index)
     end
     println("new_w_segmented_variable: w_segmented_temp = ", result.w_segmented_temp)
     return w_segmented_index

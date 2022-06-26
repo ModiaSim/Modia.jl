@@ -3,34 +3,6 @@ import DataFrames
 import ForwardDiff
 import FiniteDiff
 
-macro usingModiaPlot()
-    if haskey(ENV, "MODIA_PLOT")
-        ModiaPlotPackage = ENV["MODIA_PLOT"]
-        if !(ModiaPlotPackage in ModiaResult.AvailableModiaPlotPackages)
-            @warn "ENV[\"MODIA_PLOT\"] = \"$ModiaPlotPackage\" is not supported!. Using \"NoPlot\"."
-            @goto USE_NO_PLOT
-        elseif ModiaPlotPackage == "NoPlot"
-            @goto USE_NO_PLOT
-        elseif ModiaPlotPackage == "SilentNoPlot"
-            expr = :( import Modia.ModiaResult.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
-            return esc( expr )
-        else
-            ModiaPlotPackage = Symbol("ModiaPlot_" * ModiaPlotPackage)
-            expr = :(using $ModiaPlotPackage)
-            println("$expr")
-            return esc( :(using $ModiaPlotPackage) )
-        end
-
-    else
-        @warn "No plot package activated. Using \"NoPlot\"."
-        @goto USE_NO_PLOT
-    end
-
-    @label USE_NO_PLOT
-    expr = :( import Modia.ModiaResult.NoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
-    println("$expr")
-    return esc( expr )
-end
 
 #---------------------------------------------------------------------
 #                          Simulation
@@ -222,7 +194,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     m.options   = options
     m.time      = options.startTime
     m.isInitial = true
-    m.nsegmented  = 1
+    m.nsegments  = 1
+    m.instantiateResult = true
     reinitEventHandler!(m.eventHandler, m.options.stopTime, m.options.logEvents)
 
     if ismissing(algorithm) && FloatType == Float64

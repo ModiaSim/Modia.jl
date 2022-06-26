@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.9.0-dev"
-const Date = "2022-06-10"
+const Date = "2022-06-26"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -36,8 +36,47 @@ experimentalTranslation = false
 
 using Reexport
 
+@reexport using SignalTables            # export SignalTables symbols
 @reexport using Unitful                 # export Unitful symbols
 @reexport using DifferentialEquations   # export DifferentialEquations symbols
+
+import SignalTables: AvailablePlotPackages
+
+"""
+    Deprecated: @usingModiaPlot()
+
+Use instead @usingPlotPackage or SignalTables.@usingPlotPackage
+"""
+macro usingModiaPlot()
+    if haskey(ENV, "SignalTablesPlotPackage")
+        PlotPackage = ENV["SignalTablesPlotPackage"]
+        if !(PlotPackage in AvailablePlotPackages)
+            @warn "ENV[\"SignalTablesPlotPackage\"] = \"$PlotPackage\" is not supported!. Using \"SilentNoPlot\"."
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "NoPlot"
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "SilentNoPlot"
+            expr = :( import SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            return esc( expr )
+        else
+            PlotPackage = Symbol("SignalTablesInterface_" * PlotPackage)
+            expr = :(using $PlotPackage)
+            println("$expr")
+            return esc( :(using $PlotPackage) )
+        end
+
+    else
+        @warn "No plot package activated. Using \"SilentNoPlot\"."
+        @goto USE_NO_PLOT
+    end
+
+    @label USE_NO_PLOT
+    expr = :( using SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+    println("$expr")
+    return esc( expr )
+end
+export @usingModiaPlot
+
 
 export ModiaBase
 export CVODE_BDF, IDA
@@ -45,7 +84,7 @@ export instantiateModel, @instantiateModel, assert, stringifyDefinition
 export stripUnit
 
 export simulate!, linearize!, get_result
-export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
+#export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
 export resultInfo, showResultInfo, rawSignal, getPlotSignal, defaultHeading
 export signalNames, timeSignalName, hasSignal
 export hasParameter, getParameter, getEvaluatedParameter
@@ -75,10 +114,10 @@ using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
 
-import ModiaResult
-import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-import ModiaResult: resultInfo, showResultInfo, getPlotSignal, defaultHeading
-import ModiaResult: signalNames, timeSignalName, hasSignal
+#import SignalTables
+#import SignalTables.: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
+#import SignalTables.: resultInfo, showResultInfo, getPlotSignal, getDefaultHeading
+#import SignalTables.: signalNames, timeSignalName, hasSignal
 
 import StaticArrays   # Make StaticArrays available for the tests
 
@@ -181,7 +220,7 @@ include("EvaluateParameters.jl")
 # include("GenerateGetDerivatives.jl")
 include("Synchronous.jl")
 include("SimulateAndPlot.jl")
-include("ModiaResultInterface.jl")
+include("SignalTablesInterface.jl")
 include("ReverseDiffInterface.jl")
 include("PathPlanning.jl")
 include("JSONModel.jl")
