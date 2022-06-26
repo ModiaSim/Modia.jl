@@ -21,7 +21,7 @@ Sundials = "4"
 TimerOutputs = "0.5"
 Unitful = "1"
 julia = "1.7"
-DiffEqBase = "= 6.90.0"
+DiffEqBase = "= 6.91.7"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
