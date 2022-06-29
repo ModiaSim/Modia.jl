@@ -58,7 +58,7 @@ Returns a string vector of the variables of an
 - If var=true, Var(..) variables are included.
 - If par=true, Par(..) variables are included.
 """
-function SignalTables.signalNames(m::SimulationModel; val=true, par=true)::Vector{String}
+function SignalTables.signalNames(m::SimulationModel; var=true, par=true)::Vector{String}
     if ismissing(m.result)
         error("signalNames(..): No simulation results available in instantiated model of $(m.modelName)")
     end
@@ -101,7 +101,7 @@ Returns signal `name` of the result present in instantiatedModel
 (that is a [`SignalTables.Var`](@ref) or a [`SignalTables.Par`](@ref)).
 If `name` does not exist, an error is raised.
 """
-SignalTables.getSignal(m::SimulationModel, name::String) = begin
+function SignalTables.getSignal(m::SimulationModel, name::String)
     checkMissingResult(m, name)
     result = m.result
     
@@ -118,7 +118,7 @@ SignalTables.getSignal(m::SimulationModel, name::String) = begin
         if sigUnit == ""
             signal = Par(value = sigValue)
         else
-            signal = Par(value = sigValue, unit=sigUnit)
+            signal = Par(value = ustrip.(sigValue), unit=sigUnit)
         end
     end
     return signal
