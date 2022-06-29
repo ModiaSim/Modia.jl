@@ -30,9 +30,9 @@ Kind of result variable.
 Return a new id that defines where the values of a variable are stored.
 """
 struct ValuesID
-    segment::Int   # Index of simulation segment (= -1, if index holds for every segment)
-    index::Int     # Index or start index with respect to simulation segment
-    dims::Dims     # Dimensions with respect to simulation segment
+    segment::Int               # Index of simulation segment (= -1, if index holds for every segment)
+    index::Int                 # Index or start index with respect to simulation segment
+    dims::Union{Dims,Nothing}  # Dimensions with respect to simulation segment; = nothing, if not yet defined (for RESULt_W_INVARIANT, before value is inquired)
 
     ValuesID(index, dims)          = new(     -1, index, dims)
     ValuesID(segment, index, dims) = new(segment, index, dims)
@@ -72,11 +72,13 @@ struct ResultInfo
     aliasNegate::Bool                # = true, if info[aliasName] signal must be negated  
     id::Vector{ValuesID}             # Location of the variable values with respect to ResultKind and Result
     value::Any                       # Value of constant variable (without unit)    
- 
-    ResultInfo(kind::ResultKind, signal, id::ValuesID)                                   = new(kind             , signal, ""       , false      , ValuesID[id])     
-    ResultInfo(signal::SignalTables.SymbolDictType, value)                               = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[], value)    
-    ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Int) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate)
+
+    ResultInfo(kind::ResultKind, signal)                                                  = new(kind             , signal, ""       , false      , ValuesID[])  
+    ResultInfo(kind::ResultKind, signal, id::ValuesID)                                    = new(kind             , signal, ""       , false      , ValuesID[id])     
+    ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[], value)    
+    ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Bool) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate)
 end
+
 
 
 """
@@ -96,14 +98,13 @@ mutable struct Result{FloatType,TimeType}
                                                 # length(w_segmented_temp) = length(w_segmented_names)
     t::Vector{Vector{TimeType}}                 # t[sk][ti] is time instant ti in segment sk
 
-    # A variable v[sk][ti][j] is variable with index j at time instant ti in segmented sk
+    # A variable v[sk][ti][j] is variable with index j at time instant ti in segment sk
     x::Vector{Vector{Vector{FloatType}}}        # x[sk][ti][j] - invariant and segmented states
     der_x::Vector{Vector{Vector{FloatType}}}    # der_x[sk][ti][j] - invariant and segmented state derivatives
     w_invariant::Vector{Vector{Tuple}}          # w_invariant[sk][ti][j] - invariant algebraic variables
     w_segmented::Vector{Vector{Vector{Any}}}    # w_segmented[sk][ti][j] - segmented algebraic variables
 
-    function Result{FloatType,TimeType}(eqInfo::EquationInfo, timeNameAsString::String, w_invariant_names, w_invariant_initial, vEliminated, vProperty, var_name) where {FloatType,TimeType}
-        @assert(length(w_invariant_names) == length(w_invariant_initial))    
+    function Result{FloatType,TimeType}(eqInfo::EquationInfo, timeNameAsString::String, w_invariant_names, vEliminated, vProperty, var_name) where {FloatType,TimeType}
         info                  = OrderedDict{String, ResultInfo}()
         n_w_invariant         = length(w_invariant_names)
         alias_segmented_names = OrderedSet{String}()
@@ -128,7 +129,7 @@ mutable struct Result{FloatType,TimeType}
             id      = ValuesID(i > eqInfo.nx_info_invariant ? 1 : -1, xi_info.startIndex, size(xi_info.startOrInit))
             index   = xi_info.startIndex
             x_unit  = xi_info.unit
-            der_x_unit = x_unit == "" ? "1/s" : unitAsString(unit(uparse(x_unit)/u"s"))
+            der_x_unit = x_unit == "" ? "1/s" : unitAsParseableString(uparse(x_unit)/u"s")
             x_var = Var(_basetype=FloatType, unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
             if !isnan(xi_info.nominal)
                 x_var[:nominal] = xi_info.nominal
@@ -143,10 +144,8 @@ mutable struct Result{FloatType,TimeType}
         # Fill info with w_invariant
         for (w_invariant_index, w_invariant_name) in enumerate(w_invariant_names)
             name = string(w_invariant_name)
-            @assert(!haskey(info, name))
-            wi_invariant = w_invariant_initial[w_invariant_index]
-            w_var = Var(_basetype=SignalTables.basetype(wi_invariant))           
-            info[name] = ResultInfo(RESULT_W_INVARIANT, w_var, ValuesID(w_invariant_index, size(wi_invariant)))
+            @assert(!haskey(info, name))    
+            info[name] = ResultInfo(RESULT_W_INVARIANT, Var(), ValuesID(w_invariant_index, nothing))
         end
 
         # Fill info with eliminated variables
@@ -162,7 +161,7 @@ mutable struct Result{FloatType,TimeType}
             else # negated alias
                 negatedAliasName = var_name( ModiaBase.negAlias(vProperty, v) )
                 @assert(haskey(info, negatedAliasName))
-                info[name] = ResultInfo(Var(), aliasName, true)
+                info[name] = ResultInfo(Var(), negatedAliasName, true)
             end
         end
 
@@ -206,8 +205,6 @@ end
 
 
 dims_range(dims::Dims) = Tuple([1:i for i in dims])
-dims_i( inlineValues::Bool, id::Vector{ValuesID}, k::Int, s::AbstractVector) = inlineValues ? id[k].dims         : size( s[k][1][id[k].index])  
-ndims_i(inlineValues::Bool, id::Vector{ValuesID}, k::Int, s::AbstractVector) = inlineValues ? length(id[k].dims) : ndims(s[k][1][id[k].index]) 
 
 
 """
@@ -220,20 +217,20 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
     @assert(length(id) > 0)    
     inlineValues = resultInfo.kind == RESULT_X || resultInfo.kind == RESULT_DER_X
     _basetype    = resultInfo.signal[:_basetype]    
-    
-    if length(id) == 1 && ndims_i(inlineValues,id,1,s) == 0
+    ndims_s      = length(id[1].dims)
+    if length(id) == 1 && ndims_s == 0
         # Scalar signal that is defined in every segment
         index = id[1].index
-        sc = _basetype[ti[index] for sk in s for ti in sk]
+        sc = _basetype[ustrip.(ti[index]) for sk in s for ti in sk]
         
     else
         # Find largest dims = dimsMax in all segments
-        dimsMax::Dims{ndims_i(inlineValues,id,1,s)} = dims_i(inlineValues,id,1,s)
+        dimsMax::Dims{ndims_s} = id[1].dims
         hasMissing::Bool = !(length(id) == 1 || length(id) == length(t))
         if length(id) > 1
             dMax::Vector{Int} = [dimsMax...]
             for i = 2:length(id)
-                dimi = dims_i(inlineValues,id,i,s)
+                dimi::Dims{ndims_s} = id[i].dims
                 @assert(length(dMax) == length(dimi))
                 if dimi != dMax
                     hasMissing = true
@@ -324,7 +321,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
                         end                        
                     end
                     for s_ti in s[k]
-                        setindex!(sc, s_ti[index], (j,dimr...)...)
+                        setindex!(sc, uskip.(s_ti[index]), (j,dimr...)...)
                         j += 1
                     end
                 end

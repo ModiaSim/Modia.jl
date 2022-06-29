@@ -31,7 +31,7 @@ function encodeModel(model, expressionsAsStrings=true)
     Base.remove_linenums!(model)
     model = removeBlock(model)
     if typeof(model) <: Quantity
-        return Dict(:_value => ustrip.(model), :_unit=>Modia.unitAsString(unit(model)))
+        return Dict(:_value => ustrip.(model), :_unit=>SignalTables.unitAsParseableString(unit(model)))
     elseif expressionsAsStrings && typeof(model) == Expr
         return Dict(:_Expr=>string(model))
     elseif typeof(model) == Expr

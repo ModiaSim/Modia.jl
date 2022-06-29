@@ -5,6 +5,8 @@ using Modia.Test
 
 function checkStateSelection(model, x_names, linearEquations=[])
     # Check names of the states
+    @show model.equationInfo
+    
     for (i, state_i) in enumerate(model.equationInfo.x_info)
         @test state_i.x_name == x_names[i]
     end
@@ -30,7 +32,7 @@ end
         firstOrder = @instantiateModel(FirstOrder)
         checkStateSelection(firstOrder, ["x"])
     end
-
+    
 
     @testset "... Test TwoCoupledInertias" begin
         TwoCoupledInertias = Model(
@@ -162,7 +164,6 @@ end
         #checkStateSelection(slidingMass, ["x6"], [(["x5"], [1], 1, 1)])
     end
 =#
-
 end
 
 

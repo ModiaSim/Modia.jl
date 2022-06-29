@@ -590,7 +590,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
         end
-        return unitAsString(un)
+        return SignalTables.unitAsParseableString(un)
     end
 
     function var_startInitFixed(v_original)

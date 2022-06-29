@@ -78,32 +78,42 @@ function SignalTables.getSignal(result::Result, name::String)
     end
 
     if resInfo.kind == RESULT_T
-        sigValues = signalResultValues(result.t, result.t, resInfo)
+        sigValues = signalResultValues(result.t, result.t, resInfo; name=name)
     elseif resInfo.kind == RESULT_X
-        sigValues = signalResultValues(result.t, result.x, resInfo)
+        sigValues = signalResultValues(result.t, result.x, resInfo; name=name)
     elseif resInfo.kind == RESULT_DER_X
-        sigValues = signalResultValues(result.t, result.der_x, resInfo)
+        sigValues = signalResultValues(result.t, result.der_x, resInfo; name=name)
     elseif resInfo.kind == RESULT_W_INVARIANT
-        sigValues = signalResultValues(result.t, result.w_invariant, resInfo)  
-        w_unit = unitAsParseableString(sigValues)
-        if w_unit != ""
-            resInfo.signal[:unit] = w_unit
-            sigValues = ustrip(sigValues)
-        end
+        index   = resInfo.id[1].index
+        w_value = result.w_invariant[1][1][index]
+        w_unit  = SignalTables.unitAsParseableString(w_value)   
+
+        # w_invariant has potentially a unit defined - remove it
+            if w_unit != ""
+                resInfo.signal[:unit] = w_unit
+                w_value = ustrip.(w_value)
+            end
+
+        # w_invariant is defined in all segments and has no size information defined - add size information
+            resInfo.id[1] = ValuesID(index, size(w_value))
+
+        resInfo.signal[:_basetype] = basetype(w_value)            
+        sigValues = signalResultValues(result.t, result.w_invariant, resInfo; name=name)  
     elseif resInfo.kind == RESULT_W_SEGMENTED
-        sigValues = signalResultValues(result.t, result.w_segmented, resInfo)
+        sigValues = signalResultValues(result.t, result.w_segmented, resInfo; name=name)
     elseif resInfo.kind == RESULT_CONSTANT
         value = resInfo.value
-        t     = getSignal(result, result.timeName)
+        t     = getSignal(result, result.timeName)[:values]
+        len_t = sum(length(tk) for tk in t)
         if typeof(value) <: AbstractArray
-            sigValues = Array{eltype(value), ndims(values)}(undef, (length(t), size(value)...))
+            sigValues = Array{eltype(value), ndims(values)}(undef, (len_t, size(value)...))
             for i = 1:length(sigValues)
                 for j = 1:length(value)
                     sigValues[i,j] = value[j]
                 end
             end
         else
-            sigValues = fill(value, length(t))
+            sigValues = fill(value, len_t)
         end
     else
         error("Bug in getSignal: name=\"$name\" has ResultInfo=$resInfo, but ResultInfo.kind = $(resInfo.kind) is not known.")

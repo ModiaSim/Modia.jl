@@ -24,7 +24,8 @@ filterCircuit = @instantiateModel(FilterCircuit)
 
 simulate!(filterCircuit, Tsit5(), stopTime = 10, merge = Map(R = Map(R = 5u"Ω"), C = Map(v = 3.0u"V")), 
           logParameters = true, logStates = true, requiredFinalStates = [7.424843902110655]) 
-Modia.showResultInfo(filterCircuit)
+showInfo(filterCircuit)
+
 # Test access functions  
 @testset "Test variable access functions (TestFilterCircuit.jl)" begin  
     currentNames  = signalNames(filterCircuit)

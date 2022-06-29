@@ -195,7 +195,6 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     m.time      = options.startTime
     m.isInitial = true
     m.nsegments  = 1
-    m.instantiateResult = true
     reinitEventHandler!(m.eventHandler, m.options.stopTime, m.options.logEvents)
 
     if ismissing(algorithm) && FloatType == Float64
