@@ -4,9 +4,6 @@ using Modia
 @usingModiaPlot
 using Modia.Test
 
-# using RuntimeGeneratedFunctions
-# RuntimeGeneratedFunctions.init(@__MODULE__)
-
 inputSignal(t) = sin(t)
 
 FirstOrder1 = Model(

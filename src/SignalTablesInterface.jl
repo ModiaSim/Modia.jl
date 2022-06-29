@@ -30,19 +30,68 @@ SignalTables.independentSignalNames(m::SimulationModel) = begin
 end
 
 
-"""
-    signalNames(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Vector{String}
 
-Returns a string vector of the time-varying variables of an
-[`@instantiateModel`](@ref) that are present in the result (e.g. can be accessed for plotting).
+function getParameterNames!(parameters, names::Vector{String}, path::String)::Nothing
+    for (key,value) in parameters
+        name = path == "" ? string(key) : path*"."*string(key)
+        if typeof(value) <: AbstractDict
+            getParameterNames!(value, names, name)
+        else
+            push!(names, name)
+        end
+    end
+    return nothing
+end
+
+function getParameterNames(parameters)::Vector{String}
+    names = String[]
+    getParameterNames!(parameters, names, "")
+    return names
+end
+
+
 """
-SignalTables.signalNames(result::Result)     = collect(keys(result.info))
-SignalTables.signalNames(m::SimulationModel) = begin
+    signalNames(instantiatedModel::Modia.SimulationModel; var=true, par=true)::Vector{String}
+
+Returns a string vector of the variables of an
+[`@instantiateModel`](@ref) that are present in the result or are (evaluated) parameters.
+- If var=true, Var(..) variables are included.
+- If par=true, Par(..) variables are included.
+"""
+function SignalTables.signalNames(m::SimulationModel; val=true, par=true)::Vector{String}
     if ismissing(m.result)
         error("signalNames(..): No simulation results available in instantiated model of $(m.modelName)")
     end
-    SignalTables.signalNames(m.result) 
+    names1 = collect(keys(m.result.info))
+    if var && !par
+        return names1
+    end
+    names2 = getParameterNames(m.evaluatedParameters)
+    if var && par
+        return union(names1,names2)
+    elseif par
+        return setdiff(names2,names1)
+    else
+        return String[]
+    end
 end
+
+
+"""
+    signalNames(result::Modia.Result)::Vector{String}
+
+Returns a string vector of the variables that are present in the result.
+"""
+SignalTables.signalNames(result::Result) = collect(keys(result.info))
+
+
+"""
+    getIndependentSignalsSize(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Dims
+
+Returns the lengths of the independent signal of the result as (len,).
+"""
+SignalTables.getIndependentSignalsSize(m::SimulationModel) = SignalTables.getIndependentSignalsSize(m.result)
+SignalTables.getIndependentSignalsSize(result::Result) = (sum(length(sk) for sk in result.t), )
 
 
 """
@@ -54,8 +103,27 @@ If `name` does not exist, an error is raised.
 """
 SignalTables.getSignal(m::SimulationModel, name::String) = begin
     checkMissingResult(m, name)
-    SignalTables.getSignal(m.result, name)
+    result = m.result
+    
+    if haskey(result.info, name)
+        # name is a result variable (time-varying variable stored in m.result)
+        signal = getSignal(result, name)
+    else
+        # name might be a parameter
+        sigValue = get_value(m.evaluatedParameters, name)
+        if ismissing(sigValue)
+            error("getSignal(.., $name): name is not known")
+        end
+        sigUnit = unitAsParseableString(sigValue)   
+        if sigUnit == ""
+            signal = Par(value = sigValue)
+        else
+            signal = Par(value = sigValue, unit=sigUnit)
+        end
+    end
+    return signal
 end
+
 function SignalTables.getSignal(result::Result, name::String)
     resInfo = result.info[name]
     if haskey(resInfo.signal, :values)
@@ -125,17 +193,88 @@ end
 
 
 """
-    hasSignal(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+    hasSignal(instantiatedModel::Modia.SimulationModel, name::String)
 
-Returns `true` if signal `name` is present in the instantiatedModel result.
+Returns `true` if signal `name` is present in the instantiatedModel result or in the evaluated parameters.
 """
 SignalTables.hasSignal(m::SimulationModel, name::String) = begin
     if isnothing(m) || ismissing(m) || ismissing(m.result)
         return false
     end
-    SignalTables.hasSignal(m.result, name)
+    return haskey(m.result.info, name) || !ismissing(get_value(m.evaluatedParameters, name))
 end
-SignalTables.hasSignal(result::Result, name::String) = haskey(result.info, name) #|| !ismissing(get_value(m.evaluatedParameters, name))
+
+
+"""
+    hasSignal(result::Modia.Result, name::String)
+
+Returns `true` if signal `name` is present in result.
+"""
+SignalTables.hasSignal(result::Result, name::String) = begin
+    if isnothing(result) || ismissing(result)
+        return false
+    end
+    return haskey(result.info, name)
+end
+
+
+"""
+        getSignalInfo(instantiatedModel::Modia.SimulationModel, name::String)
+        
+Returns signal info of variables stored in the result and of parameters.
+"""
+function SignalTables.getSignalInfo(m::SimulationModel, name::String)
+    result = m.result    
+    if haskey(result.info, name)
+        # name is a result variable (time-varying variable stored in m.result)
+        signalInfo = getSignalInfo(m.result, name)
+    else
+        # name might be a parameter
+        sigValue = get_value(m.evaluatedParameters, name)
+        if ismissing(sigValue)
+            error("getSignalInfo(.., $name): name is not known")
+        end
+        sigUnit = unitAsParseableString(sigValue)   
+        if sigUnit == ""
+            signalInfo = Par(_basetype = basetype(sigValue))
+        else
+            signalInfo = Par(_basetype = basetype( ustrip.(sigValue) ), unit=sigUnit)
+        end
+        _size = nothing
+        size_available = false      
+        try
+            _size = size(sigValue)
+            size_available = true                  
+        catch
+            size_available = false
+        end
+        if size_available
+            signalInfo[:_size] = _size
+        end
+    end
+    return signalInfo
+end
+
+
+#=
+
+"""
+        getSignalInfo(result::Modia.result, name::String)
+        
+Returns signal info of variables stored in result.
+"""
+function SignalTables.getSignalInfo(result::Result, name::String)
+    resInfo = result.info[name]
+    if haskey(resInfo.signal, :values)
+        signalInfo = copy(resInfo.signal)
+        delete!(signalInfo, :values)
+        signalValues = resInfo.signal[:values]
+        signalInfo[:_basetype] = basetype(signalValues)
+        signalInfo[:_size]     = size(signalValues)
+        return signalInfo
+    end
+end
+=#
 
 #=
 
@@ -147,6 +286,7 @@ end
 function getSignalInfo(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
 end
 =#
+
 
 function get_algorithmName_for_heading(m::SimulationModel)::String
     if ismissing(m.algorithmName)

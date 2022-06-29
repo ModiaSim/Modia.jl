@@ -42,11 +42,19 @@ functionalities of these packages.
   get parameter/init/start values by name (e.g. `getEvaluatedParameter(instantiatedModel, "a.b.c")`) or
   show all parameters. For details see the [function docu](https://modiasim.github.io/ModiaResult.jl/stable/Functions.html).
 
-- New functions to add hidden states and extra results from within functions that are not visible in the generated code:
-  `Modia.newHiddenState!, Modia.newExtraResult!, Modia.addHiddenState!, Modia.addExtraResult!, Modia.storeResults`.
+- New functions to add states and algebraic variables from within functions that are not visible in the generated code:
+  `Modia.new_x_segmented_variable!, Modia.new_w_segmented_variable!, Modia.add_w_segmented_value!`.
+  These functions are called after simulate!(..) is called, but before initialization is performed.
+  For details see example `Modia/test/TestLinearSystems.jl`.
 
 - simulate!(..): Maximum number of iterations is switched off (DifferentialEquations.jl option set to: maxiters = Int(typemax(Int32)) ≈ 2e9).
 
+- An instance of a SimulationModel is now a signal table according to [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl).
+  This means that all functions defined for a signal table (see [function overview](https://modiasim.github.io/SignalTables.jl/stable/Functions/OverviewOfFunctions.html))
+  can be applied on a SimulationModel. Hereby, all Var(..) and Par(..) Modia variables are seen as signals of the signal table
+  (so both time varying variables, as well as parameters). One benefit is, that its now possible to directly perform standard array operations
+  on results, e.g. `diff = getValues(simulationModel, "a.b.c") - getValues(simulationModel, "b.d.e")`.
+  
 - Docu improved (e.g. links to utility functions documentation added)
 
 
@@ -64,11 +72,7 @@ functionalities of these packages.
 - Bug fix 1 can lead for some models to warnings and the selected variable is no longer plotted (-> the model needs to be changed).
 
 - Bug fix 2 can lead for some models to a different result (without notice).
-
-- Parameters are no longer seen as part of the result (since parameters can be complex internal datastructures, e.g. for Modia3D).
-  Therefore, they are no longer available in result access functions (`printResultInfo, signalNames, rawSignal, getPlotSignal, plot, ...`).
-  Instead, they can be accessed via new functions `hasParameter, parameter, evaluatedParameter, showParameter, showEvaluatedParameter`.
-
+  
 - The result data structure is now constructed with `deepcopy(..)` of every involved result variable.
   Previously, for some result variables just the variable reference was stored.
   The effect is that if previously a complex internal data structure was incorporated into the result data structure,
