@@ -459,6 +459,9 @@ end
 
 
 function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
+    error("get_result(instantiatedModel) is no longer supported")
+    
+    #=
     if length(m.result.t) > 1
         error("Error in Modia.get_result(...), because function cannot be used for a segmenteded simulation with more as one segmented.")
     end
@@ -493,4 +496,5 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
         setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.result.info, dataFrame, "", length(timeSignal[1]))
     end
     return dataFrame
+    =#
 end

@@ -22,7 +22,8 @@ simulate!(firstOrder, Tsit5(), stopTime = 10, merge = Map(T = 0.4, x = 0.9),
           log=false, logParameters=true, logStates=true, 
           requiredFinalStates = [-0.17964872595554535])
 
-# Test get_result(instantiatedModel)
+# Test get_result(instantiatedModel) no longer supported
+#=
 println()
 result1 = get_result(firstOrder)
 @show(result1[1:10,:])
@@ -36,6 +37,7 @@ result2 = get_result(firstOrder, onlyStates=true, extraNames=["y"])
 println()
 result3 = get_result(firstOrder, extraNames=["y"])
 @show(result3[1:10,:])
+=#
 
 # Linearize
 println("\n... Linearize at stopTime = 0 and 10:")
@@ -51,7 +53,7 @@ xNames = get_xNames(firstOrder)
 @test isapprox(A_0, A_10)
 
 
-plot(result1, [("u", "x"), "der(x)", "y"])
+plot(firstOrder, [("u", "x"), "der(x)", "y"])
 
 
 FirstOrder3 = Model(
