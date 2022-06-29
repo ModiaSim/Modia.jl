@@ -97,7 +97,7 @@ function SignalTables.getSignal(result::Result, name::String)
         # w_invariant is defined in all segments and has no size information defined - add size information
             resInfo.id[1] = ValuesID(index, size(w_value))
 
-        resInfo.signal[:_basetype] = basetype(w_value)            
+        resInfo._basetype = basetype(w_value)            
         sigValues = signalResultValues(result.t, result.w_invariant, resInfo; name=name)  
     elseif resInfo.kind == RESULT_W_SEGMENTED
         sigValues = signalResultValues(result.t, result.w_segmented, resInfo; name=name)
@@ -137,6 +137,16 @@ SignalTables.hasSignal(m::SimulationModel, name::String) = begin
 end
 SignalTables.hasSignal(result::Result, name::String) = haskey(result.info, name) #|| !ismissing(get_value(m.evaluatedParameters, name))
 
+#=
+
+"""
+        getSignalInfo(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+"""
+function getSignalInfo(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+end
+function getSignalInfo(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+end
+=#
 
 function get_algorithmName_for_heading(m::SimulationModel)::String
     if ismissing(m.algorithmName)

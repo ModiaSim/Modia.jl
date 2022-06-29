@@ -51,13 +51,14 @@ dims_i( id::Vector{ValuesID}, i::Int, kind::ResultKind, v::AbstractVector) = has
 
 
 """
-    info = ResultInfo(kind, signal, id)                # t, x, der_x, w_invariant, w_segmented
+    info = ResultInfo(kind, signal)                    # x, der_x (id is initially not known)
+    info = ResultInfo(kind, signal, id)                # t, w_invariant, w_segmented
     info = ResultInfo(signal, value)                   # constant   
     info = ResultInfo(signal, aliasName, aliasNegate)  # alias and negative alias
     
 Return info how to access a result variable.
 """
-struct ResultInfo
+mutable struct ResultInfo
     kind::ResultKind                 # Kind of result variable in simulation segment sk at time instant ti with index = index_i(..):
                                      # = RESULT_ELIMINATED : Variable is eliminated. Alias info is stored in result.info
                                      # = RESULT_CONSTANT   : Variable is constant all the time. Value is stored in result.info
@@ -71,11 +72,12 @@ struct ResultInfo
     aliasName::String                # Name of non-eliminated variable
     aliasNegate::Bool                # = true, if info[aliasName] signal must be negated  
     id::Vector{ValuesID}             # Location of the variable values with respect to ResultKind and Result
+    _basetype                        # If known, basetype(signal.values/.values); if not known: Nothing
     value::Any                       # Value of constant variable (without unit)    
 
-    ResultInfo(kind::ResultKind, signal)                                                  = new(kind             , signal, ""       , false      , ValuesID[])  
-    ResultInfo(kind::ResultKind, signal, id::ValuesID)                                    = new(kind             , signal, ""       , false      , ValuesID[id])     
-    ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[], value)    
+    ResultInfo(kind::ResultKind, signal, _basetype)                                       = new(kind             , signal, ""       , false      , ValuesID[]  , _basetype)  
+    ResultInfo(kind::ResultKind, signal, id::ValuesID, _basetype)                         = new(kind             , signal, ""       , false      , ValuesID[id], _basetype)     
+    ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[]  , basetype(value), value)    
     ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Bool) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate)
 end
 
@@ -117,7 +119,7 @@ mutable struct Result{FloatType,TimeType}
         w_segmented           = fill(Vector{Any}[], 1)
 
         # Fill info with time
-        timeResultInfo = ResultInfo(RESULT_T, Var(_basetype=TimeType, unit="s", independent=true), ValuesID(1,()))
+        timeResultInfo = ResultInfo(RESULT_T, Var(unit="s", independent=true), ValuesID(1,()), TimeType)
         info[timeNameAsString] = timeResultInfo
 
         # Fill info with x, der_x (note: id is not yet known, because init/start value might be changed in evaluatedParameters(..), which is called after Result(...)
@@ -127,22 +129,22 @@ mutable struct Result{FloatType,TimeType}
             @assert(!haskey(info, xi_info.der_x_name))
             x_unit     = xi_info.unit
             der_x_unit = x_unit == "" ? "1/s" : unitAsParseableString(uparse(x_unit)/u"s")
-            x_var = Var(_basetype=FloatType, unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+            x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
             if !isnan(xi_info.nominal)
                 x_var[:nominal] = xi_info.nominal
             end
             if xi_info.unbounded
                 x_var[:unbounded] = true
             end
-            info[xi_info.x_name]     = ResultInfo(RESULT_X    , x_var)
-            info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(_basetype=FloatType, unit=der_x_unit))
+            info[xi_info.x_name]     = ResultInfo(RESULT_X    , x_var, FloatType)
+            info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
         end
         
         # Fill info with w_invariant
         for (w_invariant_index, w_invariant_name) in enumerate(w_invariant_names)
             name = string(w_invariant_name)
             @assert(!haskey(info, name))    
-            info[name] = ResultInfo(RESULT_W_INVARIANT, Var(), ValuesID(w_invariant_index, nothing))
+            info[name] = ResultInfo(RESULT_W_INVARIANT, Var(), ValuesID(w_invariant_index, nothing), Nothing)
         end
 
         # Fill info with eliminated variables
@@ -150,7 +152,7 @@ mutable struct Result{FloatType,TimeType}
             name = var_name(v)
             @assert(!haskey(info, name))
             if ModiaBase.isZero(vProperty, v)
-                info[name] = ResultInfo(Var(_basetype=FloatType), FloatType(0))
+                info[name] = ResultInfo(Var(), FloatType(0))
             elseif ModiaBase.isAlias(vProperty, v)
                 aliasName = var_name( ModiaBase.alias(vProperty, v) )
                 @assert(haskey(info, aliasName))
@@ -213,7 +215,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
     id = resultInfo.id
     @assert(length(id) > 0)    
     inlineValues = resultInfo.kind == RESULT_X || resultInfo.kind == RESULT_DER_X
-    _basetype    = resultInfo.signal[:_basetype]    
+    _basetype    = resultInfo._basetype
     ndims_s      = length(id[1].dims)
     if length(id) == 1 && ndims_s == 0
         # Scalar signal that is defined in every segment

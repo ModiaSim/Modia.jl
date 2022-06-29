@@ -1073,6 +1073,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
         resInfo = result.info[xi_info.x_name]
         resInfo.signal[:start] = xi_info.startOrInit
         id = ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit))
+        x_type = 
         push!(resInfo.id, id)
         resInfo = result.info[xi_info.der_x_name]
         push!(resInfo.id, id)
@@ -1697,10 +1698,10 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
         # after function initialStateVector!(...) was called.
         t_unit = get(result.info[result.timeName].signal, :unit, "")
         der_x_unit = x_unit == "" ? SignalTables.unitAsParseableString(unit(1/uparse(t_unit))) : SignalTables.unitAsParseableString(unit(uparse(x_unit)/uparse(t_unit)))
-        x_var = Var(_basetype=FloatType, unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+        x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
         
-        result.info[x_name]     = ResultInfo(RESULT_X    , x_var) 
-        result.info[der_x_name] = ResultInfo(RESULT_DER_X, Var(_basetype=FloatType, unit=der_x_unit))
+        result.info[x_name]     = ResultInfo(RESULT_X    , x_var, FloatType) 
+        result.info[der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
     end 
     return x_segmented_startIndex
 end
@@ -1736,11 +1737,11 @@ function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented
     else
         # Variable is defined the first time in the segmented simulation
         if unit == ""
-            signal = Var(_basetype = basetype(w_segmented_default))
+            signal = Var()
         else
-            signal = Var(_basetype = basetype(w_segmented_default), unit=unit)
+            signal = Var(unit=unit)
         end            
-        result.info[name] = ResultInfo(RESULT_W_SEGMENTED, signal, ValuesID(m.nsegments, w_index, w_size)) 
+        result.info[name] = ResultInfo(RESULT_W_SEGMENTED, signal, ValuesID(m.nsegments, w_index, w_size), basetype(w_segmented_default))
     end
     #println("new_w_segmented_variable: w_segmented_temp = ", result.w_segmented_temp)
     return w_index
