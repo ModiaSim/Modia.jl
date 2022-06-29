@@ -1067,27 +1067,27 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.nextPre      = deepcopy(m.pre)
     m.nextHold     = deepcopy(m.hold)
     m.x_start      = initialStateVector!(m)
-    nx             = length(m.x_start)
-    nxSegmented    = nx-equationInfo.nxInvariant
+
+    # update equationInfo
+    for xi_info in equationInfo.x_info
+        resInfo = result.info[xi_info.x_name]
+        resInfo.signal[:start] = xi_info.startOrInit
+        id = ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit))
+        push!(resInfo.id, id)
+        resInfo = result.info[xi_info.der_x_name]
+        push!(resInfo.id, id)
+    end
 
     # Provide storage for x and der_x utility vectors
+    nx                = length(m.x_start)
+    nxSegmented       = nx-equationInfo.nxInvariant    
     m.x_vec           = [zeros(FloatType, equationInfo.x_info[i].length) for i in equationInfo.nx_info_fixedLength+1:equationInfo.nx_info_invariant]
     m.x_init          = zeros(FloatType,nx)
     m.x_segmented     = zeros(FloatType, nxSegmented)
     m.der_x_invariant = zeros(FloatType,equationInfo.nxInvariant)
     m.der_x_segmented = zeros(FloatType, nxSegmented)
     m.der_x           = zeros(FloatType,nx)
-
-    # update equationInfo
-    for i = equationInfo.nx_info_invariant+1:length(equationInfo.x_info)
-        xi_info = equationInfo.x_info[i]
-        resInfo = result.info[xi_info.x_name]
-        id = ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit))
-        push!(resInfo.id, id)
-        resInfo = result.info[xi_info.der_x_name]
-        push!(resInfo.id, ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit)))
-    end
-    
+   
     # Log parameters
     if m.options.logParameters
         parameters = m.parameters
@@ -1166,9 +1166,10 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
     for i = m.equationInfo.nx_info_invariant+1:length(m.equationInfo.x_info)
         xi_info = x_info[i]
         resInfo = m.result.info[xi_info.x_name]
-        push!(resInfo.id, ValuesID(nsegments, xi_info.startIndex, size(xi_info.startOrInit)))
+        id = ValuesID(nsegments, xi_info.startIndex, size(xi_info.startOrInit))
+        push!(resInfo.id, )
         resInfo = m.result.info[xi_info.der_x_name]
-        push!(resInfo.id, ValuesID(nsegments, xi_info.startIndex, size(xi_info.startOrInit)))
+        push!(resInfo.id, id)
     end  
     
     # Resize states and results
@@ -1675,8 +1676,15 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
     end
 
     x_segmented_startIndex = eqInfo.nxSegmented+1
+    if isnothing(startOrInit)
+        @info "State $x_name has no start or init value defined. Using start value = 0.0."
+        fixed = false
+        startOrInit = FloatType(0)
+    else
+        fixed = true
+    end
     xi_info = StateElementInfo(x_name, Symbol(x_name), der_x_name, Symbol(der_x_name),
-                               XD, x_unit, startOrInit, true, nominal, unbounded,
+                               XD, x_unit, startOrInit, fixed, nominal, unbounded,
                                x_segmented_startIndex = x_segmented_startIndex)
     push!(eqInfo.x_info, xi_info)
     x_infoIndex = length(eqInfo.x_info)
@@ -1705,34 +1713,37 @@ end
 Reserve storage location for a new w_segmented variable. The returned `index` is
 used to store the w_segmented value at communication points in the result data structure.
 Value w_segmented_default is stored as default value and defines type and (fixed) size of the variable
-in this segmented.
+in this segment.
 """
 function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented_default, unit::String="")::Int
     result = m.result
     w_size = size(w_segmented_default)
-
+    push!(result.w_segmented_names, name)
+    push!(result.w_segmented_temp, deepcopy(w_segmented_default))
+    w_index = length(result.w_segmented_temp)
+        
     if haskey(result.info, name)
         # Variable was already defined in one of the previous segments
         v_info = result.info[name]
         @assert(!haskey(result.w_segmented_names, name))
         @assert(v_info.kind == RESULT_W_SEGMENTED)
+        w_unit = get(v_info, :unit, "")
+        if w_unit != unit
+            error("Variable $name changed unit from \"$w_unit\" to \"$unit\".")
+        end
         #@assert(v_info.type == typeof(w_segmented_default))
-        #@assert(v_info.unit == unit)
-        #@assert(v_info.ndims == ndims(w_segmented_default))
-        #@assert(!v_info.invariant)
-        push!(result.w_segmented_names, name)
-        push!(result.w_segmented_temp, deepcopy(w_segmented_default))
-        w_segmented_index = length(result_w_segmented_temp)
-        push!(v_info.id, ValuesID(m.nsegments, w_segmented_index, size(w_segmented_default)))
+        push!(v_info.id, ValuesID(m.nsegments, w_index, w_size))
     else
         # Variable is defined the first time in the segmented simulation
-        push!(result.w_segmented_names, name)
-        push!(result.w_segmented_temp, deepcopy(w_segmented_default))
-        w_segmented_index = length(result.w_segmented_temp)
-        #result.info[name] = ResultInfo(RESULT_W_SEGMENTED, w_segmented_default, unit, signalKind, m.nsegments, w_segmented_index)
+        if unit == ""
+            signal = Var(_basetype = basetype(w_segmented_default))
+        else
+            signal = Var(_basetype = basetype(w_segmented_default), unit=unit)
+        end            
+        result.info[name] = ResultInfo(RESULT_W_SEGMENTED, signal, ValuesID(m.nsegments, w_index, w_size)) 
     end
-    println("new_w_segmented_variable: w_segmented_temp = ", result.w_segmented_temp)
-    return w_segmented_index
+    #println("new_w_segmented_variable: w_segmented_temp = ", result.w_segmented_temp)
+    return w_index
 end
 
 

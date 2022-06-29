@@ -79,6 +79,8 @@ functionalities of these packages.
   Such variables `v` need to be declared with `v = Var(hideResult=true)`, in order that this error does not appear
   (and these variables are then not stored in the result).
 
+- getPath(path, ...) does no longer return a dictionary but a SignalTables.SignalTable.
+
 - Internal constructor `SimulationModel(..)`: Unused argument x_startValues removed.
 
 

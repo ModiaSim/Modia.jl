@@ -8,7 +8,7 @@ import Modia.MonteCarloMeasurements.StaticParticles
 
 v1 = 2.0u"m/s"
 unit_v1 = unit(v1)
-v1_unit = Modia.unitAsParseableString( unit_v1  )   # = "m*s^-1"
+v1_unit = unitAsParseableString( unit_v1  )   # = "m*s^-1"
 v2_withoutUnit = 2.0
 code = :( $v2_withoutUnit*@u_str($v1_unit) )  # = 2.0u"m*s^-1"
 v2 = eval(code)
@@ -27,7 +27,7 @@ data = Data{Float64}(2.0u"mm/s")
 v3   = data.velocity
 #@show v3   # v3 = 0.002 m s^-1
 
-@test Modia.unitAsParseableString( unit(v3) ) == "m*s^-1"
+@test unitAsParseableString( unit(v3) ) == "m*s^-1"
 
 
 v = 2.0

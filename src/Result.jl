@@ -116,19 +116,16 @@ mutable struct Result{FloatType,TimeType}
         w_invariant           = fill(Tuple[], 1)
         w_segmented           = fill(Vector{Any}[], 1)
 
-
         # Fill info with time
         timeResultInfo = ResultInfo(RESULT_T, Var(_basetype=TimeType, unit="s", independent=true), ValuesID(1,()))
         info[timeNameAsString] = timeResultInfo
 
-        # Fill info with x, der_x
+        # Fill info with x, der_x (note: id is not yet known, because init/start value might be changed in evaluatedParameters(..), which is called after Result(...)
         for i in 1:length(eqInfo.x_info)
             xi_info = eqInfo.x_info[i]
             @assert(!haskey(info, xi_info.x_name))
             @assert(!haskey(info, xi_info.der_x_name))
-            id      = ValuesID(i > eqInfo.nx_info_invariant ? 1 : -1, xi_info.startIndex, size(xi_info.startOrInit))
-            index   = xi_info.startIndex
-            x_unit  = xi_info.unit
+            x_unit     = xi_info.unit
             der_x_unit = x_unit == "" ? "1/s" : unitAsParseableString(uparse(x_unit)/u"s")
             x_var = Var(_basetype=FloatType, unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
             if !isnan(xi_info.nominal)
@@ -137,8 +134,8 @@ mutable struct Result{FloatType,TimeType}
             if xi_info.unbounded
                 x_var[:unbounded] = true
             end
-            info[xi_info.x_name]     = ResultInfo(RESULT_X    , x_var, id)
-            info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(_basetype=FloatType, unit=der_x_unit), id)
+            info[xi_info.x_name]     = ResultInfo(RESULT_X    , x_var)
+            info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(_basetype=FloatType, unit=der_x_unit))
         end
         
         # Fill info with w_invariant
@@ -321,7 +318,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
                         end                        
                     end
                     for s_ti in s[k]
-                        setindex!(sc, uskip.(s_ti[index]), (j,dimr...)...)
+                        setindex!(sc, ustrip.(s_ti[index]), (j,dimr...)...)
                         j += 1
                     end
                 end

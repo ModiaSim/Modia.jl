@@ -160,11 +160,11 @@ function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationMode
     end
     lsBuild::LinearStateSpaceBuild{FloatType} = partiallyInstantiatedModel.buildDict[path]
     ls = LinearStateSpaceStruct{FloatType}(; path, model...)
-    ls.x_startIndex = Modia.new_x_segment_variable!(partiallyInstantiatedModel, path*".x", path*".der(x)", ls.x_init)
+    ls.x_startIndex = Modia.new_x_segmented_variable!(partiallyInstantiatedModel, path*".x", path*".der(x)", ls.x_init)
     if length(ls.W) > 0
         # w = W*x_init
         ls.w = ls.W*ls.x_init
-        ls.w_index = Modia.new_w_segment_variable!(partiallyInstantiatedModel, path*".w", ls.w)
+        ls.w_index = Modia.new_w_segmented_variable!(partiallyInstantiatedModel, path*".w", ls.w)
     end
     lsBuild.ls = ls
     return nothing
@@ -173,11 +173,11 @@ end
 
 function openLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = instantiatedModel.buildDict[path].ls
-    Modia.get_Vector_x_segment_value!(instantiatedModel, ls.x_startIndex, ls.x)
+    Modia.get_Vector_x_segmented_value!(instantiatedModel, ls.x_startIndex, ls.x)
     if Modia.storeResults(instantiatedModel) && length(ls.W) > 0
         # w = W*x
         mul!(ls.w, ls.W, ls.x)
-        Modia.add_w_segment_value!(instantiatedModel, ls.w_index, ls.w)
+        Modia.add_w_segmented_value!(instantiatedModel, ls.w_index, ls.w)
     end
     return ls
 end
@@ -191,7 +191,7 @@ function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
     # der_x = A*x + B*u
     mul!(ls.der_x, ls.A, ls.x)
     mul!(ls.der_x, ls.B, u, 1.0, 1.0)
-    Modia.add_der_x_segment_value!(instantiatedModel, ls.x_startIndex, ls.der_x)
+    Modia.add_der_x_segmented_value!(instantiatedModel, ls.x_startIndex, ls.der_x)
     return true
 end
 

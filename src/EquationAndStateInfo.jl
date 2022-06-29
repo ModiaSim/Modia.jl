@@ -762,6 +762,15 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
         startIndex = xi_info.startIndex + xi_info.length
     end
 
+    # If startOrInit is not defined, use a default value of zero.
+    for xi_info in eqInfo.x_info
+        if isnothing(xi_info.startOrInit)
+            @info "State $(xi_info.x_name) has no start or init value defined. Using start value = 0.0."
+            xi_info.startOrInit = FloatType(0)
+            xi_info.scalar = true
+        end
+    end
+    
     # Set startIndex for invariant states where the size was not fixed before code generation
     for i = nx_info_fixedLength+1:eqInfo.nx_info_invariant
         xi_info = x_info[i]
@@ -786,13 +795,8 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
     startIndex = 1
     for xe_info in eqInfo.x_info
         if xe_info.scalar
-            if isnothing(xe_info.startOrInit)
-                x_name = xe_info.x_name
-                @warn "State $x_name has no start or init value defined. Using start value = 0.0."
-            else
-                @assert(length(xe_info.startOrInit) == 1)
-                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
-            end
+            @assert(length(xe_info.startOrInit) == 1)
+            x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
             startIndex += 1
         else
             xe_start = Vector{FloatType}(ustrip(xe_info.startOrInit))
