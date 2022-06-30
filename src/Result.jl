@@ -170,7 +170,7 @@ end
 
 
 """
-    newResultSegment!(result, equationInfo)
+    newResultSegment!(result, equationInfo, nsegments)
     
 Start a new result segment.
 """
@@ -180,6 +180,7 @@ function newResultSegment!(result::Result{FloatType,TimeType}, equationInfo::Equ
     empty!(result.w_segmented_temp)
     
     # Update id's for x_segmented and der_x_segmented
+    #=
     eqInfo     = equationInfo
     x_info     = eqInfo.x_info
     resultInfo = result.info
@@ -191,7 +192,8 @@ function newResultSegment!(result::Result{FloatType,TimeType}, equationInfo::Equ
         resInfo = resultInfo[xi_info.der_x_name]
         push!(resInfo.id, ValuesID(nsegments, resInfo.startIndex, size(resInfo.startOrInit)))
     end    
-   
+    =#
+    
     # Start new segment   
     push!(result.t          , TimeType[])
     push!(result.x          , Vector{FloatType}[])

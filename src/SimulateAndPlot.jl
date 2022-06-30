@@ -255,7 +255,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         end
 
         # Re-initialize model for FullRestart
-
+        initFullRestart!(m)
     end # --------------------------------------------------------- End of core simulation loop ------------------------------
 
     disable_timer!(m.timer)

@@ -974,6 +974,12 @@ setNextEvent!(m::SimulationModel{FloatType,TimeType}, nextEventTime) where {Floa
         setNextEvent!(m.eventHandler, convert(TimeType,nextEventTime))
 
 
+function setFullRestartEvent!(m::SimulationModel) 
+    m.eventHandler.restart = FullRestart
+    return nothing
+end
+
+
 """
     tCurrent = getTime(instantiatedModel)
 
@@ -1049,7 +1055,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.equationInfo         = deepcopy(m.initialEquationInfo)
     equationInfo           = m.equationInfo
     eh                     = m.eventHandler
-    m.instantiateFunctions = Tuple{Any,String}[]
+    m.instantiateFunctions = Tuple{Union{Expr,Symbol}, OrderedDict{Symbol,Any}, String}[]
     m.nsegments            = 1
     m.result = Result{FloatType,TimeType}(m.equationInfo, m.timeName, m.w_invariant_names, m.vEliminated, m.vProperty, m.var_name)   
     result   = m.result
@@ -1152,22 +1158,23 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
     m.nsegments += 1
     m.options.startTime = m.time
     reinitEventHandlerForFullRestart!(eh, m.time, m.options.stopTime, m.options.logEvents)
-    newResultSegment!(m.result)
+    newResultSegment!(m.result, m.equationInfo, m.nsegments)
         
     # Evaluate instantiate functions
-    for fc in m.instantiatedFunctions
+    for fc in m.instantiateFunctions
         logInstantiatedFunctionCalls = false
         Core.eval(m.modelModule, :($(fc[1])($m, $(fc[2]), $(fc[3]), log=$logInstantiatedFunctionCalls)))
     end
 
     # Get initial state vector
-    m.x_start = initialStateVector!(m.equationInfo, m.result, FloatType)
+    m.x_start = initialStateVector!(m.equationInfo, FloatType)
 
     # update equationInfo
-    for i = m.equationInfo.nx_info_invariant+1:length(m.equationInfo.x_info)
+    x_info = m.equationInfo.x_info
+    for i = m.equationInfo.nx_info_invariant+1:length(x_info)
         xi_info = x_info[i]
         resInfo = m.result.info[xi_info.x_name]
-        id = ValuesID(nsegments, xi_info.startIndex, size(xi_info.startOrInit))
+        id = ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit))
         push!(resInfo.id, )
         resInfo = m.result.info[xi_info.der_x_name]
         push!(resInfo.id, id)
@@ -1461,6 +1468,9 @@ function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
         eh.nTimeEvents += 1
     end
 
+if eh.nStateEvents > 20
+    error("too many state events")
+end
     # Event iteration
     eventIteration!(m, integrator.u, time)
 
@@ -1473,8 +1483,8 @@ function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
         else
             printstyled("        restart = ", eh.restart, "\n", color=:red)
         end
-    end
-
+    end   
+    
     # Compute outputs and store them after the event occurred
     if m.addEventPointsDueToDEBug
         push!(integrator.sol.t, deepcopy(integrator.t))
@@ -1482,7 +1492,7 @@ function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
     end
 
     outputs!(integrator.u, time, integrator)
-    if eh.restart == Terminate
+    if eh.restart == Terminate || eh.restart == FullRestart
         DifferentialEquations.terminate!(integrator)
         return nothing
     end
@@ -1657,21 +1667,19 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
     if haskey(result.info, x_name)
         # State was already defined in one of the previous segments
         new_result_info = false
-        x_info  = result.info[x_name]
-        xi_info = eqInfo.x_info[ eqInfo.x_dict[x_name] ]
+        x_info = result.info[x_name]
         @assert(x_info.kind == RESULT_X)
         @assert(basetype(startOrInit) == FloatType)
-        if typeof(startOrInit) <: Number
-            @assert(xi_info.scalar)
-        elseif typeof(startOrInit) <: AbstractVector
-            @assert(!xi_info.scalar)
-        else
-            error("new_x_segmented_variable(.. $x_name, $der_x_name, startOrInit,...): typeof(startOrInit) is neither a Number nor an AbstractVector)")
-        end
-        @assert(xi_info.unit == x_unit)
-
-        @assert(haskey(result.info, der_x_name))
-        @assert(eqInfo.der_x_dict, der_x_name)        
+        @assert(length( x_info.id[end].dims ) == ndims(startOrInit))   # Number of dimensions cannot change
+        #if typeof(startOrInit) <: Number
+        #    @assert(xi_info.scalar)
+        #elseif typeof(startOrInit) <: AbstractVector
+        #    @assert(!xi_info.scalar)
+        #else
+        #    error("new_x_segmented_variable(.. $x_name, $der_x_name, startOrInit,...): typeof(startOrInit) is neither a Number nor an AbstractVector)")
+        #end
+        @assert(x_info.signal[:unit] == x_unit)
+        @assert(haskey(result.info, der_x_name)) 
         der_x_info = result.info[der_x_name]      
         @assert(der_x_info.kind == RESULT_DER_X)
     end
@@ -1726,9 +1734,8 @@ function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented
     if haskey(result.info, name)
         # Variable was already defined in one of the previous segments
         v_info = result.info[name]
-        @assert(!haskey(result.w_segmented_names, name))
         @assert(v_info.kind == RESULT_W_SEGMENTED)
-        w_unit = get(v_info, :unit, "")
+        w_unit = get(v_info.signal, :unit, "")
         if w_unit != unit
             error("Variable $name changed unit from \"$w_unit\" to \"$unit\".")
         end
@@ -1825,7 +1832,7 @@ end
 Copy scalar or array segmented state derivative value `der_x_segmented_value` into `instantiatedModel` starting at index `startIndex`
 (returned from `new_x_segmented_variable!(..)`).
 """
-@inline function add_der_x_segmented_value!(m::SimulationModel{FloatType,TimeType}, startIndex::Int, der_x_segmented::FloatType)::Nothing where {FloatType,TimeType}
+@inline function add_der_x_segmented_value!(m::SimulationModel{FloatType,TimeType}, startIndex::Int, der_x_segmented_value::FloatType)::Nothing where {FloatType,TimeType}
     m.der_x_segmented[startIndex] = der_x_segmented_value
     return nothing
 end

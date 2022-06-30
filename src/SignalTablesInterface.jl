@@ -126,6 +126,8 @@ end
 
 function SignalTables.getSignal(result::Result, name::String)
     resInfo = result.info[name]
+    @show name
+    @show resInfo
     if haskey(resInfo.signal, :values)
         return resInfo.signal
     end
