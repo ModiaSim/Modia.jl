@@ -295,7 +295,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
             else
                 if invariant
                     index = id[1].index
-                    dimr  = dims_range(id_k.dims)
+                    dimr  = dims_range(id[1].dims)
                     for sk in s                    
                         for s_ti in sk
                             setindex!(sc, ustrip.(s_ti[index]), (j,dimr...)...)
