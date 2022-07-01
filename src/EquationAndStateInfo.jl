@@ -808,6 +808,16 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
 
     @assert(eqInfo.nx == startIndex - 1)
     eqInfo.status = EquationInfo_After_All_States_Are_Known
+    
+    # Final check
+    for (i, xi_info) = enumerate(eqInfo.x_info)
+        @assert(xi_info.startIndex > 0)
+        if i <= eqInfo.nx_info_invariant
+            @assert(xi_info.x_segmented_startIndex == -1)
+        else
+            @assert(xi_info.x_segmented_startIndex > 0)
+        end 
+    end
     return x_start
 end
 

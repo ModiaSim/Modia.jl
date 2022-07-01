@@ -260,7 +260,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
                 j       = firstIndexOfSegment[segment]
                 for s_ti in s[segment]
                     sc[j] = s_ti[index]
-                    j += 1
+                    j += 1inclu
                 end
             end            
         else

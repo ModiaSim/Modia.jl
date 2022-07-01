@@ -1078,8 +1078,8 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     for xi_info in equationInfo.x_info
         resInfo = result.info[xi_info.x_name]
         resInfo.signal[:start] = xi_info.startOrInit
-        id = ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit))
-        x_type = 
+        id = xi_info.x_segmented_startIndex == -1 ? ValuesID(         -1, xi_info.startIndex, size(xi_info.startOrInit)) :
+                                                    ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit))
         push!(resInfo.id, id)
         resInfo = result.info[xi_info.der_x_name]
         push!(resInfo.id, id)
@@ -1468,9 +1468,6 @@ function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
         eh.nTimeEvents += 1
     end
 
-if eh.nStateEvents > 20
-    error("too many state events")
-end
     # Event iteration
     eventIteration!(m, integrator.u, time)
 
