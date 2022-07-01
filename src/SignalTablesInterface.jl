@@ -126,8 +126,7 @@ end
 
 function SignalTables.getSignal(result::Result, name::String)
     resInfo = result.info[name]
-    @show name
-    @show resInfo
+
     if haskey(resInfo.signal, :values)
         return resInfo.signal
     end
@@ -148,11 +147,11 @@ function SignalTables.getSignal(result::Result, name::String)
     end
 
     if resInfo.kind == RESULT_T
-        sigValues = signalResultValues(result.t, result.t, resInfo; name=name)
-    elseif resInfo.kind == RESULT_X
-        sigValues = signalResultValues(result.t, result.x, resInfo; name=name)
+        sigValues = signalResultValues(result.t, result.t, resInfo, result; name=name)
+    elseif resInfo.kind == RESULT_X  
+        sigValues = signalResultValues(result.t, result.x, resInfo, result; name=name)
     elseif resInfo.kind == RESULT_DER_X
-        sigValues = signalResultValues(result.t, result.der_x, resInfo; name=name)
+        sigValues = signalResultValues(result.t, result.der_x, resInfo, result; name=name)
     elseif resInfo.kind == RESULT_W_INVARIANT
         index   = resInfo.id[1].index
         w_value = result.w_invariant[1][1][index]
@@ -168,9 +167,9 @@ function SignalTables.getSignal(result::Result, name::String)
             resInfo.id[1] = ValuesID(index, size(w_value))
 
         resInfo._basetype = basetype(w_value)            
-        sigValues = signalResultValues(result.t, result.w_invariant, resInfo; name=name)  
+        sigValues = signalResultValues(result.t, result.w_invariant, resInfo, result; name=name)  
     elseif resInfo.kind == RESULT_W_SEGMENTED
-        sigValues = signalResultValues(result.t, result.w_segmented, resInfo; name=name)
+        sigValues = signalResultValues(result.t, result.w_segmented, resInfo, result; name=name)
     elseif resInfo.kind == RESULT_CONSTANT
         value = resInfo.value
         t     = getSignal(result, result.timeName)[:values]

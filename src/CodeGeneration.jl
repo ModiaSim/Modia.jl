@@ -1175,7 +1175,7 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
         xi_info = x_info[i]
         resInfo = m.result.info[xi_info.x_name]
         id = ValuesID(m.nsegments, xi_info.startIndex, size(xi_info.startOrInit))
-        push!(resInfo.id, )
+        push!(resInfo.id, id)
         resInfo = m.result.info[xi_info.der_x_name]
         push!(resInfo.id, id)
     end  

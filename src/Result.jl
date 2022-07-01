@@ -75,10 +75,10 @@ mutable struct ResultInfo
     _basetype                        # If known, basetype(signal.values/.values); if not known: Nothing
     value::Any                       # Value of constant variable (without unit)    
 
-    ResultInfo(kind::ResultKind, signal, _basetype)                                       = new(kind             , signal, ""       , false      , ValuesID[]  , _basetype)  
-    ResultInfo(kind::ResultKind, signal, id::ValuesID, _basetype)                         = new(kind             , signal, ""       , false      , ValuesID[id], _basetype)     
+    ResultInfo(kind::ResultKind, signal, _basetype)                                       = new(kind             , signal, ""       , false      , ValuesID[]  , _basetype, nothing)  
+    ResultInfo(kind::ResultKind, signal, id::ValuesID, _basetype)                         = new(kind             , signal, ""       , false      , ValuesID[id], _basetype, nothing)     
     ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[]  , basetype(value), value)    
-    ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Bool) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate)
+    ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Bool) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate, ValuesID[], Nothing, nothing)
 end
 
 
@@ -98,6 +98,7 @@ mutable struct Result{FloatType,TimeType}
     w_segmented_names::OrderedSet{String}       # Names of w_segmented results in current segment
     w_segmented_temp::Vector{Any}               # Memory to store temporarily references to w_segmented results in current segment
                                                 # length(w_segmented_temp) = length(w_segmented_names)
+    firstIndexOfSegment::Vector{Int}            # firstIndexOfSegment[sk] is the first index of the "expanded" time vector of segment sk
     t::Vector{Vector{TimeType}}                 # t[sk][ti] is time instant ti in segment sk
 
     # A variable v[sk][ti][j] is variable with index j at time instant ti in segment sk
@@ -111,7 +112,7 @@ mutable struct Result{FloatType,TimeType}
         n_w_invariant         = length(w_invariant_names)
         alias_segmented_names = OrderedSet{String}()
         w_segmented_names     = OrderedSet{String}()
-        w_segmented_temp      = Any[]
+        w_segmented_temp      = Any[]      
         t                     = fill(TimeType[],1)
         x                     = fill(Vector{FloatType}[], 1)
         der_x                 = fill(Vector{FloatType}[], 1)
@@ -119,6 +120,7 @@ mutable struct Result{FloatType,TimeType}
         w_segmented           = fill(Vector{Any}[], 1)
 
         # Fill info with time
+        firstIndexOfSegment = Int[1]        
         timeResultInfo = ResultInfo(RESULT_T, Var(unit="s", independent=true), ValuesID(1,()), TimeType)
         info[timeNameAsString] = timeResultInfo
 
@@ -164,7 +166,8 @@ mutable struct Result{FloatType,TimeType}
             end
         end
 
-        new(info, timeNameAsString, timeResultInfo, n_w_invariant, alias_segmented_names, w_segmented_names, w_segmented_temp, t, x, der_x, w_invariant, w_segmented)
+        new(info, timeNameAsString, timeResultInfo, n_w_invariant, alias_segmented_names, w_segmented_names, w_segmented_temp,
+            firstIndexOfSegment, t, x, der_x, w_invariant, w_segmented)
     end
 end
 
@@ -172,29 +175,16 @@ end
 """
     newResultSegment!(result, equationInfo, nsegments)
     
-Start a new result segment.
+Start a new result segment (nsegments > 1)
 """
 function newResultSegment!(result::Result{FloatType,TimeType}, equationInfo::EquationInfo, nsegments::Int)::Nothing where {FloatType,TimeType}
+    @assert(nsegments > 1)
     empty!(result.alias_segmented_names)
     empty!(result.w_segmented_names)
     empty!(result.w_segmented_temp)
     
-    # Update id's for x_segmented and der_x_segmented
-    #=
-    eqInfo     = equationInfo
-    x_info     = eqInfo.x_info
-    resultInfo = result.info
-    @assert(eqInfo.status == EquationInfo_After_All_States_Are_Known)
-    for i = eqInfo.nx_info_invariant+1:length(x_info)
-        xi_info = x_info[i]
-        resInfo = resultInfo[xi_info.x_name]
-        push!(resInfo.id, ValuesID(nsegments, resInfo.startIndex, size(resInfo.startOrInit)))
-        resInfo = resultInfo[xi_info.der_x_name]
-        push!(resInfo.id, ValuesID(nsegments, resInfo.startIndex, size(resInfo.startOrInit)))
-    end    
-    =#
-    
     # Start new segment   
+    push!(result.firstIndexOfSegment, result.firstIndexOfSegment[end] + length(result.t[end]))
     push!(result.t          , TimeType[])
     push!(result.x          , Vector{FloatType}[])
     push!(result.der_x      , Vector{FloatType}[])
@@ -213,13 +203,13 @@ dims_range(dims::Dims) = Tuple([1:i for i in dims])
     
 Return a Var() values vector from independent values t, dependent values s, and resultInfo.    
 """
-function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::ResultInfo; log=false, name::AbstractString="")
+function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::ResultInfo, result::Result; log=false, name::AbstractString="")
     id = resultInfo.id
     @assert(length(id) > 0)    
     inlineValues = resultInfo.kind == RESULT_X || resultInfo.kind == RESULT_DER_X
     _basetype    = resultInfo._basetype
     ndims_s      = length(id[1].dims)
-    if length(id) == 1 && ndims_s == 0
+    if id[1].segment == -1 && ndims_s == 0
         # Scalar signal that is defined in every segment
         index = id[1].index
         sc = _basetype[ustrip.(ti[index]) for sk in s for ti in sk]
@@ -227,7 +217,8 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
     else
         # Find largest dims = dimsMax in all segments
         dimsMax::Dims{ndims_s} = id[1].dims
-        hasMissing::Bool = !(length(id) == 1 || length(id) == length(t))
+        invariant::Bool  = id[1].segment==-1   # = true, if variable is defined at all time instants and variable index does not change
+        hasMissing::Bool = !(invariant || length(id) == length(t))   # = true, if at least one variable value is not defined at all time instants
         if length(id) > 1
             dMax::Vector{Int} = [dimsMax...]
             for i = 2:length(id)
@@ -257,73 +248,70 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
             sc = Array{_basetype, length(dims)}(undef, dims)
         end
         
-        # Copy subset of s-values to target sc
-        invariant  = length(id) == 1
-        segmentOld = 1        
+        # Copy subset of s-values to target sc      
         j = 1
+        firstIndexOfSegment = result.firstIndexOfSegment
         if length(dimsMax) == 0
             # Target is a scalar signal
-            if invariant
-                index = id[1].index
-            end
-            for k = 1:length(s)
-                if !invariant
-                    index   = id[k].index
-                    segment = id[k].segment  
-                    if segmentOld < segment-1
-                        j = sum(length(t[i]) for i = segmentOld:segment-1) + 1
-                        segmentOld = segment
-                    end
-                end
-                for s_ti in s[k]
+            @assert(id[1].segment != -1)
+            for id_k in resultInfo.id
+                index   = id_k.index
+                segment = id_k.segment
+                j       = firstIndexOfSegment[segment]
+                for s_ti in s[segment]
                     sc[j] = s_ti[index]
                     j += 1
                 end
             end            
         else
             # Target is not a scalar signal  setindex!(A,x,(2,2:4)...)
-            if inlineValues
+            j = 1              
+            if inlineValues          
                 if invariant
                     dims = id[1].dims
                     dimr = dims_range(dims)
                     ibeg = id[1].index
                     iend = ibeg + prod(dims) - 1
-                end
-                for k = 1:length(s)
-                    if !invariant
-                        dims = id[k].dims
-                        dimr = dims_range(dims)
-                        ibeg = id[k].index
-                        iend = ibeg + prod(dims) - 1
-                        segment = id[k].segment
-                        if segmentOld < segment-1
-                            j = sum(length(t[i]) for i = segmentOld:segment-1) + 1
-                            segmentOld = segment
+                    for sk in s
+                        for s_ti in sk
+                            setindex!(sc, reshape(view(s_ti,ibeg:iend),dims), (j,dimr...)...)
+                            j += 1
                         end
-                    end                  
-                    for s_ti in s[k]
-                        setindex!(sc, reshape(view(s_ti,ibeg:iend),dims), (j,dimr...)...)
-                        j += 1
+                    end
+                else
+                    for id_k in resultInfo.id                       
+                        dims    = id_k.dims
+                        dimr    = dims_range(dims)
+                        ibeg    = id_k.index
+                        iend    = ibeg + prod(dims) - 1
+                        segment = id_k.segment
+                        j       = firstIndexOfSegment[segment]                 
+                        for s_ti in s[segment]
+                            setindex!(sc, reshape(view(s_ti,ibeg:iend),dims), (j,dimr...)...)
+                            j += 1
+                        end
                     end
                 end
             else
                 if invariant
                     index = id[1].index
-                    dimr  = dims_range( size(s[1][1][index]) )
-                end            
-                for k = 1:length(s)
-                    if !invariant
-                        index   = id[k].index
-                        dimr    = dims_range( size(s[k][1][index]) )
-                        segment = id[k].segment                        
-                        if segmentOld < segment-1
-                            j = sum(length(t[i]) for i = segmentOld:segment-1) + 1
-                            segmentOld = segment
-                        end                        
+                    dimr  = dims_range(id_k.dims)
+                    for sk in s                    
+                        for s_ti in sk
+                            setindex!(sc, ustrip.(s_ti[index]), (j,dimr...)...)
+                            j += 1
+                        end
                     end
-                    for s_ti in s[k]
-                        setindex!(sc, ustrip.(s_ti[index]), (j,dimr...)...)
-                        j += 1
+                else
+                    for id_k in resultInfo.id
+                        index   = id_k.index
+                        dimr    = dims_range(id_k.dims)
+                        segment = id_k.segment                        
+                        j       = firstIndexOfSegment[segment]                      
+                        for s_ti in s[segment]
+                            setindex!(sc, ustrip.(s_ti[index]), (j,dimr...)...)
+                            j += 1
+                        end
                     end
                 end
             end
