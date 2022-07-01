@@ -194,7 +194,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     m.options   = options
     m.time      = options.startTime
     m.isInitial = true
-    m.nsegments  = 1
+    m.nsegments = 1
     reinitEventHandler!(m.eventHandler, m.options.stopTime, m.options.logEvents)
 
     if ismissing(algorithm) && FloatType == Float64
@@ -381,7 +381,19 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         interval = 1.0
         tspan2   = [m.options.startTime]
     elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
-        tspan2 = m.options.startTime:m.options.interval:m.options.stopTime
+        if m.nsegments == 1
+            tspan2 = m.options.startTime:interval:m.options.stopTime
+        else
+            i      = ceil( (m.options.startTime - m.options.startTimeFirstSegment)/interval )
+            tnext  = m.options.startTimeFirstSegment + i*interval                  
+            tspan2 = tnext:interval:m.options.stopTime
+            if tspan2[1] > m.options.startTime
+                tspan2 = [m.options.startTime, tspan2...]
+            end
+        end
+        if tspan2[end] < m.options.stopTime
+            tspan2 = [tspan2..., m.options.stopTime]
+        end
     else
         tspan2 = [m.options.startTime, m.options.stopTime]
     end
