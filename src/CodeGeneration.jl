@@ -272,6 +272,7 @@ struct LinearEquationsCopyInfoForDAEMode
     LinearEquationsCopyInfoForDAEMode(ileq) = new(ileq, Int[])
 end
 
+abstract type AbstractSimulationModel end
 
 """
     simulationModel = SimulationModel{FloatType,TimeType}(
@@ -295,7 +296,7 @@ end
 - `parameters`: A hierarchical NamedTuple of (key, value) pairs defining the parameter and init/start values.
 - variableNames: A vector of variable names. A name can be a Symbol or a String.
 """
-mutable struct SimulationModel{FloatType,TimeType}
+mutable struct SimulationModel{FloatType,TimeType} <: AbstractSimulationModel
     modelModule::Module
     modelName::String
     buildDict::OrderedDict{String,Any}
@@ -487,6 +488,10 @@ mutable struct SimulationModel{FloatType,TimeType}
             convert(Vector{FloatType}, m.x_start), zeros(FloatType,nx), zeros(FloatType,nx), true, LinearEquationsCopyInfoForDAEMode[],
             missing, false, m.result_info, Tuple[], missing, Vector{FloatType}[], false, m.unitless)
     end
+end
+
+if Base.isdefined(DiffEqBase, :anyeltypedual)
+    DiffEqBase.anyeltypedual(::AbstractSimulationModel) = Any
 end
 
 # Default constructors
