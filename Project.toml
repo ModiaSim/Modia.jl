@@ -4,6 +4,7 @@ uuid = "cb905087-75eb-5f27-8515-1ce0ec8e839e"
 version = "0.9.0-dev"
 
 [compat]
+DiffEqBase = "6.92.2"
 DataFrames = "1"
 DifferentialEquations = "7"
 FiniteDiff = "2"
@@ -21,9 +22,9 @@ Sundials = "4"
 TimerOutputs = "0.5"
 Unitful = "1"
 julia = "1.7"
-DiffEqBase = "6.91.7"
 
 [deps]
+DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
@@ -44,8 +45,6 @@ Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
-DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 
 [extras]
 CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"

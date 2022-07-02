@@ -83,14 +83,6 @@ end
 
 
 """
-    nResults(result::Result)
-    
-Returns the number of result points (= number of values of time vector).
-"""
-nResults(result::Result) = result.firstIndexOfSegment[end] + length(result.t[end]) - 1
-
-
-"""
     result = Result{FloatType,TimeType}(timeNameAsString, equationInfo, w_invariant_names, w_invariant_initial, vEliminated, vProperty, var_name)
 
 Return a new result data structure.
@@ -177,6 +169,14 @@ mutable struct Result{FloatType,TimeType}
             firstIndexOfSegment, t, x, der_x, w_invariant, w_segmented)
     end
 end
+
+
+"""
+    nResults(result::Result)
+    
+Returns the number of result points (= number of values of time vector).
+"""
+nResults(result::Result) = result.firstIndexOfSegment[end] + length(result.t[end]) - 1
 
 
 """
