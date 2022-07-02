@@ -1644,16 +1644,20 @@ end
 
 
 """
-    startIndex = new_x_segmented_variable!(instantiatedModel::SimulationModel,
-                                         x_name::String, der_x_name::String, startOrInit, x_unit::String="";
-                                         nominal::Float64 = NaN, unbounded::Bool = false)::Int
+    index = new_x_segmented_variable!(
+                instantiatedModel::SimulationModel,
+                x_name::String, der_x_name::String, startOrInit, x_unit::String="";
+                nominal::Float64 = NaN, unbounded::Bool = false)::Int
+                            
+Reserves storage location for a new x_segmented and der_x_segmented variable and returns
+the index (= x_segmented_startIndex) to access this storage location, in particular
 
-Reserve storage location for a new x_segmented and der_x_segmented variable. The returned startIndex is used
+- to copy state values from instantiatedModel.x_segmented[index:index+prod(dims(startOrInit))-1]
+  into this storage location
+- to copy state derivative values of this storage location to 
+  instantiatedModel.der_x_segmented[index:index+prod(dims(startOrInit))-1]
 
-- to copy state values from instantiatedModel.x_segmented[startIndex:startIndex+prod(dims(startOrInit))-1] into the internal states
-- to copy internal state derivative values to instantiatedModel.der_x_segmented[startIndex:startIndex+prod(dims(startOrInit))-1]
-
-Value startOrInit is the start/init value used during re-initialization of the new segmented with initFullRestart!(..).
+Value startOrInit is the start/init value used during re-initialization of the new segment with initFullRestart!(..).
 """ 
 function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_name::String, der_x_name::String, startOrInit, x_unit::String="";
                                    nominal::Float64 = NaN, unbounded::Bool = false)::Int where {FloatType,TimeType}
@@ -1710,6 +1714,16 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
     end 
     return x_segmented_startIndex
 end
+
+
+"""
+    x_startIndex = get_x_startIndex_from_x_segmented_startIndex(instantiatedModel::SimulationModel, x_segmented_startIndex)
+
+Return the startindex of an x_segmented state with respect to the x-vector, 
+given the startIndex with respect to the x_segmented vector 
+(x_segmented_startIndex is the return value of new_x_segmented_variable!(..)).
+"""
+get_x_startIndex_from_x_segmented_startIndex(m::SimulationModel, x_segmented_startIndex::Int) = m.equationInfo.nxInvariant + x_segmented_startIndex
 
 
 """
