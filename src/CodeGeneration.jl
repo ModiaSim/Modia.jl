@@ -344,7 +344,7 @@ mutable struct SimulationModel{FloatType,TimeType}
                                                 # equationInfo.x_info[equationInfo.nx_info_fixedLength+i:equationInfo.nx_info_invariant]
     x_start::Vector{FloatType}                  # States x before first event iteration (before initialization)
     x_init::Vector{FloatType}                   # States x after initialization (and before integrator is started)
-    x_segmented::Vector{FloatType}              # A copy of the current segment states
+    x_segmented::Vector{FloatType}              # A copy of the current segmented states
 
     der_x_invariant::Vector{FloatType}          # Derivatives of states x or x_init that correspond to invariant states
                                                 # This vector is filled with derivatives of invariants states with appendVariable!(m.der_x_invariant, ...) calls,
@@ -936,7 +936,7 @@ isFirstEventIterationDirectlyAfterInitial(m::SimulationModel) = m.eventHandler.f
 """
     isFullRestart(instantiatedModel)
 
-Return true, if **FullRestart event** of a segmenteded simulation.
+Return true, if **FullRestart event** of a segmented simulation.
 """
 isFullRestart(m::SimulationModel) = m.eventHandler.fullRestart
 

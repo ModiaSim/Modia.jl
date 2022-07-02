@@ -425,7 +425,7 @@ function get_result(m::SimulationModel, name::AbstractString; unit=true)
 
     #if SignalTables.timeSignalName(m) != 1
     if length(m.result.t) > 1
-        error("Error in Modia.get_result(\"$name\"), because function cannot be used for a segmenteded simulation with more as one segmented.")
+        error("Error in Modia.get_result(\"$name\"), because function cannot be used for a segmented simulation with more as one segmented.")
     end
 
     (tsig2, ysig2, ysigType) = SignalTables.rawSignal(m, name)
@@ -464,7 +464,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
     
     #=
     if length(m.result.t) > 1
-        error("Error in Modia.get_result(...), because function cannot be used for a segmenteded simulation with more as one segmented.")
+        error("Error in Modia.get_result(...), because function cannot be used for a segmented simulation with more as one segmented.")
     end
 
     dataFrame = DataFrames.DataFrame()
