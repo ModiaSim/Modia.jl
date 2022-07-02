@@ -251,7 +251,6 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
             sc = Array{Union{_basetype,Missing}, length(dims)}(missing, dims)
         else
             # Allocate target memory with undef values
-            @assert(length(dimsMax) > 0)
             sc = Array{_basetype, length(dims)}(undef, dims)
         end
         
