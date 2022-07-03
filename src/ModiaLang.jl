@@ -764,9 +764,9 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 #    @show mappedParameters
 
 #    println("Build SimulationModel")
-
+    hideResult_names = [string(h) for h in hideResults]
     model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
-                                         mappedParameters, timeName, w_invariant_names;
+                                         mappedParameters, timeName, w_invariant_names, hideResult_names;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
                                          nz=nCrossingFunctions, nAfter=nAfter,  unitless=unitless)

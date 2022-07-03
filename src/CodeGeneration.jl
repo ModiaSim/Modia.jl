@@ -321,9 +321,10 @@ mutable struct SimulationModel{FloatType,TimeType}
    
     timeName::String
     w_invariant_names::Vector{String}
+    hideResult_names::Vector{String}            # Names of hidden variables    
     vEliminated::Vector{Int} 
     vProperty::Vector{Int}
-    var_name::Function 
+    var_name::Function  
     result::Union{Result,Missing}               # Result data structure upto current time instant
     
     parameters::OrderedDict{Symbol,Any}         # Parameters as provided to SimulationModel constructor
@@ -354,7 +355,7 @@ mutable struct SimulationModel{FloatType,TimeType}
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, buildDict, getDerivatives!, equationInfo,
                                         previousVars, preVars, holdVars,
-                                        parameterDefinition, timeName, w_invariant_names;
+                                        parameterDefinition, timeName, w_invariant_names, hideResult_names;
                                         unitless::Bool=true,
                                         nz::Int = 0,
                                         nAfter::Int = 0,
@@ -416,7 +417,7 @@ mutable struct SimulationModel{FloatType,TimeType}
            hold, hold_names, hold_dict,
            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
            odeIntegrator, daeCopyInfo, algorithmName, sundials, addEventPointsDueToDEBug, success, unitless,
-           string(timeName), w_invariant_names, vEliminated, vProperty, var_name, result, 
+           string(timeName), w_invariant_names, hideResult_names, vEliminated, vProperty, var_name, result, 
            parameters, equationInfo)
     end
 
@@ -486,7 +487,9 @@ timeType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = Ti
 
 # The following rule is important that simulation is efficient.
 # See, https://github.com/SciML/DiffEqBase.jl/issues/791
-DiffEqBase.anyeltypedual(::SimulationModel) = Any
+if Base.isdefined(DiffEqBase, :anyeltypedual)
+    DiffEqBase.anyeltypedual(::SimulationModel) = Any
+end
 
 positive(m::SimulationModel, args...; kwargs...) = Modia.positive!(m.eventHandler, args...; kwargs...)
 negative(m::SimulationModel, args...; kwargs...) = Modia.negative!(m.eventHandler, args...; kwargs...)

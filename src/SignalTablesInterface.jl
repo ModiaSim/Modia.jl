@@ -66,7 +66,7 @@ function SignalTables.signalNames(m::SimulationModel; var=true, par=true)::Vecto
     if var && !par
         return names1
     end
-    names2 = getParameterNames(m.evaluatedParameters)
+    names2 = setdiff(getParameterNames(m.evaluatedParameters), m.hideResult_names) # parameters without hideResult_names
     if var && par
         return union(names1,names2)
     elseif par
