@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.9.0-dev"
-const Date = "2022-07-03"
+const Date = "2022-07-04"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -83,13 +83,10 @@ export instantiateModel, @instantiateModel, assert, stringifyDefinition
 export stripUnit
 
 export simulate!, linearize!, get_result
-#export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-export resultInfo, showResultInfo, rawSignal, getPlotSignal, defaultHeading
-export signalNames, timeSignalName, hasSignal
 export hasParameter, getParameter, getEvaluatedParameter
 export showParameters, showEvaluatedParameters
 
-export SimulationModel, measurementToString, get_lastValue, getLastValue
+export SimulationModel, measurementToString, get_lastValue, getLastValue, getStateNames
 export positive, negative, previous, edge, after, reinit, pre
 export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames
@@ -112,11 +109,6 @@ using ModiaBase.Simplify
 using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
-
-#import SignalTables
-#import SignalTables.: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-#import SignalTables.: resultInfo, showResultInfo, getPlotSignal, getDefaultHeading
-#import SignalTables.: signalNames, timeSignalName, hasSignal
 
 import StaticArrays   # Make StaticArrays available for the tests
 

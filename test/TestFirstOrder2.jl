@@ -21,23 +21,27 @@ firstOrder = @instantiateModel(FirstOrder2, logCode=false)
 simulate!(firstOrder, Tsit5(), stopTime = 10, merge = Map(T = 0.4, x = 0.9), 
           log=false, logParameters=true, logStates=true, 
           requiredFinalStates = [-0.17964872595554535])
+showInfo(firstOrder)
 
-# Test get_result(instantiatedModel) no longer supported
-#=
-println()
-result1 = get_result(firstOrder)
-@show(result1[1:10,:])
-println()
-@show(result1[1:10, ["time", "u", "y"]])
 
-println()
-result2 = get_result(firstOrder, onlyStates=true, extraNames=["y"])
-@show(result2[1:10,:])
+# Get result info
+println("\n... Get values")
+t = getValues(firstOrder, "time")
+y = getValues(firstOrder, "y")
+T = getValue( firstOrder, "T")
+tWithUnit = getValuesWithUnit(firstOrder, "time")
+@show t[1:10]
+@show y[1:10]
+@show T
+@show tWithUnit[1:10]
 
-println()
-result3 = get_result(firstOrder, extraNames=["y"])
-@show(result3[1:10,:])
-=#
+# Store result info on file
+println("\n... Store result on file in JSON format")
+writeSignalTable("TestFirstOrder2.json", firstOrder; indent=2, log=true)
+
+println("\n... Store states on file in JSON format")
+stateNames = getStateNames(firstOrder)
+writeSignalTable("TestFirstOrder2_states.json", firstOrder; signalNames=stateNames, indent=2, log=true)
 
 # Linearize
 println("\n... Linearize at stopTime = 0 and 10:")

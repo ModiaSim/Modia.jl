@@ -19,9 +19,9 @@ should be used. Only in special cases, the other flags are useful.
 
 
 using  ForwardDiff
-getValue(v) = v
-getValue(v::ForwardDiff.Dual) = v.value
-getValue(v::Measurements.Measurement) = Measurements.value(v)
+getValueOnly(v) = v
+getValueOnly(v::ForwardDiff.Dual) = v.value
+getValueOnly(v::Measurements.Measurement) = Measurements.value(v)
 
 
 const nClock = 100
@@ -278,12 +278,12 @@ function after!(h::EventHandler{FloatType,TimeType}, nr::Int, t::Number, tAsStri
 end
 
 
-#positive!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = positive!(h, nr, getValue(crossing), crossingAsString, leq_mode; restart=restart)
+#positive!(h, nr, crossing, crossingAsString, leq_mode; restart=Restart) = positive!(h, nr, getValueOnly(crossing), crossingAsString, leq_mode; restart=restart)
 
 function positive!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String,
                    leq::Union{Nothing,Modia.LinearEquations{FloatType}};
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
-    crossing = getValue(crossing)
+    crossing = getValueOnly(crossing)
 
     if h.initial
         if !isnothing(leq) && leq.mode >= 0
@@ -330,7 +330,7 @@ end
 function negative!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingAsString::String,
                    leq::Union{Nothing,Modia.LinearEquations{FloatType}};
                    restart::EventRestart=Restart)::Bool where {FloatType,TimeType}
-    crossing = getValue(crossing)
+    crossing = getValueOnly(crossing)
 
     if h.initial
         if !isnothing(leq) && leq.mode >= 0
@@ -419,7 +419,7 @@ function edge!(h::EventHandler{FloatType,TimeType}, nr::Int, crossing, crossingA
                "iteration variables $(leq.vTear_names). This is not supported."
     end
 
-    crossing = getValue(crossing)
+    crossing = getValueOnly(crossing)
 
     if h.initial
         h.zPositive[nr] = crossing > convert(FloatType,0)

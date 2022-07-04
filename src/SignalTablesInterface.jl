@@ -17,16 +17,16 @@ SignalTables.isSignalTable(m::SimulationModel) = true
 
 
 """
-    independentSignalNames(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Vector{String}
+    getIndependentSignalNames(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Vector{String}
     
 Return the name of the independent variable of the result stored in instantiatedModel or in result.
 """
-SignalTables.independentSignalNames(result::Result)     = [result.timeName]
-SignalTables.independentSignalNames(m::SimulationModel) = begin
+SignalTables.getIndependentSignalNames(result::Result)     = [result.timeName]
+SignalTables.getIndependentSignalNames(m::SimulationModel) = begin
     if ismissing(m.result)
         error("independentSignalName(..): No simulation results available in instantiated model of $(m.modelName)")
     end
-    SignalTables.independentSignalNames(m.result)
+    SignalTables.getIndependentSignalNames(m.result)
 end
 
 
@@ -51,16 +51,16 @@ end
 
 
 """
-    signalNames(instantiatedModel::Modia.SimulationModel; var=true, par=true)::Vector{String}
+    getSignalNames(instantiatedModel::Modia.SimulationModel; var=true, par=true)::Vector{String}
 
 Returns a string vector of the variables of an
 [`@instantiateModel`](@ref) that are present in the result or are (evaluated) parameters.
 - If var=true, Var(..) variables are included.
 - If par=true, Par(..) variables are included.
 """
-function SignalTables.signalNames(m::SimulationModel; var=true, par=true)::Vector{String}
+function SignalTables.getSignalNames(m::SimulationModel; var=true, par=true)::Vector{String}
     if ismissing(m.result)
-        error("signalNames(..): No simulation results available in instantiated model of $(m.modelName)")
+        error("getSignalNames(..): No simulation results available in instantiated model of $(m.modelName)")
     end
     names1 = collect(keys(m.result.info))
     if var && !par
@@ -78,11 +78,31 @@ end
 
 
 """
-    signalNames(result::Modia.Result)::Vector{String}
+    getStateNames(instantiatedModel::Modia.SimulationModel)::Vector{String}
+
+Returns a string vector of the states that are present in [`@instantiateModel`](@ref)
+"""
+function getStateNames(m::SimulationModel)::Vector{String}
+    if ismissing(m.result)
+        return collect(keys(m.equationInfo.x_dict))
+    else
+        stateNames = String[]
+        for (key,resultInfo) in m.result.info
+            if resultInfo.kind == RESULT_X
+                push!(stateNames, key)
+            end
+        end
+        return stateNames
+    end
+end
+
+
+"""
+    getSignalNames(result::Modia.Result)::Vector{String}
 
 Returns a string vector of the variables that are present in the result.
 """
-SignalTables.signalNames(result::Result) = collect(keys(result.info))
+SignalTables.getSignalNames(result::Result) = collect(keys(result.info))
 
 
 """
@@ -166,7 +186,7 @@ function SignalTables.getSignal(result::Result, name::String)
         # w_invariant is defined in all segments and has no size information defined - add size information
             resInfo.id[1] = ValuesID(index, size(w_value))
 
-        resInfo._basetype = basetype(w_value)            
+        resInfo._eltypeOrType = eltypeOrType(w_value)            
         sigValues = signalResultValues(result.t, result.w_invariant, resInfo, result; name=name)  
     elseif resInfo.kind == RESULT_W_SEGMENTED
         sigValues = signalResultValues(result.t, result.w_segmented, resInfo, result; name=name)
@@ -237,9 +257,9 @@ function SignalTables.getSignalInfo(m::SimulationModel, name::String)
         end
         sigUnit = unitAsParseableString(sigValue)   
         if sigUnit == ""
-            signalInfo = Par(_basetype = basetype(sigValue))
+            signalInfo = Par(_eltypeOrType = eltypeOrType(sigValue))
         else
-            signalInfo = Par(_basetype = basetype( ustrip.(sigValue) ), unit=sigUnit)
+            signalInfo = Par(_eltypeOrType = eltypeOrType( ustrip.(sigValue) ), unit=sigUnit)
         end
         _size = nothing
         size_available = false      
@@ -270,7 +290,7 @@ function SignalTables.getSignalInfo(result::Result, name::String)
         signalInfo = copy(resInfo.signal)
         delete!(signalInfo, :values)
         signalValues = resInfo.signal[:values]
-        signalInfo[:_basetype] = basetype(signalValues)
+        signalInfo[:_eltypeOrType] = eltypeOrType(signalValues)
         signalInfo[:_size]     = size(signalValues)
         return signalInfo
     end

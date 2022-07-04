@@ -184,9 +184,9 @@ mutable struct SimulationOptions{FloatType,TimeType}
         rawStopTime = get(kwargs, :stopTime, startTime)
         stopTime    = convertTimeVariable(TimeType, rawStopTime)
         interval    = convertTimeVariable(TimeType, get(kwargs, :interval , (stopTime - startTime)/500.0) )
-        dtmax       = get(kwargs, :dtmax, 100*getValue(interval))
+        dtmax       = get(kwargs, :dtmax, 100*getValueOnly(interval))
         if ismissing(dtmax) || isnothing(dtmax)
-            dtmax = 100*getValue(interval)
+            dtmax = 100*getValueOnly(interval)
         end
         dtmax = convert(Float64, dtmax)
         desiredResultTimeUnit = unit(rawStopTime)
@@ -1676,7 +1676,7 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
         new_result_info = false
         x_info = result.info[x_name]
         @assert(x_info.kind == RESULT_X)
-        @assert(basetype(startOrInit) == FloatType)
+        @assert(eltypeOrType(startOrInit) == FloatType)
         @assert(length( x_info.id[end].dims ) == ndims(startOrInit))   # Number of dimensions cannot change
         #if typeof(startOrInit) <: Number
         #    @assert(xi_info.scalar)
@@ -1713,10 +1713,17 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
         # after function initialStateVector!(...) was called.
         t_unit = get(result.info[result.timeName].signal, :unit, "")
         der_x_unit = x_unit == "" ? SignalTables.unitAsParseableString(unit(1/uparse(t_unit))) : SignalTables.unitAsParseableString(unit(uparse(x_unit)/uparse(t_unit)))
-        x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
-        
-        result.info[x_name]     = ResultInfo(RESULT_X    , x_var, FloatType) 
-        result.info[der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
+        if x_unit == ""
+            x_var = Var(start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)        
+        else
+            x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+        end
+        result.info[x_name]     = ResultInfo(RESULT_X, x_var, FloatType) 
+        if der_x_unit == ""
+            result.info[der_x_name] = ResultInfo(RESULT_DER_X, Var(), FloatType)        
+        else
+            result.info[der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
+        end
     end 
     return x_segmented_startIndex
 end
@@ -1765,7 +1772,7 @@ function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented
         else
             signal = Var(unit=unit)
         end            
-        result.info[name] = ResultInfo(RESULT_W_SEGMENTED, signal, ValuesID(m.nsegments, w_index, w_size), basetype(w_segmented_default))
+        result.info[name] = ResultInfo(RESULT_W_SEGMENTED, signal, ValuesID(m.nsegments, w_index, w_size), eltypeOrType(w_segmented_default))
     end
     #println("new_w_segmented_variable: w_segmented_temp = ", result.w_segmented_temp)
     return w_index
@@ -2012,7 +2019,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
     end
 
     # Generate code of the function
-    # temporarily removed: _m.time = $TimeType(Modia.getValue(_time))
+    # temporarily removed: _m.time = $TimeType(Modia.getValueOnly(_time))
     code = quote
                 function $functionName(_x, _m::Modia.SimulationModel{$FloatType,$TimeType}, _time::$TimeType)::Nothing
                     _FloatType = $FloatType

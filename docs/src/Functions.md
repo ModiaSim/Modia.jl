@@ -60,7 +60,10 @@ showEvaluatedParameters
 CurrentModule = Modia
 ```
 
-The simulation result of a model `instantiatedModel` supports the functions of
+The simulation result of a model `instantiatedModel` are provided as *signal table*
+(see [SignalTables.jl]()).
+Therefore, all functions[SignalTables.jl functions] can be used.
+These functions
 [ModiaResult](https://modiasim.github.io/ModiaResult.jl/stable/Functions.html) and
 exports them, so the functions can be accessed without prefixing them with `Modia`.
 

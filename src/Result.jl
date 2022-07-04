@@ -72,12 +72,12 @@ mutable struct ResultInfo
     aliasName::String                # Name of non-eliminated variable
     aliasNegate::Bool                # = true, if info[aliasName] signal must be negated  
     id::Vector{ValuesID}             # Location of the variable values with respect to ResultKind and Result
-    _basetype                        # If known, basetype(signal.values/.values); if not known: Nothing
+    _eltypeOrType                        # If known, eltypeOrType(signal.values/.values); if not known: Nothing
     value::Any                       # Value of constant variable (without unit)    
 
-    ResultInfo(kind::ResultKind, signal, _basetype)                                       = new(kind             , signal, ""       , false      , ValuesID[]  , _basetype, nothing)  
-    ResultInfo(kind::ResultKind, signal, id::ValuesID, _basetype)                         = new(kind             , signal, ""       , false      , ValuesID[id], _basetype, nothing)     
-    ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[]  , basetype(value), value)    
+    ResultInfo(kind::ResultKind, signal, _eltypeOrType)                                       = new(kind             , signal, ""       , false      , ValuesID[]  , _eltypeOrType, nothing)  
+    ResultInfo(kind::ResultKind, signal, id::ValuesID, _eltypeOrType)                         = new(kind             , signal, ""       , false      , ValuesID[id], _eltypeOrType, nothing)     
+    ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[]  , eltypeOrType(value), value)    
     ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Bool) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate, ValuesID[], Nothing, nothing)
 end
 
@@ -130,15 +130,23 @@ mutable struct Result{FloatType,TimeType}
             @assert(!haskey(info, xi_info.der_x_name))
             x_unit     = xi_info.unit
             der_x_unit = x_unit == "" ? "1/s" : unitAsParseableString(uparse(x_unit)/u"s")
-            x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+            if x_unit == ""
+                x_var = Var(start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+            else
+                x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+            end
             if !isnan(xi_info.nominal)
                 x_var[:nominal] = xi_info.nominal
             end
             if xi_info.unbounded
                 x_var[:unbounded] = true
             end
-            info[xi_info.x_name]     = ResultInfo(RESULT_X    , x_var, FloatType)
-            info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
+            info[xi_info.x_name]     = ResultInfo(RESULT_X, x_var, FloatType)
+            if der_x_unit == ""
+                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(), FloatType)            
+            else
+                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
+            end
         end
         
         # Fill info with w_invariant
@@ -214,12 +222,12 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
     id = resultInfo.id
     @assert(length(id) > 0)    
     inlineValues = resultInfo.kind == RESULT_X || resultInfo.kind == RESULT_DER_X
-    _basetype    = resultInfo._basetype
+    _eltypeOrType    = resultInfo._eltypeOrType
     ndims_s      = length(id[1].dims)
     if id[1].segment == -1 && ndims_s == 0
         # Scalar signal that is defined in every segment
         index = id[1].index
-        sc = _basetype[ustrip.(ti[index]) for sk in s for ti in sk]
+        sc = _eltypeOrType[ustrip.(ti[index]) for sk in s for ti in sk]
         
     else
         # Find largest dims = dimsMax in all segments
@@ -248,10 +256,10 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
         dims  = (dims1, dimsMax...)
         if hasMissing
             # Allocate target memory with missing values
-            sc = Array{Union{_basetype,Missing}, length(dims)}(missing, dims)
+            sc = Array{Union{_eltypeOrType,Missing}, length(dims)}(missing, dims)
         else
             # Allocate target memory with undef values
-            sc = Array{_basetype, length(dims)}(undef, dims)
+            sc = Array{_eltypeOrType, length(dims)}(undef, dims)
         end
         
         # Copy subset of s-values to target sc      

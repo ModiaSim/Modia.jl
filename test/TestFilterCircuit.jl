@@ -28,7 +28,7 @@ showInfo(filterCircuit)
 
 # Test access functions  
 @testset "Test variable access functions (TestFilterCircuit.jl)" begin  
-    currentNames  = signalNames(filterCircuit, par=false)
+    currentNames  = getSignalNames(filterCircuit, par=false)
     requiredNames = String["C.i", "C.n.i", "C.n.v", "C.p.i", "C.p.v", "C.v", "R.i", "R.n.i", "R.n.v", "R.p.i", "R.p.v", "R.v", "V.i", "V.n.i", "V.n.v", "V.p.i", "V.p.v", "V.v", "C.der(v)", "ground.p.i", "ground.p.v", "time"]
     @test sort!(currentNames) == sort!(requiredNames)
 
