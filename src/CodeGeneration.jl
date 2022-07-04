@@ -1685,7 +1685,7 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
         #else
         #    error("new_x_segmented_variable(.. $x_name, $der_x_name, startOrInit,...): typeof(startOrInit) is neither a Number nor an AbstractVector)")
         #end
-        @assert(x_info.signal[:unit] == x_unit)
+        @assert(get(x_info.signal,:unit,"") == x_unit)
         @assert(haskey(result.info, der_x_name)) 
         der_x_info = result.info[der_x_name]      
         @assert(der_x_info.kind == RESULT_DER_X)
