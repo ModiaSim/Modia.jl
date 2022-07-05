@@ -797,7 +797,7 @@ uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 deps = ["DataFrames", "JSON", "OrderedCollections", "Pkg", "Tables", "Test", "Unitful"]
 git-tree-sha1 = "b8f0cd15fe115b38eae285d9b23386e848fc7c6b"
 uuid = "3201582d-3078-4276-ba5d-0a1254d79d7c"
-version = "0.3.3"
+version = "0.3.4"
 
 [[deps.SimpleTraits]]
 deps = ["InteractiveUtils", "MacroTools"]
