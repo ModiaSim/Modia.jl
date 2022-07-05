@@ -498,6 +498,11 @@ SimulationModel{MonteCarloMeasurements.StaticParticles{T,N}}(args...; kwargs...)
 
 timeType(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType} = TimeType
 
+# The following rule is important for DiffEqBase version 6.91.6 and later
+# (https://github.com/SciML/DiffEqBase.jl/issues/791)
+if Base.isdefined(DiffEqBase, :anyeltypedual)
+    DiffEqBase.anyeltypedual(::SimulationModel) = Any
+end
 
 positive(m::SimulationModel, args...; kwargs...) = Modia.positive!(m.eventHandler, args...; kwargs...)
 negative(m::SimulationModel, args...; kwargs...) = Modia.negative!(m.eventHandler, args...; kwargs...)
