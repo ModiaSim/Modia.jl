@@ -50,7 +50,7 @@ println("\n... Numeric linearization with Float64")
 println(IOContext(stdout, :error_digits=>15), "A2 = ", A2, ", x2 = ", x2)
 
 #= DoubleFloats not defined
-using Test
+using Modia.Test
 println("\n... Numeric linearization with Double64")
 using DoubleFloats
 twoInertiasAndIdealGear2 = SimulationModel{Measurement{Double64}}(twoInertiasAndIdealGear)

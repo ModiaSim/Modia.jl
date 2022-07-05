@@ -4,27 +4,29 @@ import Modia.Test
 Test.@testset "Test basic functionality" begin
     include("TestVariables.jl")
     include("TestFirstOrder.jl")
-    include("TestFirstOrder2.jl")
-    include("TestSource.jl")
+#   include("TestFirstOrder2.jl")
+#    include("TestSource.jl")
     include("TestLinearEquations.jl")
     include("TestStateSelection.jl")
     include("TestFilterCircuit.jl")
+    
     include("TestFilterCircuit2.jl")
-    include("TestArrays.jl")    
+    include("TestArrays.jl")
+    include("TestLinearSystems.jl")
 end
 
 
 Test.@testset "Test units, uncertainties" begin
-    include("TestUnitAsString.jl")    
+    include("TestUnitAsString.jl")
     include("TestUnits.jl")
     include("TestUncertainties.jl")
     include("TestUnitsAndUncertainties.jl")
-    include("TestTwoInertiasAndIdealGear.jl")   
-    include("TestTwoInertiasAndIdealGearWithUnits.jl")   
-    include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")   
-    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")   
-    include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl") 
-    include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")    
+    include("TestTwoInertiasAndIdealGear.jl")
+    include("TestTwoInertiasAndIdealGearWithUnits.jl")
+    include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")
+    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
+    include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")
+    include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")
 end
 
 
@@ -52,7 +54,7 @@ Test.@testset "Test multi returning functions" begin
     include("TestMultiReturningFunction5A.jl")
     include("TestMultiReturningFunction6.jl")
     include("TestMultiReturningFunction7A.jl")
-    include("TestMultiReturningFunction10.jl")    
+    include("TestMultiReturningFunction10.jl")
 end
 
 include("../examples/runexamples.jl")

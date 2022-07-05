@@ -10,10 +10,7 @@ can be defined, simulated and plotted with the following commands:
 
 ```julia
 using Modia       # reexports exported symbols from
-                  # DifferentialEquations and from Unitful
-@usingModiaPlot   # Use plot package defined with
-                  # ENV["MODIA_PLOT"] or usePlotPackage(..)
-
+                  # DifferentialEquations, Unitful, SignalTables
 
 # Define model
 SimpleModel = Model(
@@ -32,6 +29,9 @@ simulate!(simpleModel, stopTime = 1.2)
 simulate!(simpleModel, Tsit5(), stopTime = 1.2u"s")
 
 # Produce a line plot
+@usingPlotPackage   # Use plot package defined with
+                    # ENV["SignalTablesPlotPackage"] = "PyPlot" or with 
+                    # usePlotPackage("PyPlot")
 plot(simpleModel, ("x", "der(x)"))
 ```
 
@@ -56,11 +56,11 @@ Integrator `Tsit5` is an [adaptive Runge-Kutta method of order 5/4 from Tsitoura
 Function call `plot(..)` produces a line plot. Variables to be plotted
 are defined as tuples or arrays of variable names. Tuples are displayed in one diagram. A Vector or
 matrix of tuples or strings are displayed as vector or matrix of diagrams.
-When `ENV["MODIA_PLOT"] = "GLMakie"` is set, then command `plot(..)` produces the following image
+When `ENV["SignalTablesPlotPackage"] = "GLMakie"` is set, then command `plot(..)` produces the following image
 
 ![SimpleModel Plot](../../resources/images/SimpleModel_GLMakie.png)
 
-When `ENV["MODIA_PLOT"] = "PyPlot"` is set, the following image is produced:
+When `ENV["SignalTablesPlotPackage"] = "PyPlot"` is set, the following image is produced:
 
 ![SimpleModel Plot](../../resources/images/SimpleModel_PyPlot.png)
 

@@ -1,4 +1,4 @@
-using Documenter, Modia, Modia.ModiaResult, ModiaPlot_PyPlot
+using Documenter, Modia, SignalTables, SignalTablesInterface_PyPlot
 
 makedocs(
   #modules  = [Modia],

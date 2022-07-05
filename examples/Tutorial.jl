@@ -3,7 +3,6 @@ module Tutorial
 # 1 Getting started
 
 using Modia
-@usingModiaPlot
 
 # Define model
 SimpleModel = Model(
@@ -21,7 +20,8 @@ simulate!(simpleModel, stopTime = 1.2)
 # Simulate with a specific integrator (Tsit5) and use a unit for stopTime
 simulate!(simpleModel, Tsit5(), stopTime = 1.2u"s")
 
-# Produce a line plot with GLMakie
+# Produce a line plot
+@usingPlotPackage
 plot(simpleModel, ("x", "der(x)"), figure=1)
 
 

@@ -3,7 +3,7 @@
 """
 module TestLinearEquations
 
-using Test
+using Modia.Test
 using Modia
 using Modia.TimerOutputs
 

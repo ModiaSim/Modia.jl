@@ -15,8 +15,8 @@ FirstOrder = Model(
 
 firstOrder = @instantiateModel(FirstOrder, logCode=false)
 
-simulate!(firstOrder, Tsit5(), stopTime = 10, log=false, requiredFinalStates = [-0.3617373025974107])
+simulate!(firstOrder, Tsit5(), stopTime = 10, log=true, requiredFinalStates = [-0.3617373025974107])
 
-plot(firstOrder, ["u", "x", "der(x)", "y"])
+plot(firstOrder, ["u", "x", "der(x)", "y", "T"])
 
 end

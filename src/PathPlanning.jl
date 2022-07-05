@@ -356,15 +356,16 @@ end
 
 """
     getPath(path;
-            names=path.names, tend=1.1*path.Tend, ntime=101)
+            names=path.names, tend=1.1*path.Tend, ntime=101, onlyPositions=false)
 
-Given a `path::PTP_path`, return a dictionary with the time series
+Given a `path::PTP_path`, return a SignalTables.SignalTable with the time series
 of the path over `time` up to `tend` for all `ntime` time points.
 """
 function getPath(path::PTP_path{FloatType}; names=path.names, 
                  ntime=101, tend = 1.1*path.Tend, onlyPositions=false) where {FloatType}
     tend = convertTimeVariable(FloatType, tend)                
-    time = range(convert(FloatType,0)u"s",(tend)u"s",length=ntime)
+    tvec = range(0.0, tend, length=ntime)
+    @show tvec
     indices = indexin(names, path.names)
     names2  = deepcopy(names)
     for i in eachindex(indices)
@@ -376,40 +377,39 @@ function getPath(path::PTP_path{FloatType}; names=path.names,
     end
 
     np   = length(indices)
-    q    = zeros(FloatType,length(time), np)
+    q    = zeros(FloatType,length(tvec), np)
     qt   = zeros(FloatType,length(path.names))
 
-    series = OrderedDict{AbstractString,Any}()
-    series["time"] = time
+    series = SignalTable("time" => Var(values=tvec, unit="s", independent=true))
 
     if onlyPositions
-        for i in eachindex(time)
-            getPosition!(path, time[i], qt)
+        for i in eachindex(tvec)
+            getPosition!(path, tvec[i], qt)
             q[i,:] = qt[indices]
         end
 
         for i in eachindex(names2)
-            series[names2[i]] = q[:,i]
+            series[names2[i]] = Var(values = q[:,i])
         end
         
     else
         der_names2  = "der(" .* names2 .* ")"
         der2_names2 = "der2(" .* names2 .* ")"
-        qd   = zeros(FloatType,length(time), np)
-        qdd  = zeros(FloatType,length(time), np)
+        qd   = zeros(FloatType,length(tvec), np)
+        qdd  = zeros(FloatType,length(tvec), np)
         qtd  = zeros(FloatType,length(path.names))
         qtdd = zeros(FloatType,length(path.names))
-        for i in eachindex(time)
-            getPosition!(path, stripUnit(time[i]), qt, qtd, qtdd)
+        for i in eachindex(tvec)
+            getPosition!(path, stripUnit(tvec[i]), qt, qtd, qtdd)
             q[i,:]   = qt[indices]
             qd[i,:]  = qtd[indices]
             qdd[i,:] = qtdd[indices]
         end
 
         for i in eachindex(names2)
-            series[names2[i]]      = q[:,i]
-            series[der_names2[i]]  = qd[:,i]
-            series[der2_names2[i]] = qdd[:,i]
+            series[names2[i]]      = Var(values = q[:,i])
+            series[der_names2[i]]  = Var(values = qd[:,i])
+            series[der2_names2[i]] = Var(values = qdd[:,i])
         end
     end
 
@@ -458,45 +458,13 @@ function plotPath(path::PTP_path{FloatType}, plot::Function; names=path.names, h
         end
     end
 
-    np   = length(indices)
-    q    = zeros(FloatType, length(time), np)
-    qt   = zeros(FloatType, length(path.names))
-
-    series = Dict{AbstractString,Any}()
-    series["time"] = time
-
+    pathSignalTable = getPath(path; names=names, tend=tend, ntime=ntime, onlyPositions=onlyPositions)
     if onlyPositions
-        for i in eachindex(time)
-            getPosition!(path, time[i], qt)
-            q[i,:] = qt[indices]
-        end
-
-        for i in eachindex(names2)
-            series[names2[i]] = q[:,i]
-        end
-
-        plot(series, Tuple(names2), heading=heading, figure=figure)
+        plot(pathSignalTable, Tuple(names2), heading=heading, figure=figure)
     else
         der_names2  = "der(" .* names2 .* ")"
         der2_names2 = "der2(" .* names2 .* ")"
-        qd   = zeros(FloatType, length(time), np)
-        qdd  = zeros(FloatType, length(time), np)
-        qtd  = zeros(FloatType, length(path.names))
-        qtdd = zeros(FloatType, length(path.names))
-        for i in eachindex(time)
-            getPosition!(path, time[i], qt, qtd, qtdd)
-            q[i,:]   = qt[indices]
-            qd[i,:]  = qtd[indices]
-            qdd[i,:] = qtdd[indices]
-        end
-
-        for i in eachindex(names2)
-            series[names2[i]]      = q[:,i]
-            series[der_names2[i]]  = qd[:,i]
-            series[der2_names2[i]] = qdd[:,i]
-        end
-
-        plot(series, [Tuple(names2), Tuple(der_names2), Tuple(der2_names2)],
+        plot(pathSignalTable, [Tuple(names2), Tuple(der_names2), Tuple(der2_names2)],
              heading=heading, figure=figure)
     end
 

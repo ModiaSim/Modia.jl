@@ -2,7 +2,7 @@ module TestTwoInertiasAndIdealGear
 
 using Modia
 @usingModiaPlot
-using Test
+using Modia.Test
 
 TwoInertiasAndIdealGearTooManyInits = Model(
     J1 = 0.0025,

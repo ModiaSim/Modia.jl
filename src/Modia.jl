@@ -9,8 +9,8 @@ Main module of Modia.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.8.2"
-const Date = "2022-03-08"
+const Version = "0.9.0"
+const Date = "2022-07-05"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -36,8 +36,62 @@ experimentalTranslation = false
 
 using Reexport
 
+@reexport using SignalTables            # export SignalTables symbols
 @reexport using Unitful                 # export Unitful symbols
 @reexport using DifferentialEquations   # export DifferentialEquations symbols
+import SignalTables: AvailablePlotPackages
+
+"""
+    Deprecated: @usingModiaPlot()
+
+Use instead @usingPlotPackage or SignalTables.@usingPlotPackage
+"""
+macro usingModiaPlot()
+    if haskey(ENV, "SignalTablesPlotPackage")
+        PlotPackage = ENV["SignalTablesPlotPackage"]
+        if !(PlotPackage in AvailablePlotPackages)
+            @info "ENV[\"SignalTablesPlotPackage\"] = \"$PlotPackage\" is not supported!. Using \"SilentNoPlot\"."
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "NoPlot"
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "SilentNoPlot"
+            expr = :( import SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            return esc( expr )
+        else
+            PlotPackage = Symbol("SignalTablesInterface_" * PlotPackage)
+            expr = :(using $PlotPackage)
+            println("$expr")
+            return esc( :(using $PlotPackage) )
+        end
+
+    elseif haskey(ENV, "MODIA_PLOT_PACKAGE")
+        PlotPackage = ENV["MODIA_PLOT_PACKAGE"]
+        if !(PlotPackage in AvailablePlotPackages)
+            @info "ENV[\"MODIA_PLOT_PACKAGE\"] = \"$PlotPackage\" is not supported!. Using \"SilentNoPlot\"."
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "NoPlot"
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "SilentNoPlot"
+            expr = :( import SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            return esc( expr )
+        else
+            PlotPackage = Symbol("SignalTablesInterface_" * PlotPackage)
+            expr = :(using $PlotPackage)
+            println("$expr")
+            return esc( :(using $PlotPackage) )
+        end
+
+    else
+        @info "No plot package activated. Using \"SilentNoPlot\"."
+        @goto USE_NO_PLOT
+    end
+
+    @label USE_NO_PLOT
+    expr = :( using SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+    println("$expr")
+    return esc( expr )
+end
+export @usingModiaPlot
 
 export ModiaBase
 export CVODE_BDF, IDA
@@ -45,11 +99,10 @@ export instantiateModel, @instantiateModel, assert, stringifyDefinition
 export stripUnit
 
 export simulate!, linearize!, get_result
-export @usingModiaPlot, usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-export resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
-export signalNames, timeSignalName, hasOneTimeSignal, hasSignal
+export hasParameter, getParameter, getEvaluatedParameter
+export showParameters, showEvaluatedParameters
 
-export SimulationModel, measurementToString, get_lastValue
+export SimulationModel, measurementToString, get_lastValue, getLastValue, getStateNames
 export positive, negative, previous, edge, after, reinit, pre
 export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames
@@ -63,6 +116,10 @@ const  CVODE_BDF = Sundials.CVODE_BDF
 const  IDA = Sundials.IDA
 
 
+# Deprecated functions - only provided for backwards compatibility
+export signalNames, timeSignalName, hasOneTimeSignal, printResultInfo
+
+
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
 
@@ -72,11 +129,6 @@ using ModiaBase.Simplify
 using ModiaBase.BLTandPantelidesUtilities
 using ModiaBase.BLTandPantelides
 using ModiaBase.Differentiate
-
-import ModiaResult
-import ModiaResult: usePlotPackage, usePreviousPlotPackage, currentPlotPackage
-import ModiaResult: resultInfo, printResultInfo, rawSignal, getPlotSignal, defaultHeading
-import ModiaResult: signalNames, timeSignalName, hasOneTimeSignal, hasSignal
 
 import StaticArrays   # Make StaticArrays available for the tests
 
@@ -110,66 +162,26 @@ The function is defined as: `stripUnit(v) = ustrip.(upreferred.(v))`.
 """
 stripUnit(v) = ustrip.(upreferred.(v))
 
-
 """
-     str = unitAsString( unitOfQuantity::Unitful.FreeUnits )
+    str = modelPathAsString(modelPath::Union{Expr,Symbol,Nothing})
 
-Return a string representation of the unit of a quantity that can be used in a unit string macro
-(see also Unitful [issue 412](https://github.com/PainterQubits/Unitful.jl/issues/412)).
-
-# Example
-```
-v1 = 2.0u"m/s"
-v1_unit = unitAsString( unit(v1) )   # = "m*s^-1"
-v2_withoutUnit = 2.0
-code = :( \$v2_withoutUnit@u_str(\$v1_unit) )  # = 2.0u"m*s^-1"
-v2 = eval(code)
-@show v1
-@show v1_unit
-@show v2
-```
-
-# Notes
-Transforms unit to string representation that is parseable again 
-(see also Unitful [issue 412](https://github.com/PainterQubits/Unitful.jl/issues/412)).
-This implementation is a hack and only works in common cases.
-Implementation is performed in the following way:
-
-1. Transform to string and display exponents on units not as Unicode superscripts (= default on macOS).
-2. Replace " " by "*", since Unitful removes "*" when converting to string.
+Return modelPath of submodel as string.
 """
-unitAsString(unitOfQuantity::Unitful.FreeUnits) = replace(repr(unitOfQuantity,context = Pair(:fancy_exponent,false)), " " => "*")
-
-"""
-    quantityType = quantity(numberType, numberUnit::Unitful.FreeUnits)
-    
-Return the quantity type given the numberType and the numberUnit.
-
-# Example
-```julia
-mutable struct Data{FloatType <: AbstractFloat}
-    velocity::quantity(FloatType, u"m/s")
-end
-
-v = Data{Float64}(2.0u"mm/s")
-@show v                         # v = 
-```
-"""
-quantity(numberType, numberUnit::Unitful.FreeUnits) = Quantity{numberType, dimension(numberUnit), typeof(numberUnit)} 
-
-quantityTypes(::Type{Unitful.Quantity{T,D,U}}) where {T,D,U} = (T,D,U)
-
+modelPathAsString(modelPath::Union{Expr,Symbol,Nothing}) = isnothing(modelPath) ? "" : string(modelPath)
 
 include("EquationAndStateInfo.jl")
+include("Result.jl")
 include("StateSelection.jl")
 
 include("ModelCollections.jl")
-include("EvaluateParameters.jl")
 include("EventHandler.jl")
 include("CodeGeneration.jl")
+include("EvaluateParameters.jl")
+
 # include("GenerateGetDerivatives.jl")
 include("Synchronous.jl")
 include("SimulateAndPlot.jl")
+include("SignalTablesInterface.jl")
 include("ReverseDiffInterface.jl")
 include("PathPlanning.jl")
 include("JSONModel.jl")

@@ -15,7 +15,7 @@ LinearODE = Model(
 
 linearODE = @instantiateModel(LinearODE, logCode=true)
 simulate!(linearODE, stopTime = 2, log=false, logStates=false, requiredFinalStates=[0.13533533463680386, 0.036632273646086545])
-plot(linearODE, ["x", "der(x)"], figure=1, heading="LinearODE with length(x)=2")
+plot(linearODE, ["x", "der(x)", "A"], figure=1, heading="LinearODE with length(x)=2")
 
 simulate!(linearODE, stopTime = 2, log=false, logStates=false, requiredFinalStates=[0.14886882881582736, 0.038462894626776434, 0.00768439894426358], 
             merge = Map(A = [-1.0  0.0  0.0;

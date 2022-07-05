@@ -15,7 +15,7 @@ const ptp_path = PTP_path(["angle1", "angle2", "angle3"],
 angles = zeros(3)
 getPosition!(ptp_path, 0.5, angles)   # angles = [0.12, 2.24, 3.24]
 path = getPath(ptp_path)
-printResultInfo(path)
+showInfo(path)
 
 plot(path, [("angle1", "angle2", "angle3"),
             ("der(angle1)", "der(angle2)", "der(angle3)"),
@@ -38,7 +38,7 @@ const ptp_path2 = PTP_path{Measurement{Float64}}(
 angles = zeros(Measurement{Float64}, 3)
 getPosition!(ptp_path2, nom(0.5), angles)   # angles = [0.12, 2.24, 3.24]
 path2 = getPath(ptp_path2)
-printResultInfo(path2)
+showInfo(path2)
 
 plot(path2, [("angle1", "angle2", "angle3"),
              ("der(angle1)", "der(angle2)", "der(angle3)"),

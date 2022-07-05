@@ -25,50 +25,83 @@ simulate!
 linearize!
 ```
 
-
-## Results and Plotting
-
-The simulation result of a model `instantiatedModel` supports the abstract interface
-[ModiaResult](https://modiasim.github.io/ModiaResult.jl/stable/index.html) and
-exports them, so the functions can be accessed without prefixing them with `Modia`.
-The following functions are provided (for details see 
-[Functions of ModiaResult](https://modiasim.github.io/ModiaResult.jl/stable/Functions.html#Functions-of-ModiaResult)):
+## Parameters/Init/Start
 
 ```@meta
 CurrentModule = Modia
 ```
 
-| Functions                        | Description                                       |
-|:---------------------------------|:--------------------------------------------------|
-| `@usingModiaPlot`        | Expands into `using ModiaPlot_<PlotPackageName>`          |
-| `usePlotPackage`         | Define the plot package to be used.                       |
-| `usePreviousPlotPackage` | Define the previously defined plot package to be used.    |
-| `currentPlotPackage`     | Return name defined with `usePlotPackage`                 |
-| `resultInfo`             | Return info about the result as [DataFrame](https://github.com/JuliaData/DataFrames.jl) table            |
-| `printResultInfo`        | Print info of the result on stdout.                       |
-| `rawSignal`              | Return raw signal data given the signal name.             |
-| `getPlotSignal`          | Return signal data prepared for a plot package.           |
-| `defaultHeading`         | Return default heading of a result.                       |
-| `signalNames`            | Return all signal names.                                  |
-| `timeSignalName`         | Return the name of the time signal.                       |
-| `hasOneTimeSignal`       | Return true if one time signal present.                   |
-| `hasSignal`              | Return true if a signal name is known.                    |
+The following functions are provided to inquire values of *parameters* and of
+*init/start* values before and after *evaluation*:
+
+| Functions                         | Description                                             |
+|:----------------------------------|:--------------------------------------------------------|
+| [`hasParameter`](@ref)            | Return true, if a parameter/init/start name is known    |
+| [`getParameter`](@ref)            | Return value of a parameter/init/start name             |
+| [`getEvaluatedParameter`](@ref)   | Return value of an evaluated parameter/init/start name  |
+| [`getLastValue`](@ref)            | Return last available value of a variable name          |
+| [`showParameters`](@ref)          | Print the parameters and the init/start values          |
+| [`showEvaluatedParameters`](@ref) | Print the evaluated parameters and init/start values    |
 
 
-The following functions are available after `ENV["MODIA_PLOT"] = XXX` or
-`@usingModiaPlot(XXX)` have been executed
-(for details see 
-[Functions of Plot Package](https://modiasim.github.io/ModiaResult.jl/stable/Functions.html#Functions-of-Plot-Package)):
+```@docs
+hasParameter
+getParameter
+getEvaluatedParameter
+getLastValue
+showParameters
+showEvaluatedParameters
+```
 
 
-| Functions          | Description                                               |
-|:-------------------|:----------------------------------------------------------|
-| `plot`             | Plot simulation results in multiple diagrams/figures.     |
-| `saveFigure`       | Save figure in different formats on file.                 |
-| `closeFigure`      | Close one figure                                          |
-| `closeAllFigures`  | Close all figures                                         |
-| `showFigure`       | Show figure in window (only GLMakie, WGLMakie)            |
+## Results and Plotting
 
+```@meta
+CurrentModule = Modia
+```
+
+The simulation result of a model `instantiatedModel` are provided as a *signal table*, 
+see [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl).
+
+Therefore, all [signal table functions](https://modiasim.github.io/SignalTables.jl/stable/Functions/OverviewOfFunctions.html)
+can be used on a simulated model, for example:
+
+```
+using Modia
+
+FirstOrder = Model(
+    T = 0.2u"s",
+    x = Var(init=0.3),
+    equations = :[u = sin(time/u"s")
+                  T * der(x) + x = u
+                  y = 2*x]
+)
+simulate!(firstOrder, stopTime=10)
+showInfo(firstOrder)    # list info about the result
+t = getValues(firstOrder, "time")  
+y = getValues(firstOrder, "y")      # use any plot program: plot(t,y)
+
+# Write result on file
+writeSignalTable("firstOrder.json", firstOrder, indent=2, log=true) 
+```
+
+See the generated [json-file](../resources/fileio/firstOrder.json).
+
+For plotting, a plot package must be installed, e.g.,
+
+```julia
+julia> ]add SignalTablesInterface_PyPlot        # if plotting with PyPlot desired
+        add SignalTablesInterface_GLMakie       # if plotting with GLMakie desired
+        add SignalTablesInterface_WGLMakie      # if plotting with WGLMakie desired
+        add SignalTablesInterface_CairoMakie    # if plotting with CairoMakie desired
+```
+
+In a model, the desired plot package is defined with:
+
+```julia
+using Modia
+usePlotPackage("PyPlot")    # or ENV["SignalTablesPlotPackage"] = "PyPlot"
+```
 
 A Modia variable `a.b.c` is identified by a String key `"a.b.c"`.
 The legends/labels of the plots are automatically constructed by the
@@ -76,9 +109,9 @@ names and units of the variables. Example:
 
 ```julia
 using Modia
-@usingModiaPlot
+@usingPlotPackage   # execute `using SignalTablesInterface_XXX`
 
-instantiatedModel = @instantiatedModel(...)
+instantiatedModel = @instantiateModel(...)
 simulate!(instantiatedModel, ...)
 plot(instantiatedModel,
      [ ("phi", "r")        ("phi", "phi2", "w");
@@ -92,6 +125,10 @@ generates the following plot:
 
 
 ## PathPlanning
+
+```@meta
+CurrentModule = Modia
+```
 
 There are some pre-defined functions to define reference paths
 

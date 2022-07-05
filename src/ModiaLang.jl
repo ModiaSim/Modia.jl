@@ -30,6 +30,44 @@ function printArray(array, heading; order=1:length(array), log=false, number=tru
     end
 end
 
+
+"""
+    newName = moveDerToLeaf(name::String)::String
+
+Move `der(..)` to leaf name part.
+
+# Examples
+```
+moveDerToLeaf("a.b.c")                     # = "a.b.c"
+moveDerToLeaf("der(x)")                    # = "der(x)"
+moveDerToLeaf("der(der(x)")                # = "der(der(x))"
+moveDerToLeaf("der(a.x)")                  # = "a.der(x)"
+moveDerToLeaf("der(a.b.x)")                # = "a.b.der(x)"
+moveDerToLeaf("der(der(der(a.b.c.x)))")    # = "a.b.c.der(der(der(x)))"
+```
+"""
+function moveDerToLeaf(name::String)::String
+    if length(name) >= 4 && name[1:4] == "der(" && !isnothing(findfirst(".", name))
+        # name starts with der(..) and name has a dot (".")
+        i = 5
+        indexRange_old = 1:4
+        while true
+            indexRange = findnext("der(", name, i)
+            if isnothing(indexRange)
+                j1 = indexRange_old.stop
+                j2 = findlast(".", name).stop
+                newName = name[j1+1:j2] * name[1:j1] * name[j2+1:end]
+                return newName
+            end
+            i = indexRange[2]+1
+            indexRange_old = indexRange
+        end
+        @error("moveDerToLeaf($name): Error should not occur")
+    end
+    return name
+end
+
+
 function performConsistencyCheck(G, Avar, vActive, parameters, unknowns, states, equations, log=false)
     nUnknowns = length(unknowns) - length(states)
     nEquations = length(equations)
@@ -552,7 +590,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
         end
-        return unitAsString(un)
+        return SignalTables.unitAsParseableString(un)
     end
 
     function var_startInitFixed(v_original)
@@ -582,7 +620,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
 
     stateSelectionFunctions = StateSelectionFunctions(
-        var_name               = v -> stringVariables[v],
+        var_name               = v -> moveDerToLeaf(stringVariables[v]),
         var_julia_name         = v -> juliaVariables[v],
         var_unit               = var_unit,
         var_startInitFixed     = var_startInitFixed,
@@ -677,21 +715,22 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     holdVars = Symbol.(holdVars)
 
     # Variables added to result
-    extraResults = vcat(:time, setdiff([Symbol(u) for u in unknowns],
-                                       [Symbol(h) for h in hideResults],
-                                        Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
-                                        Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info]))
+    timeName = :time
+    w_invariant_names = setdiff([Symbol(u) for u in unknowns],
+                                [Symbol(h) for h in hideResults],
+                                Symbol[Symbol(xi_info.x_name_julia)     for xi_info in equationInfo.x_info],
+                                Symbol[Symbol(xi_info.der_x_name_julia) for xi_info in equationInfo.x_info])
 
     if true # logTiming
 #        println("Generate code")
         if useNewCodeGeneration
-            @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], vcat(:time, [Symbol(u) for u in unknowns]), previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivativesNew!" code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], timeName, w_invariant_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         else
-            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(FloatType, TimeType, AST, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+            @timeit to "generate_getDerivatives!" code = generate_getDerivatives!(FloatType, TimeType, AST, equationInfo, [:(_p)], timeName, w_invariant_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
         end
     else
-#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), extraResults, :getDerivatives, hasUnits = !unitless)
-        code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], extraResults, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
+#        code = generate_getDerivatives!(AST, equationInfo, Symbol.(keys(parameters)), timeName, w_invariant_names, :getDerivatives, hasUnits = !unitless)
+        code = generate_getDerivativesNew!(AST, newFunctions, modelModule, equationInfo, [:(_p)], timeName, w_invariant_names, previousVars, preVars, holdVars, :getDerivatives, hasUnits = !unitless)
     end
     if logCode
         #@show mappedParameters
@@ -723,12 +762,11 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 
 #    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
-     x_startValues = initialStateVector(equationInfo, FloatType)
 
 #    println("Build SimulationModel")
-
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, x_startValues, previousVars, preVars, holdVars,
-                                         mappedParameters, extraResults;
+    hideResult_names = [string(h) for h in hideResults]
+    model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
+                                         mappedParameters, timeName, w_invariant_names, hideResult_names;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
                                          nz=nCrossingFunctions, nAfter=nAfter,  unitless=unitless)
@@ -737,7 +775,6 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
     if logExecution
         println("\nExecute getDerivatives")
     #    @show startValues
-        #derx = deepcopy(x_startValues)     # deepcopy(convertedStartValues) # To get the same type as for x (deepcopy is needed for MonteCarloMeasurements)
         println("First executions of getDerivatives")
         @timeit to "execute getDerivatives" try
             #@time Base.invokelatest(getDerivatives, derx, x_startValues, model, convert(TimeType, 0.0))
@@ -892,7 +929,7 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         unitless=true
         printstyled("  @instantiateModel(...,unitless=true, ..) set automatically, because\n  FloatType=MonteCarloMeasurements often fails if units are involved.\n", color=:red)
     end
-    
+
     #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
         println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")

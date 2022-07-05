@@ -20,7 +20,7 @@ function addCastAndTypeCheckBasicValueType(ex, value, FloatType)
     # typeof(FloatType) is neither Measurements nor MonteCarloMeasurements
     T = baseType(FloatType)
     if isQuantity(typeof(value))
-        ustr = unitAsString(unit(value))
+        ustr = unitAsParseableString(unit(value))
         :( Modia.quantity($T, @u_str($ustr))($ex)::Modia.quantity($T, @u_str($ustr)) )                 
     else
         :( $T($ex)::$T )
@@ -59,7 +59,7 @@ function addCastAndTypeCheck(ex,value,FloatType)
             if FloatType <: Measurements.Measurement
                 if isMeasurements(valueType)               
                     if isQuantity(valueType)
-                        ustr = unitAsString(unit(value))
+                        ustr = unitAsParseableString(unit(value))
                         :( Modia.quantity(Modia.Measurements.Measurement{$T}, @u_str($ustr))($ex)::Modia.quantity(Modia.Measurements.Measurement{$T}, @u_str($ustr)) )                         
                     else
                         :( Modia.Measurements.Measurement{$T}($ex)::Modia.Measurements.Measurement{$T} )
