@@ -114,6 +114,10 @@ functionalities of these packages.
 - Function `getPath(path, ...)` does no longer return a dictionary but a [SignalTable](https://modiasim.github.io/SignalTables.jl/stable/Functions/SignalTables.html#SignalTables.SignalTable).
 
 
+### Version 0.8.4
+
+- Fix issue with DiffEqBase, version 6.91.6 and later.
+
 
 ### Version 0.8.3
 
