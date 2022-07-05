@@ -36,6 +36,10 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.8.4
+
+- Fix issue with DiffEqBase, version 6.91.6 and later.
+
 ### Version 0.8.3
 
 - Bug fix: Parameters that are Numbers, but not AbstractFloats, and have no unit defined, 
