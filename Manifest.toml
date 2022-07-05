@@ -142,9 +142,9 @@ uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "c096d0e321368ac23eb1be1ea405814f8b32adb3"
+git-tree-sha1 = "59d00b3139a9de4eb961057eabb65ac6522be954"
 uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-version = "1.3.1"
+version = "1.4.0"
 
 [[deps.CpuId]]
 deps = ["Markdown"]
@@ -794,10 +794,10 @@ deps = ["Distributed", "Mmap", "Random", "Serialization"]
 uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 
 [[deps.SignalTables]]
-deps = ["DataFrames", "OrderedCollections", "Pkg", "Test", "Unitful"]
-git-tree-sha1 = "7ba002d3fb8587dbcdcc44d9d2bd610ce68b26be"
+deps = ["DataFrames", "JSON", "OrderedCollections", "Pkg", "Tables", "Test", "Unitful"]
+git-tree-sha1 = "b8f0cd15fe115b38eae285d9b23386e848fc7c6b"
 uuid = "3201582d-3078-4276-ba5d-0a1254d79d7c"
-version = "0.2.0"
+version = "0.3.3"
 
 [[deps.SimpleTraits]]
 deps = ["InteractiveUtils", "MacroTools"]
@@ -826,9 +826,9 @@ version = "1.24.0"
 
 [[deps.SpecialFunctions]]
 deps = ["ChainRulesCore", "IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "a9e798cae4867e3a41cae2dd9eb60c047f1212db"
+git-tree-sha1 = "d75bda01f8c31ebb72df80a46c88b25d1c79c56d"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.1.6"
+version = "2.1.7"
 
 [[deps.Static]]
 deps = ["IfElse"]
@@ -975,9 +975,9 @@ version = "1.11.0"
 
 [[deps.VectorizationBase]]
 deps = ["ArrayInterface", "CPUSummary", "HostCPUFeatures", "IfElse", "LayoutPointers", "Libdl", "LinearAlgebra", "SIMDTypes", "Static"]
-git-tree-sha1 = "9d87c8c1d27dc20ba8be6bdca85d36556c371172"
+git-tree-sha1 = "39e55018bccc5a858217db32aa3d9e7decbefd0c"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
-version = "0.21.38"
+version = "0.21.40"
 
 [[deps.VertexSafeGraphs]]
 deps = ["Graphs"]
