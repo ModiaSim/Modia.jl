@@ -149,7 +149,7 @@ The returned arguments are typically numbers or arrays (see below).
 It is also possible to return an instance of a struct and, say,
 pass this instance as input to another function call.
 
-However, it is currently not supported that a function call modifies one of its arguments,
+It is currently not supported that a function call modifies one of its arguments,
 or that a function call returns no argument at all:
 
 ```
@@ -553,8 +553,6 @@ is constructed with these libraries in the following way:
 
 ```julia
 using Modia
-@usingModiaPlot
-
 include("$(Modia.modelsPath)/Electric.jl")
 
 FilterCircuit = Model(
@@ -571,6 +569,7 @@ FilterCircuit = Model(
 
 filterCircuit = @instantiateModel(FilterCircuit)
 simulate!(filterCircuit, Tsit5(), stopTime=10.0)
+@usingPlotPackage
 plot(filterCircuit, ["C.v", "C.i"], figure=3)
 ```
 

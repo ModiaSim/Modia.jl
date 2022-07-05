@@ -389,18 +389,11 @@ end
 - Second form: Return the **complete result** in form of a DataFrame object.
   Therefore, the whole functionality of package [DataFrames](https://dataframes.juliadata.org/stable/)
   can be used, including storing the result on file in different formats.
-  Furthermore, also plot can be used on dataFrame.
-  Parameters and zero-value variables are stored as SignalTables.OneValueVector inside dataFrame
-  (are treated as vectors, but actually only the value and the number
-  of time points is stored). If `onlyStates=true`, then only the states and the signals
+  Only scalar Var(..) variables are included in the DataFrame object.
+  If `onlyStates=true`, then only the states and the signals
   identified with `extraNames::Vector{String}` are stored in `dataFrame`.
   If `onlyStates=false` and `extraNames` given, then only the signals
   identified with `extraNames` are stored in `dataFrame`.
-  These keyword arguments are useful, if `dataFrame` shall be
-  utilized as reference result used in compareResults(..).
-
-In both cases, a **view** on the internal result memory is provided
-(so result data is not copied).
 
 # Example
 
@@ -437,85 +430,35 @@ reference = get_result(pendulum, onlyStates=true)
 println("Check results: success = $success")
 ```
 """
-function get_result(m::SimulationModel, name::AbstractString; unit=true)
-    #(xsig, xsigLegend, ysig, ysigLegend, yIsConstant) = SignalTables.getPlotSignal(m, "time", name)
-
-    #resIndex = m.variables[name]
-    #ysig = ResultView(m.result, abs(resIndex), resIndex < 0)
-
-    #if SignalTables.timeSignalName(m) != 1
-    if length(m.result.t) > 1
-        error("Error in Modia.get_result(\"$name\"), because function cannot be used for a segmented simulation with more as one segmented.")
-    end
-
-    (tsig2, ysig2, ysigType) = SignalTables.rawSignal(m, name)
-    ysig = ysig2[1]
-    ysig = unit ? ysig : stripUnit.(ysig)
-
-    #=
-    if yIsConstant
-        if ndims(ysig) == 1
-            ysig = fill(ysig[1], length(xsig))
-        else
-            ysig = fill(ysig[1,:], length(xsig))
-        end
-    end
-    =#
-
-    return ysig
-end
-
-
-function setEvaluatedParametersInDataFrame!(obj::OrderedDict{Symbol,Any}, result_info, dataFrame::DataFrames.DataFrame, path::String, nResult::Int)::Nothing
-    for (key,value) in zip(keys(obj), obj)
-        name = appendName(path, key)
-        if typeof(value) <: OrderedDict{Symbol,Any}
-            setEvaluatedParametersInDataFrame!(value, result_info, dataFrame, name, nResult)
-        elseif !haskey(result_info, name)
-            dataFrame[!,name] = SignalTables.OneValueVector(value,nResult)
-        end
-    end
-    return nothing
-end
-
+get_result(m::SimulationModel, name::AbstractString; unit=true) = unit ? getValuesWithUnit(m,name) : getValues(m,name)
 
 function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
-    error("get_result(instantiatedModel) is no longer supported")
-    
-    #=
-    if length(m.result.t) > 1
-        error("Error in Modia.get_result(...), because function cannot be used for a segmented simulation with more as one segmented.")
-    end
-
     dataFrame = DataFrames.DataFrame()
-
-    (timeSignal, signal, signalType) = SignalTables.rawSignal(m, "time")
-    dataFrame[!,"time"] = timeSignal[1]
+    dataFrame[!,"time"] = getValues(m, "time")
 
     if onlyStates || !ismissing(extraNames)
         if onlyStates
-            for name in keys(m.equationInfo.x_dict)
-                (timeSignal, signal, signalType) = SignalTables.rawSignal(m, name)
-                dataFrame[!,name] = signal[1]
+            for name in getStateNames(m)
+                dataFrame[!,name] = getValues(m, name)
             end
         end
         if !ismissing(extraNames)
             for name in extraNames
-                (timeSignal, signal, signalType) = SignalTables.rawSignal(m, name)
-                dataFrame[!,name] = signal[1]
+                dataFrame[!,name] = getValues(m, name)
             end
         end
 
     else
-        for name in keys(m.result.info)
+        for name in getSignalNames(m, par=false)
             if name != "time"
-                (timeSignal, signal, signalType) = SignalTables.rawSignal(m, name)
-                dataFrame[!,name] = signal[1]
+                dataFrame[!,name] = getValues(m,name)
             end
         end
-
-        setEvaluatedParametersInDataFrame!(m.evaluatedParameters, m.result.info, dataFrame, "", length(timeSignal[1]))
     end
     return dataFrame
-    =#
 end
+
+timeSignalName(  m::SimulationModel) = "time"
+hasOneTimeSignal(m::SimulationModel) = true
+signalNames(m::SimulationModel) = sort!( getSignalNames(m) )
+printResultInfo(m::SimulationModel) = showInfo(m)

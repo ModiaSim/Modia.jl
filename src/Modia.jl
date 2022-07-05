@@ -10,7 +10,7 @@ module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
 const Version = "0.9.0-dev"
-const Date = "2022-07-04"
+const Date = "2022-07-05"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -50,7 +50,24 @@ macro usingModiaPlot()
     if haskey(ENV, "SignalTablesPlotPackage")
         PlotPackage = ENV["SignalTablesPlotPackage"]
         if !(PlotPackage in AvailablePlotPackages)
-            @warn "ENV[\"SignalTablesPlotPackage\"] = \"$PlotPackage\" is not supported!. Using \"SilentNoPlot\"."
+            @info "ENV[\"SignalTablesPlotPackage\"] = \"$PlotPackage\" is not supported!. Using \"SilentNoPlot\"."
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "NoPlot"
+            @goto USE_NO_PLOT
+        elseif PlotPackage == "SilentNoPlot"
+            expr = :( import SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            return esc( expr )
+        else
+            PlotPackage = Symbol("SignalTablesInterface_" * PlotPackage)
+            expr = :(using $PlotPackage)
+            println("$expr")
+            return esc( :(using $PlotPackage) )
+        end
+
+    elseif haskey(ENV, "MODIA_PLOT_PACKAGE")
+        PlotPackage = ENV["MODIA_PLOT_PACKAGE"]
+        if !(PlotPackage in AvailablePlotPackages)
+            @info "ENV[\"MODIA_PLOT_PACKAGE\"] = \"$PlotPackage\" is not supported!. Using \"SilentNoPlot\"."
             @goto USE_NO_PLOT
         elseif PlotPackage == "NoPlot"
             @goto USE_NO_PLOT
@@ -65,7 +82,7 @@ macro usingModiaPlot()
         end
 
     else
-        @warn "No plot package activated. Using \"SilentNoPlot\"."
+        @info "No plot package activated. Using \"SilentNoPlot\"."
         @goto USE_NO_PLOT
     end
 
@@ -75,7 +92,6 @@ macro usingModiaPlot()
     return esc( expr )
 end
 export @usingModiaPlot
-
 
 export ModiaBase
 export CVODE_BDF, IDA
@@ -98,6 +114,10 @@ export modelToJSON, JSONToModel, writeModel, readModel
 import Sundials
 const  CVODE_BDF = Sundials.CVODE_BDF
 const  IDA = Sundials.IDA
+
+
+# Deprecated functions - only provided for backwards compatibility
+export signalNames, timeSignalName, hasOneTimeSignal, printResultInfo
 
 
 using Base.Meta: isexpr

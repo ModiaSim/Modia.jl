@@ -7,9 +7,9 @@ The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/tutorial/Getting
 The [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/tutorial/GettingStarted.html) provides an introduction to use 3D components in Modia.
 Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
 
-[Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined Modia 3D-mechanical components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
+[Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined [Modia3D] (https://github.com/ModiaSim/Modia3D.jl) multibody components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
 The basic type of the floating point variables is usually `Float64`, but can be set to any
-type `FloatType<:AbstractFloat` via `@instantiateModel(..., FloatType = xxx)`, for example
+type `FloatType <: AbstractFloat` via `@instantiateModel(..., FloatType = xxx)`, for example
 it can be set to `Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}`.
 
 ## Installation
@@ -24,16 +24,22 @@ Furthermore, one or more of the following packages should be installed in order
 to be able to generate plots:
 
 ```julia
-julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
-        add ModiaPlot_GLMakie       # if plotting with GLMakie desired
-        add ModiaPlot_WGLMakie      # if plotting with WGLMakie desired
-        add ModiaPlot_CairoMakie    # if plotting with CairoMakie desired
+julia> ]add SignalTablesInterface_PyPlot        # if plotting with PyPlot desired
+
+        # currently under registration
+        add SignalTablesInterface_GLMakie       # if plotting with GLMakie desired
+        add SignalTablesInterface_WGLMakie      # if plotting with WGLMakie desired
+        add SignalTablesInterface_CairoMakie    # if plotting with CairoMakie desired
 ```
+
+or call `t = getValues(instantiatedModel, "time"), y = getValues(instantiatedModel, "y")` to retrieve
+the results in form of vectors and arrays and use any desired plot package for plotting, e.g., `plot(t,y)`.
 
 Note, Modia reexports the following definitions 
 
 - `using Unitful`
 - `using DifferentialEquations`
+- `using SignalTables`
 - and exports functions `CVODE_BDF` and `IDA` of [Sundials.jl](https://github.com/SciML/Sundials.jl).
 
 As a result, it is usually sufficient to have `using Modia` in a model to utilize the relevant 

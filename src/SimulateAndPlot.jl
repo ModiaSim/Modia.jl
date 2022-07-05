@@ -64,10 +64,10 @@ and `simulate!(instantiatedModel, IDA(), ...)`
 can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.xxx(), ...)`).
 
 The simulation results are stored in `instantiatedModel` and can be plotted with
-`plot(instantiatedModel, ...)` and the result values
-can be retrieved with `rawSignal(..)` or `getPlotSignal(..)`. `showResultInfo(instantiatedModel)`
-prints information about the signals in the result file.
-For more details, see sections [Parameters/Init/Start](@ref), [Results](@ref), [Plotting](@ref).
+`plot(instantiatedModel, ...)`. The result values
+can be retrieved with `getValues(..)` for Var(..) and `getValue(..)` for Par(..). 
+`showInfo(instantiatedModel)` prints information about the signals in the result.
+For more details, see sections [Parameters/Init/Start](@ref), [Results and Plotting](@ref).
 
 The return argument `solution` is the return argument from `DifferentialEquations.solve(..)` and
 therefore all post-processing functionality from `DifferentialEqautions.jl` can be used. Especially,

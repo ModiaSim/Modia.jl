@@ -1,8 +1,8 @@
 # Modia Documentation
 
-[Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined Modia 3D-mechanical components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
+[Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined [Modia3D] (https://github.com/ModiaSim/Modia3D.jl) multibody components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
 The basic type of the floating point variables is usually `Float64`, but can be set to any
-type `FloatType<:AbstractFloat` via `@instantiateModel(..., FloatType = xxx)`, for example
+type `FloatType <: AbstractFloat` via `@instantiateModel(..., FloatType = xxx)`, for example
 it can be set to `Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}`.
 
 
@@ -18,16 +18,22 @@ Furthermore, one or more of the following packages should be installed in order
 to be able to generate plots:
 
 ```julia
-julia> ]add ModiaPlot_PyPlot        # if plotting with PyPlot desired
-        add ModiaPlot_GLMakie       # if plotting with GLMakie desired
-        add ModiaPlot_WGLMakie      # if plotting with WGLMakie desired
-        add ModiaPlot_CairoMakie    # if plotting with CairoMakie desired
+julia> ]add SignalTablesInterface_PyPlot        # if plotting with PyPlot desired
+
+        # currently under registration
+        add SignalTablesInterface_GLMakie       # if plotting with GLMakie desired
+        add SignalTablesInterface_WGLMakie      # if plotting with WGLMakie desired
+        add SignalTablesInterface_CairoMakie    # if plotting with CairoMakie desired
 ```
+
+or call `t = getValues(instantiatedModel, "time"), y = getValues(instantiatedModel, "y")` to retrieve
+the results in form of vectors and arrays and use any desired plot package for plotting, e.g., `plot(t,y)`.
 
 Note, Modia reexports the following definitions
 
 - `using Unitful`
 - `using DifferentialEquations`
+- `using SignalTables`
 - and exports functions `CVODE_BDF` and `IDA` of [Sundials.jl](https://github.com/SciML/Sundials.jl).
 
 As a result, it is usually sufficient to have `using Modia` in a model to utilize the relevant
@@ -36,35 +42,50 @@ functionalities of these packages.
 
 ## Release Notes
 
-### Version 0.9.0-dev
+### Version 0.9.0
 
-- New functions `hasParameter, getParameter, getEvaluatedParameter, showParameter, showEvaluatedParameter` to
+- This version is slightly **non-backwards** compatible to 0.8.x. Most important, the result handling has been changed.
+  Especially, package [ModiaResult.jl](https://github.com/ModiaSim/ModiaResult.jl) has been replaced by
+  package [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl).
+  Also the plot package interfaces SignalTablesInterface\_PyPlot, SignalTablesInterface\_GLMakie etc. have been replaced by packages
+  SignalTablesInterface\_PyPlot, SignalTablesInterface\_GLMakie etc.\
+  In order that plotting works again with your models, you have to add one of the new plot package interfaces, e.g.
+  `]add SignalTablesInterface_PyPlot`. One benefit is, that the plot packages have now access to all attributes
+  associated with a variable.
+
+- An instantiated model (as returned from `@instantiateModel(..)`) is now a signal table according to [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl).
+  This means that all functions defined for a signal table (see [function overview](https://modiasim.github.io/SignalTables.jl/stable/Functions/OverviewOfFunctions.html))
+  can be applied on a simulated model. Hereby, all Var(..) and Par(..) Modia variables are seen as signals of the signal table
+  (so both time varying variables, as well as parameters). See example `Modia/test/TestFirstOrder2.jl`.\
+  For example, it is now possible to store simulation results (together with all parameter and start values) on file in JSON format
+  with `writeSignalTable(filename, instantiatedModel)` (or in HDF5 format via [JDL](https://github.com/JuliaIO/JLD.jl)).
+  You get an overview of a simulation result via `showInfo(instantiatedModel)`.
+
+- New functions [`hasParameter`](@ref), [`getParameter`](@ref), [`getEvaluatedParameter`](@ref), 
+  [`showParameters`](@ref), [`showEvaluatedParameters`](@ref) to
   get parameter/init/start values by name (e.g. `getEvaluatedParameter(instantiatedModel, "a.b.c")`) or
-  show all parameters. For details see the [function docu](https://modiasim.github.io/ModiaResult.jl/stable/Functions.html).
+  show all parameters.
 
-- New functions to add states and algebraic variables from within functions that are not visible in the generated code:
-  `Modia.new_x_segmented_variable!, Modia.new_w_segmented_variable!, Modia.add_w_segmented_value!`.
-  These functions are called after simulate!(..) is called, but before initialization is performed.
-  For details see example `Modia/test/TestLinearSystems.jl`.
+- New functions to add states and algebraic variables from within functions that are not visible in the generated code
+  (see [Variable definitions in functions](@ref) and example `Modia/test/TestLinearSystems.jl`). 
+  This feature is used in the next version of
+  Modia3D to allow (Modia3D) model changes after code generation and to get more light weight code.
 
 - simulate!(..): Maximum number of iterations is switched off (DifferentialEquations.jl option set to: maxiters = Int(typemax(Int32)) ≈ 2e9).
 
-- An instance of a SimulationModel is now a signal table according to [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl).
-  This means that all functions defined for a signal table (see [function overview](https://modiasim.github.io/SignalTables.jl/stable/Functions/OverviewOfFunctions.html))
-  can be applied on a SimulationModel. Hereby, all Var(..) and Par(..) Modia variables are seen as signals of the signal table
-  (so both time varying variables, as well as parameters). One benefit is, that its now possible to directly perform standard array operations
-  on results, e.g. `diff = getValues(simulationModel, "a.b.c") - getValues(simulationModel, "b.d.e")`.
-  
-- Docu improved (e.g. links to utility functions documentation added)
+- Docu improved.
+
+- @usingModiaPlot is deprecated. Use instead @usingPlotPackage.
 
 
-** Bug fixes
+**Bug fixes**
 
 1. A hierarchical model name with a derivative operator, say `der(a.b.c)`, has now the correct name `a.b.der(c)`
    in the result. For example, the plot command needs to be changed to `plot(..., "a.b.der(c)")` instead of the previous
    command `plot(..., "der(a.b.c)")`.
-2. The initial state vector was not always correctly filled with start/init values of the model  (is now fixed).
+2. The initial state vector was not always correctly filled with start/init values of the model (is now fixed).
 3. `signalNames(instantiatedModel)` did sometimes not show the correct signal names available in the result (is now fixed).
+   `signalNames` is deprecated. Use instead [getSignalNames](https://modiasim.github.io/SignalTables.jl/stable/Functions/SignalTables.html#SignalTables.getSignalNames).
 
 
 **Non-backwards compatible changes**
@@ -72,7 +93,7 @@ functionalities of these packages.
 - Bug fix 1 can lead for some models to warnings and the selected variable is no longer plotted (-> the model needs to be changed).
 
 - Bug fix 2 can lead for some models to a different result (without notice).
-  
+
 - The result data structure is now constructed with `deepcopy(..)` of every involved result variable.
   Previously, for some result variables just the variable reference was stored.
   The effect is that if previously a complex internal data structure was incorporated into the result data structure,
@@ -83,9 +104,15 @@ functionalities of these packages.
   Such variables `v` need to be declared with `v = Var(hideResult=true)`, in order that this error does not appear
   (and these variables are then not stored in the result).
 
-- getPath(path, ...) does no longer return a dictionary but a SignalTables.SignalTable.
+- Function `rawSignal(instantiatedModel, name)`  is no longer supported.
+  Use [getValues](https://modiasim.github.io/SignalTables.jl/stable/Functions/SignalTables.html#SignalTables.getValues)
+  or [getSignal](https://modiasim.github.io/SignalTables.jl/stable/Functions/SignalTables.html#SignalTables.getSignal) instead.
 
-- Internal constructor `SimulationModel(..)`: Unused argument x_startValues removed.
+- Function `getPlotSignal(instantiatedModel, name)` is no longer supported.
+  Use [getFlattenedSignal](https://modiasim.github.io/SignalTables.jl/stable/Functions/SignalTables.html#SignalTables.getFlattenedSignal) instead.
+
+- Function `getPath(path, ...)` does no longer return a dictionary but a [SignalTable](https://modiasim.github.io/SignalTables.jl/stable/Functions/SignalTables.html#SignalTables.SignalTable).
+
 
 
 ### Version 0.8.3
