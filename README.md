@@ -4,13 +4,15 @@
 [![The MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](https://github.com/ModiaSim/Modia.jl/blob/master/LICENSE)
 
 The [Modia Tutorial](https://modiasim.github.io/Modia.jl/stable/tutorial/GettingStarted.html) provides an introduction to Modia.
-The [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/tutorial/GettingStarted.html) provides an introduction to use 3D components in Modia.
-Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
+The [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/tutorial/GettingStarted.html) provides an introduction to use 3D components in Modia. Modia is part of [ModiaSim](https://modiasim.github.io/docs/).
 
-[Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined [Modia3D] (https://github.com/ModiaSim/Modia3D.jl) multibody components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
-The basic type of the floating point variables is usually `Float64`, but can be set to any
-type `FloatType <: AbstractFloat` via `@instantiateModel(..., FloatType = xxx)`, for example
-it can be set to `Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}`.
+[Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined [Modia3D](https://github.com/ModiaSim/Modia3D.jl) multibody components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
+
+The basic type of the floating point variables is usually *Float64*, but can be set to any
+type *FloatType <: AbstractFloat* via *@instantiateModel(..., FloatType = xxx)*, for example
+it can be set to *Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}*.
+
+After a simulation, an instantiated model is treated as a *signal table* and therefore all functions from package [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl) can be used on it. In particular, the simulation results together with all parameter and start values can be stored on file in *JSON* format with *writeSignalTable(filename, instantiatedModel)* or in *HDF5* format via [JDL](https://github.com/JuliaIO/JLD.jl), see for example the result of a simple test model - [firstOrder.json](https://modiasim.github.io/Modia.jl/resources/fileio/firstOrder.json).
 
 ## Installation
 
@@ -58,8 +60,9 @@ where *phi* is the rotation angle, *omega* the angular velocity, *m* the mass, *
 
 ```julia
 using Modia
-@usingModiaPlot  # Use plot package defined with 
-                 # ENV["MODIA_PLOT"] or Modia.usePlotPackage(..)
+@usingPlotPackage  # Use plot package defined with 
+                   # ENV["SignalTablesPlotPackage"]="PyPlot" or 
+                   # usePlotPackage("PyPlot")
 
 Pendulum = Model(
    L = 0.8u"m",
@@ -77,10 +80,26 @@ Pendulum = Model(
 
 pendulum1 = @instantiateModel(Pendulum)
 simulate!(pendulum1, Tsit5(), stopTime = 10.0u"s", log=true)
+showInfo(pendulum1)
 plot(pendulum1, [("phi", "w"); "r"], figure = 1)
 ```
+The result is the following print output
 
-The result is the following plot:
+```julia
+name     unit           size    eltypeOrType kind attributes
+──────────────────────────────────────────────────────────────────────────────────────────────────────
+time     "s"            (501,)  Float64      Var  independent=true
+w        "rad*s^-1"     (501,)  Float64      Var  start=0 rad s^-1, fixed=true, state=true, der="der…
+der(w)   "rad*s^-2"     (501,)  Float64      Var
+phi      "rad"          (501,)  Float64      Var  start=1.57 rad, fixed=true, state=true, der="der(p…
+der(phi) "rad*s^-1"     (501,)  Float64      Var
+r        "m"            (501,2) Float64      Var
+L        "m"            ()      Float64      Par
+m        "kg"           ()      Float64      Par
+d        "m*N*s*rad^-1" ()      Float64      Par
+g        "m*s^-2"       ()      Float64      Par
+```
+and the following plot:
 
 ![Pendulum-Figure](docs/resources/images/PendulumFigures.png)
 
