@@ -102,7 +102,7 @@ g        "m*s^-2"       ()      Float64      Par
 ```
 file [pendulum1.json](https://modiasim.github.io/Modia.jl/resources/fileio/pendulum1.json) and the following plot:
 
-![Pendulum-Figure](docs/resources/images/PendulumFigures.png)
+![Pendulum-Figure](https://modiasim.github.io/Modia.jl/resources/images/pendulum1.png)
 
 Simulation and plotting of the pendulum with normally distributed uncertainty added to some parameters is performed in the following way:
 
@@ -123,7 +123,7 @@ plot(pendulum2, [("phi", "w"); "r"], figure = 2)
 resulting in the following plot where mean values are shown with thick lines
 and standard deviations as area around the mean values.
 
-![PendulumWithUncertainty](docs/resources/images/PendulumWithUncertainties.png)
+![PendulumWithUncertainty](https://modiasim.github.io/Modia.jl/resources/images/pendulum2.png)
 
 ## Main Developers
 
