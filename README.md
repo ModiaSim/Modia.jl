@@ -88,7 +88,7 @@ The result is the following print output
 
 ```julia
 name     unit           size    eltypeOrType kind attributes
-──────────────────────────────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────────────────────────────────────
 time     "s"            (501,)  Float64      Var  independent=true
 w        "rad*s^-1"     (501,)  Float64      Var  start=0 rad s^-1, fixed=true, state=true, der="der…
 der(w)   "rad*s^-2"     (501,)  Float64      Var
