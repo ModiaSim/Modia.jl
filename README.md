@@ -11,7 +11,7 @@ The [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/tutorial/Get
 The basic type of the floating point variables is usually *Float64*, but can be set to any type *FloatType <: AbstractFloat* via\
 *@instantiateModel(..., FloatType = xxx)*, for example it can be set to *Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}*.
 
-After a simulation, an instantiated model is treated as a *signal table* and therefore all functions from package [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl) can be used on it. In particular, the simulation results together with all parameter and start values can be stored on file in *JSON* format with *writeSignalTable(filename, instantiatedModel)* or in *HDF5* format via [JDL](https://github.com/JuliaIO/JLD.jl), see for example the result of a simple test model - [firstOrder.json](https://modiasim.github.io/Modia.jl/resources/fileio/firstOrder.json).
+After a simulation, an instantiated model is treated as a *signal table* and therefore all functions from package [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl) can be used on it. In particular, the simulation results together with all parameter and start values can be stored on file in *JSON* or in *HDF5* format.
 
 ## Installation
 
@@ -79,7 +79,9 @@ Pendulum = Model(
 
 pendulum1 = @instantiateModel(Pendulum)
 simulate!(pendulum1, Tsit5(), stopTime = 10.0u"s", log=true)
+
 showInfo(pendulum1)  # print info about the result
+writeSignalTable("pendulum1.json", pendulum1, indent=2, log=true)
 plot(pendulum1, [("phi", "w"); "r"], figure = 1)
 ```
 The result is the following print output
@@ -98,7 +100,7 @@ m        "kg"           ()      Float64      Par
 d        "m*N*s*rad^-1" ()      Float64      Par
 g        "m*s^-2"       ()      Float64      Par
 ```
-and the following plot:
+file [pendulum1.json](https://modiasim.github.io/Modia.jl/resources/fileio/pendulum1.json) and the following plot:
 
 ![Pendulum-Figure](docs/resources/images/PendulumFigures.png)
 
