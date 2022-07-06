@@ -8,9 +8,8 @@ The [Modia3D Tutorial](https://modiasim.github.io/Modia3D.jl/stable/tutorial/Get
 
 [Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined [Modia3D](https://github.com/ModiaSim/Modia3D.jl) multibody components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
 
-The basic type of the floating point variables is usually *Float64*, but can be set to any
-type *FloatType <: AbstractFloat* via *@instantiateModel(..., FloatType = xxx)*, for example
-it can be set to *Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}*.
+The basic type of the floating point variables is usually *Float64*, but can be set to any type *FloatType <: AbstractFloat* via\
+*@instantiateModel(..., FloatType = xxx)*, for example it can be set to *Float32, DoubleFloat, Measurement{Float64}, StaticParticles{Float64,100}*.
 
 After a simulation, an instantiated model is treated as a *signal table* and therefore all functions from package [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl) can be used on it. In particular, the simulation results together with all parameter and start values can be stored on file in *JSON* format with *writeSignalTable(filename, instantiatedModel)* or in *HDF5* format via [JDL](https://github.com/JuliaIO/JLD.jl), see for example the result of a simple test model - [firstOrder.json](https://modiasim.github.io/Modia.jl/resources/fileio/firstOrder.json).
 
@@ -80,7 +79,7 @@ Pendulum = Model(
 
 pendulum1 = @instantiateModel(Pendulum)
 simulate!(pendulum1, Tsit5(), stopTime = 10.0u"s", log=true)
-showInfo(pendulum1)
+showInfo(pendulum1)  # print info about the result
 plot(pendulum1, [("phi", "w"); "r"], figure = 1)
 ```
 The result is the following print output
