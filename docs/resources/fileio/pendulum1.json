@@ -1,6 +1,6 @@
 {
   "_class": "SignalTable",
-  "_classVersion": "0.3.1",
+  "_classVersion": "0.3.5",
   "time": {
     "_class": "Var",
     "unit": "s",
@@ -514,10 +514,9 @@
     "unit": "rad*s^-1",
     "start": {
       "_class": "Number",
-      "type": "Quantity{Int64, 𝐓^-1, Unitful.FreeUnits{(rad, s^-1), 𝐓^-1, nothing}}",
-      "value": {
-        "val": 0
-      }
+      "unit": "rad*s^-1",
+      "type": "Int64",
+      "value": 0
     },
     "fixed": true,
     "state": true,
@@ -1538,10 +1537,9 @@
     "unit": "rad",
     "start": {
       "_class": "Number",
-      "type": "Quantity{Float64, NoDims, Unitful.FreeUnits{(rad,), NoDims, nothing}}",
-      "value": {
-        "val": 1.57
-      }
+      "unit": "rad",
+      "type": "Float64",
+      "value": 1.57
     },
     "fixed": true,
     "state": true,
@@ -2567,6 +2565,7 @@
         501,
         2
       ],
+      "layout": "column-major",
       "values": [
         0.0006370613685866107,
         0.0025888763065428314,
