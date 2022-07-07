@@ -42,6 +42,16 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.9.1
+
+- Requires SignalTables 0.3.5.
+
+- [`@usingModiaPlot`](@ref): corrected and fixed in docu. Alternatively, @usingPlotPackage can be used,
+  provided package SignalTables is present in your current environment.
+  
+- Internal: A function call in the generated code prefixed with `Modia.`.
+  
+
 ### Version 0.9.0
 
 - This version is slightly **non-backwards** compatible to 0.8.x. Most important, the result handling has been changed.
@@ -75,7 +85,7 @@ functionalities of these packages.
 
 - Docu improved.
 
-- @usingModiaPlot is deprecated. Use instead @usingPlotPackage.
+- @usingModiaPlot is deprecated. Use instead @usingModiaPlot.
 
 
 **Bug fixes**

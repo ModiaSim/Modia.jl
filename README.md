@@ -30,6 +30,9 @@ julia> ]add SignalTablesInterface_PyPlot        # if plotting with PyPlot desire
         add SignalTablesInterface_GLMakie       # if plotting with GLMakie desired
         add SignalTablesInterface_WGLMakie      # if plotting with WGLMakie desired
         add SignalTablesInterface_CairoMakie    # if plotting with CairoMakie desired
+        
+        # might be sometimes also useful
+        add SignalTables
 ```
 
 or call `t = getValues(instantiatedModel, "time"), y = getValues(instantiatedModel, "y")` to retrieve
@@ -58,8 +61,6 @@ where *phi* is the rotation angle, *omega* the angular velocity, *m* the mass, *
 
 ```julia
 using Modia
-@usingModiaPlot  # Use plot package defined with 
-                 # ENV["MODIA_PLOT"] or Modia.usePlotPackage(..)
 
 Pendulum = Model(
    L = 0.8u"m",
@@ -77,6 +78,10 @@ Pendulum = Model(
 
 pendulum1 = @instantiateModel(Pendulum)
 simulate!(pendulum1, Tsit5(), stopTime = 10.0u"s", log=true)
+
+@usingModiaPlot   # Use plot package defined with
+                  # ENV["SignalTablesPlotPackage"] = "XXX" or with 
+                  # usePlotPackage("XXX")
 plot(pendulum1, [("phi", "w"); "r"], figure = 1)
 ```
 

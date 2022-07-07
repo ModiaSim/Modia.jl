@@ -4,12 +4,12 @@ import Modia.Test
 Test.@testset "Test basic functionality" begin
     include("TestVariables.jl")
     include("TestFirstOrder.jl")
-#   include("TestFirstOrder2.jl")
-#    include("TestSource.jl")
+    include("TestFirstOrder2.jl")
+    include("TestPendulum.jl")    
+    include("TestSource.jl")
     include("TestLinearEquations.jl")
     include("TestStateSelection.jl")
     include("TestFilterCircuit.jl")
-    
     include("TestFilterCircuit2.jl")
     include("TestArrays.jl")
     include("TestLinearSystems.jl")

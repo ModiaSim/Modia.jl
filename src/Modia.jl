@@ -9,8 +9,8 @@ Main module of Modia.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.9.0"
-const Date = "2022-07-05"
+const Version = "0.9.1"
+const Date = "2022-07-07"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -42,9 +42,17 @@ using Reexport
 import SignalTables: AvailablePlotPackages
 
 """
-    Deprecated: @usingModiaPlot()
+    @usingModiaPlot()
+    
+Execute `using XXX`, where `XXX` is the Plot package that was activated with `usePlotPackage(plotPackage)`.
+So this is similar to @usingPlotPackage (from SignalTables, that is reexported from Modia).
 
-Use instead @usingPlotPackage or SignalTables.@usingPlotPackage
+There is, however, a difference when XXX = "SilentNoPlot": 
+
+- @usingPlotPackage() executes `using SignalTables.SilentNoPlot` and therefore requires that package `SignalTables` is available in your environment.
+- @usingModiaPlot() executes `using Modia.SignalTables.SilentNoPlot` and therefore requires that package `Modia` is available in your environment.
+
+Therefore, when working with Modia it is better to use `@usingModiaPlot()`.
 """
 macro usingModiaPlot()
     if haskey(ENV, "SignalTablesPlotPackage")
@@ -55,7 +63,7 @@ macro usingModiaPlot()
         elseif PlotPackage == "NoPlot"
             @goto USE_NO_PLOT
         elseif PlotPackage == "SilentNoPlot"
-            expr = :( import SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            expr = :( using Modia.SignalTables.SilentNoPlot )
             return esc( expr )
         else
             PlotPackage = Symbol("SignalTablesInterface_" * PlotPackage)
@@ -72,7 +80,7 @@ macro usingModiaPlot()
         elseif PlotPackage == "NoPlot"
             @goto USE_NO_PLOT
         elseif PlotPackage == "SilentNoPlot"
-            expr = :( import SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+            expr = :( using Modia.SignalTables.SilentNoPlot )
             return esc( expr )
         else
             PlotPackage = Symbol("SignalTablesInterface_" * PlotPackage)
@@ -87,7 +95,7 @@ macro usingModiaPlot()
     end
 
     @label USE_NO_PLOT
-    expr = :( using SignalTables.SilentNoPlot: plot, showFigure, saveFigure, closeFigure, closeAllFigures )
+    expr = :( using Modia.SignalTables.SilentNoPlot )
     println("$expr")
     return esc( expr )
 end

@@ -4,7 +4,7 @@ A particular model is instantiated, simulated and results plotted with the comma
 
 ```julia
 using Modia
-@usingPlotPackage
+@usingModiaPlot
 
 filter = @instantiateModel(Filter)
 simulate!(filter, stopTime=10.0)
@@ -55,7 +55,7 @@ It is also possible to specify the integrator as second argument of `simulate!`:
 
 ```julia
 using Modia
-@usingPlotPackage
+@usingModiaPlot
 
 filter = @instantiateModel(Filter)
 sol = simulate!(filter, Tsit5(), stopTime=10.0, merge=Map(T=0.5, x=0.8))

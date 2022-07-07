@@ -973,7 +973,7 @@ function addLinearEquations!(eq::EquationGraph, hasConstantCoefficients::Bool, u
     leq_index = length(eq.equationInfo.linearEquations)
     while_loop = quote
         local $(vAssigned_names...)
-        _leq_mode = initLinearEquationsIteration!(_m, $leq_index)
+        _leq_mode = Modia.initLinearEquationsIteration!(_m, $leq_index)
         Modia.TimerOutputs.@timeit _m.timer "Modia LinearEquationsIteration!" while Modia.LinearEquationsIteration!(_leq_mode, _m.isInitial, _m.solve_leq, _m.storeResult, _m.time, _m.timer)
             $(while_body...)
         end
