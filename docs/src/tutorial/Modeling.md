@@ -569,7 +569,7 @@ FilterCircuit = Model(
 
 filterCircuit = @instantiateModel(FilterCircuit)
 simulate!(filterCircuit, Tsit5(), stopTime=10.0)
-@usingPlotPackage
+@usingModiaPlot
 plot(filterCircuit, ["C.v", "C.i"], figure=3)
 ```
 

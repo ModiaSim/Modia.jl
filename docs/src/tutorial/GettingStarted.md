@@ -29,9 +29,9 @@ simulate!(simpleModel, stopTime = 1.2)
 simulate!(simpleModel, Tsit5(), stopTime = 1.2u"s")
 
 # Produce a line plot
-@usingPlotPackage   # Use plot package defined with
-                    # ENV["SignalTablesPlotPackage"] = "PyPlot" or with 
-                    # usePlotPackage("PyPlot")
+@usingModiaPlot   # Use plot package defined with
+                  # ENV["SignalTablesPlotPackage"] = "XXX" or with 
+                  # usePlotPackage("XXX")
 plot(simpleModel, ("x", "der(x)"))
 ```
 

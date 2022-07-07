@@ -64,7 +64,16 @@ The simulation result of a model `instantiatedModel` are provided as a *signal t
 see [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl).
 
 Therefore, all [signal table functions](https://modiasim.github.io/SignalTables.jl/stable/Functions/OverviewOfFunctions.html)
-can be used on a simulated model, for example:
+can be used on a simulated model
+
+To activate the defined plot package, use
+
+- [`@usingModiaPlot`](@ref) 
+
+Alternatively, `usingPlotPackage` (from Modia reexported macro of SignalTables) can be used,
+but then package `SignalTables` must be in your current environment.
+
+Example:
 
 ```
 using Modia
@@ -109,7 +118,8 @@ names and units of the variables. Example:
 
 ```julia
 using Modia
-@usingPlotPackage   # execute `using SignalTablesInterface_XXX`
+@usingModiaPlot   # execute `using SignalTablesInterface_XXX` or
+                  # execute `using Modia.SignalTables.SilentNoPlot`
 
 instantiatedModel = @instantiateModel(...)
 simulate!(instantiatedModel, ...)
@@ -123,6 +133,14 @@ generates the following plot:
 
 ![Matrix-of-Plots](../resources/images/matrix-of-plots.png)
 
+
+```@meta
+CurrentModule = Modia
+```
+
+```@docs
+@usingModiaPlot
+```
 
 ## PathPlanning
 
