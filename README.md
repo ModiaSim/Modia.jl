@@ -26,8 +26,6 @@ to be able to generate plots:
 
 ```julia
 julia> ]add SignalTablesInterface_PyPlot        # if plotting with PyPlot desired
-
-        # currently under registration
         add SignalTablesInterface_GLMakie       # if plotting with GLMakie desired
         add SignalTablesInterface_WGLMakie      # if plotting with WGLMakie desired
         add SignalTablesInterface_CairoMakie    # if plotting with CairoMakie desired
