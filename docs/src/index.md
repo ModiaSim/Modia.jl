@@ -85,8 +85,6 @@ functionalities of these packages.
 
 - Docu improved.
 
-- @usingModiaPlot is deprecated. Use instead @usingModiaPlot.
-
 
 **Bug fixes**
 
