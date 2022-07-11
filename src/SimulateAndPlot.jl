@@ -372,32 +372,33 @@ end
 
 function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; kwargs...) where {FloatType,TimeType}
     solution = nothing
+    options  = m.options
 
     sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
 
     # Define problem and callbacks based on algorithm and model type
-    interval = m.options.interval
-    if  abs(m.options.stopTime - m.options.startTime) <= 0
+    interval = options.interval
+    if  abs(options.stopTime - options.startTime) <= 0
         interval = 1.0
-        tspan2   = [m.options.startTime]
-    elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
+        tspan2   = [options.startTime]
+    elseif abs(options.interval) < abs(options.stopTime-options.startTime)
         if m.nsegments == 1
-            tspan2 = m.options.startTime:interval:m.options.stopTime
+            tspan2 = options.startTime:interval:options.stopTime
         else
-            i      = ceil( (m.options.startTime - m.options.startTimeFirstSegment)/interval )
-            tnext  = m.options.startTimeFirstSegment + i*interval                  
-            tspan2 = tnext:interval:m.options.stopTime
-            if tspan2[1] > m.options.startTime
-                tspan2 = [m.options.startTime, tspan2...]
+            i      = ceil( (options.startTime - options.startTimeFirstSegment)/interval )
+            tnext  = options.startTimeFirstSegment + i*interval                  
+            tspan2 = tnext:interval:options.stopTime
+            if tspan2[1] > options.startTime
+                tspan2 = [options.startTime, tspan2...]
             end
         end
-        if tspan2[end] < m.options.stopTime
-            tspan2 = [tspan2..., m.options.stopTime]
+        if tspan2[end] < options.stopTime
+            tspan2 = [tspan2..., options.stopTime]
         end
     else
-        tspan2 = [m.options.startTime, m.options.stopTime]
+        tspan2 = [options.startTime, options.stopTime]
     end
-    tspan = (m.options.startTime, m.options.stopTime)
+    tspan = (options.startTime, options.stopTime)
 
     eh = m.eventHandler
     m.odeMode   = true
@@ -450,9 +451,9 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
         # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
         # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
-        callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
+        callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[options.startTime]) # call outputs!(..) at startTime
         callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!,
-                        affectStateEvent!, eh.nz, interp_points=m.options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)
+                        affectStateEvent!, eh.nz, interp_points=options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)
         #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)
         callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
     else
@@ -463,24 +464,24 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
 
     # Initial step size (the default of DifferentialEquations integrators is too large) + step-size of fixed-step algorithm
     if !m.sundials
-        dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
+        dt = options.adaptive ? options.interval/10 : options.interval   # initial step-size
     end
 
     # Compute solution
-    abstol = 0.1*m.options.tolerance
+    abstol = 0.1*options.tolerance
     tstops = (m.eventHandler.nextEventTime,)
     maxiters = Int(typemax(Int32))  # switch off maximum number of iterations (typemax(Int) gives an inexact error for Sundials)
     if ismissing(algorithm)
-        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=options.adaptive, saveat=tspan2, dt=dt, dtmax=options.dtmax, maxiters=maxiters, tstops = tstops,
                                                                         initializealg = DifferentialEquations.NoInit())
     elseif m.sundials
-        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=options.adaptive, saveat=tspan2, dtmax=options.dtmax, maxiters=maxiters, tstops = tstops,
                                                                         initializealg = DifferentialEquations.NoInit())
     else
-        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=options.adaptive, saveat=tspan2, dt=dt, dtmax=options.dtmax, maxiters=maxiters, tstops = tstops,
                                                                         initializealg = DifferentialEquations.NoInit())
     end
 
