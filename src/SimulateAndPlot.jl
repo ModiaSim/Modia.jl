@@ -372,36 +372,38 @@ end
 
 function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; kwargs...) where {FloatType,TimeType}
     solution = nothing
+    options  = m.options
 
     sizesOfLinearEquationSystems = Int[length(leq.b) for leq in m.linearEquations]
 
     # Define problem and callbacks based on algorithm and model type
-    interval = m.options.interval
-    if  abs(m.options.stopTime - m.options.startTime) <= 0
+    interval = options.interval
+    if  abs(options.stopTime - options.startTime) <= 0
         interval = 1.0
-        tspan2   = [m.options.startTime]
-    elseif abs(m.options.interval) < abs(m.options.stopTime-m.options.startTime)
+        tspan2   = [options.startTime]
+    elseif abs(options.interval) < abs(options.stopTime-options.startTime)
         if m.nsegments == 1
-            tspan2 = m.options.startTime:interval:m.options.stopTime
+            tspan2 = options.startTime:interval:options.stopTime
         else
-            i      = ceil( (m.options.startTime - m.options.startTimeFirstSegment)/interval )
-            tnext  = m.options.startTimeFirstSegment + i*interval                  
-            tspan2 = tnext:interval:m.options.stopTime
-            if tspan2[1] > m.options.startTime
-                tspan2 = [m.options.startTime, tspan2...]
+            i      = ceil( (options.startTime - options.startTimeFirstSegment)/interval )
+            tnext  = options.startTimeFirstSegment + i*interval                  
+            tspan2 = tnext:interval:options.stopTime
+            if tspan2[1] > options.startTime
+                tspan2 = [options.startTime, tspan2...]
             end
         end
-        if tspan2[end] < m.options.stopTime
-            tspan2 = [tspan2..., m.options.stopTime]
+        if tspan2[end] < options.stopTime
+            tspan2 = [tspan2..., options.stopTime]
         end
     else
-        tspan2 = [m.options.startTime, m.options.stopTime]
+        tspan2 = [options.startTime, options.stopTime]
     end
-    tspan = (m.options.startTime, m.options.stopTime)
+    tspan = (options.startTime, options.stopTime)
 
     eh = m.eventHandler
-    m.odeMode   = true
-    m.solve_leq = true
+    for leq in m.linearEquations
+        leq.odeMode = true
+    end
     if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
         # DAE integrator
         m.odeIntegrator = false
@@ -411,27 +413,65 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
         empty!(m.daeCopyInfo)
         if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
-            # Prepare data structure to efficiently perform copy operations for DAE integrator
+            # Prepare data structure to efficiently perform copy operations for DAE integrator       
             x_info      = m.equationInfo.x_info
             der_x_dict  = m.equationInfo.der_x_dict
             der_x_names = keys(der_x_dict)
+            daeMode     = false
             for (ileq,leq) in enumerate(m.linearEquations)
-                if sizesOfLinearEquationSystems[ileq] >= options.nlinearMinForDAE &&
-                   length(intersect(leq.x_names,der_x_names)) == length(leq.x_names)
-                    # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
-                    leq.odeMode = false
-                    m.odeMode   = false
-                    leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
-                    for ix in 1:length(leq.x_names)
-                        x_name   = leq.x_names[ix]
-                        x_length = leq.x_lengths[ix]
-                        x_info_i = x_info[ der_x_dict[x_name] ]
-                        @assert(x_length == x_info_i.length)
-                        startIndex = x_info_i.startIndex
-                        endIndex   = startIndex + x_length - 1
-                        append!(leq_copy.index, startIndex:endIndex)
+                if sizesOfLinearEquationSystems[ileq] >= options.nlinearMinForDAE
+                    answer  = leq.x_names .∈ Ref(der_x_names)
+                    daeMode = true
+                    for (index, val) in enumerate(answer)
+                        if !val && leq.x_lengths[index] > 0 
+                            daeMode = false
+                            break
+                        end
                     end
-                    push!(m.daeCopyInfo, leq_copy)
+                    
+                    if daeMode
+                        # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
+                        if eh.nz > 0
+                            leq.odeMode = true 
+                            daeMode = false
+                            if options.log
+                                println("      No DAE mode for equation system $ileq because $(eh.nz) crossing function(s) defined (see issue #686 of DifferentialEquations.jl)")
+                            end
+
+                        else
+                            leq.odeMode = false
+                            leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
+                            for ix in 1:length(leq.x_names)
+                                x_length = leq.x_lengths[ix]
+                                if x_length > 0
+                                    x_name   = leq.x_names[ix]
+                                    x_info_i = x_info[ der_x_dict[x_name] ]
+                                    @assert(x_length == x_info_i.length)
+                                    startIndex = x_info_i.startIndex
+                                    endIndex   = startIndex + x_length - 1
+                                    append!(leq_copy.index, startIndex:endIndex)
+                                end
+                            end
+                            push!(m.daeCopyInfo, leq_copy)
+                        end
+                    else
+                        if options.log
+                            unknownsThatAreNoStateDerivatives = ""
+                            first = true
+                            for (index, val) in enumerate(answer)
+                                if !val && leq.x_lengths[index] > 0 
+                                    if first
+                                        first = false
+                                        unknownsThatAreNoStateDerivatives = "\"" * leq.x_names[index] * "\""
+                                    else
+                                        unknownsThatAreNoStateDerivatives *= ",\"" * leq.x_names[index] * "\""
+                                    end
+                                end
+                            end
+                            println("      No DAE mode for equation system $ileq because the unknowns $unknownsThatAreNoStateDerivatives are no state derivatives!")
+                        end
+                        leq.odeMode = true
+                    end
                 else
                     leq.odeMode = true
                 end
@@ -442,6 +482,21 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         m.odeIntegrator = true
         TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
     end
+    
+    if length(m.linearEquations) == 0
+        m.odeMode   = true
+        m.solve_leq = true
+    else
+        m.odeMode   = false
+        m.solve_leq = false
+        for leq in m.linearEquations
+            if leq.odeMode
+                m.odeMode   = true
+                m.solve_leq = true
+                break
+            end
+        end
+    end
 
     callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)
     if eh.nz > 0
@@ -450,9 +505,9 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         # FunctionalCallingCallback(outputs!, ...) is not correctly called when zero crossings are present.
         # The fix is to call outputs!(..) from the previous to the current event, when an event occurs.
         # (alternativey: callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!) )
-        callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[m.options.startTime]) # call outputs!(..) at startTime
+        callback1 = DifferentialEquations.FunctionCallingCallback(outputs!, funcat=[options.startTime]) # call outputs!(..) at startTime
         callback3 = DifferentialEquations.VectorContinuousCallback(zeroCrossings!,
-                        affectStateEvent!, eh.nz, interp_points=m.options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)
+                        affectStateEvent!, eh.nz, interp_points=options.interp_points, rootfind=DifferentialEquations.SciMLBase.RightRootFind)
         #callback4 = DifferentialEquations.PresetTimeCallback(tspan2, affect_outputs!)
         callbacks = DifferentialEquations.CallbackSet(callback1, callback2, callback3)   #, callback4)
     else
@@ -463,24 +518,24 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
 
     # Initial step size (the default of DifferentialEquations integrators is too large) + step-size of fixed-step algorithm
     if !m.sundials
-        dt = m.options.adaptive ? m.options.interval/10 : m.options.interval   # initial step-size
+        dt = options.adaptive ? options.interval/10 : options.interval   # initial step-size
     end
 
     # Compute solution
-    abstol = 0.1*m.options.tolerance
+    abstol = 0.1*options.tolerance
     tstops = (m.eventHandler.nextEventTime,)
     maxiters = Int(typemax(Int32))  # switch off maximum number of iterations (typemax(Int) gives an inexact error for Sundials)
     if ismissing(algorithm)
-        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=options.adaptive, saveat=tspan2, dt=dt, dtmax=options.dtmax, maxiters=maxiters, tstops = tstops,
                                                                         initializealg = DifferentialEquations.NoInit())
     elseif m.sundials
-        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=options.adaptive, saveat=tspan2, dtmax=options.dtmax, maxiters=maxiters, tstops = tstops,
                                                                         initializealg = DifferentialEquations.NoInit())
     else
-        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=m.options.tolerance, abstol=abstol, save_everystep=false,
-                                                                        callback=callbacks, adaptive=m.options.adaptive, saveat=tspan2, dt=dt, dtmax=m.options.dtmax, maxiters=maxiters, tstops = tstops,
+        TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, algorithm, reltol=options.tolerance, abstol=abstol, save_everystep=false,
+                                                                        callback=callbacks, adaptive=options.adaptive, saveat=tspan2, dt=dt, dtmax=options.dtmax, maxiters=maxiters, tstops = tstops,
                                                                         initializealg = DifferentialEquations.NoInit())
     end
 
