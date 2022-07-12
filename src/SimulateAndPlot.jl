@@ -401,8 +401,9 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
     tspan = (options.startTime, options.stopTime)
 
     eh = m.eventHandler
-    m.odeMode   = true
-    m.solve_leq = true
+    for leq in m.linearEquations
+        leq.odeMode = true
+    end
     if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
         # DAE integrator
         m.odeIntegrator = false
@@ -412,27 +413,65 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
         empty!(m.daeCopyInfo)
         if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
-            # Prepare data structure to efficiently perform copy operations for DAE integrator
+            # Prepare data structure to efficiently perform copy operations for DAE integrator       
             x_info      = m.equationInfo.x_info
             der_x_dict  = m.equationInfo.der_x_dict
             der_x_names = keys(der_x_dict)
+            daeMode     = false
             for (ileq,leq) in enumerate(m.linearEquations)
-                if sizesOfLinearEquationSystems[ileq] >= options.nlinearMinForDAE &&
-                   length(intersect(leq.x_names,der_x_names)) == length(leq.x_names)
-                    # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
-                    leq.odeMode = false
-                    m.odeMode   = false
-                    leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
-                    for ix in 1:length(leq.x_names)
-                        x_name   = leq.x_names[ix]
-                        x_length = leq.x_lengths[ix]
-                        x_info_i = x_info[ der_x_dict[x_name] ]
-                        @assert(x_length == x_info_i.length)
-                        startIndex = x_info_i.startIndex
-                        endIndex   = startIndex + x_length - 1
-                        append!(leq_copy.index, startIndex:endIndex)
+                if sizesOfLinearEquationSystems[ileq] >= options.nlinearMinForDAE
+                    answer  = leq.x_names .∈ Ref(der_x_names)
+                    daeMode = true
+                    for (index, val) in enumerate(answer)
+                        if !val && leq.x_lengths[index] > 0 
+                            daeMode = false
+                            break
+                        end
                     end
-                    push!(m.daeCopyInfo, leq_copy)
+                    
+                    if daeMode
+                        # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
+                        if eh.nz > 0
+                            leq.odeMode = true 
+                            daeMode = false
+                            if options.log
+                                println("      No DAE mode for equation system $ileq because $(eh.nz) crossing function(s) defined (see issue #686 of DifferentialEquations.jl)")
+                            end
+
+                        else
+                            leq.odeMode = false
+                            leq_copy = LinearEquationsCopyInfoForDAEMode(ileq)
+                            for ix in 1:length(leq.x_names)
+                                x_length = leq.x_lengths[ix]
+                                if x_length > 0
+                                    x_name   = leq.x_names[ix]
+                                    x_info_i = x_info[ der_x_dict[x_name] ]
+                                    @assert(x_length == x_info_i.length)
+                                    startIndex = x_info_i.startIndex
+                                    endIndex   = startIndex + x_length - 1
+                                    append!(leq_copy.index, startIndex:endIndex)
+                                end
+                            end
+                            push!(m.daeCopyInfo, leq_copy)
+                        end
+                    else
+                        if options.log
+                            unknownsThatAreNoStateDerivatives = ""
+                            first = true
+                            for (index, val) in enumerate(answer)
+                                if !val && leq.x_lengths[index] > 0 
+                                    if first
+                                        first = false
+                                        unknownsThatAreNoStateDerivatives = "\"" * leq.x_names[index] * "\""
+                                    else
+                                        unknownsThatAreNoStateDerivatives *= ",\"" * leq.x_names[index] * "\""
+                                    end
+                                end
+                            end
+                            println("      No DAE mode for equation system $ileq because the unknowns $unknownsThatAreNoStateDerivatives are no state derivatives!")
+                        end
+                        leq.odeMode = true
+                    end
                 else
                     leq.odeMode = true
                 end
@@ -442,6 +481,21 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         # ODE integrator
         m.odeIntegrator = true
         TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
+    end
+    
+    if length(m.linearEquations) == 0
+        m.odeMode   = true
+        m.solve_leq = true
+    else
+        m.odeMode   = false
+        m.solve_leq = false
+        for leq in m.linearEquations
+            if leq.odeMode
+                m.odeMode   = true
+                m.solve_leq = true
+                break
+            end
+        end
     end
 
     callback2 = DifferentialEquations.DiscreteCallback(timeEventCondition!, affectTimeEvent!)

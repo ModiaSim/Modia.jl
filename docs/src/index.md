@@ -42,6 +42,12 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.9.2
+
+- Bug fix: integrator IDA() can be used (especially to avoid solving large linear equation systems in the model).\
+  Extend some test models to use IDA().
+  
+
 ### Version 0.9.1
 
 - Requires SignalTables 0.3.5.
