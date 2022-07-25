@@ -936,6 +936,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         resetEventCounters()
         global to = TimerOutput()
 
+        substituteGenerics(model)
+        removeGenerics(model)
+        
         modelStructure = ModelStructure()
 
         if isexpr(model, :quote)

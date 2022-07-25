@@ -34,6 +34,8 @@ Inductor = OnePort | Model( L = 1.0u"H", i=Var(init=0.0u"A"), equations = :[ L*d
 
 ConstantVoltage = OnePort | Model( V = 1.0u"V", equations = :[ v = V ] )
 
+ConstantCurrent = OnePort | Model( I = 1.0u"A", equations = :[ i = I ] )
+
 Ground = Model( p = Pin, equations = :[ p.v = 0.0u"V" ] ) 
 
 # Ideal operational amplifier (norator-nullator pair), but 3 pins

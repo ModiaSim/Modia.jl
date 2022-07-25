@@ -43,7 +43,7 @@ function selquote(ex::Expr)
     end
 end
 
-macro define(modelDef)
+macro defineOLD(modelDef)
     modelName = modelDef.args[1]
     println(modelName)
     model = modelDef.args[2]
@@ -51,6 +51,162 @@ macro define(modelDef)
     dump(model)
     res = :($modelName = Meta.quot($model))
     return esc(res)
+end
+
+#Base.:<(m::AbstractDict, n::AbstractDict) = m # OrderedDict()
+
+# Convert hierchical modifiers and dot notation to merge operator
+mergify(ex, model, kwvalue=false, level=1) = ex
+function mergify(ex::Expr, model, kwvalue=true, level=1)
+    level += 1
+#    @show ex
+#    print("\nmergify: ")
+#    showModel(ex)
+    res = nothing
+#    dump(ex)
+    if isexpr(ex, :call) && !(ex.args[1] in [:Model, :Map, :Par, :Var, :|, :connect])
+#        println("Instantiation")
+        mapArguments = [mergify(e, model, ex.head == :kw, level) for e in ex.args[2:end]]
+        if length(mapArguments) > 0
+            maps = foldl( (x,y) -> :($x | Map($y)), mapArguments[2:end], init=:(Map($(mapArguments[1]))))
+#            println("converted: ", showModel(mapArguments))
+#            println("  to: ", showModel(maps))
+        end
+        if kwvalue 
+            redec = level > 4  # TODO: Better criteria
+            if redec
+                if length(mapArguments) > 0
+                    res = :(redeclare | $(ex.args[1]) | $maps) # Map($(mapArguments...)) )
+                else
+                    res = :(redeclare | $(ex.args[1]) )
+                end
+            else
+                if length(mapArguments) > 0
+                    res = :($(ex.args[1]) | $maps) # Map($(mapArguments...)) )
+                else
+#                    @show ex.args[1] 
+#                    dump(model)
+                    modelDict = OrderedDict([kv.args[1] => kv.args[2] for kv in model.args[2:end]]...)
+#                    @show modelDict
+                    compType = ex.args[1]
+#                    @show compType
+                    if compType in keys(modelDict)
+#=
+                        newType = modelDict[compType]
+                        @show newType
+                        dump(newType)
+                        compType = :($(newType.args[2]))
+=#
+                        res =  :((:Lookup, $(Meta.quot(compType))))
+#                        res =  :(Lookup($(Meta.quot(compType))))
+#                        println("mergified: ") 
+#                        showModel(res)                    
+                        return res
+                    end
+                    res = :($(compType) )
+                end
+            end
+        else
+            func = ex.args[1]
+#            @show ex func
+            if func != :(=>)
+                res = Expr(:kw, func, :(Map($(mapArguments...))) )  
+            else
+                dump(ex)
+#                :($(ex.args[2].args[1]) = 0)  
+                res = Expr(:kw, ex.args[2].args[1], Expr(:kw, ex.args[2].args[1], 0) )  
+            end
+        end
+    elseif ex.head == :kw && typeof(ex.args[1]) == Expr && length(ex.args) == 2 && ex.args[1].head == :.
+#        println("Dot notation")
+        sequence = []
+        unpackPath(ex.args[1], sequence)
+        nest = foldr( (x,y) -> :(Map($x=$y)), sequence[2:end], init=ex.args[2])
+        res = Expr(:kw, sequence[1], nest)
+#        println("converted dot notation: ", ex)
+#        println("  to: ", res)
+#        Expr(:call, :(=>), [mergify(e, model, ex.head == :kw, level) for e in ex.args]...)
+    else
+#        println("Model, Map, Par, Var, |, connect or :kw: ", ex.args[1])
+        res = Expr(ex.head, [mergify(e, model, ex.head == :kw, level) for e in ex.args]...)
+    end
+#    println("mergified: ") 
+#    showModel(res)
+    res
+end
+
+macro define(modelDef)
+    modelName = modelDef.args[1]
+    println("Transforming: ", modelName)
+    model = modelDef.args[2]
+    println("Original model:")
+    print("@define ", modelName, " = ")
+    showModel(model)
+    println()
+#    dump(model, maxdepth=14)
+#    model = selquote(model)
+    model = mergify(model, model)
+    println("Modified model:")
+    print(modelName, " = ")
+    showModel(model)
+    println()
+#    dump(model, maxdepth=14)
+    res = :($modelName = $model) # Meta.quot($model))
+    return esc(res)
+end
+
+function substituteGenerics(model)
+    for (k,v) in model
+        if isCollection(v)
+            model[k] = substituteGenerics(v)
+        elseif typeof(v) <: Tuple && v[1] == :Lookup
+            # (:_lookup, name [, modifier])
+            name = v[2]
+            # lookup name and set componenttype
+#            @show model[name]
+            componentType = deepcopy(model[name][:value])
+            componentType[:_class] = :Model
+            delete!(componentType, :value)
+#            model[name] = OrderedDict()
+            model[name][:_class] = :Par
+            if length(v) == 3
+                model[k] = componentType | v[3]
+            else
+                model[k] = componentType
+            end
+#            @show name model[k]
+        end
+    end
+    model
+end
+
+# Remove generic parameters after all lookups have been performed
+function removeGenerics(model)
+    for (k,v) in model
+        if isCollection(v)
+            if v[:_class] == :Par
+                model[k] = OrderedDict() # Replace by empty OrderedCollection
+#                delete!(model, k)
+            else
+                model[k] = removeGenerics(v)
+            end
+        end
+    end
+    model
+end
+
+function showModel(m::Expr)
+    if isexpr(m, :call) && m.args[1] == :Model
+        println("Model(")
+        for kw in m.args[2:end]
+            println("  ", kw.args[1], " = ", kw.args[2])
+        end
+        println(")")
+    elseif isexpr(m, :kw)
+        println("  ", m.args[1], " = ", m.args[2])
+    else
+        println(m)
+    end
 end
 
 isCollection(v) = (typeof(v) <: AbstractDict) && :_class in keys(v)
@@ -163,6 +319,7 @@ function mergeModels(m1::AbstractDict, m2::AbstractDict, env=Symbol())
                     result[k] = m
                 else
 #                    result[k] = v
+                    result[k] = result[k] | v
                 end
             elseif :_redeclare in keys(v)
                 if logMerge; println("Redeclaring: $k = $v") end
@@ -216,6 +373,10 @@ Par(; kwargs...) = newCollection(kwargs, :Par)
 
 Var(;kwargs...) = newCollection(kwargs, :Var)
 
+par = Par()
+var = Var()
+type = Map()
+
 function Var(values...; kwargs...)
     res = newCollection(kwargs, :Var) 
     for v in values
@@ -235,6 +396,7 @@ Integ(;kwargs...) = Var(kwargs)
 Boolean(;kwargs...) = Var(kwargs)
 
 redeclare = Model( _redeclare = true)
+redefine = Par( _redeclare = true)
 outer = Var( _outer = true)
 
 constant = Var(constant = true)
@@ -253,6 +415,7 @@ end
 Base.:|(m::AbstractDict, n::AbstractDict) =  mergeModels(m, n) 
 Base.:|(m::Symbol, n::AbstractDict) =  mergeModels(eval(m), n) 
 Base.:|(m, n) = if !(typeof(n) <: AbstractDict); mergeModels(m, Var(value=n)) else mergeModels(n, Var(value=m)) end
+Base.:|(m::Tuple, n::AbstractDict) =  (m[1],  m[2], n)
 
 #mergeModels(x, ::Nothing) = x
 #mergeModels(x, y) = y
