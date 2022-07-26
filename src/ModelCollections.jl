@@ -8,7 +8,7 @@ Handles models and variables defined as dictionaries.
 =#
 
 export mergeModels, recursiveMerge, redeclare, outer, showModel, @showModel, drawModel, Model, Map, Par, Var, setLogMerge,
-    constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define, stringifyDefinition
+    constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define, stringifyDefinition, Lookup
 
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
@@ -23,6 +23,7 @@ function setLogMerge(val)
     logMerge = val
 end
 
+Lookup(model) = (:Lookup, model)
 
 function stringifyDefinition(v)
     if typeof(v) in [Symbol, Expr]
@@ -82,6 +83,7 @@ function mergify(ex::Expr, model, kwvalue=true, level=1)
                 end
             else
                 if length(mapArguments) > 0
+#                    @show mapArguments
                     res = :($(ex.args[1]) | $maps) # Map($(mapArguments...)) )
                 else
 #                    @show ex.args[1] 
@@ -97,8 +99,8 @@ function mergify(ex::Expr, model, kwvalue=true, level=1)
                         dump(newType)
                         compType = :($(newType.args[2]))
 =#
-                        res =  :((:Lookup, $(Meta.quot(compType))))
-#                        res =  :(Lookup($(Meta.quot(compType))))
+#                        res =  :((:Lookup, $(Meta.quot(compType))))
+                        res =  :(Lookup($(Meta.quot(compType))))
 #                        println("mergified: ") 
 #                        showModel(res)                    
                         return res
@@ -164,7 +166,10 @@ function substituteGenerics(model)
             name = v[2]
             # lookup name and set componenttype
 #            @show model[name]
-            componentType = deepcopy(model[name][:value])
+            componentType = deepcopy(model[name])
+#            @show name k componentType
+#            println("Redeclare $k = ")
+#            showModel(componentType)
             componentType[:_class] = :Model
             delete!(componentType, :value)
 #            model[name] = OrderedDict()

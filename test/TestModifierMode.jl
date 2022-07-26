@@ -56,7 +56,7 @@ plot(model, ["rc3.c.v", "rc3a.c.v"], figure=3)
 
 
 @define Circuit = Model(
-    DeviceType = Par(Resistor),
+    DeviceType = Resistor, # Generic model parameter
     device1 = DeviceType(),
     device2 = DeviceType(),
     source = ConstantVoltage(V=10),
@@ -68,16 +68,25 @@ plot(model, ["rc3.c.v", "rc3a.c.v"], figure=3)
 )
 
 @define MixedCircuits = Model(
-    c = Circuit(DeviceType = Capacitor, device2(C=8), source=ConstantCurrent(I=10)),
-    rc = Circuit(DeviceType = Capacitor, device1=Resistor(R=2), device2(C=5), source(V=10)), 
-#    rc1 = Circuit(DeviceType = Capacitor(C=5), device1=Resistor(R=2), source(V=10)), 
-    rc2 = Circuit(device1=Capacitor(C=5), device2=Resistor(R=2), source(V=10))  
+    c1 = Circuit(),
+    c2 = Circuit(device1(R=1), device2(R=4)),
+    c3 = Circuit(DeviceType=Resistor(R=2), device2(R=8)),
+
+#    cc1 = Circuit(device1=Capacitor(C=5), device2=Capacitor(C=20), source=ConstantCurrent(I=10)),  
+    cc2 = Circuit(DeviceType = Capacitor(C=0.5), device2(C=2), source=ConstantCurrent(I=10)),
+
+#    rc1 = Circuit(device1=Capacitor(C=5), device2=Resistor(R=2), source(V=10)),  
+    rc2 = Circuit(DeviceType = Capacitor(C=5), device1=Resistor(R=2), source(V=10)), 
+    rc3 = Circuit(DeviceType = Capacitor(), device1=Resistor(R=2), device2(C=5), source(V=10)), 
 )
 
 model = @instantiateModel(MixedCircuits, unitless=true)
-simulate!(model, stopTime=100, requiredFinalStates=[9.999542263878308])
-plot(model, ["c.device1.v", "c.device2.v"], figure=4)
-plot(model, ["rc.device1.v", "rc.device2.v"], figure=5)
-plot(model, ["rc2.device1.v", "rc2.device2.v"], figure=6)
+simulate!(model, stopTime=100) #, requiredFinalStates=[-999.9999999999999, -124.99999999999999])
+plot(model, ["c1.device1.v", "c1.device2.v"], figure=4)
+plot(model, ["c2.device1.v", "c2.device2.v"], figure=5)
+plot(model, ["c3.device1.v", "c3.device2.v"], figure=6)
+plot(model, ["cc2.device1.v", "cc2.device2.v"], figure=7)
+plot(model, ["rc2.device1.v", "rc2.device2.v"], figure=8)
+plot(model, ["rc3.device1.v", "rc3.device2.v"], figure=9)
 
 end
