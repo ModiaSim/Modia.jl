@@ -136,9 +136,9 @@ function SignalTables.getSignal(m::SimulationModel, name::String)
         end
         sigUnit = unitAsParseableString(sigValue)   
         if sigUnit == ""
-            signal = Par(value = sigValue)
+            signal = SignalTables.Par(value = sigValue)
         else
-            signal = Par(value = ustrip.(sigValue), unit=sigUnit)
+            signal = SignalTables.Par(value = ustrip.(sigValue), unit=sigUnit)
         end
     end
     return signal
@@ -257,9 +257,9 @@ function SignalTables.getSignalInfo(m::SimulationModel, name::String)
         end
         sigUnit = unitAsParseableString(sigValue)   
         if sigUnit == ""
-            signalInfo = Par(_eltypeOrType = eltypeOrType(sigValue))
+            signalInfo = SignalTables.Par(_eltypeOrType = eltypeOrType(sigValue))
         else
-            signalInfo = Par(_eltypeOrType = eltypeOrType( ustrip.(sigValue) ), unit=sigUnit)
+            signalInfo = SignalTables.Par(_eltypeOrType = eltypeOrType( ustrip.(sigValue) ), unit=sigUnit)
         end
         _size = nothing
         size_available = false      

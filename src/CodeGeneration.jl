@@ -1122,7 +1122,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
             # xe_nominal = isnan(xe_info.nominal) ? "" : xe_info.nominal
             push!(x_table, (xe_info.x_name, xe_init, xe_info.unit))   #, xe_nominal))
         end
-        show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
+        show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false, truncate=60)
         println("\n")
     end
 
