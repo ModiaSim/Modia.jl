@@ -183,7 +183,7 @@ Hierarchical models are obtained if the values themselves are `Models`, i.e. dic
 A model with two filters can, for example, be defined as follows:
 
 ```julia
-TwoFilters = (
+TwoFilters = Model(
     high = HighPassFilter,
     low = LowPassFilter,
 )
@@ -194,7 +194,7 @@ Note, that the previous definitions of `HighPassFilter` and `LowPassFilter` was 
 A band pass filter is a series connection of a high pass filter and a low pass filter and can be described as:
 
 ```julia
-BandPassFilter = (
+BandPassFilter = Model(
     u = input,
     y = output,
     high = HighPassFilter | Map(T=0.5, x=Var(init=0.1u"V")),
@@ -358,7 +358,7 @@ Having the above electrical component models, enables defining a filter
 by instantiating components, setting parameters and defining connections.
 
 ```julia
-Filter = (
+Filter = Model(
     R = Resistor | Map(R=0.5u"Ω"),
     C = Capacitor | Map(C=2.0u"F"),
     V = ConstantVoltage | Map(V=10.0u"V"),
