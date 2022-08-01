@@ -25,17 +25,21 @@ LowPassFilter = Model(
     equations = :[T * der(x) + x = u],
 )
 ```
-The symbols `input` and `output` refer to predefined variable constructors to define the input and output variables. If an equation has just a unique variable in the left hand side, `y`, the right hand side can be given as a quoted expression in a Var-constructor `Var(:x)` after the `output` constructor combined with the merge operator, `|`, see below.
+
+The symbols `input` and `output` refer to predefined variable constructors to define the input and output variables.
+If an equation has just a unique variable in the left hand side, `y`, the right hand side can be given as a quoted expression in a Var-constructor `Var(:x)` after the `output` constructor combined with the merge operator, `|`, see below.
 
 ## 2.2 Merging models
 
-It is possible to combine models by merging. If we want to change the model to become a highpass filter, an alternative output equation
+It is possible to combine models by merging.
+If we want to change the model to become a high-pass filter, an alternative output equation
 
 ```math
 y = -x + u
 ```
 
-is defined in an anonymous model `Model( y = :(-x + u) )`. This anonymous model is merged with `LowPassFilter` using the merge operator `|`:
+is defined in an anonymous model `Model( y = :(-x + u) )`.
+This anonymous model is merged with `LowPassFilter` using the merge operator `|`:
 
 ```julia
 HighPassFilter = LowPassFilter | Model( y = Var(:(-x + u) ) )
@@ -43,7 +47,9 @@ HighPassFilter = LowPassFilter | Model( y = Var(:(-x + u) ) )
 
 The merging implies that the `output` property of `y` is kept, but the binding expression is changed from `:x` to `:(-x + u)`.
 
-In general, recursive merging is desired and Modia provides a `mergeModels` function for that (see appendix [A.3 MergeModels algorithm](@ref)). This function is invoked as a binary operator `|` (also used for merge in Python). Note, that the order of the arguments/operands are important.
+In general, recursive merging is desired and Modia provides a `mergeModels` function for that (see appendix [A.3 MergeModels algorithm](@ref)).
+This function is invoked as a binary operator `|` (also used for merge in Python).
+Note, that the order of the arguments/operands are important.
 
 Generalizing the block to have two outputs for both low and high pass filtering would be done as follows:
 
@@ -108,7 +114,9 @@ LowAndHighPassFilter = Model(
 
 ## 2.3 Functions and tables
 
-In order to test an input/output block as defined in the previous section, an input needs to be defined. This can be made by adding an equation for `u`. Assume we want `u` to be sinousoidial with an increasing frequency:
+In order to test an input/output block as defined in the previous section, an input needs to be defined.
+This can be made by adding an equation for `u`.
+Assume we want `u` to be sinusoidal with an increasing frequency:
 
 ```julia
 TestLowAndHighPassFilter = LowAndHighPassFilter | Model(
@@ -117,7 +125,14 @@ TestLowAndHighPassFilter = LowAndHighPassFilter | Model(
     )
 ```
 
-`time` is a reserved name for the independent variable. It has unit `s` for seconds. The Julia package [Unitful](https://painterqubits.github.io/Unitful.jl/stable/) provides a means for defining units and managing unit inference. It need not be explicitly defined, because its symbols are exported by `using Modia`. Definition of units is done with a string macro `u"..."`. In this case, the input signal was given unit Volt. The state x must then also have consistent unit, that is Volt. If the model equations contain systems of simultaneous equations, then approximate guess values, optionally with units, must be given `start`: `i = Var(start=0.0u"A")`.
+`time` is a reserved name for the independent variable.
+It has unit `s` for seconds.
+The Julia package [Unitful](https://painterqubits.github.io/Unitful.jl/stable/) provides a means for defining units and managing unit inference.
+It need not be explicitly defined, because its symbols are exported by `using Modia`.
+Definition of units is done with a string macro `u"..."`.
+In this case, the input signal was given unit Volt.
+The state `x` must then also have consistent unit, that is Volt.
+If the model equations contain systems of simultaneous equations, then approximate guess values, optionally with units, must be given `start`: `i = Var(start=0.0u"A")`.
 
 The input signal can also be defined by interpolation in a table:
 
@@ -128,7 +143,7 @@ table = CubicSplineInterpolation(0:0.5:2.0, [0.0, 0.7, 2.0, 1.8, 1.2])
 TestLowAndHighPassFilter2 = TestLowAndHighPassFilter | Map(u = :(table(time*u"1/s")*u"V"))
 ```
 
-It is possible to call Julia functions that have more as one return argument:
+It is possible to call Julia functions that have more than one return argument:
 
 ```julia
 function ref(time)
@@ -146,7 +161,7 @@ TestMultiReturningFunction1 = Model(
 ```
 
 The returned arguments are typically numbers or arrays (see below).
-It is also possible to return an instance of a struct and, say,
+It is also possible to return an instance of a `struct` and, say,
 pass this instance as input to another function call.
 
 It is currently not supported that a function call modifies one of its arguments,
@@ -257,7 +272,7 @@ Various physical components sometimes share common properties.
 One mechanism to handle this is to use inheritance.
 In Modia, **merging** is used.
 
-Electrical components such as resistors, capacitors and inductors are categorized as oneports which have two pins.
+Electrical components such as resistors, capacitors and inductors are categorized as `OnePort`s which have two `Pin`s.
 Common properties are: constraint on currents at the pins and definitions of voltage over the component and current through the component.
 
 ```julia
@@ -397,7 +412,7 @@ TwoFilters = Model( f1 = Filter | Map( r = 10.0, c = 2.0), f2 = Filter )
 
 ### 2.5.7 Re-declarations
 
-It is possible to reuse a particular model topology by redeclaring the models of particular components.
+It is possible to reuse a particular model topology by re-declaring the models of particular components.
 For example, changing the filter `f1` to a voltage divider by changing `C` from a Capacitor to a Resistor.
 A predefined definition `redeclare` is used for this purpose.
 
@@ -470,7 +485,7 @@ SecondOrder = Model(
 Variables `sys.u` and `sys.y` are vectors with one element each.
 
 Note, `[0; w^2]` is a vector in Julia and not a column matrix.
-In order that `B` is defined as column matrix, the Julia 1.7 feature is used to append two semikolons, that is,
+In order that `B` is defined as column matrix, the Julia 1.7 feature is used to append two semicolons, that is,
 `[0; w^2;;]`
 
 Array equations remain array equations during symbolic transformation and in the generated code,
@@ -497,8 +512,8 @@ equations = :[
 ]
 ```
 
-When the init or start value of an array variable is defined as a [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl) array,
-then the value of this array remains to be a StaticArrays variable also in the generated code.
+When the `init` or `start` value of an array variable is defined as a [StaticArrays.jl `StaticArray`](https://github.com/JuliaArrays/StaticArrays.jl),
+then the value of this array variable will be `StaticArray` in the generated code.
 The benefit is that array operations are more efficient:
 
 ```julia
@@ -537,7 +552,7 @@ plot(testArray2, "v", figure=5)
 
 ## 2.7 Model libraries
 
-Modia provides a small set of pre-defined model components in directory `Modia.modelsPath`:
+Modia provides a small set of predefined model components in directory `Modia.modelsPath`:
 
 - `AllModels.jl` - Include all model libraries
 - `Blocks.jl` - Input/output control blocks
