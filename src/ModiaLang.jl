@@ -895,7 +895,7 @@ end
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
 
 * `model`: model (declarations and equations)
-* `FloatType`: Variable type for floating point numbers, for example: Float64, Measurements{Float64}, StaticParticles{Float64,100}, Particles{Float64,2000}
+* `FloatType`: Variable type for floating point numbers, for example: Float64, Measurement{Float64}, StaticParticles{Float64,100}, Particles{Float64,2000}
 * `aliasReduction`: Perform alias elimination and remove singularities
 * `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements)
 * `evaluateParameters`: Use evaluated parameters in the generated code.
