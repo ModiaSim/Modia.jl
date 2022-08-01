@@ -513,7 +513,7 @@ equations = :[
 ```
 
 When the `init` or `start` value of an array variable is defined as a [StaticArrays.jl `StaticArray`](https://github.com/JuliaArrays/StaticArrays.jl),
-then the value of this array variable will be `StaticArray` in the generated code.
+then the type of this array variable will be `StaticArray` in the generated code.
 The benefit is that array operations are more efficient:
 
 ```julia
