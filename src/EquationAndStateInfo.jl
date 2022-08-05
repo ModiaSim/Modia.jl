@@ -744,13 +744,13 @@ end
 
 
 """
-    x_start = initialStateVector!(eqInfo::EquationInfo, FloatType)::Vector{FloatType}
+    x_start = initialStateVector!(eqInfo::EquationInfo, FloatType, isFirstSegment, x_terminate)::Vector{FloatType}
 
 The function updates `eqInfo` (e.g. sets eqInfo.nx, eqInfo.nxInvariant) and returns the initial state vector x_start.
 
 This function must be called, after all states are known (after calling propagateEvaluateAndInstantiate!(..)).
 """
-function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{FloatType}
+function initialStateVector!(eqInfo::EquationInfo, FloatType::Type, isFirstSegment::Bool, x_terminate)::Vector{FloatType}
     @assert(eqInfo.status == EquationInfo_Initialized_Before_All_States_Are_Known)
     nx_info_fixedLength = eqInfo.nx_info_fixedLength
     x_info = eqInfo.x_info
@@ -770,7 +770,7 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
             xi_info.scalar = true
         end
     end
-    
+
     # Set startIndex for invariant states where the size was not fixed before code generation
     for i = nx_info_fixedLength+1:eqInfo.nx_info_invariant
         xi_info = x_info[i]
@@ -792,23 +792,43 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
 
     # Construct x_start
     x_start = zeros(FloatType, eqInfo.nx)
-    startIndex = 1
-    for xe_info in eqInfo.x_info
-        if xe_info.scalar
-            @assert(length(xe_info.startOrInit) == 1)
-            x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
-            startIndex += 1
-        else
-            xe_start = Vector{FloatType}(ustrip(xe_info.startOrInit))
-            @assert(length(xe_start) == xe_info.length)
-            copyto!(x_start, startIndex, xe_start, 1, length(xe_start))
-            startIndex += length(xe_start)
+    if isFirstSegment
+        startIndex = 1
+        for xe_info in x_info
+            if xe_info.scalar
+                @assert(length(xe_info.startOrInit) == 1)
+                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
+                startIndex += 1
+            else
+                xe_start = Vector{FloatType}(ustrip(xe_info.startOrInit))
+                @assert(length(xe_start) == xe_info.length)
+                copyto!(x_start, startIndex, xe_start, 1, length(xe_start))
+                startIndex += length(xe_start)
+            end
+        end
+    else
+        for i in 1:eqInfo.nxInvariant
+            x_start[i] = x_terminate[i]
+        end
+        startIndex = eqInfo.nxInvariant+1
+        for i = eqInfo.nx_info_invariant+1:length(x_info)
+            xe_info = x_info[i]
+            if xe_info.scalar
+                @assert(length(xe_info.startOrInit) == 1)
+                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
+                startIndex += 1
+            else
+                xe_start = Vector{FloatType}(ustrip(xe_info.startOrInit))
+                @assert(length(xe_start) == xe_info.length)
+                copyto!(x_start, startIndex, xe_start, 1, length(xe_start))
+                startIndex += length(xe_start)
+            end
         end
     end
 
     @assert(eqInfo.nx == startIndex - 1)
     eqInfo.status = EquationInfo_After_All_States_Are_Known
-    
+
     # Final check
     for (i, xi_info) = enumerate(eqInfo.x_info)
         @assert(xi_info.startIndex > 0)
@@ -816,7 +836,7 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type)::Vector{Floa
             @assert(xi_info.x_segmented_startIndex == -1)
         else
             @assert(xi_info.x_segmented_startIndex > 0)
-        end 
+        end
     end
     return x_start
 end

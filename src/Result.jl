@@ -67,7 +67,7 @@ mutable struct ResultInfo
                                      # = RESULT_DER_X      : result.der_x[      sk][ti][index:index+prod(dims_i(..))-1]
                                      # = RESULT_W_INVARIANT: result.w_invariant[sk][ti][index]
                                      # = RESULT_W_SEGMENTED: result.w_segmented[sk][ti][index]
-    signal::SignalTables.SymbolDictType # = Var() or Par()
+    signal::SignalTables.SymbolDictType # = SignalTables.Var() or SignalTables.Par()
     
     aliasName::String                # Name of non-eliminated variable
     aliasNegate::Bool                # = true, if info[aliasName] signal must be negated  
@@ -120,7 +120,7 @@ mutable struct Result{FloatType,TimeType}
 
         # Fill info with time
         firstIndexOfSegment = Int[1]        
-        timeResultInfo = ResultInfo(RESULT_T, Var(unit="s", independent=true), ValuesID(1,()), TimeType)
+        timeResultInfo = ResultInfo(RESULT_T, SignalTables.Var(unit="s", independent=true), ValuesID(1,()), TimeType)
         info[timeNameAsString] = timeResultInfo
 
         # Fill info with x, der_x (note: id is not yet known, because init/start value might be changed in evaluatedParameters(..), which is called after Result(...)
@@ -131,9 +131,9 @@ mutable struct Result{FloatType,TimeType}
             x_unit     = xi_info.unit
             der_x_unit = x_unit == "" ? "1/s" : unitAsParseableString(uparse(x_unit)/u"s")
             if x_unit == ""
-                x_var = Var(start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+                x_var = SignalTables.Var(start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
             else
-                x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+                x_var = SignalTables.Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
             end
             if !isnan(xi_info.nominal)
                 x_var[:nominal] = xi_info.nominal
@@ -143,9 +143,9 @@ mutable struct Result{FloatType,TimeType}
             end
             info[xi_info.x_name]     = ResultInfo(RESULT_X, x_var, FloatType)
             if der_x_unit == ""
-                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(), FloatType)            
+                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, SignalTables.Var(), FloatType)            
             else
-                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
+                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, SignalTables.Var(unit=der_x_unit), FloatType)
             end
         end
         
@@ -153,7 +153,7 @@ mutable struct Result{FloatType,TimeType}
         for (w_invariant_index, w_invariant_name) in enumerate(w_invariant_names)
             name = string(w_invariant_name)
             @assert(!haskey(info, name))    
-            info[name] = ResultInfo(RESULT_W_INVARIANT, Var(), ValuesID(w_invariant_index, nothing), Nothing)
+            info[name] = ResultInfo(RESULT_W_INVARIANT, SignalTables.Var(), ValuesID(w_invariant_index, nothing), Nothing)
         end
 
         # Fill info with eliminated variables
@@ -161,15 +161,15 @@ mutable struct Result{FloatType,TimeType}
             name = var_name(v)
             @assert(!haskey(info, name))
             if ModiaBase.isZero(vProperty, v)
-                info[name] = ResultInfo(Var(), FloatType(0))
+                info[name] = ResultInfo(SignalTables.Var(), FloatType(0))
             elseif ModiaBase.isAlias(vProperty, v)
                 aliasName = var_name( ModiaBase.alias(vProperty, v) )
                 @assert(haskey(info, aliasName))
-                info[name] = ResultInfo(Var(), aliasName, false)
+                info[name] = ResultInfo(SignalTables.Var(), aliasName, false)
             else # negated alias
                 negatedAliasName = var_name( ModiaBase.negAlias(vProperty, v) )
                 @assert(haskey(info, negatedAliasName))
-                info[name] = ResultInfo(Var(), negatedAliasName, true)
+                info[name] = ResultInfo(SignalTables.Var(), negatedAliasName, true)
             end
         end
 
@@ -216,7 +216,7 @@ dims_range(dims::Dims) = Tuple([1:i for i in dims])
 """
     signalResultValues(t, s, resultInfo::ResultInfo; log=false, name="")
     
-Return a Var() values vector from independent values t, dependent values s, and resultInfo.    
+Return a SignalTables.Var() values vector from independent values t, dependent values s, and resultInfo.    
 """
 function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::ResultInfo, result::Result; log=false, name::AbstractString="")
     id = resultInfo.id

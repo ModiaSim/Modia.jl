@@ -9,8 +9,8 @@ Main module of Modia.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.9.2"
-const Date = "2022-07-12"
+const Version = "0.9.3"
+const Date = "2022-08-05"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -43,11 +43,11 @@ import SignalTables: AvailablePlotPackages
 
 """
     @usingModiaPlot()
-    
+
 Execute `using XXX`, where `XXX` is the Plot package that was activated with `usePlotPackage(plotPackage)`.
 So this is similar to @usingPlotPackage (from SignalTables, that is reexported from Modia).
 
-There is, however, a difference when XXX = "SilentNoPlot": 
+There is, however, a difference when XXX = "SilentNoPlot":
 
 - @usingPlotPackage() executes `using SignalTables.SilentNoPlot` and therefore requires that package `SignalTables` is available in your environment.
 - @usingModiaPlot() executes `using Modia.SignalTables.SilentNoPlot` and therefore requires that package `Modia` is available in your environment.
