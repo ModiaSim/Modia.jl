@@ -329,6 +329,7 @@ mutable struct SimulationModel{FloatType,TimeType}
 
     parameters::OrderedDict{Symbol,Any}         # Parameters as provided to SimulationModel constructor
     equationInfo::Modia.EquationInfo            # Invariant part of equations are available
+    x_terminate::Vector{FloatType}              # States x used at the last terminate!(..) call or [], if terminate!(..) not yet called.
 
     # Available after propagateEvaluateAndInstantiate!(..) called
     instantiateFunctions::Vector{Tuple{Union{Expr,Symbol},OrderedDict{Symbol,Any},String}}
@@ -352,6 +353,7 @@ mutable struct SimulationModel{FloatType,TimeType}
                                                 # including derivatives of x_vec[i]
     der_x_segmented::Vector{FloatType}          # Derivatives of states x or x_init that correspond to segmented states (defined in functions and not visible in getDerivatives!(..))
     der_x::Vector{FloatType}                    # Derivatives of states x
+
 
     function SimulationModel{FloatType,TimeType}(modelModule, modelName, buildDict, getDerivatives!, equationInfo,
                                         previousVars, preVars, holdVars,
@@ -408,6 +410,7 @@ mutable struct SimulationModel{FloatType,TimeType}
         instantiateResult = true
         newResultSegment = false
         parameters = deepcopy(parameterDefinition)
+        x_terminate = FloatType[]
 
        new(modelModule, modelName, buildDict, TimerOutputs.TimerOutput(), UInt64(0), UInt64(0), SimulationOptions{FloatType,TimeType}(), getDerivatives!,
            equationInfo, linearEquations, eventHandler,
@@ -418,7 +421,7 @@ mutable struct SimulationModel{FloatType,TimeType}
            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
            odeIntegrator, daeCopyInfo, algorithmName, sundials, addEventPointsDueToDEBug, success, unitless,
            string(timeName), w_invariant_names, hideResult_names, vEliminated, vProperty, var_name, result,
-           parameters, equationInfo)
+           parameters, equationInfo, x_terminate)
     end
 
 #=
@@ -876,11 +879,11 @@ Return the names of the elements of the x-vector in a Vector{String}.
 get_xNames(m::SimulationModel) = Modia.get_xNames(m.equationInfo)
 
 
-
 """
     isInitial(instantiatedModel)
 
-Return true, if **initialization phase** of simulation.
+Return true, if **initialization phase** of simulation
+(of the current segment of a segmented simulation).
 """
 isInitial(m::SimulationModel) = m.eventHandler.initial
 initial(  m::SimulationModel) = m.eventHandler.initial
@@ -898,19 +901,20 @@ isFirstInitialOfAllSegments(m::SimulationModel) = m.eventHandler.firstInitialOfA
 """
     isTerminal(instantiatedModel)
 
-Return true, if **terminal phase** of simulation.
+Return true, if **terminal phase** of simulation
+(of the current segment of a segmented simulation).
 """
 isTerminal(m::SimulationModel) = m.eventHandler.terminal
 terminal(  m::SimulationModel) = m.eventHandler.terminal
 
 
 """
-    isTerminalOfAllSegmenteds(instantiatedModel)
+    isTerminalOfAllSegments(instantiatedModel)
 
 Return true, if **terminal phase** of simulation of the **last segment**
 of a segmented simulation.
 """
-isTerminalOfAllSegmenteds(m::SimulationModel) = m.eventHandler.terminalOfAllSegments
+isTerminalOfAllSegments(m::SimulationModel) = m.eventHandler.terminalOfAllSegments
 
 
 """
@@ -1073,7 +1077,6 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     if isnothing(evaluatedParameters)
         return false
     end
-
     m.evaluatedParameters = evaluatedParameters
     m.nextPrevious = deepcopy(m.previous)
     m.nextPre      = deepcopy(m.pre)
@@ -1171,9 +1174,10 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
         logInstantiatedFunctionCalls = false
         Core.eval(m.modelModule, :($(fc[1])($m, $(fc[2]), $(fc[3]), log=$logInstantiatedFunctionCalls)))
     end
+    resizeLinearEquations!(m, m.evaluatedParameters, m.options.log)
 
     # Get initial state vector
-    m.x_start = initialStateVector!(m.equationInfo, FloatType)
+    m.x_start = initialStateVector!(m)
 
     # update equationInfo
     x_info = m.equationInfo.x_info
@@ -1222,7 +1226,6 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
         m.x_init[i] = deepcopy(m.x_start[i])
     end
     eventIteration!(m, m.x_init, m.options.startTime)
-    m.success      = false   # is set to true at the first outputs! call.
     eh.fullRestart = false
     eh.initial     = false
     m.isInitial    = false
@@ -1287,8 +1290,11 @@ function terminate!(m::SimulationModel, x, t)::Nothing
     #println("... terminate! called at time = $t")
     eh = m.eventHandler
     eh.terminal = true
+    eh.terminalOfAllSegments = m.eventHandler.restart != Modia.FullRestart
     invokelatest_getDerivatives_without_der_x!(x, m, t)
     eh.terminal = false
+    eh.terminalOfAllSegments = false
+    m.x_terminate = deepcopy(x)
     return nothing
 end
 
@@ -1886,7 +1892,7 @@ function initialStateVector!(m::SimulationModel{FloatType,TimeType})::Vector{Flo
         # differential equation der_x[1] = -x[1], with state name _dummy_x
         new_x_segmented_variable!(m, "_dummy_x", "der(_dummy_x)", FloatType(0))
     end
-    return initialStateVector!(m.equationInfo, FloatType)
+    return initialStateVector!(m.equationInfo, FloatType, !isFullRestart(m), m.x_terminate)
 end
 
 

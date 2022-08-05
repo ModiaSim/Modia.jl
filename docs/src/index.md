@@ -42,11 +42,19 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.9.3
+
+- Requires SignalTables 0.4.0 (introduces Map-signal)
+- getSignalNames(...; getVar=true, getPar=true, getMap=true): New keyword arguments to filter names.
+- writeSignalTable(instantiatedModel,..): Include attributes = Map(model=..., experiment=...).
+- Some internal bug-fixes.
+
+
 ### Version 0.9.2
 
 - Bug fix: integrator IDA() can be used (especially to avoid solving large linear equation systems in the model).\
   Extend some test models to use IDA().
-  
+
 
 ### Version 0.9.1
 
@@ -54,9 +62,9 @@ functionalities of these packages.
 
 - [`@usingModiaPlot`](@ref): corrected and fixed in docu. Alternatively, @usingPlotPackage can be used,
   provided package SignalTables is present in your current environment.
-  
+
 - Internal: A function call in the generated code prefixed with `Modia.`.
-  
+
 
 ### Version 0.9.0
 
@@ -77,13 +85,13 @@ functionalities of these packages.
   with `writeSignalTable(filename, instantiatedModel)` (or in HDF5 format via [JDL](https://github.com/JuliaIO/JLD.jl)).
   You get an overview of a simulation result via `showInfo(instantiatedModel)`.
 
-- New functions [`hasParameter`](@ref), [`getParameter`](@ref), [`getEvaluatedParameter`](@ref), 
+- New functions [`hasParameter`](@ref), [`getParameter`](@ref), [`getEvaluatedParameter`](@ref),
   [`showParameters`](@ref), [`showEvaluatedParameters`](@ref) to
   get parameter/init/start values by name (e.g. `getEvaluatedParameter(instantiatedModel, "a.b.c")`) or
   show all parameters.
 
 - New functions to add states and algebraic variables from within functions that are not visible in the generated code
-  (see [Variable definitions in functions](@ref) and example `Modia/test/TestLinearSystems.jl`). 
+  (see [Variable definitions in functions](@ref) and example `Modia/test/TestLinearSystems.jl`).
   This feature is used in the next version of
   Modia3D to allow (Modia3D) model changes after code generation and to get more light weight code.
 

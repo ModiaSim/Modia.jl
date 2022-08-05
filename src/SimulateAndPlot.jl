@@ -65,7 +65,7 @@ can be used (instead of `import Sundials; simulate!(instantiatedModel, Sundials.
 
 The simulation results are stored in `instantiatedModel` and can be plotted with
 `plot(instantiatedModel, ...)`. The result values
-can be retrieved with `getValues(..)` for Var(..) and `getValue(..)` for Par(..). 
+can be retrieved with `getValues(..)` for Var(..) and `getValue(..)` for Par(..).
 `showInfo(instantiatedModel)` prints information about the signals in the result.
 For more details, see sections [Parameters/Init/Start](@ref), [Results and Plotting](@ref).
 
@@ -239,11 +239,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         finalStates = solution.u[end]
         finalTime   = solution.t[end]
         #m.result_x = solution
-        if m.eventHandler.restart != Modia.FullRestart
-            eh.terminalOfAllSegments = true
-        end
         terminate!(m, finalStates, finalTime)
-        eh.terminalOfAllSegments = false
 
         # Raise an error, if simulation was not successful
         if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
@@ -386,7 +382,7 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
             tspan2 = options.startTime:interval:options.stopTime
         else
             i      = ceil( (options.startTime - options.startTimeFirstSegment)/interval )
-            tnext  = options.startTimeFirstSegment + i*interval                  
+            tnext  = options.startTimeFirstSegment + i*interval
             tspan2 = tnext:interval:options.stopTime
             if tspan2[1] > options.startTime
                 tspan2 = [options.startTime, tspan2...]
@@ -413,7 +409,7 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         TimerOutputs.@timeit m.timer "DifferentialEquations.DAEProblem" problem = DifferentialEquations.DAEProblem{true}(DAEresidualsForODE!, m.der_x, m.x_init, tspan, m, differential_vars = differential_vars)
         empty!(m.daeCopyInfo)
         if length(sizesOfLinearEquationSystems) > 0 && maximum(sizesOfLinearEquationSystems) >= options.nlinearMinForDAE
-            # Prepare data structure to efficiently perform copy operations for DAE integrator       
+            # Prepare data structure to efficiently perform copy operations for DAE integrator
             x_info      = m.equationInfo.x_info
             der_x_dict  = m.equationInfo.der_x_dict
             der_x_names = keys(der_x_dict)
@@ -423,16 +419,16 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
                     answer  = leq.x_names .∈ Ref(der_x_names)
                     daeMode = true
                     for (index, val) in enumerate(answer)
-                        if !val && leq.x_lengths[index] > 0 
+                        if !val && leq.x_lengths[index] > 0
                             daeMode = false
                             break
                         end
                     end
-                    
+
                     if daeMode
                         # Linear equation shall be solved by DAE and all unknowns of the linear equation system are DAE derivatives
                         if eh.nz > 0
-                            leq.odeMode = true 
+                            leq.odeMode = true
                             daeMode = false
                             if options.log
                                 println("      No DAE mode for equation system $ileq because $(eh.nz) crossing function(s) defined (see issue #686 of DifferentialEquations.jl)")
@@ -459,7 +455,7 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
                             unknownsThatAreNoStateDerivatives = ""
                             first = true
                             for (index, val) in enumerate(answer)
-                                if !val && leq.x_lengths[index] > 0 
+                                if !val && leq.x_lengths[index] > 0
                                     if first
                                         first = false
                                         unknownsThatAreNoStateDerivatives = "\"" * leq.x_names[index] * "\""
@@ -482,7 +478,7 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         m.odeIntegrator = true
         TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
     end
-    
+
     if length(m.linearEquations) == 0
         m.odeMode   = true
         m.solve_leq = true

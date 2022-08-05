@@ -1,7 +1,7 @@
 authors = ["Hilding Elmqvist <Hilding.Elmqvist@Mogram.net>", "Martin Otter <Martin.Otter@dlr.de>"]
 name = "Modia"
 uuid = "cb905087-75eb-5f27-8515-1ce0ec8e839e"
-version = "0.9.2"
+version = "0.9.3"
 
 [deps]
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
@@ -27,7 +27,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-DiffEqBase = "6.82.0"
+DiffEqBase = "6"
 DataFrames = "1"
 DifferentialEquations = "7"
 FiniteDiff = "2"
@@ -39,7 +39,7 @@ MonteCarloMeasurements = "1"
 OrderedCollections = "1"
 RecursiveFactorization = "0.2"
 Reexport = "1"
-SignalTables = "0.3.5"
+SignalTables = "0.4.0"
 StaticArrays = "1"
 Sundials = "4"
 TimerOutputs = "0.5"

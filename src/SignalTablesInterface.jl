@@ -18,7 +18,7 @@ SignalTables.isSignalTable(m::SimulationModel) = true
 
 """
     getIndependentSignalNames(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Vector{String}
-    
+
 Return the name of the independent variable of the result stored in instantiatedModel or in result.
 """
 SignalTables.getIndependentSignalNames(result::Result)     = [result.timeName]
@@ -51,28 +51,62 @@ end
 
 
 """
-    getSignalNames(instantiatedModel::Modia.SimulationModel; var=true, par=true)::Vector{String}
+    getSignalNames(instantiatedModel::Modia.SimulationModel;
+                   getVar=true, getPar=true, getMap=true)::Vector{String}
 
 Returns a string vector of the variables of an
 [`@instantiateModel`](@ref) that are present in the result or are (evaluated) parameters.
-- If var=true, Var(..) variables are included.
-- If par=true, Par(..) variables are included.
+- If getVar=true, Var(..) variables are included.
+- If getPar=true, Par(..) variables are included.
+- If getMap=true, Map(..) variables are included.
 """
-function SignalTables.getSignalNames(m::SimulationModel; var=true, par=true)::Vector{String}
+function SignalTables.getSignalNames(m::SimulationModel; getVar=true, getPar=true, getMap=true,
+                                     var=nothing, par=nothing)::Vector{String}   # backwards compatibility
+    # For backwards compatibility
+        if !isnothing(var)
+            getVar = var
+        end
+        if !isnothing(par)
+            getPar = par
+        end
     if ismissing(m.result)
         error("getSignalNames(..): No simulation results available in instantiated model of $(m.modelName)")
     end
-    names1 = collect(keys(m.result.info))
-    if var && !par
-        return names1
+    var_names = collect(keys(m.result.info))
+    if getVar && !getPar && !getMap
+        return var_names
     end
-    names2 = setdiff(getParameterNames(m.evaluatedParameters), m.hideResult_names) # parameters without hideResult_names
-    if var && par
-        return union(names1,names2)
-    elseif par
-        return setdiff(names2,names1)
+    par_names = setdiff(getParameterNames(m.evaluatedParameters), m.hideResult_names) # parameters without hideResult_names
+    map_names = ["attributes"]
+    if getVar
+        if getPar
+            if getMap
+                return union(var_names,par_names,map_names)
+            else
+                return union(var_names,par_names)
+            end
+        else
+            if getMap
+                return union(var_names,map_names)
+            else
+                return var_names
+            end
+        end
     else
-        return String[]
+        par_names = setdiff(par_names,var_names)
+        if getPar
+            if getMap
+                return union(par_names,map_names)
+            else
+                return par_names
+            end
+        else
+            if map
+                return map_names
+            else
+                String[]
+            end
+        end
     end
 end
 
@@ -118,23 +152,32 @@ SignalTables.getIndependentSignalsSize(result::Result) = (sum(length(sk) for sk 
     getSignal(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
 
 Returns signal `name` of the result present in instantiatedModel
-(that is a [`SignalTables.Var`](@ref) or a [`SignalTables.Par`](@ref)).
+(that is a [`SignalTables.Var`](@ref), [`SignalTables.Par`](@ref)) or [`SignalTables.Map`](@ref))
 If `name` does not exist, an error is raised.
 """
 function SignalTables.getSignal(m::SimulationModel, name::String)
     checkMissingResult(m, name)
     result = m.result
-    
+
     if haskey(result.info, name)
         # name is a result variable (time-varying variable stored in m.result)
         signal = getSignal(result, name)
+
+    elseif name == "attributes"
+        signal = SignalTables.Map(model = SignalTables.Map(name = m.modelName),
+                                  experiment = SignalTables.Map(startTime=m.options.startTime,
+                                                                stopTime=m.options.stopTime,
+                                                                interval=m.options.interval,
+                                                                tolerance=m.options.tolerance),
+                                  unitFormat="Unitful")
+
     else
         # name might be a parameter
         sigValue = get_value(m.evaluatedParameters, name)
         if ismissing(sigValue)
             error("getSignal(.., $name): name is not known")
         end
-        sigUnit = unitAsParseableString(sigValue)   
+        sigUnit = unitAsParseableString(sigValue)
         if sigUnit == ""
             signal = SignalTables.Par(value = sigValue)
         else
@@ -168,26 +211,34 @@ function SignalTables.getSignal(result::Result, name::String)
 
     if resInfo.kind == RESULT_T
         sigValues = signalResultValues(result.t, result.t, resInfo, result; name=name)
-    elseif resInfo.kind == RESULT_X  
+    elseif resInfo.kind == RESULT_X
         sigValues = signalResultValues(result.t, result.x, resInfo, result; name=name)
     elseif resInfo.kind == RESULT_DER_X
         sigValues = signalResultValues(result.t, result.der_x, resInfo, result; name=name)
     elseif resInfo.kind == RESULT_W_INVARIANT
         index   = resInfo.id[1].index
         w_value = result.w_invariant[1][1][index]
-        w_unit  = SignalTables.unitAsParseableString(w_value)   
+        w_unit  = SignalTables.unitAsParseableString(w_value)
 
         # w_invariant has potentially a unit defined - remove it
             if w_unit != ""
                 resInfo.signal[:unit] = w_unit
-                w_value = ustrip.(w_value)
+                try
+                    w_value = ustrip.(w_value)
+                catch
+                    nothing
+                end
             end
 
         # w_invariant is defined in all segments and has no size information defined - add size information
-            resInfo.id[1] = ValuesID(index, size(w_value))
+            try
+                resInfo.id[1] = ValuesID(index, size(w_value))
+            catch
+                resInfo.id[1] = ValuesID(index, ())
+            end
 
-        resInfo._eltypeOrType = eltypeOrType(w_value)            
-        sigValues = signalResultValues(result.t, result.w_invariant, resInfo, result; name=name)  
+        resInfo._eltypeOrType = eltypeOrType(w_value)
+        sigValues = signalResultValues(result.t, result.w_invariant, resInfo, result; name=name)
     elseif resInfo.kind == RESULT_W_SEGMENTED
         sigValues = signalResultValues(result.t, result.w_segmented, resInfo, result; name=name)
     elseif resInfo.kind == RESULT_CONSTANT
@@ -241,31 +292,33 @@ end
 
 """
         getSignalInfo(instantiatedModel::Modia.SimulationModel, name::String)
-        
+
 Returns signal info of variables stored in the result and of parameters.
 """
 function SignalTables.getSignalInfo(m::SimulationModel, name::String)
-    result = m.result    
+    result = m.result
     if haskey(result.info, name)
         # name is a result variable (time-varying variable stored in m.result)
         signalInfo = getSignalInfo(m.result, name)
+    elseif name == "attributes"
+        signalInfo = getSignal(m, name)
     else
         # name might be a parameter
         sigValue = get_value(m.evaluatedParameters, name)
         if ismissing(sigValue)
             error("getSignalInfo(.., $name): name is not known")
         end
-        sigUnit = unitAsParseableString(sigValue)   
+        sigUnit = unitAsParseableString(sigValue)
         if sigUnit == ""
             signalInfo = SignalTables.Par(_eltypeOrType = eltypeOrType(sigValue))
         else
             signalInfo = SignalTables.Par(_eltypeOrType = eltypeOrType( ustrip.(sigValue) ), unit=sigUnit)
         end
         _size = nothing
-        size_available = false      
+        size_available = false
         try
             _size = size(sigValue)
-            size_available = true                  
+            size_available = true
         catch
             size_available = false
         end
@@ -281,7 +334,7 @@ end
 
 """
         getSignalInfo(result::Modia.result, name::String)
-        
+
 Returns signal info of variables stored in result.
 """
 function SignalTables.getSignalInfo(result::Result, name::String)
@@ -355,13 +408,13 @@ get_leaveName(pathName::String) =
         j = findlast('.', pathName);
         typeof(j) == Nothing || j >= length(pathName) ? pathName : pathName[j+1:end]
     end
-    
+
 
 """
     SignalTables.getDefaultHeading(instantiatedModel::Modia.SimulationModel)
-    
+
 Return default heading of instantiatedModel as a string.
-""" 
+"""
 function SignalTables.getDefaultHeading(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType}
     if isnothing(m) || ismissing(m) || ismissing(m.result)
         return ""
@@ -371,7 +424,7 @@ function SignalTables.getDefaultHeading(m::SimulationModel{FloatType,TimeType}) 
         heading = m.modelName * " (" * algorithmName * ")"
     else
         heading = m.modelName * " (" * algorithmName * ", " * string(FloatType) * ")"
-    end    
+    end
 end
 
 
@@ -449,7 +502,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
         end
 
     else
-        for name in getSignalNames(m, par=false)
+        for name in getSignalNames(m, getPar=false, getMap=false)
             if name != "time"
                 dataFrame[!,name] = getValues(m,name)
             end

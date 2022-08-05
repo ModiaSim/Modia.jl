@@ -18,6 +18,8 @@ function getConstructorAsString(path, constructor, parameters):String
             end
             if typeof(value) == Symbol
                 svalue = ":" * string(value)
+            elseif typeof(value) == String
+                svalue = value
             elseif typeof(value) <: AbstractDict
                 svalue = "..."  # Do not show dictionaries, since too much output, especially due to pointers to Object3Ds
             else
