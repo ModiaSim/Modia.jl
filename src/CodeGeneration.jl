@@ -304,8 +304,8 @@ mutable struct SimulationModel{FloatType,TimeType}
     odeMode::Bool                           # = false: copy der(x) into linear equation systems that have leq.odeMode=false and do not solve these equation systems
     storeResult::Bool
     time::TimeType
-    nGetDerivatives::Int                        # Number of getDerivatives! calls
-    nf::Int                                     # Number of getDerivatives! calls from integrator (without zero-crossing calls)
+    nf_total::Int                               # Number of getDerivatives! calls
+    nf_integrator::Int                          # Number of getDerivatives! calls from integrator (without zero-crossing calls)
     odeIntegrator::Bool                         # = true , if ODE integrator used
                                                 # = false, if DAE integrator used
 
@@ -330,6 +330,9 @@ mutable struct SimulationModel{FloatType,TimeType}
     parameters::OrderedDict{Symbol,Any}         # Parameters as provided to SimulationModel constructor
     equationInfo::Modia.EquationInfo            # Invariant part of equations are available
     x_terminate::Vector{FloatType}              # States x used at the last terminate!(..) call or [], if terminate!(..) not yet called.
+
+    # Available before init!(..) called
+    statistics::OrderedDict{Symbol,Any}         # Statistics of simulation run
 
     # Available after propagateEvaluateAndInstantiate!(..) called
     instantiateFunctions::Vector{Tuple{Union{Expr,Symbol},OrderedDict{Symbol,Any},String}}
@@ -390,12 +393,12 @@ mutable struct SimulationModel{FloatType,TimeType}
             hold_dict  = OrderedDict{String,Int}(zip(hold_names, 1:length(holdVars)))
 
         # Initialize execution flags
-        eventHandler = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
-        isInitial   = true
-        storeResult = false
-        solve_leq   = true
-        nGetDerivatives = 0
-        nf = 0
+        eventHandler  = EventHandler{FloatType,TimeType}(nz=nz, nAfter=nAfter)
+        isInitial     = true
+        storeResult   = false
+        solve_leq     = true
+        nf_total      = 0
+        nf_integrator = 0
         odeIntegrator = true
         daeCopyInfo = LinearEquationsCopyInfoForDAEMode[]
         algorithmName = missing
@@ -418,7 +421,7 @@ mutable struct SimulationModel{FloatType,TimeType}
            previous, previous_names, previous_dict,
            pre, pre_names, pre_dict,
            hold, hold_names, hold_dict,
-           isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+           isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nf_total, nf_integrator,
            odeIntegrator, daeCopyInfo, algorithmName, sundials, addEventPointsDueToDEBug, success, unitless,
            string(timeName), w_invariant_names, hideResult_names, vEliminated, vProperty, var_name, result,
            parameters, equationInfo, x_terminate)
@@ -435,11 +438,11 @@ mutable struct SimulationModel{FloatType,TimeType}
         # Initialize execution flags
         eventHandler = EventHandler{FloatType,TimeType}()
         eventHandler.initial = true
-        isInitial   = true
-        storeResult = false
-        solve_leq   = true
-        nGetDerivatives = 0
-        nf = 0
+        isInitial     = true
+        storeResult   = false
+        solve_leq     = true
+        nf_total      = 0
+        nf_integrator = 0
         odeIntegrator = true
         daeCopyInfo = LinearEquationsCopyInfoForDAEMode[]
         algorithmName = missing
@@ -467,7 +470,7 @@ mutable struct SimulationModel{FloatType,TimeType}
             deepcopy(m.previous), m.previous_names, m.previous_dict,
             deepcopy(m.pre), m.pre_names, m.pre_dict,
             deepcopy(m.hold), m.hold_names, m.hold_dict,
-            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nGetDerivatives, nf,
+            isInitial, solve_leq, true, storeResult, convert(TimeType, 0), nf_total, nf_integrator,
             true, LinearEquationsCopyInfoForDAEMode[],
             odeIntegrator, daeCopyInfo, m.sundials, m.addEventPointsDueToDEBug, success, m.unitless,
             result, nsegments,
@@ -1067,6 +1070,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     eh                     = m.eventHandler
     m.instantiateFunctions = Tuple{Union{Expr,Symbol}, OrderedDict{Symbol,Any}, String}[]
     m.nsegments            = 1
+    m.statistics           = newStatistics(m.options.startTime, get_algorithmName_for_heading(m), m.odeIntegrator, FloatType)
     m.result = Result{FloatType,TimeType}(m.equationInfo, m.timeName, m.w_invariant_names, m.vEliminated, m.vProperty, m.var_name)
     result   = m.result
 
@@ -1082,6 +1086,10 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.nextPre      = deepcopy(m.pre)
     m.nextHold     = deepcopy(m.hold)
     m.x_start      = initialStateVector!(m)
+    useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
+    for leq in m.linearEquations
+        leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
+    end
 
     # update equationInfo
     for xi_info in equationInfo.x_info
@@ -1103,6 +1111,7 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.der_x_invariant = zeros(FloatType,equationInfo.nxInvariant)
     m.der_x_segmented = zeros(FloatType, nxSegmented)
     m.der_x           = zeros(FloatType,nx)
+    updateStatistics_nStates!(m.statistics, nx)
 
     # Log parameters
     if m.options.logParameters
@@ -1135,14 +1144,14 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     end
 
     # Perform initial event iteration
-    m.nGetDerivatives = 0
-    m.nf        = 0
+    m.nf_total      = 0
+    m.nf_integrator = 0
     m.isInitial = true
     eh.initial  = true
     for i in eachindex(m.x_init)
         m.x_init[i] = deepcopy(m.x_start[i])
     end
-    eventIteration!(m, m.x_init, m.options.startTime)
+    TimerOutputs.@timeit m.timer "Modia eventIteration!" eventIteration!(m, m.x_init, m.options.startTime)
     m.success     = false   # is set to true at the first outputs! call.
     eh.initial    = false
     m.isInitial   = false
@@ -1159,12 +1168,14 @@ end
 Re-initialize `instantiatedModel` after a `FullRestart` event.
 """
 function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where {FloatType,TimeType}
-    if m.options.log
+    if m.options.logEvents
         println("      Reinitialization due to FullRestart at time = ", m.time, " s")
     end
     eh = m.eventHandler
     removeSegmentedStates!(m.equationInfo)
-    m.nsegments += 1
+    m.nsegments    += 1
+    m.nf_total      = 0
+    m.nf_integrator = 0
     m.options.startTime = m.time
     reinitEventHandlerForFullRestart!(eh, m.time, m.options.stopTime, m.options.logEvents)
     newResultSegment!(m.result, m.equationInfo, m.nsegments)
@@ -1203,6 +1214,7 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
     m.der_x_invariant .= FloatType(0)
     m.der_x_segmented .= FloatType(0)
     m.der_x           .= FloatType(0)
+    updateStatistics_nStates_segmented!(m.statistics, nx)
 
     if m.options.logStates
         # List init/start values
@@ -1218,6 +1230,7 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
         show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false)
         println("\n")
     end
+
 
     # Perform event iteration
     m.isInitial   = true
@@ -1388,7 +1401,7 @@ end
 DifferentialEquations callback function to get the derivatives.
 """
 function derivatives!(der_x, x, m, t)
-    m.nf += 1
+    m.nf_integrator += 1
     invokelatest_getDerivatives_without_der_x!(x, m, t)
     #println("t = $t, m.der_x_segmented = ", m.der_x_segmented)
     copyDerivatives!(der_x, m.der_x_invariant, m.der_x_segmented)
@@ -1403,7 +1416,7 @@ end
 DifferentialEquations callback function for DAE integrator for ODE model
 """
 function DAEresidualsForODE!(residuals, derx, x, m, t)::Nothing
-    m.nf += 1
+    m.nf_integrator += 1
 
     # Copy derx to linearEquations
     for copyInfo in m.daeCopyInfo
@@ -1614,7 +1627,7 @@ function resizeLinearEquations!(m::SimulationModel{FloatType,TimeType}, evaluate
                 leq.x_lengths[i] = length(xi_param)
                 j += 1
                 if length(leq.x_vec[j]) != leq.x_lengths[i]
-                    if log
+                    if m.options.logEvents
                         println("      Modia: Resize linear equations vector $xi_name from ", length(leq.x_vec[j]), " to ", leq.x_lengths[i] )
                     end
                     resize!(leq.x_vec[j], leq.x_lengths[i])
@@ -2031,7 +2044,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
                     _FloatType = $FloatType
                     _TimeType = $TimeType
                     _m.time = _time
-                    _m.nGetDerivatives += 1
+                    _m.nf_total += 1
                     instantiatedModel = _m
                     _p = _m.evaluatedParameters
                     _leq_mode = nothing

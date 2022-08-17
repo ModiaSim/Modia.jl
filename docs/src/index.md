@@ -42,11 +42,18 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.9.4-dev
+
+- Log of statistics improved and included in writeSignalTable(..) of instantiatedModel.
+- SignalTables.getSignalNames(..): Order of signal names improved so that the linear listing reflects the hierarchy of the names.
+- writeSignalTable(..): attributes renamed to _attributes. All used simulate!(..) options included in Map experiment.
+- Require SignalTables 0.4.1 (since several issues fixed with writeSignalTable(..)).
+
 ### Version 0.9.3
 
 - Requires SignalTables 0.4.0 (introduces Map-signal)
 - getSignalNames(...; getVar=true, getPar=true, getMap=true): New keyword arguments to filter names.
-- writeSignalTable(instantiatedModel,..): Include attributes = Map(model=..., experiment=...).
+- writeSignalTable(...) of instantiatedModel: Include attributes = Map(model=..., experiment=...).
 - Some internal bug-fixes.
 
 

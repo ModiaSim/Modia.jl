@@ -165,8 +165,12 @@ end
 
 
 function reinitEventHandlerForFullRestart!(eh::EventHandler{FloatType,TimeType}, currentTime::TimeType, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType}
-    eh.nRestartEvents += 1
     eh.nFullRestartEvents += 1
+    eh.nZeroCrossings = 0
+    eh.nRestartEvents = 0
+    eh.nStateEvents   = 0
+    eh.nTimeEvents    = 0
+    
     eh.initial  = true
     eh.terminal = false
     eh.event    = false

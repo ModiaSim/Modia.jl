@@ -50,6 +50,18 @@ function getParameterNames(parameters)::Vector{String}
 end
 
 
+function headPartOfName(name::String)::String
+    # Determine head part of name (before last ".")
+    i = first(something(findlast(".", name), 0:-1))
+    return i > 1 && i < length(name) ? name[1:i-1] : name
+end
+
+function sortUpperHierarchies(names::Vector{String})
+    sortedIndices = sortperm(String[headPartOfName(name) for name in names])
+    return names[sortedIndices]
+end
+
+
 """
     getSignalNames(instantiatedModel::Modia.SimulationModel;
                    getVar=true, getPar=true, getMap=true)::Vector{String}
@@ -69,46 +81,30 @@ function SignalTables.getSignalNames(m::SimulationModel; getVar=true, getPar=tru
         if !isnothing(par)
             getPar = par
         end
+
     if ismissing(m.result)
         error("getSignalNames(..): No simulation results available in instantiated model of $(m.modelName)")
     end
-    var_names = collect(keys(m.result.info))
-    if getVar && !getPar && !getMap
-        return var_names
-    end
-    par_names = setdiff(getParameterNames(m.evaluatedParameters), m.hideResult_names) # parameters without hideResult_names
-    map_names = ["attributes"]
-    if getVar
-        if getPar
-            if getMap
-                return union(var_names,par_names,map_names)
-            else
-                return union(var_names,par_names)
-            end
-        else
-            if getMap
-                return union(var_names,map_names)
-            else
-                return var_names
-            end
-        end
+
+    var_names = getVar ? collect(keys(m.result.info)) : String[]
+    par_names = getPar ? setdiff(getParameterNames(m.evaluatedParameters), m.hideResult_names) : String[]  # parameters without hideResult_names
+    map_names = getMap ? ["_attributes"] : String[]
+    if length(var_names) > 1
+        sig_names = vcat(map_names, var_names[1], sortUpperHierarchies( union(var_names[2:end], par_names) ) )
     else
-        par_names = setdiff(par_names,var_names)
-        if getPar
-            if getMap
-                return union(par_names,map_names)
-            else
-                return par_names
-            end
-        else
-            if map
-                return map_names
-            else
-                String[]
-            end
-        end
+        sig_names = vcat(map_names, var_names, sortUpperHierarchies(par_names) )
     end
+    return sig_names
 end
+
+
+"""
+    getSignalNames(result::Modia.Result;
+                   getVar=true, getPar=true, getMap=true)::Vector{String}
+
+Returns a string vector of the variables that are present in the result.
+"""
+SignalTables.getSignalNames(result::Result; getVar=true, getPar=true, getMap=true) = getVar ? collect(keys(result.info)) : String[]
 
 
 """
@@ -131,12 +127,6 @@ function getStateNames(m::SimulationModel)::Vector{String}
 end
 
 
-"""
-    getSignalNames(result::Modia.Result)::Vector{String}
-
-Returns a string vector of the variables that are present in the result.
-"""
-SignalTables.getSignalNames(result::Result) = collect(keys(result.info))
 
 
 """
@@ -146,6 +136,19 @@ Returns the lengths of the independent signal of the result as (len,).
 """
 SignalTables.getIndependentSignalsSize(m::SimulationModel) = SignalTables.getIndependentSignalsSize(m.result)
 SignalTables.getIndependentSignalsSize(result::Result) = (sum(length(sk) for sk in result.t), )
+
+#=
+using Pkg
+
+function getPackageInfo(name::String)
+    for (key,value) in Pkg.dependencies()
+        if value.name == name && value.is_direct_dep
+            return (uuid=key, version=value.version, source=value.source)
+        end
+    end
+    return nothing
+end
+=#
 
 
 """
@@ -163,13 +166,19 @@ function SignalTables.getSignal(m::SimulationModel, name::String)
         # name is a result variable (time-varying variable stored in m.result)
         signal = getSignal(result, name)
 
-    elseif name == "attributes"
+    elseif name == "_attributes"
         signal = SignalTables.Map(model = SignalTables.Map(name = m.modelName),
-                                  experiment = SignalTables.Map(startTime=m.options.startTime,
+                                  experiment = SignalTables.Map(startTime=m.options.startTimeFirstSegment,
                                                                 stopTime=m.options.stopTime,
                                                                 interval=m.options.interval,
-                                                                tolerance=m.options.tolerance),
-                                  unitFormat="Unitful")
+                                                                tolerance=m.options.tolerance,
+                                                                algorithm=get_algorithmName_for_heading(m),
+                                                                dtmax=m.options.dtmax,
+                                                                interp_points=m.options.interp_points,
+                                                                adaptive=m.options.adaptive
+                                                                ),
+                                  statistics = deepcopy(m.statistics),
+                                  unitFormat = "Unitful")
 
     else
         # name might be a parameter
@@ -300,13 +309,13 @@ function SignalTables.getSignalInfo(m::SimulationModel, name::String)
     if haskey(result.info, name)
         # name is a result variable (time-varying variable stored in m.result)
         signalInfo = getSignalInfo(m.result, name)
-    elseif name == "attributes"
+    elseif name == "_attributes"
         signalInfo = getSignal(m, name)
     else
         # name might be a parameter
         sigValue = get_value(m.evaluatedParameters, name)
         if ismissing(sigValue)
-            error("getSignalInfo(.., $name): name is not known")
+            error("getSignalInfo(.., \"$name\"): signal name is not known")
         end
         sigUnit = unitAsParseableString(sigValue)
         if sigUnit == ""

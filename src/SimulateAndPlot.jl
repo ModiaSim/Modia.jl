@@ -203,29 +203,28 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     m.algorithmName = getAlgorithmName(algorithm)
     m.sundials      = !ismissing(algorithm) && (typeof(algorithm) <: Sundials.SundialsODEAlgorithm || typeof(algorithm) <: Sundials.SundialsDAEAlgorithm)
     m.addEventPointsDueToDEBug = m.sundials
+    m.odeIntegrator = !(typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm)
 
     # Initialize/re-initialize SimulationModel
     if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
         println("\n... Simulate model ", m.modelName)
     end
 
-    useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
-    for leq in m.linearEquations
-        leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
+    enable_timer!(m.timer)
+    reset_timer!(m.timer)
+    TimerOutputs.@timeit m.timer "Modia.init!"  begin
+        if m.options.log || m.options.logTiming
+            timedStats = @timed @time (success = init!(m); if m.options.log || m.options.logTiming; print("      Initialization finished within") end)
+        else
+            timedStats = @timed (success = init!(m))
+        end
     end
-
-    if m.options.log || m.options.logTiming
-        @time (success = init!(m); if m.options.log || m.options.logTiming; print("      Initialization finished within") end)
-    else
-        success = init!(m)
-    end
+    updateStatistics_initStat!(m.statistics, timedStats.time, timedStats.bytes*1e-6)
     if !success
         @test false
         return nothing
     end
 
-    enable_timer!(m.timer)
-    reset_timer!(m.timer)
     m.cpuLast  = time_ns()
     m.cpuFirst = m.cpuLast
     eh = m.eventHandler
@@ -241,6 +240,23 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         #m.result_x = solution
         terminate!(m, finalStates, finalTime)
 
+        # Update statistics
+        if m.sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
+            nJac           = missing
+            nAcceptedSteps = missing
+            nRejectedSteps = missing
+        else
+            nJac           = solution.destats.njacs
+            nAcceptedSteps = solution.destats.naccept
+            nRejectedSteps = solution.destats.nreject
+        end
+        updateStatistics_performanceIndictors!(m.statistics, finalTime,
+            nResultsCurrentSegment(m.result),
+            m.nf_total, m.nf_integrator, eh.nZeroCrossings,
+            nJac, nAcceptedSteps, nRejectedSteps,
+            eh.nTimeEvents, eh.nStateEvents, eh.nRestartEvents,
+            eh.nFullRestartEvents, m.linearEquations)
+
         # Raise an error, if simulation was not successful
         if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
             error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
@@ -255,15 +271,18 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     end # --------------------------------------------------------- End of core simulation loop ------------------------------
 
     disable_timer!(m.timer)
-
+    updateStatistics_final!(m.statistics,
+                               TimerOutputs.time(m.timer["Modia.simulate!"])*1e-9,
+                               TimerOutputs.allocated(m.timer["Modia.simulate!"])*1e-6)
     if !m.success
         return nothing
     end
 
     if m.options.log
         eh = m.eventHandler
-        useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
         println("      Termination of ", m.modelName, " at time = ", solution.t[end], " s")
+        #=
+        useRecursiveFactorization = Bool[leq.useRecursiveFactorization for leq in m.linearEquations]
         println("        cpuTime (without init.)   = ", round(TimerOutputs.time(m.timer["Modia.simulate!"])*1e-9, sigdigits=3), " s")
         println("        allocated (without init.) = ", round(TimerOutputs.allocated(m.timer["Modia.simulate!"])/1048576.0, sigdigits=3), " MiB")
         println("        algorithm                 = ", get_algorithmName_for_heading(m))
@@ -275,21 +294,19 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
         println("        useRecursiveFactorization = ", useRecursiveFactorization)
         println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])
         println("        nResults                  = ", nResults(m.result))
-        println("        nGetDerivatives           = ", m.nGetDerivatives, " (total number of getDerivatives! calls)")
-        println("        nf                        = ", m.nf, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
-        println("        nZeroCrossings            = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
+        println("        nf_total                  = ", m.nf_total, " (total number of getDerivatives! calls)")
+        println("        nf_integrator             = ", m.nf_integrator, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
+        println("        nf_zeroCrossings          = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
 
         if m.sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
             # statistics is wrong, due to a bug in the Sundials.jl interface
             println("        nJac                      = ??? (number of Jacobian computations)")
             println("        nAcceptedSteps            = ???")
             println("        nRejectedSteps            = ???")
-            println("        nErrTestFails             = ???")
         else
             println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
             println("        nAcceptedSteps            = ", solution.destats.naccept)
             println("        nRejectedSteps            = ", solution.destats.nreject)
-            println("        nErrTestFails             = ", solution.destats.nreject)
         end
         println("        nTimeEvents               = ", eh.nTimeEvents)
         println("        nStateEvents              = ", eh.nStateEvents)
@@ -297,6 +314,8 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             println("        nFullRestartEvents        = ", eh.nFullRestartEvents)
         end
         println("        nRestartEvents            = ", eh.nRestartEvents)
+        =#
+        printStatistics(m.statistics, m.options.interval, m.options.tolerance)
     end
     if m.options.logTiming
         println("\n... Timings for simulation of ", m.modelName," (without initialization):")
@@ -395,14 +414,15 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
         tspan2 = [options.startTime, options.stopTime]
     end
     tspan = (options.startTime, options.stopTime)
-
     eh = m.eventHandler
     for leq in m.linearEquations
         leq.odeMode = true
     end
-    if typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm
+    if m.odeIntegrator
+        # ODE integrator
+        TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
+    else
         # DAE integrator
-        m.odeIntegrator = false
         nx = length(m.x_init)
         differential_vars = eh.nz > 0 ? fill(true, nx) : nothing    # due to DifferentialEquations issue #549
         copyDerivatives!(m.der_x, m.der_x_invariant, m.der_x_segmented)
@@ -473,10 +493,6 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
                 end
             end
         end
-    else
-        # ODE integrator
-        m.odeIntegrator = true
-        TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
     end
 
     if length(m.linearEquations) == 0
