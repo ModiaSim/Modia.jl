@@ -1,4 +1,4 @@
-# Modia Documentation
+activ# Modia Documentation
 
 [Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined [Modia3D] (https://github.com/ModiaSim/Modia3D.jl) multibody components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
 The basic type of the floating point variables is usually `Float64`, but can be set to any
@@ -44,6 +44,10 @@ functionalities of these packages.
 
 ### Version 0.9.4-dev
 
+- Precompile statements included (compilation of Modia package takes more time, but startup of Modia model simulations is faster).
+- `@instantiateModel(..., logFile=true)`: New keyword argument `logFile` in order that log of file and line number can be
+  switched off, when `@instantiateModel` is called.
+- Error messages improved, when model errors result in failed evaluation of parameters.
 - Log of statistics improved and included in writeSignalTable(..) of instantiatedModel.
 - SignalTables.getSignalNames(..): Order of signal names improved so that the linear listing reflects the hierarchy of the names.
 - writeSignalTable(..): attributes renamed to _attributes. All used simulate!(..) options included in Map experiment.

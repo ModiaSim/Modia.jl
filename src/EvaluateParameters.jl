@@ -23,7 +23,9 @@ function getConstructorAsString(path, constructor, parameters):String
             elseif typeof(value) <: AbstractDict
                 svalue = "..."  # Do not show dictionaries, since too much output, especially due to pointers to Object3Ds
             else
-                value = ustrip.(value)
+                if eltypeOrType(value) <: Number
+                    value = ustrip.(value)
+                end
                 svalue = string(value)
                 if length(svalue) > 20
                     svalue = svalue[1:20] * "..."   # Restrict the length of the output
@@ -209,11 +211,12 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
     current = OrderedDict{Symbol,Any}()   # should be Map()
 
     # Determine, whether "parameters" has a ":_constructor"  or "_instantiateFunction" key and handle this specially
-    constructor         = nothing
-    instantiateFunction = nothing
-    usePath             = false
-    modelModule         = m.modelModule
-    eqInfo              = m.equationInfo
+    constructor          = nothing
+    instantiateFunction  = nothing
+    usePath              = false
+    useInstantiatedModel = false
+    modelModule          = m.modelModule
+    eqInfo               = m.equationInfo
 
     if haskey(parameters, :_constructor)
         # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
@@ -224,11 +227,25 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             if haskey(v, :_path)
                 usePath = v[:_path]
             end
-        else
+            if haskey(v, :_instantiatedmodel)
+                useInstantiatedModel = v[:_instantiatedmodel]
+            end
+        else     
             constructor = v
             if haskey(parameters, :_path)
                 usePath = parameters[:_path]
             end
+            if haskey(parameters, :_instantiatedModel)
+                useInstantiatedModel = parameters[:_instantiatedModel]
+            end            
+        end
+        if log
+            if usePath
+                println("usePath = true")
+            end
+            if useInstantiatedModel
+                println("useInstantiatedModel = true")
+            end            
         end
 
     elseif haskey(parameters, :_instantiateFunction)
@@ -252,7 +269,8 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
         if log
             println(" 2:    ... key = $k, value = $v")
         end
-        if k == :_constructor || k == :_buildFunction || k == :_buildOption || k == :_instantiateFunction || k == :_path || (k == :_class && !isnothing(constructor))
+        if k == :_constructor || k == :_buildFunction || k == :_buildOption || k == :_instantiateFunction || 
+           k == :_path || k == :_instantiatedModel || (k == :_class && !isnothing(constructor))
             if log
                 println(" 3:    ... key = $k")
             end
@@ -319,7 +337,15 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
                     end
                 end
             end
-            subv = Core.eval(modelModule, subv)
+
+            try
+                subv = Core.eval(modelModule, subv)
+            catch
+                str = getConstructorAsString(path, constructor, parameters)
+                printstyled("\nError when instantiating model $(m.modelName):\n$k = $subv\n", bold=true, color=:red)
+                Base.rethrow()
+            end
+
             if m.unitless && eltype(subv) <: Number
                 # Remove unit
                 subv = stripUnit(subv)
@@ -386,7 +412,13 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
     else
         try
             if usePath
-                obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
+                if useInstantiatedModel
+                    obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, instantiatedModel = $m, $current...)))                
+                else
+                    obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
+                end
+            elseif useInstantiatedModel
+                obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; instantiatedModel = $m, $current...)))              
             else
                 obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; $current...)))
             end

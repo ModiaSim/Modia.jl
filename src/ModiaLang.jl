@@ -890,7 +890,7 @@ end
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
         evaluateParameters=false, saveCodeOnFile="", log=false, logModel=false, logDetails=false, logStateSelection=false,
-        logCode=false,logExecution=logExecution, logCalculations=logCalculations, logTiming=false)
+        logCode=false,logExecution=logExecution, logCalculations=logCalculations, logTiming=false, logFile=true)
 
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
 
@@ -908,6 +908,7 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 * `logExecution`: Log the execution of the generated code (useful for timing compilation)
 * `logCalculations`: Log the calculations of the generated code (useful for finding unit bugs)
 * `logTiming`: Log timing of different phases
+* `logFile`: Log file and line number where @instantiatedModel is called
 * `return modelInstance prepared for simulation`
 """
 macro instantiateModel(model, kwargs...)
@@ -924,7 +925,7 @@ See documentation of macro [`@instantiateModel`]
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
-    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false, saveCodeOnFile="")
+    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, logFile=true, evaluateParameters=false, saveCodeOnFile="")
     if isMonteCarloMeasurements(FloatType) && !unitless
         unitless=true
         printstyled("  @instantiateModel(...,unitless=true, ..) set automatically, because\n  FloatType=MonteCarloMeasurements often fails if units are involved.\n", color=:red)
@@ -932,7 +933,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
     #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
-        println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
+        if logFile
+            println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
+        end
         resetEventCounters()
         global to = TimerOutput()
 
