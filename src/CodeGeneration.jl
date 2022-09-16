@@ -1065,6 +1065,11 @@ Initialize `simulationModel::SimulationModel` at `startTime`. In particular:
 If initialization is successful return true, otherwise false.
 """
 function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,TimeType}
+    # Initialize model, linearEquations and compute and store all variables at the initial time
+    if m.options.log
+        println("      Initialization at time = ", m.options.startTime, " s")
+    end
+
     m.equationInfo         = deepcopy(m.initialEquationInfo)
     equationInfo           = m.equationInfo
     eh                     = m.eventHandler
@@ -1077,9 +1082,16 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     if length(m.options.merge) > 0
         m.parameters = mergeModels(m.parameters, m.options.merge)
     end
+    if m.options.logParameters
+        parameters = m.parameters
+        @showModel parameters
+    end
     evaluatedParameters = propagateEvaluateAndInstantiate!(m, log=false)
     if isnothing(evaluatedParameters)
         return false
+    end
+    if m.options.logEvaluatedParameters
+        @showModel evaluatedParameters
     end
     m.evaluatedParameters = evaluatedParameters
     m.nextPrevious = deepcopy(m.previous)
@@ -1088,7 +1100,8 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.x_start      = initialStateVector!(m)
     useRecursiveFactorizationUptoSize = m.options.useRecursiveFactorizationUptoSize
     for leq in m.linearEquations
-        leq.useRecursiveFactorization = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 1
+        leq.useRecursiveFactorizationUptoSize = useRecursiveFactorizationUptoSize
+        leq.useRecursiveFactorization         = length(leq.x) <= useRecursiveFactorizationUptoSize && length(leq.x) > 0
     end
 
     # update equationInfo
@@ -1113,16 +1126,6 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
     m.der_x           = zeros(FloatType,nx)
     updateStatistics_nStates!(m.statistics, nx)
 
-    # Log parameters
-    if m.options.logParameters
-        parameters = m.parameters
-        @showModel parameters
-    end
-    if m.options.logEvaluatedParameters
-        evaluatedParameters = m.evaluatedParameters
-        @showModel evaluatedParameters
-    end
-
     if m.options.logStates
         # List init/start values
         x_table = DataFrames.DataFrame(state=String[], init=Any[], unit=String[])   #, nominal=String[])
@@ -1136,11 +1139,6 @@ function init!(m::SimulationModel{FloatType,TimeType})::Bool where {FloatType,Ti
         end
         show(stdout, x_table; allrows=true, allcols=true, rowlabel = Symbol("#"), summary=false, eltypes=false, truncate=60)
         println("\n")
-    end
-
-    # Initialize model, linearEquations and compute and store all variables at the initial time
-    if m.options.log
-        println("      Initialization at time = ", m.options.startTime, " s")
     end
 
     # Perform initial event iteration
@@ -1731,7 +1729,7 @@ function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_nam
         # result.info can be only partially instantiated, because x_startIndex is only known
         # after function initialStateVector!(...) was called.
         t_unit = get(result.info[result.timeName].signal, :unit, "")
-        der_x_unit = x_unit == "" ? SignalTables.unitAsParseableString(unit(1/uparse(t_unit))) : SignalTables.unitAsParseableString(unit(uparse(x_unit)/uparse(t_unit)))
+        der_x_unit = x_unit == "" ? unitAsParseableString(1/uparse(t_unit)) : unitAsParseableString(uparse(x_unit)/uparse(t_unit))
         if x_unit == ""
             x_var = Var(start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
         else
