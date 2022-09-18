@@ -17,17 +17,16 @@ end
 
 
 Test.@testset "Test units, uncertainties" begin
-    Test.@test_skip include("TestUnitAsString.jl")  # skip since MonteCarloMeasurements hangs in newest DiffEqBase 
-                                                    # see https://github.com/SciML/DiffEqBase.jl/issues/828
+    include("TestUnitAsString.jl")
     include("TestUnits.jl")
     include("TestUncertainties.jl")
     include("TestUnitsAndUncertainties.jl")
     include("TestTwoInertiasAndIdealGear.jl")
     include("TestTwoInertiasAndIdealGearWithUnits.jl")
     include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")
-    Test.@test_skip include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
-    Test.@test_skip include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")
-    Test.@test_skip include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")
+    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
+    include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")
+    include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")
 end
 
 
