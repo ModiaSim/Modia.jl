@@ -420,7 +420,7 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
     end
     if m.odeIntegrator
         # ODE integrator
-        TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true}(derivatives!, m.x_init, tspan, m)
+        TimerOutputs.@timeit m.timer "DifferentialEquations.ODEProblem" problem = DifferentialEquations.ODEProblem{true,DifferentialEquations.SciMLBase.FullSpecialize}(derivatives!, m.x_init, tspan, m)
     else
         # DAE integrator
         nx = length(m.x_init)
