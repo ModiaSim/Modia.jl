@@ -535,7 +535,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         residual = :(Modia.appendVariable!(_leq_mode.residuals, $eqs))
         residString = string(eqs)
         if logCalculations
-             return :(println("Calculating residual: ", $residString); $residualName = $eqs; println("  Residual: ", $residualName) )
+            return :(println("Calculating residual: ", $residString); $residual; $residualName = $eqs; println("  Residual: ", $residualName) )
 #            return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
         else
             return residual
