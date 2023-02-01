@@ -216,8 +216,8 @@ function printStatistics(statistics::OrderedDict{Symbol,Any}, interval, toleranc
     end
     println("        linearSystemsSizes   = ", str_sizes)
     println("        linearSystemsRecFac  = ", str_rec, " (= true, if LU with RecursiveFactorization.jl)")
-    if !odeIntegrator
+    #if !odeIntegrator
         println("        linearSystemsOdeMode = ", str_ode)
-    end
+    #end
     return nothing
 end

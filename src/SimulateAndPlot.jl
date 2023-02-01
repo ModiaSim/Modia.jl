@@ -492,6 +492,9 @@ function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=miss
                     leq.odeMode = true
                 end
             end
+        elseif length(sizesOfLinearEquationSystems) > 0
+            (leqSizeMax, ileq) = findmax(sizesOfLinearEquationSystems)
+            println("      No DAE mode for equation system $ileq because size of equation system (= $leqSizeMax) < nlinearMinForDAE (= $(options.nlinearMinForDAE)).")
         end
     end
 
