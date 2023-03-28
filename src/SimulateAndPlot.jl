@@ -258,9 +258,11 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
             eh.nFullRestartEvents, m.linearEquations)
 
         # Raise an error, if simulation was not successful
-        if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
+        #if !(solution.retcode == :Default || solution.retcode == :Success || solution.retcode == :Terminated)
+        if !(solution.retcode in [ReturnCode.Default, ReturnCode.Success, ReturnCode.Terminated])
             error("\nsolution = simulate!(", m.modelName, ", ...) failed with solution.retcode = :$(solution.retcode) at time = $finalTime.\n")
         end
+
 
         if m.eventHandler.restart != Modia.FullRestart
             break

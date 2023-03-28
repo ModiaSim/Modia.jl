@@ -52,6 +52,12 @@ functionalities of these packages.
 - SignalTables.getSignalNames(..): Order of signal names improved so that the linear listing reflects the hierarchy of the names.
 - writeSignalTable(..): attributes renamed to _attributes. All used simulate!(..) options included in Map experiment.
 - Require SignalTables 0.4.1 (since several issues fixed with writeSignalTable(..)).
+- Update to newest versions of packages.
+
+**Bug fixes**
+
+- DifferentialEquations 7.6.0 introduced a non-backwards compatible change with [#867](https://github.com/SciML/DifferentialEquations.jl/issues/867). Modia was corrected to cope with this change (based on [#162](https://github.com/ModiaSim/Modia.jl/pull/162)).
+
 
 ### Version 0.9.3
 

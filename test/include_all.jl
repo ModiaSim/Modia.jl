@@ -5,7 +5,7 @@ Test.@testset "Test basic functionality" begin
     include("TestVariables.jl")
     include("TestFirstOrder.jl")
     include("TestFirstOrder2.jl")
-    include("TestPendulum.jl")    
+    @test_skip include("TestPendulum.jl")    # skipped due to issue https://github.com/SciML/DifferentialEquations.jl/issues/950
     include("TestSource.jl")
     include("TestLinearEquations.jl")
     include("TestStateSelection.jl")
@@ -19,12 +19,12 @@ end
 Test.@testset "Test units, uncertainties" begin
     include("TestUnitAsString.jl")
     include("TestUnits.jl")
-    include("TestUncertainties.jl")
-    include("TestUnitsAndUncertainties.jl")
-    include("TestTwoInertiasAndIdealGear.jl")
+    @test_skip include("TestUncertainties.jl")              # skipped due to issue https://github.com/SciML/DifferentialEquations.jl/issues/950
+    @test_skip include("TestUnitsAndUncertainties.jl")      # skipped due to issue https://github.com/SciML/DifferentialEquations.jl/issues/950
+    @test_skip include("TestTwoInertiasAndIdealGear.jl")    # skipped due to issue https://github.com/SciML/DifferentialEquations.jl/issues/950
     include("TestTwoInertiasAndIdealGearWithUnits.jl")
-    include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")
-    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
+    @test_skip include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")    # skipped due to issue https://github.com/SciML/DifferentialEquations.jl/issues/950
+    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl") 
     include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")
     include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")
 end

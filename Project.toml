@@ -30,7 +30,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 [compat]
 DiffEqBase = "6"
 DataFrames = "1"
-DifferentialEquations = "7"
+DifferentialEquations = "7.6.0"
 FiniteDiff = "2"
 ForwardDiff = "0.10"
 JSON = "0.21"
