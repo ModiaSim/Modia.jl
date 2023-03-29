@@ -57,6 +57,7 @@ functionalities of these packages.
 **Bug fixes**
 
 - DifferentialEquations 7.6.0 introduced a non-backwards compatible change with [#867](https://github.com/SciML/DifferentialEquations.jl/issues/867). Modia was corrected to cope with this change (based on [#162](https://github.com/ModiaSim/Modia.jl/pull/162)).
+- `@instantiateModel(..., logCalculations=true)` skipped actual computations. This was fixed via [#161](https://github.com/ModiaSim/Modia.jl/pull/161).
 
 
 ### Version 0.9.3
