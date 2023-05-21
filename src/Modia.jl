@@ -9,8 +9,8 @@ Main module of Modia.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.9.4-dev"
-const Date = "2023-03-29"
+const Version = "0.9.4"
+const Date = "2023-05-21"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
