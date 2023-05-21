@@ -42,7 +42,7 @@ functionalities of these packages.
 
 ## Release Notes
 
-### Version 0.9.4-dev
+### Version 0.9.4
 
 - Precompile statements included (compilation of Modia package takes more time, but startup of Modia model simulations is faster).
 - `@instantiateModel(..., logFile=true)`: New keyword argument `logFile` in order that log of file and line number can be
@@ -51,7 +51,7 @@ functionalities of these packages.
 - Log of statistics improved and included in writeSignalTable(..) of instantiatedModel.
 - SignalTables.getSignalNames(..): Order of signal names improved so that the linear listing reflects the hierarchy of the names.
 - writeSignalTable(..): attributes renamed to _attributes. All used simulate!(..) options included in Map experiment.
-- Require SignalTables 0.4.1 (since several issues fixed with writeSignalTable(..)).
+- Require SignalTables 0.4.2 (since several issues fixed with writeSignalTable(..)).
 - Update to newest versions of packages.
 
 **Bug fixes**
