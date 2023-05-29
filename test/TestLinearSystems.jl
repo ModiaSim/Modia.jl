@@ -55,8 +55,8 @@ simulate!(ssTest, stopTime=1.0, log=true, logStates=true,
 plot(ssTest, ("ss.x", "ss.u", "y", "ss.w"), figure=2)
 ```
 """
-LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace!),         # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
-                                        _instantiateFunction = Par(functionName = :(instantiateLinearStateSpace!)),  # Called once after new A,B,C values are merged
+LinearStateSpace(; kwargs...) = Model(; _buildFunction = Par(functionName = :(buildLinearStateSpace!)),              # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
+                                        _initSegmentFunction = Par(functionName = :(instantiateLinearStateSpace!)),  # Called once after new A,B,C values are merged
                                         kwargs...)
 
 mutable struct LinearStateSpaceStruct{FloatType}
@@ -121,7 +121,7 @@ mutable struct LinearStateSpaceBuild{FloatType}
 end
 
 
-function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type,
+function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type, unitless::Bool,
                                 buildDict::OrderedCollections.OrderedDict{String,Any},
                                 path::Union{Expr,Symbol,Nothing})
     # Called from @instantiatedModel, during instantiation of the model.

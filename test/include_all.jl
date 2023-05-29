@@ -35,6 +35,7 @@ Test.@testset "Test model components" begin
     include("TestStateSpace.jl")
     include("TestParameter.jl")
     include("TestHeatTransfer.jl")
+    include("TestHeatTransfer2.jl")    
 end
 
 

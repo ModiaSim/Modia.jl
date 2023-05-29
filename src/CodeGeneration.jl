@@ -336,7 +336,7 @@ mutable struct SimulationModel{FloatType,TimeType}
 
     # Available after propagateEvaluateAndInstantiate!(..) called
     instantiateFunctions::Vector{Tuple{Union{Expr,Symbol},OrderedDict{Symbol,Any},String}}
-                                                # All definitions `_instantiateFunction = Par(functionName = XXX)` in the model to call
+                                                # All definitions `_initSegmentFunction = Par(functionName = XXX)` in the model to call
                                                 # `XXX(instantiatedModel, submodel, submodelPath)` in the order occurring  during evaluation
                                                 # of the parameters where, instantiatedFunctions[i] = (XXX, submodel, submodelPath)
     nsegments::Int                               # Current simulation segment

@@ -70,4 +70,40 @@ InsulatedRod = Model(
     ]
 )
 
+
+include("HeatTransfer/InsulatedRod2.jl")
+
+"""
+    insulatedRod = InsulatedRod2(; L, A, rho=7500.0u"kg/m^3", lambda=74.0u"W/(m*K)", c=450.0u"J/(kg*K), T0=293.15u"K", nT=1") 
     
+Generate a Model(..) instance of an insulated rod with length `L` and cross sectional area `A` that
+models 1D heat transfer from port_a to port_b. The rod is discretized with `nT` internal temperature nodes that are initialized with `T0`.
+This is an acausal built-in component where the code size does not depend on `nT` and
+`nT` can still be changed after model code is generated and compiled.
+
+For more details see Appendix B1 of [DOI: 10.3390/electronics12030500](https://doi.org/10.3390/electronics12030500).
+
+# Optional Arguments:
+- `rho`: density of rod material
+- `lambda`: thermal conductivity of rod material
+- `c`: specific heat capacity of rod material
+- `T0`: initial temperature of internal temperature nodes
+- `nT`: number of temperature nodes (`nT > 0`).
+
+# Internal variables that can be inquired/plotted:
+- `T`: Vector of temperatures at the internal temperature nodes
+- `der(T)': Vector of derivatives of `T`.
+"""
+InsulatedRod2 = Model(; 
+    _buildFunction       = Par(functionName = :(buildInsulatedRod2!)),              # Called once in @instantiateModel(..) before getDerivatives!(..) is generated 
+    _initSegmentFunction = Par(functionName = :(initInsulatedRod2ForNewSegment!)),  # Called once before initialization of a new simulation segment
+    L      = 1.0u"m",                # Length of rod
+    A      = 0.0004u"m^2",           # Rod area
+    rho    = 7500.0u"kg/m^3",        # Density of rod material
+    lambda = 74.0u"W/(m*K)",         # Thermal conductivity of rod material
+    c      = 450.0u"J/(kg*K)",       # Specific heat capacity of rod material
+    T0     = 293.15u"K",             # Initial temperature of internal temperature nodes
+    nT     = 1,                      # Number of temperature nodes (nT > 0).
+    port_a  = HeatPort,              # heat port on left side
+    port_b  = HeatPort               # heat port on right side
+)

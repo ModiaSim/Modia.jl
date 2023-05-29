@@ -499,7 +499,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if logCalculations
             var = string(unknowns[v])
             solutionString = string(solution)
-            return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", upreferred.($(solution.args[1]))))
+            #return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", upreferred.($(solution.args[1]))))
+            return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", $(solution.args[1])))
         else
             return solution
         end
@@ -836,13 +837,13 @@ appendSymbol(path::Nothing, name::Symbol) = name
 appendSymbol(path         , name::Symbol) = :( $path.$name )
 
 """
-    modifiedModel = buildSubModels!(model, modelModule, FloatType, TimeType, buildDict::OrderedDict)
+    modifiedModel = buildSubModels!(model, modelModule, FloatType, TimeType, unitless, buildDict::OrderedDict)
 
 Traverse `model` and for every `<subModel>` that is a `Model(..)` and has a key-value pair
 `:_buildFunction = <buildFunction>` and optionally `:_buildOption=<buildOption>`, call
 
 ```
-buildCode = <buildFunction>(<subModel>, modelModule, FloatType::Type, TimeType::Type,
+buildCode = <buildFunction>(<subModel>, modelModule, FloatType::Type, TimeType::Type, unitless::Bool,
                             buildDict::OrderedDict{String,Any},
                             modelPath::Union{Expr,Symbol,Nothing},
                             buildOption = <buildOption>)
@@ -853,6 +854,7 @@ The arguments of `<buildFunction>`are:
 
 - `subModel`: The returned `buildCode` is merged to `submodel`
 - `FloatType`, `TimeType`: Types used when instantiating `SimulationModel{FloatType,TimeType}`
+- `unitless`: Argument `unitless` of `@instantiateModel`.
 - `modelPath`: Path upto `<subModel>`, such as: `:( a.b.c )`.
 - `buildDict`: Dictionary, that will be stored in the corresponding SimulationModel instance and
                that allows to store information about the build-process,
@@ -861,25 +863,30 @@ The arguments of `<buildFunction>`are:
 
 Note, keys `_buildFunction` and `_buildOption` are deleted from the corresponding `<subModel>`.
 """
-function buildSubModels!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type,
+function buildSubModels!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type, unitless::Bool,
                          buildDict::OrderedDict{String,Any}; path::Union{Expr,Symbol,Nothing}=nothing)
     if haskey(model, :_buildFunction)
-        buildFunction = model[:_buildFunction]
+        _buildFunction = model[:_buildFunction]
+        if haskey(_buildFunction, :functionName)
+            buildFunction = _buildFunction[:functionName]
+        else
+            @error "Model $path has key :_buildFunction but its value has no key :functionName"
+        end        
         delete!(model, :_buildFunction)
         quotedPath = Meta.quot(path)
         if haskey(model, :_buildOption)
             buildOption = model[:_buildOption]
             delete!(model, :_buildOption)
-            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath, buildOption=$buildOption)) )
+            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $unitless, $buildDict, $quotedPath, buildOption=$buildOption)) )
         else
-            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath)))
+            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $unitless, $buildDict, $quotedPath)))
         end
         return  model | buildCode
     end
 
     for (key,value) in model
         if typeof(value) <: OrderedDict && haskey(value, :_class) && value[:_class] == :Model
-            model[key] = buildSubModels!(value, modelModule, FloatType, TimeType, buildDict; path=appendSymbol(path,key))
+            model[key] = buildSubModels!(value, modelModule, FloatType, TimeType, unitless, buildDict; path=appendSymbol(path,key))
         end
     end
     return model
@@ -951,7 +958,8 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
             TimeType = if FloatType <: Measurements.Measurement ||
                           FloatType <: MonteCarloMeasurements.AbstractParticles;
                           baseType(FloatType) else FloatType end  # baseType(..) is defined in CodeGeneration.jl
-            model = buildSubModels!(model, modelModule, FloatType, TimeType, buildDict)
+            model = deepcopy(model)
+            model = buildSubModels!(model, modelModule, FloatType, TimeType, unitless, buildDict)
 
             if logModel
                 @showModel(model)
@@ -1000,9 +1008,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         unique!(allVariables)
 
         if ! experimentalTranslation
-            unknowns = setdiff(allVariables, keys(modelStructure.parameters), keys(modelStructure.inputs), [:time, :instantiatedModel, :_leq_mode, :_x])
+            unknowns = setdiff(allVariables, keys(modelStructure.parameters), keys(modelStructure.inputs), [:time, :instantiatedModel, :_leq_mode, :_x, :_path])
         else
-            unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time, :instantiatedModel, :_leq_mode, :_x])
+            unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time, :instantiatedModel, :_leq_mode, :_x, :_path])
         end
         Avar, states, derivatives = setAvar(unknowns)
         vActive = [a == 0 for a in Avar]

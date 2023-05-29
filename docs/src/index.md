@@ -42,6 +42,17 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.10.0
+
+- 
+
+**Non-backwards** compatible changes (should usually not influende user models)
+
+- `_buildFunction = <functionName>` changed to `_buildFunction = Par(functionName = <functionName>)` and
+  additional argument `unitless` added to `<functionName>`.
+- `_instantiateFunction = Par(..)` changed to `_initSegmentFunction = Par(..)`
+
+
 ### Version 0.9.4
 
 - Precompile statements included (compilation of Modia package takes more time, but startup of Modia model simulations is faster).
