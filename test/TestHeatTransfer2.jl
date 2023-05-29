@@ -13,7 +13,7 @@ HeatedRod2 = Model(
 )
 
 # Model with unit
-heatedRod2a = @instantiateModel(HeatedRod2, logCode=false, unitless=true)
+heatedRod2a = @instantiateModel(HeatedRod2, logCode=false, unitless=false)
 simulate!(heatedRod2a, stopTime = 1e5, log=true, merge=Map(rod = Map(nT=8)), logParameters=true, logEvaluatedParameters=true)
 showInfo(heatedRod2a)
 

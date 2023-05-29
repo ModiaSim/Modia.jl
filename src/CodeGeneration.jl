@@ -1667,6 +1667,15 @@ end
 
 
 """
+    obj = get_instantiatedSubmodel(instantiatedModel, ID)
+    
+Return reference `obj` to an instantiated submodel struct, given `intantiatedModel` and the `ID` of the submodel.    
+"""
+get_instantiatedSubmodel(instantiatedModel, ID) = instantiatedModel.buildDict[ID]
+
+
+
+"""
     index = new_x_segmented_variable!(
                 instantiatedModel::SimulationModel,
                 x_name::String, der_x_name::String, startOrInit, x_unit::String="";

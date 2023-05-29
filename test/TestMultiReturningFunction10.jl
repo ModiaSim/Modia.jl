@@ -25,11 +25,14 @@ mutable struct MbsData
     end
 end
 
-function myBuildFunction(model::AbstractDict, FloatType::Type, TimeType::Type, unitless::Bool, buildDict::AbstractDict,
-                         modelPath::Union{Expr,Symbol,Nothing}; buildOption = "Default")
-    modelPathAsString = if isnothing(modelPath); "" else string(modelPath) end
+struct Dummy
+end;
+
+function myBuildFunction(model::AbstractDict, FloatType::Type, TimeType::Type, unitless::Bool, 
+                         ID, modelPathAST; buildOption = "Default")
+    modelPathAsString = if isnothing(modelPathAST); "" else string(modelPathAST) end
     println("  TestMultiReturningFunction10: Test output from function myBuildFunction at modelPath = \"$modelPathAsString\":\n  Code could be constructed here and merged to the model with buildOption=$buildOption")
-    return nothing
+    return (model, Dummy())
 end
 
 MyModelWithBuild(; kwargs...) = Model(; _buildFunction = Par(functionName = :myBuildFunction), kwargs...)

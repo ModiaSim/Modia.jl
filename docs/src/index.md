@@ -44,13 +44,19 @@ functionalities of these packages.
 
 ### Version 0.10.0
 
-- 
+- Initial support of segmented simulations where the number of states can change during simulation.
+  For examples, see `Modia/test/TestHeatTransfer2.jl` and models in directory `Modia3D/test/Segmented`
+  (of release 0.12.0 and later). The tutorial will be updated for this feature in an upcoming version.
+  
 
-**Non-backwards** compatible changes (should usually not influende user models)
+**Non-backwards** compatible changes 
+
+These changes should usually not influence user models.
 
 - `_buildFunction = <functionName>` changed to `_buildFunction = Par(functionName = <functionName>)` and
-  additional argument `unitless` added to `<functionName>`.
-- `_instantiateFunction = Par(..)` changed to `_initSegmentFunction = Par(..)`
+  changed argument list of `<functionName>`.
+- `_instantiateFunction = Par(..)` changed to `_initSegmentFunction = Par(functionName = <functionName>)`
+  and changed argument list of `<functionName>`.
 
 
 ### Version 0.9.4

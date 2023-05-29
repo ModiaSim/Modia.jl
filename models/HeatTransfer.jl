@@ -95,8 +95,8 @@ For more details see Appendix B1 of [DOI: 10.3390/electronics12030500](https://d
 - `der(T)': Vector of derivatives of `T`.
 """
 InsulatedRod2 = Model(; 
-    _buildFunction       = Par(functionName = :(buildInsulatedRod2!)),              # Called once in @instantiateModel(..) before getDerivatives!(..) is generated 
-    _initSegmentFunction = Par(functionName = :(initInsulatedRod2ForNewSegment!)),  # Called once before initialization of a new simulation segment
+    _buildFunction       = Par(functionName = :(build_InsulatedRod2!)),        # Called once in @instantiateModel(..) before getDerivatives!(..) is generated 
+    _initSegmentFunction = Par(functionName = :(initSegment_InsulatedRod2!)),  # Called once before initialization of a new simulation segment
     L      = 1.0u"m",                # Length of rod
     A      = 0.0004u"m^2",           # Rod area
     rho    = 7500.0u"kg/m^3",        # Density of rod material
