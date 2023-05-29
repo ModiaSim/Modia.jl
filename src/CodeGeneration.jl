@@ -1181,7 +1181,11 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
     # Evaluate instantiate functions
     for fc in m.instantiateFunctions
         logInstantiatedFunctionCalls = false
-        Core.eval(m.modelModule, :($(fc[1])($m, $(fc[2]), $(fc[3]), log=$logInstantiatedFunctionCalls)))
+        initSegment = fc[1]
+        path        = fc[3]
+        ID          = path
+        parameters  = fc[2]        
+        Core.eval(m.modelModule, :($initSegment($m, $path, $ID, $parameters, log=$logInstantiatedFunctionCalls)))
     end
     resizeLinearEquations!(m, m.evaluatedParameters, m.options.log)
 
