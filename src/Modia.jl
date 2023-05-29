@@ -9,8 +9,8 @@ Main module of Modia.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.9.4"
-const Date = "2023-05-21"
+const Version = "0.10.0"
+const Date = "2023-05-29"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -169,6 +169,35 @@ and then strip the unit. For details see `upreferred` and `preferunits` in
 The function is defined as: `stripUnit(v) = ustrip.(upreferred.(v))`.
 """
 stripUnit(v) = ustrip.(upreferred.(v))
+
+
+"""
+    @strippedPositive!(path, name)
+
+Convert `name` to its preferred units (default are the SI units), strip units and check that value is positive.
+In case of error, use `string(name)` and `path` in the error message:
+
+# Example
+```
+using Unitful
+L1 =  2.0u"m"
+@strippedPositive!("insulatedRod", L1)
+# L1 = 2.0
+
+L2 = -2.0u"m"
+@strippedPositive!("insulatedRod", L2)
+# error message:
+# Error from
+#   insulatedRod = ...(..., L2 = -2.0u"m",...): L2 > 0 required.)
+```
+"""
+macro strippedPositive!(path, name)
+    nameAsString = string(name)
+    expr = :( $name = strippedPositive!($path, $(esc(name)), $nameAsString) )   
+    return expr 
+end      
+strippedPositive!(path::String, value, name) = stripUnit(value) > 0 ? stripUnit(value) : error("\nError from\n   $path = ...(..., $name = $value, ...): $name > 0 required")
+
 
 """
     str = modelPathAsString(modelPath::Union{Expr,Symbol,Nothing})

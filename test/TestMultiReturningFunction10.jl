@@ -9,7 +9,7 @@ mutable struct MbsData
     w1::Float64
     derw1::Float64
     u1::Float64
-    
+
     phi2::Vector{Float64}
     w2::Vector{Float64}
     derw2::Vector{Float64}
@@ -25,14 +25,17 @@ mutable struct MbsData
     end
 end
 
-function myBuildFunction(model::AbstractDict, FloatType::Type, TimeType::Type, buildDict::AbstractDict, 
-                         modelPath::Union{Expr,Symbol,Nothing}; buildOption = "Default")
-    modelPathAsString = if isnothing(modelPath); "" else string(modelPath) end
+struct Dummy
+end;
+
+function myBuildFunction(model::AbstractDict, FloatType::Type, TimeType::Type, unitless::Bool, 
+                         ID, modelPathAST; buildOption = "Default")
+    modelPathAsString = if isnothing(modelPathAST); "" else string(modelPathAST) end
     println("  TestMultiReturningFunction10: Test output from function myBuildFunction at modelPath = \"$modelPathAsString\":\n  Code could be constructed here and merged to the model with buildOption=$buildOption")
-    return nothing
+    return (model, Dummy())
 end
 
-MyModelWithBuild(; kwargs...) = Model(; _buildFunction = :myBuildFunction, kwargs...)
+MyModelWithBuild(; kwargs...) = Model(; _buildFunction = Par(functionName = :myBuildFunction), kwargs...)
 
 Mbs(; kwargs...) = Par(; _constructor = :(MbsData), _path = true, kwargs...)
 
@@ -75,7 +78,7 @@ function getResiduals(mbs::MbsData)
     return mbs.residuals2
 end
 
-Pendulum = MyModelWithBuild(_buildOption = "MyBuildOption", 
+Pendulum = MyModelWithBuild(_buildOption = "MyBuildOption",
     phi1 = Var(init=pi/2),
     w1   = Var(init=0.0),
     qdd  = Var(start=zeros(2)),
@@ -83,8 +86,8 @@ Pendulum = MyModelWithBuild(_buildOption = "MyBuildOption",
     mbs1 = Var(hideResult=true),
     mbs2 = Var(hideResult=true),
     mbs3 = Var(hideResult=true),
-    mbs4 = Var(hideResult=true),    
-    equations = :[ 
+    mbs4 = Var(hideResult=true),
+    equations = :[
         w1   = der(phi1)
         mbs1 = setStates(mbs,phi1,w1)
         mbs2 = setAccelerations1(mbs1,der(w1))
@@ -95,7 +98,7 @@ Pendulum = MyModelWithBuild(_buildOption = "MyBuildOption",
         tau1 = -0.1*w1
     ]
 )
-        
+
 pendulum = @instantiateModel(Pendulum , unitless=true, log=false, logDetails=false, logCode=true, logStateSelection=false)
 simulate!(pendulum, stopTime = 2.0, log=true)
 showInfo(pendulum)

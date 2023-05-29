@@ -210,7 +210,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
     end
     current = OrderedDict{Symbol,Any}()   # should be Map()
 
-    # Determine, whether "parameters" has a ":_constructor"  or "_instantiateFunction" key and handle this specially
+    # Determine, whether "parameters" has a ":_constructor"  or "_initSegmentFunction" key and handle this specially
     constructor          = nothing
     instantiateFunction  = nothing
     usePath              = false
@@ -248,13 +248,13 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             end            
         end
 
-    elseif haskey(parameters, :_instantiateFunction)
-        # For example: obj = (_instantiateFunction = Par(functionName = :(instantiateLinearStateSpace!))
-        _instantiateFunction = parameters[:_instantiateFunction]
-        if haskey(_instantiateFunction, :functionName)
-            instantiateFunction = _instantiateFunction[:functionName]
+    elseif haskey(parameters, :_initSegmentFunction)
+        # For example: obj = (_initSegmentFunction = Par(functionName = :(instantiateLinearStateSpace!))
+        _initSegmentFunction = parameters[:_initSegmentFunction]
+        if haskey(_initSegmentFunction, :functionName)
+            instantiateFunction = _initSegmentFunction[:functionName]
         else
-            @warn "Model $path has key :_instantiateFunction but its value has no key :functionName"
+            @warn "Model $path has key :_initSegmentFunction but its value has no key :functionName"
         end
 
     elseif haskey(parameters, :value)
@@ -269,7 +269,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
         if log
             println(" 2:    ... key = $k, value = $v")
         end
-        if k == :_constructor || k == :_buildFunction || k == :_buildOption || k == :_instantiateFunction || 
+        if k == :_constructor || k == :_buildFunction || k == :_buildOption || k == :_initSegmentFunction || 
            k == :_path || k == :_instantiatedModel || (k == :_class && !isnothing(constructor))
             if log
                 println(" 3:    ... key = $k")
@@ -405,7 +405,7 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             if log
                 println(" 13:    +++ Instantiated $path: $instantiateFunction will be called to instantiate sub-model and define varying states\n\n")
             end
-            Core.eval(modelModule, :($instantiateFunction($m, $current, $path, log=$log)))
+            Core.eval(modelModule, :($instantiateFunction($m, $path, $path, $current, log=$log)))
             push!(m.instantiateFunctions, (instantiateFunction, current, path))
         end
         return current

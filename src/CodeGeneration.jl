@@ -336,7 +336,7 @@ mutable struct SimulationModel{FloatType,TimeType}
 
     # Available after propagateEvaluateAndInstantiate!(..) called
     instantiateFunctions::Vector{Tuple{Union{Expr,Symbol},OrderedDict{Symbol,Any},String}}
-                                                # All definitions `_instantiateFunction = Par(functionName = XXX)` in the model to call
+                                                # All definitions `_initSegmentFunction = Par(functionName = XXX)` in the model to call
                                                 # `XXX(instantiatedModel, submodel, submodelPath)` in the order occurring  during evaluation
                                                 # of the parameters where, instantiatedFunctions[i] = (XXX, submodel, submodelPath)
     nsegments::Int                               # Current simulation segment
@@ -1181,7 +1181,11 @@ function initFullRestart!(m::SimulationModel{FloatType,TimeType})::Nothing where
     # Evaluate instantiate functions
     for fc in m.instantiateFunctions
         logInstantiatedFunctionCalls = false
-        Core.eval(m.modelModule, :($(fc[1])($m, $(fc[2]), $(fc[3]), log=$logInstantiatedFunctionCalls)))
+        initSegment = fc[1]
+        path        = fc[3]
+        ID          = path
+        parameters  = fc[2]        
+        Core.eval(m.modelModule, :($initSegment($m, $path, $ID, $parameters, log=$logInstantiatedFunctionCalls)))
     end
     resizeLinearEquations!(m, m.evaluatedParameters, m.options.log)
 
@@ -1664,6 +1668,15 @@ function addToResult!(m::SimulationModel{FloatType,TimeType}, x, time, w_invaria
     push!(result.w_segmented[end], deepcopy(m.result.w_segmented_temp))
     return nothing
 end
+
+
+"""
+    obj = get_instantiatedSubmodel(instantiatedModel, ID)
+    
+Return reference `obj` to an instantiated submodel struct, given `intantiatedModel` and the `ID` of the submodel.    
+"""
+get_instantiatedSubmodel(instantiatedModel, ID) = instantiatedModel.buildDict[ID]
+
 
 
 """
