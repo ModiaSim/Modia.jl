@@ -1680,20 +1680,22 @@ get_instantiatedSubmodel(instantiatedModel, ID) = instantiatedModel.buildDict[ID
 
 
 """
-    index = new_x_segmented_variable!(
-                instantiatedModel::SimulationModel,
-                x_name::String, der_x_name::String, startOrInit, x_unit::String="";
-                nominal::Float64 = NaN, unbounded::Bool = false)::Int
+    startIndex = new_x_segmented_variable!(
+                    partiallyInstantiatedModel::SimulationModel,
+                    x_name::String, der_x_name::String, startOrInit, x_unit::String="";
+                    nominal::Float64 = NaN, unbounded::Bool = false)::Int
 
-Reserves storage location for a new x_segmented and der_x_segmented variable and returns
-the index (= x_segmented_startIndex) to access this storage location, in particular
+Generate new states (`x_segmented` and `der_x_segmented` variables) and return the
+`startIndex` of the variables in order that actual values can be inquired or copied from the
+state `x` and state derivative `der(x)`vectors via [`get_x_startIndex_from_x_segmented_startIndex`](@ref).
+`startOrInit` contain the `start` or `init` values of the newly generated `x_segmented` variable.
 
-- to copy state values from instantiatedModel.x_segmented[index:index+prod(dims(startOrInit))-1]
-  into this storage location
-- to copy state derivative values of this storage location to
-  instantiatedModel.der_x_segmented[index:index+prod(dims(startOrInit))-1]
+Actual values of these new variables are stored in:
 
-Value startOrInit is the start/init value used during re-initialization of the new segment with initFullRestart!(..).
+- `instantiatedModel.x_segmented[startIndex:startIndex+prod(dims(startOrInit))-1]`
+- `instantiatedModel.der_x_segmented[startIndex:startIndex+prod(dims(startOrInit))-1]`
+
+Value `startOrInit` is the start/init value used during re-initialization of the new segment with `initFullRestart!(..)`.
 """
 function new_x_segmented_variable!(m::SimulationModel{FloatType,TimeType}, x_name::String, der_x_name::String, startOrInit, x_unit::String="";
                                    nominal::Float64 = NaN, unbounded::Bool = false)::Int where {FloatType,TimeType}
@@ -1760,23 +1762,26 @@ end
 
 
 """
-    x_startIndex = get_x_startIndex_from_x_segmented_startIndex(instantiatedModel::SimulationModel, x_segmented_startIndex)
+    x_startIndex = get_x_startIndex_from_x_segmented_startIndex(
+                      instantiatedModel::SimulationModel, x_segmented_startIndex)
 
-Return the startindex of an x_segmented state with respect to the x-vector,
-given the startIndex with respect to the x_segmented vector
-(x_segmented_startIndex is the return value of new_x_segmented_variable!(..)).
+Return the startindex of an `x_segmented` state with respect to the `x`-vector,
+given the startIndex with respect to the `x_segmented` vector
+(`x_segmented_startIndex` is the return value of `new_x_segmented_variable!(..)`).
 """
 get_x_startIndex_from_x_segmented_startIndex(m::SimulationModel, x_segmented_startIndex::Int) = m.equationInfo.nxInvariant + x_segmented_startIndex
 
 
 """
-    index = new_w_segmented_variable!(partiallyInstantiatedModel::SimulationModel, name::String,
-                                      w_segmented_default, unit::String="")::Int
+    index = new_w_segmented_variable!(
+               partiallyInstantiatedModel::SimulationModel, name::String,
+               w_segmented_default, unit::String="")::Int
 
-Reserve storage location for a new w_segmented variable. The returned `index` is
-used to store the w_segmented value at communication points in the result data structure.
+Generate new local variable (`w_segmented` variable) and return the `index` of the variable 
+in order that actual values can be inquired or copied from the result data structure.
+New values of `w_segmented` variables need only to be computed at communication points.
 Value w_segmented_default is stored as default value and defines type and (fixed) size of the variable
-in this segment.
+in this simulation segment.
 """
 function new_w_segmented_variable!(m::SimulationModel, name::String, w_segmented_default, unit::String="")::Int
     result = m.result
@@ -1810,9 +1815,10 @@ end
 
 
 """
-    new_alias_segmented_variable!(partiallyInstantiatedModel, name, aliasName, aliasNegate=false)
+    new_alias_segmented_variable!(partiallyInstantiatedModel::SimulationModel, 
+       name, aliasName, aliasNegate=false)
 
-Define new alias segmented variable.
+Define new alias variable.
 """
 function new_alias_segmented_variable!(m::SimulationModel, name::String, aliasName::String, aliasNegate::Bool=false)::Int
     result = m.result
@@ -1832,8 +1838,8 @@ end
 """
     startIndex = new_z_segmented_variable!(instantiatedModel, nz)
 
-Reserve storage location for nz new segmented zero crossing function and return the startIndex to
-copy it in the vectors of zero crossings
+Generate `nz` new zero crossing variables and return the startIndex to of the variables
+in order that actual values can be copied into the vector of zero crossings.
 """
 function new_z_segmented_variable!(m::SimulationModel{F,TimeType}, nz::Int)::Int where {F,TimeType}
     eh = m.eventHandler
@@ -1850,58 +1856,60 @@ end
 
 
 """
-    value = Modia.get_scalar_x_segmented_value(instantiatedModel, startIndex)
+    value = Modia.copy_scalar_x_segmented_value_from_state(instantiatedModel, startIndex)
 
-Return scalar segmented state value from instantiatedModel given `startIndex`
+Return value of scalar x_segmented variable from state vector `x` by providing its `startIndex`
 (returned from `new_x_segmented_variable!(..)`).
 """
-get_scalar_x_segmented_value(m::SimulationModel, startIndex::Int) = m.x_segmented[startIndex]
+copy_scalar_x_segmented_value_from_state(m::SimulationModel, startIndex::Int) = m.x_segmented[startIndex]
 
 
 """
-    value = Modia.get_SVector3_x_segmented_value(instantiatedModel, startIndex)
+    value = Modia.copy_SVector3_x_segmented_value_from_state(instantiatedModel, startIndex)
 
-Return SVector{3,FloatType}(..) segmented state value from instantiatedModel given `startIndex`
+Return value of `SVector{3,FloatType}` x_segmented variable from state vector `x` by providing its `startIndex`
 (returned from `new_x_segmented_variable!(..)`).
 """
-@inline get_SVector3_x_segmented_value(m::SimulationModel{FloatType,TimeType}, startIndex::Int) where {FloatType,TimeType} = begin
+@inline copy_SVector3_x_segmented_value_from_state(m::SimulationModel{FloatType,TimeType}, startIndex::Int) where {FloatType,TimeType} = begin
     x_segmented = m.x_segmented
     return SVector{3,FloatType}(x_segmented[startIndex], x_segmented[startIndex+1], x_segmented[startIndex+2])
 end
 
 """
-    Modia.get_Vector_x_segmented_value!(instantiatedModel::SimulationModel, startIndex, xi::Vector{FloatType})::Nothing
+    Modia.copy_Vector_x_segmented_value_from_state(instantiatedModel::SimulationModel, startIndex, xi::Vector{FloatType})::Nothing
 
-Copy state from `instantiatedModel` at index `startIndex` into pre-allocated vector `xi`.
+Return value of `Vector{FloatType}` x_segmented variable from state vector `x` by providing its `startIndex`
+(returned from `new_x_segmented_variable!(..)`) and copying it into the pre-allocated vector `xi`.
 """
-@inline function get_Vector_x_segmented_value!(m::SimulationModel{FloatType,TimeType}, startIndex::Int, xi::Vector{FloatType})::Nothing where {FloatType,TimeType}
+@inline function copy_Vector_x_segmented_value_from_state(m::SimulationModel{FloatType,TimeType}, startIndex::Int, xi::Vector{FloatType})::Nothing where {FloatType,TimeType}
     copyto!(xi, 1, m.x_segmented, startIndex, length(xi))
     return nothing
 end
 
 
 """
-    Modia.add_der_x_segmented_value!(instantiatedModel, startIndex, der_x_segmented_value::[FloatType|Vector{FloatType}])
+    Modia.copy_der_x_segmented_value_to_state(instantiatedModel, startIndex, der_x_segmented_value::[FloatType|Vector{FloatType}])
 
-Copy scalar or array segmented state derivative value `der_x_segmented_value` into `instantiatedModel` starting at index `startIndex`
-(returned from `new_x_segmented_variable!(..)`).
+Copy `der_x_segmented_value` to state derivative vector `der(x)` by providing its `startIndex`
+(returned from `new_x_segmented_variable!(..)`) and copying it into the pre-allocated vector `der_x_segmented_value`.
 """
-@inline function add_der_x_segmented_value!(m::SimulationModel{FloatType,TimeType}, startIndex::Int, der_x_segmented_value::FloatType)::Nothing where {FloatType,TimeType}
+@inline function copy_der_x_segmented_value_to_state(m::SimulationModel{FloatType,TimeType}, startIndex::Int, der_x_segmented_value::FloatType)::Nothing where {FloatType,TimeType}
     m.der_x_segmented[startIndex] = der_x_segmented_value
     return nothing
 end
-@inline function add_der_x_segmented_value!(m::SimulationModel{FloatType,TimeType}, startIndex::Int, der_x_segmented_value::Vector{FloatType})::Nothing where {FloatType,TimeType}
+@inline function copy_der_x_segmented_value_to_state(m::SimulationModel{FloatType,TimeType}, startIndex::Int, der_x_segmented_value::Vector{FloatType})::Nothing where {FloatType,TimeType}
     copyto!(m.der_x_segmented, startIndex, der_x_segmented_value, 1, length(der_x_segmented_value))
     return nothing
 end
 
 
 """
-    Modia.add_w_segmented_value!(instantiatedModel::SimulationModel, index::Int, w_segmented_value)::Nothing
+    Modia.copy_w_segmented_value_to_result(instantiatedModel::SimulationModel, index::Int, w_segmented_value)::Nothing
 
-Store deepcopy(w_segmented_value) at index in instantiatedModel.
+Copy value of local variable (`w-segmented`) to result by providing its `index`
+(returned from `new_w_segmented_variable!`),
 """
-@inline function add_w_segmented_value!(m::SimulationModel, index::Int, w_segmented_value)::Nothing
+@inline function copy_w_segmented_value_to_result(m::SimulationModel, index::Int, w_segmented_value)::Nothing
     w_segmented_temp = m.result.w_segmented_temp
     @assert(typeof(w_segmented_value) == typeof(w_segmented_temp[index]))
     @assert(size(  w_segmented_value) == size(  w_segmented_temp[index]))
