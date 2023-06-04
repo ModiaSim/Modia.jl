@@ -1858,7 +1858,7 @@ end
 """
     value = Modia.copy_scalar_x_segmented_value_from_state(instantiatedModel, startIndex)
 
-Return value of scalar x_segmented variable from state vector `x` by providing its `startIndex`
+Return value of scalar `x_segmented` variable from state vector `x` by providing its `startIndex`
 (returned from `new_x_segmented_variable!(..)`).
 """
 copy_scalar_x_segmented_value_from_state(m::InstantiatedModel, startIndex::Int) = m.x_segmented[startIndex]
@@ -1867,7 +1867,7 @@ copy_scalar_x_segmented_value_from_state(m::InstantiatedModel, startIndex::Int) 
 """
     value = Modia.copy_SVector3_x_segmented_value_from_state(instantiatedModel, startIndex)
 
-Return value of `SVector{3,FloatType}` x_segmented variable from state vector `x` by providing its `startIndex`
+Return value of `SVector{3,FloatType} x_segmented` variable from state vector `x` by providing its `startIndex`
 (returned from `new_x_segmented_variable!(..)`).
 """
 @inline copy_SVector3_x_segmented_value_from_state(m::InstantiatedModel{FloatType,TimeType}, startIndex::Int) where {FloatType,TimeType} = begin
@@ -1876,9 +1876,10 @@ Return value of `SVector{3,FloatType}` x_segmented variable from state vector `x
 end
 
 """
-    Modia.copy_Vector_x_segmented_value_from_state(instantiatedModel::InstantiatedModel, startIndex, xi::Vector{FloatType})::Nothing
+    Modia.copy_Vector_x_segmented_value_from_state(
+        instantiatedModel::InstantiatedModel, startIndex, xi::Vector{FloatType})::Nothing
 
-Return value of `Vector{FloatType}` x_segmented variable from state vector `x` by providing its `startIndex`
+Return value of `Vector{FloatType} x_segmented` variable from state vector `x` by providing its `startIndex`
 (returned from `new_x_segmented_variable!(..)`) and copying it into the pre-allocated vector `xi`.
 """
 @inline function copy_Vector_x_segmented_value_from_state(m::InstantiatedModel{FloatType,TimeType}, startIndex::Int, xi::Vector{FloatType})::Nothing where {FloatType,TimeType}
@@ -1888,7 +1889,9 @@ end
 
 
 """
-    Modia.copy_der_x_segmented_value_to_state(instantiatedModel, startIndex, der_x_segmented_value::[FloatType|Vector{FloatType}])
+    Modia.copy_der_x_segmented_value_to_state(
+       instantiatedModel, startIndex, 
+       der_x_segmented_value::[FloatType|Vector{FloatType}])
 
 Copy `der_x_segmented_value` to state derivative vector `der(x)` by providing its `startIndex`
 (returned from `new_x_segmented_variable!(..)`) and copying it into the pre-allocated vector `der_x_segmented_value`.
@@ -1904,7 +1907,9 @@ end
 
 
 """
-    Modia.copy_w_segmented_value_to_result(instantiatedModel::InstantiatedModel, index::Int, w_segmented_value)::Nothing
+    Modia.copy_w_segmented_value_to_result(
+        instantiatedModel::InstantiatedModel, index::Int, 
+        w_segmented_value)::Nothing
 
 Copy value of local variable (`w-segmented`) to result by providing its `index`
 (returned from `new_w_segmented_variable!`),
