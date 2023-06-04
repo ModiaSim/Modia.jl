@@ -60,7 +60,7 @@ showEvaluatedParameters
 CurrentModule = Modia
 ```
 
-The simulation result of a model `instantiatedModel` are provided as a *signal table*, 
+The simulation result of a model `instantiatedModel` are provided as a *signal table*,
 see [SignalTables.jl](https://github.com/ModiaSim/SignalTables.jl).
 
 Therefore, all [signal table functions](https://modiasim.github.io/SignalTables.jl/stable/Functions/OverviewOfFunctions.html)
@@ -68,7 +68,7 @@ can be used on a simulated model
 
 To activate the defined plot package, use
 
-- [`@usingModiaPlot`](@ref) 
+- [`@usingModiaPlot`](@ref)
 
 Alternatively, `usingPlotPackage` (from Modia reexported macro of SignalTables) can be used,
 but then package `SignalTables` must be in your current environment.
@@ -87,11 +87,11 @@ FirstOrder = Model(
 )
 simulate!(firstOrder, stopTime=10)
 showInfo(firstOrder)    # list info about the result
-t = getValues(firstOrder, "time")  
+t = getValues(firstOrder, "time")
 y = getValues(firstOrder, "y")      # use any plot program: plot(t,y)
 
 # Write result on file
-writeSignalTable("firstOrder.json", firstOrder, indent=2, log=true) 
+writeSignalTable("firstOrder.json", firstOrder, indent=2, log=true)
 ```
 
 See the generated [json-file](../resources/fileio/firstOrder.json).

@@ -149,7 +149,7 @@ function build_LinearStateSpace!(model::AbstractDict, modelModule, FloatType::Ty
 end
 
 
-function initSegment_LinearStateSpace!(partiallyInstantiatedModel::SimulationModel{FloatType,TimeType}, path::String, ID,
+function initSegment_LinearStateSpace!(partiallyInstantiatedModel::InstantiatedModel{FloatType,TimeType}, path::String, ID,
                                        parameters::AbstractDict; log=false)::Nothing where {FloatType,TimeType}
     # Called during evaluation of the parameters (before initialization)
     if log
@@ -168,13 +168,13 @@ function initSegment_LinearStateSpace!(partiallyInstantiatedModel::SimulationMod
 end
 
 
-function openLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, ID)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
+function openLinearStateSpace!(instantiatedModel::InstantiatedModel{FloatType,TimeType}, ID)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = Modia.get_instantiatedSubmodel(instantiatedModel,ID).ls
-    Modia.get_Vector_x_segmented_value!(instantiatedModel, ls.x_startIndex, ls.x)
+    Modia.copy_Vector_x_segmented_value_from_state(instantiatedModel, ls.x_startIndex, ls.x)
     if Modia.storeResults(instantiatedModel) && length(ls.W) > 0
         # w = W*x
         mul!(ls.w, ls.W, ls.x)
-        Modia.add_w_segmented_value!(instantiatedModel, ls.w_index, ls.w)
+        Modia.copy_w_segmented_value_to_result(instantiatedModel, ls.w_index, ls.w)
     end
     return ls
 end
@@ -188,7 +188,7 @@ function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
     # der_x = A*x + B*u
     mul!(ls.der_x, ls.A, ls.x)
     mul!(ls.der_x, ls.B, u, 1.0, 1.0)
-    Modia.add_der_x_segmented_value!(instantiatedModel, ls.x_startIndex, ls.der_x)
+    Modia.copy_der_x_segmented_value_to_state(instantiatedModel, ls.x_startIndex, ls.der_x)
     return true
 end
 

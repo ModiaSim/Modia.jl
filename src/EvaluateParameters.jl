@@ -84,7 +84,7 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(partiallyInstantiatedModel::SimulationModel; log=false)
+    map = propagateEvaluateAndInstantiate!(partiallyInstantiatedModel::InstantiatedModel; log=false)
 
 Recursively traverse the hierarchical collection `partiallyInstantiatedModel.parameters` and perform the following actions:
 
@@ -94,7 +94,7 @@ Recursively traverse the hierarchical collection `partiallyInstantiatedModel.par
 - Return the evaluated `parameters` if successfully evaluated, and otherwise
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(m::SimulationModel{FloatType,TimeType}; log=false) where {FloatType,TimeType}
+function propagateEvaluateAndInstantiate!(m::InstantiatedModel{FloatType,TimeType}; log=false) where {FloatType,TimeType}
     x_found = fill(false, length(m.equationInfo.x_info))
     map = propagateEvaluateAndInstantiate2!(m, m.parameters, x_found, [], ""; log=log)
 
@@ -203,7 +203,7 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType}, parameters, x_found::Vector{Bool},
+function propagateEvaluateAndInstantiate2!(m::InstantiatedModel{FloatType,TimeType}, parameters, x_found::Vector{Bool},
                                            environment, path::String; log=false) where {FloatType,TimeType}
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)

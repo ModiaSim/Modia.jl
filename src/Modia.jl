@@ -9,7 +9,7 @@ Main module of Modia.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.11.0"
+const Version = "0.12.0"
 const Date = "2023-06-04"
 const modelsPath = joinpath(Modia.path, "models")
 
@@ -110,7 +110,7 @@ export simulate!, linearize!, get_result
 export hasParameter, getParameter, getEvaluatedParameter
 export showParameters, showEvaluatedParameters
 
-export SimulationModel, measurementToString, get_lastValue, getLastValue, getStateNames
+export InstantiatedModel, measurementToString, get_lastValue, getLastValue, getStateNames
 export positive, negative, previous, edge, after, reinit, pre
 export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames

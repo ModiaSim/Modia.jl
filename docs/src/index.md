@@ -1,4 +1,4 @@
-activ# Modia Documentation
+# Modia Documentation
 
 [Modia](https://github.com/ModiaSim/Modia.jl) is an environment in form of a Julia package to model and simulate physical systems (electrical, mechanical, thermo-dynamical, etc.) described by differential and algebraic equations. A user defines a model on a high level with model components (like a mechanical body, an electrical resistance, or a pipe) that are physically connected together. A model component is constructed by **`expression = expression` equations** or by Julia structs/functions, such as the pre-defined [Modia3D] (https://github.com/ModiaSim/Modia3D.jl) multibody components. The defined model is symbolically processed (for example, equations might be analytically differentiated) with algorithms from package [ModiaBase.jl](https://github.com/ModiaSim/ModiaBase.jl). From the transformed model a Julia function is generated that is used to simulate the model with integrators from [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl).
 The basic type of the floating point variables is usually `Float64`, but can be set to any
@@ -41,6 +41,20 @@ functionalities of these packages.
 
 
 ## Release Notes
+
+### Version 0.12.0
+
+- Improved documentation of built-in component functions.
+
+**Non-backwards** compatible changes 
+
+- Renamed struct `SimulationModel` to `InstantiatedModel`.
+- Renamed function `get_scalar_x_segmented_value` to `copy_scalar_x_segmented_value_from_state`
+- Renamed function `get_SVector3_x_segmented_value` to `copy_SVector3_x_segmented_value_from_state`
+- Renamed function `get_Vector_x_segmented_value!` to `copy_Vector_x_segmented_value_from_state`
+- Renamed function `add_der_x_segmented_value!` to `copy_der_x_segmented_value_to_state`
+- Renamed function `add_w_segmented_value!` to `copy_w_segmented_value_to_result`
+
 
 ### Version 0.11.0
 
@@ -140,7 +154,7 @@ These changes should usually not influence user models.
   show all parameters.
 
 - New functions to add states and algebraic variables from within functions that are not visible in the generated code
-  (see [Variable definitions in functions](@ref) and example `Modia/test/TestLinearSystems.jl`).
+  (see [Variables of built-in Components](@ref) and example `Modia/test/TestLinearSystems.jl`).
   This feature is used in the next version of
   Modia3D to allow (Modia3D) model changes after code generation and to get more light weight code.
 
@@ -471,7 +485,7 @@ Bug fixes
 - @reexport using Unitful
 - @reexport using DifferentialEquations
 - Cleanup of test files (besides ModiaLang, no other package needed in the environment to run the tests).
-- Change `SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}` to `SimulationModel{FloatType,TimeType}`
+- Change `InstantiatedModel{FloatType,ParType,EvaluatedParType,TimeType}` to `InstantiatedModel{FloatType,TimeType}`
 
 
 #### Version 0.9.1

@@ -53,7 +53,7 @@ println(IOContext(stdout, :error_digits=>15), "A2 = ", A2, ", x2 = ", x2)
 using Modia.Test
 println("\n... Numeric linearization with Double64")
 using DoubleFloats
-twoInertiasAndIdealGear2 = SimulationModel{Measurement{Double64}}(twoInertiasAndIdealGear)
+twoInertiasAndIdealGear2 = InstantiatedModel{Measurement{Double64}}(twoInertiasAndIdealGear)
 (A3, x3) = linearize!(twoInertiasAndIdealGear2, stopTime=3, analytic=false)
 println(IOContext(stdout, :error_digits=>15), "A3 = ", A3, ", x3 = ", x3)
 =#
