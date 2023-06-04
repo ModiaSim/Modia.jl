@@ -28,8 +28,8 @@ end
 struct Dummy
 end;
 
-function myBuildFunction(model::AbstractDict, FloatType::Type, TimeType::Type, unitless::Bool, 
-                         ID, modelPathAST; buildOption = "Default")
+function myBuildFunction(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type,
+                         instantiateModelOptions, ID, modelPathAST; buildOption = "Default")
     modelPathAsString = if isnothing(modelPathAST); "" else string(modelPathAST) end
     println("  TestMultiReturningFunction10: Test output from function myBuildFunction at modelPath = \"$modelPathAsString\":\n  Code could be constructed here and merged to the model with buildOption=$buildOption")
     return (model, Dummy())
