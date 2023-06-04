@@ -42,6 +42,20 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.12.0
+
+- Improved documentation of built-in component functions.
+
+**Non-backwards** compatible changes 
+
+- Renamed struct `SimulationModel` to `InstantiatedModel`.
+- Renamed function `get_scalar_x_segmented_value` to `copy_scalar_x_segmented_value_from_state`
+- Renamed function `get_SVector3_x_segmented_value` to `copy_SVector3_x_segmented_value_from_state`
+- Renamed function `get_Vector_x_segmented_value!` to `copy_Vector_x_segmented_value_from_state`
+- Renamed function `add_der_x_segmented_value!` to `copy_der_x_segmented_value_to_state`
+- Renamed function `add_w_segmented_value!` to `copy_w_segmented_value_to_result`
+
+
 ### Version 0.11.0
 
 - Require ModiaBase 0.11.1
