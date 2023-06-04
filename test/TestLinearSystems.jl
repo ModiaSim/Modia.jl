@@ -121,9 +121,9 @@ mutable struct LinearStateSpaceBuild{FloatType}
 end
 
 
-function build_LinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type, unitless::Bool,
-                                ID, pathAST::Union{Expr,Symbol,Nothing})
-    # Called from @instantiatedModel, during instantiation of the model.
+function build_LinearStateSpace!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type, 
+                                 instantiateModelOptions, ID, pathAST::Union{Expr,Symbol,Nothing})
+    # Called from @instantiateModel, during instantiation of the model.
     pathAsString = Modia.modelPathAsString(pathAST)
     #println("... 1: build_LinearStateSpace! called for path = ", pathAsString)
 

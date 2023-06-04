@@ -42,6 +42,20 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.11.0
+
+- Require ModiaBase 0.11.1
+- Manifest.toml file removed.
+- test.yml for github actions changed to use Julia 1.9.0
+
+**Non-backwards** compatible changes 
+
+These changes only influence models that use the new feature of built-in components.
+
+- `_buildFunction` argument list changed (options of @instantiateModel added)
+
+
+
 ### Version 0.10.0
 
 - Initial support of segmented simulations where the number of states can change during simulation.
