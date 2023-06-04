@@ -70,7 +70,7 @@ CurrentModule = Modia
 ```
 
 ```@docs
-SimulationModel
+InstantiatedModel
 generate_getDerivatives!
 init!
 outputs!

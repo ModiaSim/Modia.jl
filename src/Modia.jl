@@ -110,7 +110,7 @@ export simulate!, linearize!, get_result
 export hasParameter, getParameter, getEvaluatedParameter
 export showParameters, showEvaluatedParameters
 
-export SimulationModel, measurementToString, get_lastValue, getLastValue, getStateNames
+export InstantiatedModel, measurementToString, get_lastValue, getLastValue, getStateNames
 export positive, negative, previous, edge, after, reinit, pre
 export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames

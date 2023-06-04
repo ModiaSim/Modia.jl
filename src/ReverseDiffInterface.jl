@@ -1,7 +1,7 @@
 export ModiaProblem, ModiaSolve
 
-function ModiaProblem(m1::Modia.SimulationModel{FloatType1,FloatType1}, 
-                      m2::Modia.SimulationModel{FloatType2,FloatType2};
+function ModiaProblem(m1::Modia.InstantiatedModel{FloatType1,FloatType1}, 
+                      m2::Modia.InstantiatedModel{FloatType2,FloatType2};
                       p, merge=nothing, kwargs...) where {FloatType1,FloatType2}
 
     TimeType1 = FloatType1
@@ -29,7 +29,7 @@ function ModiaProblem(m1::Modia.SimulationModel{FloatType1,FloatType1},
    	tspan = (options1.startTime, options1.stopTime)
     tspan_outputs = options1.startTime:options1.interval:options1.stopTime
     
-    # Initialize/re-initialize SimulationModel
+    # Initialize/re-initialize InstantiatedModel
     if options1.log || options1.logParameters || options1.logEvaluatedParameters || options1.logStates
         println("... Construct simulation problem of DifferentialEquations.jl for ", m.modelName)
     end

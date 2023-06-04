@@ -766,9 +766,9 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 #    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
 
-#    println("Build SimulationModel")
+#    println("Build InstantiatedModel")
     hideResult_names = [string(h) for h in hideResults]
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
+    model = @timeit to "build InstantiatedModel" InstantiatedModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
                                          mappedParameters, timeName, w_invariant_names, hideResult_names;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
@@ -856,7 +856,7 @@ The arguments of `<buildFunction>`are:
 
 - `updatedSubmodel`: A potentially new reference to the updated `submodel`
 - `modelModule`: Module in which the model is defined
-- `FloatType`, `TimeType`: Types used when instantiating `SimulationModel{FloatType,TimeType}`
+- `FloatType`, `TimeType`: Types used when instantiating `InstantiatedModel{FloatType,TimeType}`
 - `instantiateModelOptions`: Optional arguments of `@instantiateModel` provided as `OrderedDict{Symbol,Any}`.
 - `ID`: Unique ID to identify the generated submodel (to be used in the code merged into the submodel)
 - `pathAST`: Path upto `<submodel>` as Abstract Syntax Tree, such as: `:( a.b.c )`

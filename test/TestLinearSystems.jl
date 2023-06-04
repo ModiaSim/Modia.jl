@@ -149,7 +149,7 @@ function build_LinearStateSpace!(model::AbstractDict, modelModule, FloatType::Ty
 end
 
 
-function initSegment_LinearStateSpace!(partiallyInstantiatedModel::SimulationModel{FloatType,TimeType}, path::String, ID,
+function initSegment_LinearStateSpace!(partiallyInstantiatedModel::InstantiatedModel{FloatType,TimeType}, path::String, ID,
                                        parameters::AbstractDict; log=false)::Nothing where {FloatType,TimeType}
     # Called during evaluation of the parameters (before initialization)
     if log
@@ -168,7 +168,7 @@ function initSegment_LinearStateSpace!(partiallyInstantiatedModel::SimulationMod
 end
 
 
-function openLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, ID)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
+function openLinearStateSpace!(instantiatedModel::InstantiatedModel{FloatType,TimeType}, ID)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
     ls = Modia.get_instantiatedSubmodel(instantiatedModel,ID).ls
     Modia.copy_Vector_x_segmented_value_from_state(instantiatedModel, ls.x_startIndex, ls.x)
     if Modia.storeResults(instantiatedModel) && length(ls.W) > 0

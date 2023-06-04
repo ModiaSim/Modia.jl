@@ -23,18 +23,18 @@ RevoluteStub = Model(
 
 
 # Generic Modia3D definitions (always available)
-mutable struct SimulationModel3D
+mutable struct InstantiatedModel3D
     # Internal memory of 3D model
     initial::Bool
 
-    SimulationModel3D() = new(true)
+    InstantiatedModel3D() = new(true)
 end
 
 
 # Function ..._f1 for 3D mechanics
-# function Pendulum_f1(_m::SimulationModel3D, phi::Float64, w::Float64, tau::Float64, 
+# function Pendulum_f1(_m::InstantiatedModel3D, phi::Float64, w::Float64, tau::Float64, 
 #                       m::Float64, L::Float64, g::Float64)
-function Pendulum_f1(_m::TestMechanics.SimulationModel3D, phi, w, tau, m, L, g)
+function Pendulum_f1(_m::TestMechanics.InstantiatedModel3D, phi, w, tau, m, L, g)
 #function Pendulum_f1(phi, w, tau, m, L, g)
 
 #=
@@ -50,7 +50,7 @@ end
 
 # Modia model for the system
 Pendulum = Model(
-    model3D = SimulationModel3D(),
+    model3D = InstantiatedModel3D(),
     
     # Parameters
     m = 1.0u"kg",

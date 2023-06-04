@@ -84,7 +84,7 @@ end
 
 
 # Called once before initialization of a new simulation segment
-function initSegment_InsulatedRod2!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String, ID,
+function initSegment_InsulatedRod2!(instantiatedModel::InstantiatedModel{FloatType,TimeType}, path::String, ID,
                                     parameters::AbstractDict; log=false)::Nothing where {FloatType,TimeType}
     obj::InsulatedRodStruct{FloatType} = Modia.get_instantiatedSubmodel(instantiatedModel, ID)
     
@@ -99,7 +99,7 @@ end
 
 
 # Open an initialized InsulatedRod2 model and return a reference to it
-function openInsulatedRod!(instantiatedModel::SimulationModel{FloatType,TimeType}, ID)::InsulatedRodStruct{FloatType} where {FloatType,TimeType}
+function openInsulatedRod!(instantiatedModel::InstantiatedModel{FloatType,TimeType}, ID)::InsulatedRodStruct{FloatType} where {FloatType,TimeType}
     obj::InsulatedRodStruct{FloatType} = Modia.get_instantiatedSubmodel(instantiatedModel, ID)
     Modia.copy_Vector_x_segmented_value_from_state(instantiatedModel, obj.T_startIndex, obj.T)
     return obj

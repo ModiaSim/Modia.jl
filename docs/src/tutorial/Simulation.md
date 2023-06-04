@@ -24,7 +24,7 @@ modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=tru
 
 The macro performs structural and symbolic transformations, generates a function for
 calculation of derivatives suitable for use with [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl)
-and returns [`SimulationModel`](@ref) that can be used in other functions,
+and returns [`InstantiatedModel`](@ref) that can be used in other functions,
 for example to simulate or plot results. Explanation of the arguments:
 
 * `model`: model (declarations and equations)

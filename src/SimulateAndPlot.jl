@@ -51,7 +51,7 @@ end
               requiredFinalStates_atol = 0.0,
               useRecursiveFactorizationUptoSize = 0)
 
-Simulate `instantiatedModel::SimulationModel` with `algorithm`
+Simulate `instantiatedModel::InstantiatedModel` with `algorithm`
 (= `alg` of [ODE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/ode_solve/)
 or [DAE Solvers of DifferentialEquations.jl](https://diffeq.sciml.ai/stable/solvers/dae_solve/)).
 
@@ -184,7 +184,7 @@ function simulate!(m::Nothing, args...; kwargs...)
     return nothing
 end
 
-function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType}
+function simulate!(m::InstantiatedModel{FloatType,TimeType}, algorithm=missing; merge=nothing, kwargs...) where {FloatType,TimeType}
     options = SimulationOptions{FloatType,TimeType}(merge; kwargs...)
     if isnothing(options)
         @test false
@@ -204,7 +204,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
     m.addEventPointsDueToDEBug = m.sundials
     m.odeIntegrator = !(typeof(algorithm) <: DifferentialEquations.DiffEqBase.AbstractDAEAlgorithm)
 
-    # Initialize/re-initialize SimulationModel
+    # Initialize/re-initialize InstantiatedModel
     if m.options.log || m.options.logEvaluatedParameters || m.options.logStates
         println("\n... Simulate model ", m.modelName)
     end
@@ -385,7 +385,7 @@ function simulate!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; me
 end
 
 
-function simulateSegment!(m::SimulationModel{FloatType,TimeType}, algorithm=missing; kwargs...) where {FloatType,TimeType}
+function simulateSegment!(m::InstantiatedModel{FloatType,TimeType}, algorithm=missing; kwargs...) where {FloatType,TimeType}
     solution = nothing
     options  = m.options
 
@@ -627,7 +627,7 @@ firstOrder1 = @instantiateModel(FirstOrder, FloatType = Measurement{Float64})
 (A1, finalStates1) = linearize!(firstOrder1)
 
 # Higher precision
-firstOrder2 = SimulationModel{Measurement{Double64}}(firstOrder1)
+firstOrder2 = InstantiatedModel{Measurement{Double64}}(firstOrder1)
 (A2, finalStates2) = linearize!(firstOrder2)
 
 # Show results with 15 digits (default print with Measurements shows 3 digits)
@@ -640,7 +640,7 @@ function linearize!(m::Nothing, args...; kwargs...)
     return   nothing
 end
 
-function linearize!(m::SimulationModel{FloatType,TimeType}, algorithm=missing;
+function linearize!(m::InstantiatedModel{FloatType,TimeType}, algorithm=missing;
                     merge = nothing, stopTime = 0.0, analytic = false, kwargs...) where {FloatType,TimeType}
     if analytic
         @info "linearize!(.., analytic=true) of model $(m.modelName) \nis modified to analytic=false, because analytic=true is currently not supported!"
@@ -676,7 +676,7 @@ end
 Return true if parameter `name` (for example `name = "a.b.c"`)
 is defined in the instantiateModel.
 """
-hasParameter(m::SimulationModel, name::AbstractString) = begin
+hasParameter(m::InstantiatedModel, name::AbstractString) = begin
     if isnothing(m) || ismissing(m) || ismissing(m.result)
         return false
     end
@@ -690,7 +690,7 @@ end
 Return the value of parameter or init/start value `name` (for example `name = "a.b.c"`).
 If `name` is not known, `missing` is returned.
 """
-getParameter(m::SimulationModel, name::AbstractString) = get_value(m.parameters, name)
+getParameter(m::InstantiatedModel, name::AbstractString) = get_value(m.parameters, name)
 
 
 """
@@ -699,7 +699,7 @@ getParameter(m::SimulationModel, name::AbstractString) = get_value(m.parameters,
 Return the value of evaluated parameter or init/start value `name` (for example `name = "a.b.c"`).
 If `name` is not known, `missing` is returned.
 """
-getEvaluatedParameter(m::SimulationModel, name::AbstractString) = get_value(m.evaluatedParameters, name)
+getEvaluatedParameter(m::InstantiatedModel, name::AbstractString) = get_value(m.evaluatedParameters, name)
 
 
 """
@@ -707,7 +707,7 @@ getEvaluatedParameter(m::SimulationModel, name::AbstractString) = get_value(m.ev
 
 Print the parameters and the init/start values.
 """
-function showParameters(m::SimulationModel)::Nothing
+function showParameters(m::InstantiatedModel)::Nothing
     parameters = m.parameters
     @showModel parameters
     return nothing
@@ -719,7 +719,7 @@ end
 
 Print the evaluated parameters and the evaluated init/start values.
 """
-function showEvaluatedParameters(m::SimulationModel)::Nothing
+function showEvaluatedParameters(m::InstantiatedModel)::Nothing
     evaluatedParameters = m.evaluatedParameters
     @showModel evaluatedParameters
     return nothing

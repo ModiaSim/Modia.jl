@@ -10,7 +10,7 @@ BouncingBall = Model(
     g = 9.81,
     h = Var(init = 1.0),
     v = Var(init = 0.0),
-    flying = Var(start = true),   # due to pre(flying) -> SimulationModel(....; pre_startValues = [true], ....)
+    flying = Var(start = true),   # due to pre(flying) -> InstantiatedModel(....; pre_startValues = [true], ....)
     equations = :[
         # desired: 
         #   flying = edge(-h) ? reinit(v, -e*v) : pre(flying)

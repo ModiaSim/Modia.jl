@@ -2,10 +2,10 @@
 # Copyright 2022, DLR Institute of System Dynamics and Control
 
 #--------------------------------------------------------------------------------------------------
-#        Provide the overloaded Abstract Signal Tables Interface for the results of SimulationModel
+#        Provide the overloaded Abstract Signal Tables Interface for the results of InstantiatedModel
 #--------------------------------------------------------------------------------------------------
 
-@inline function checkMissingResult(m::SimulationModel, name::String)::Bool
+@inline function checkMissingResult(m::InstantiatedModel, name::String)::Bool
     if isnothing(m) || ismissing(m) || ismissing(m.result)
         error("$name: No simulation results available.")
     end
@@ -13,16 +13,16 @@
 end
 
 SignalTables.isSignalTable(r::Result) = true
-SignalTables.isSignalTable(m::SimulationModel) = true
+SignalTables.isSignalTable(m::InstantiatedModel) = true
 
 
 """
-    getIndependentSignalNames(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Vector{String}
+    getIndependentSignalNames(instantiatedModel::Modia.InstantiatedModel|result::Modia.Result)::Vector{String}
 
 Return the name of the independent variable of the result stored in instantiatedModel or in result.
 """
 SignalTables.getIndependentSignalNames(result::Result)     = [result.timeName]
-SignalTables.getIndependentSignalNames(m::SimulationModel) = begin
+SignalTables.getIndependentSignalNames(m::InstantiatedModel) = begin
     if ismissing(m.result)
         error("independentSignalName(..): No simulation results available in instantiated model of $(m.modelName)")
     end
@@ -63,7 +63,7 @@ end
 
 
 """
-    getSignalNames(instantiatedModel::Modia.SimulationModel;
+    getSignalNames(instantiatedModel::Modia.InstantiatedModel;
                    getVar=true, getPar=true, getMap=true)::Vector{String}
 
 Returns a string vector of the variables of an
@@ -72,7 +72,7 @@ Returns a string vector of the variables of an
 - If getPar=true, Par(..) variables are included.
 - If getMap=true, Map(..) variables are included.
 """
-function SignalTables.getSignalNames(m::SimulationModel; getVar=true, getPar=true, getMap=true,
+function SignalTables.getSignalNames(m::InstantiatedModel; getVar=true, getPar=true, getMap=true,
                                      var=nothing, par=nothing)::Vector{String}   # backwards compatibility
     # For backwards compatibility
         if !isnothing(var)
@@ -108,11 +108,11 @@ SignalTables.getSignalNames(result::Result; getVar=true, getPar=true, getMap=tru
 
 
 """
-    getStateNames(instantiatedModel::Modia.SimulationModel)::Vector{String}
+    getStateNames(instantiatedModel::Modia.InstantiatedModel)::Vector{String}
 
 Returns a string vector of the states that are present in [`@instantiateModel`](@ref)
 """
-function getStateNames(m::SimulationModel)::Vector{String}
+function getStateNames(m::InstantiatedModel)::Vector{String}
     if ismissing(m.result)
         return collect(keys(m.equationInfo.x_dict))
     else
@@ -130,11 +130,11 @@ end
 
 
 """
-    getIndependentSignalsSize(instantiatedModel::Modia.SimulationModel|result::Modia.Result)::Dims
+    getIndependentSignalsSize(instantiatedModel::Modia.InstantiatedModel|result::Modia.Result)::Dims
 
 Returns the lengths of the independent signal of the result as (len,).
 """
-SignalTables.getIndependentSignalsSize(m::SimulationModel) = SignalTables.getIndependentSignalsSize(m.result)
+SignalTables.getIndependentSignalsSize(m::InstantiatedModel) = SignalTables.getIndependentSignalsSize(m.result)
 SignalTables.getIndependentSignalsSize(result::Result) = (sum(length(sk) for sk in result.t), )
 
 #=
@@ -152,13 +152,13 @@ end
 
 
 """
-    getSignal(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+    getSignal(instantiatedModel::Modia.InstantiatedModel|result::Modia.Result, name::String)
 
 Returns signal `name` of the result present in instantiatedModel
 (that is a [`SignalTables.Var`](@ref), [`SignalTables.Par`](@ref)) or [`SignalTables.Map`](@ref))
 If `name` does not exist, an error is raised.
 """
-function SignalTables.getSignal(m::SimulationModel, name::String)
+function SignalTables.getSignal(m::InstantiatedModel, name::String)
     checkMissingResult(m, name)
     result = m.result
 
@@ -274,11 +274,11 @@ end
 
 
 """
-    hasSignal(instantiatedModel::Modia.SimulationModel, name::String)
+    hasSignal(instantiatedModel::Modia.InstantiatedModel, name::String)
 
 Returns `true` if signal `name` is present in the instantiatedModel result or in the evaluated parameters.
 """
-SignalTables.hasSignal(m::SimulationModel, name::String) = begin
+SignalTables.hasSignal(m::InstantiatedModel, name::String) = begin
     if isnothing(m) || ismissing(m) || ismissing(m.result)
         return false
     end
@@ -300,11 +300,11 @@ end
 
 
 """
-        getSignalInfo(instantiatedModel::Modia.SimulationModel, name::String)
+        getSignalInfo(instantiatedModel::Modia.InstantiatedModel, name::String)
 
 Returns signal info of variables stored in the result and of parameters.
 """
-function SignalTables.getSignalInfo(m::SimulationModel, name::String)
+function SignalTables.getSignalInfo(m::InstantiatedModel, name::String)
     result = m.result
     if haskey(result.info, name)
         # name is a result variable (time-varying variable stored in m.result)
@@ -362,16 +362,16 @@ end
 #=
 
 """
-        getSignalInfo(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+        getSignalInfo(instantiatedModel::Modia.InstantiatedModel|result::Modia.Result, name::String)
 """
-function getSignalInfo(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+function getSignalInfo(instantiatedModel::Modia.InstantiatedModel|result::Modia.Result, name::String)
 end
-function getSignalInfo(instantiatedModel::Modia.SimulationModel|result::Modia.Result, name::String)
+function getSignalInfo(instantiatedModel::Modia.InstantiatedModel|result::Modia.Result, name::String)
 end
 =#
 
 
-function get_algorithmName_for_heading(m::SimulationModel)::String
+function get_algorithmName_for_heading(m::InstantiatedModel)::String
     if ismissing(m.algorithmName)
         algorithmName = "???"
     else
@@ -420,11 +420,11 @@ get_leaveName(pathName::String) =
 
 
 """
-    SignalTables.getDefaultHeading(instantiatedModel::Modia.SimulationModel)
+    SignalTables.getDefaultHeading(instantiatedModel::Modia.InstantiatedModel)
 
 Return default heading of instantiatedModel as a string.
 """
-function SignalTables.getDefaultHeading(m::SimulationModel{FloatType,TimeType}) where {FloatType,TimeType}
+function SignalTables.getDefaultHeading(m::InstantiatedModel{FloatType,TimeType}) where {FloatType,TimeType}
     if isnothing(m) || ismissing(m) || ismissing(m.result)
         return ""
     end
@@ -492,9 +492,9 @@ reference = get_result(pendulum, onlyStates=true)
 println("Check results: success = $success")
 ```
 """
-get_result(m::SimulationModel, name::AbstractString; unit=true) = unit ? getValuesWithUnit(m,name) : getValues(m,name)
+get_result(m::InstantiatedModel, name::AbstractString; unit=true) = unit ? getValuesWithUnit(m,name) : getValues(m,name)
 
-function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
+function get_result(m::InstantiatedModel; onlyStates=false, extraNames=missing)
     dataFrame = DataFrames.DataFrame()
     dataFrame[!,"time"] = getValues(m, "time")
 
@@ -520,7 +520,7 @@ function get_result(m::SimulationModel; onlyStates=false, extraNames=missing)
     return dataFrame
 end
 
-timeSignalName(  m::SimulationModel) = "time"
-hasOneTimeSignal(m::SimulationModel) = true
-signalNames(m::SimulationModel) = sort!( getSignalNames(m) )
-printResultInfo(m::SimulationModel) = showInfo(m)
+timeSignalName(  m::InstantiatedModel) = "time"
+hasOneTimeSignal(m::InstantiatedModel) = true
+signalNames(m::InstantiatedModel) = sort!( getSignalNames(m) )
+printResultInfo(m::InstantiatedModel) = showInfo(m)

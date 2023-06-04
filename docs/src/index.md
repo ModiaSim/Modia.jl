@@ -471,7 +471,7 @@ Bug fixes
 - @reexport using Unitful
 - @reexport using DifferentialEquations
 - Cleanup of test files (besides ModiaLang, no other package needed in the environment to run the tests).
-- Change `SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}` to `SimulationModel{FloatType,TimeType}`
+- Change `InstantiatedModel{FloatType,ParType,EvaluatedParType,TimeType}` to `InstantiatedModel{FloatType,TimeType}`
 
 
 #### Version 0.9.1
