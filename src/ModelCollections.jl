@@ -8,7 +8,8 @@ Handles models and variables defined as dictionaries.
 =#
 
 export mergeModels, recursiveMerge, redeclare, outer, showModel, @showModel, drawModel, Model, Map, Par, Var, setLogMerge,
-    constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define, stringifyDefinition, Lookup
+    constant, parameter, input, output, potential, flow, interval, @info_str, Boolean, Integ, @define, stringifyDefinition, Lookup,
+    resetLibrary, printLibrary, makePlacement
 
 using Base.Meta: isexpr
 using OrderedCollections: OrderedDict
@@ -59,19 +60,21 @@ end
 # Convert hierchical modifiers and dot notation to merge operator
 mergify(ex, model, kwvalue=false, level=1) = ex
 function mergify(ex::Expr, model, kwvalue=true, level=1)
+    println("\nmergify: ")
     level += 1
-#    @show ex
-#    print("\nmergify: ")
+    @show ex model
 #    showModel(ex)
     res = nothing
 #    dump(ex)
-    if isexpr(ex, :call) && !(ex.args[1] in [:Model, :Map, :Par, :Var, :|, :connect])
+    if ex.args[1] == :equations || ex.args[1] == :*  || ex.head == :ncat # TODO: refine
+        res = ex
+    elseif isexpr(ex, :call) && !(ex.args[1] in [:Model, :Map, :Par, :Var, :|, :connect])
 #        println("Instantiation")
         mapArguments = [mergify(e, model, ex.head == :kw, level) for e in ex.args[2:end]]
         if length(mapArguments) > 0
             maps = foldl( (x,y) -> :($x | Map($y)), mapArguments[2:end], init=:(Map($(mapArguments[1]))))
-#            println("converted: ", showModel(mapArguments))
-#            println("  to: ", showModel(maps))
+            println("\nconverted: ", showModel(mapArguments))
+            println("  to: ", showModel(maps))
         end
         if kwvalue 
             redec = level > 4  # TODO: Better criteria
@@ -137,7 +140,141 @@ function mergify(ex::Expr, model, kwvalue=true, level=1)
     res
 end
 
+newLibrary = OrderedDict{Symbol, Any}()
+
+function makeVar(type, type_prefix = "")
+    v = OrderedDict{Symbol, Any}()
+    v[:type_specifier] = type
+    if type_prefix != ""
+        v[:type_prefix] = type_prefix
+    end
+    v
+end
+
+
+MakeMap(; kwargs...) = (; kwargs...)
+
+function makeComp(constructor) 
+    @show constructor
+    dump(constructor)
+    class_prefixes = []
+    if constructor == :potential
+        makeVar("Real")
+    elseif constructor == :flow
+        makeVar("Real", ["flow"])
+    elseif typeof(constructor) == Float64
+        v = makeVar("Real")
+        v[:type_prefix] = ["parameter"]
+        v[:binding] = constructor
+        v
+    elseif typeof(constructor) == String
+        v = makeVar("String")
+        v[:type_prefix] = ["parameter"]
+        v[:binding] = constructor
+        v
+    elseif typeof(constructor) == Expr && constructor.args[1] == :* && constructor.args[3].head == :macrocall
+        v = makeVar("Real")
+        v[:type_prefix] = ["parameter"]
+        v[:binding] = constructor.args[2]
+        v[:class_modification] = OrderedDict(:unit => OrderedDict(:binding => constructor.args[3].args[3]))
+        v
+    elseif hasproperty(constructor, :head) && constructor.head == :call && constructor.args[1] == :|
+        makeVar(constructor.args[3])
+    elseif hasproperty(constructor, :head) && constructor.head == :call && constructor.args[1] == :Var
+        # class_modification!!!
+        OrderedDict(constructor.args[2].args[1] => constructor.args[2].args[2])
+    elseif hasproperty(constructor, :head) && constructor.head == :call && constructor.args[2].head == :kw && constructor.args[2].args[2].value == :left
+        v = makeVar(constructor.args[1])
+        v[:annotation] = MakeMap(
+            annotation = MakeMap(
+                Placement = MakeMap(
+                    class_modification = MakeMap(
+                        transformation = MakeMap(
+                            class_modification = MakeMap(
+                                extent = MakeMap(
+                                binding = "[[-110,-10],[-90,10]]"
+                                )
+                            )
+                        )
+                    )
+                    )
+                )
+            )
+        v
+    elseif hasproperty(constructor, :head) && constructor.head == :call && constructor.args[2].head == :kw && constructor.args[2].args[2].value == :right
+        v = makeVar(constructor.args[1])
+        v[:annotation] = MakeMap(
+            annotation = MakeMap(
+                Placement = MakeMap(
+                    class_modification = MakeMap(
+                        transformation = MakeMap(
+                            class_modification = MakeMap(
+                                extent = MakeMap(
+                                binding = "[[110,-10],[90,10]]"
+                                )
+                            )
+                        )
+                    )
+                    )
+                )
+            )
+        v
+    else
+        makeVar(constructor)
+    end
+end
+
+function makeAST(JuliaAST)
+    @show JuliaAST
+    ast = OrderedDict{Symbol, Any}()
+    class_prefixes = []
+    elements = OrderedDict{Symbol, Any}()
+    if hasproperty(JuliaAST, :head) && JuliaAST.head == :call && JuliaAST.args[1] == :|
+        println("\n\n\nHEJSAN")
+        @show JuliaAST.args[2]
+        ast = makeAST(JuliaAST.args[3])
+        ast[:extends] = OrderedDict(:type_specifier => JuliaAST.args[2])
+    else
+        for a in JuliaAST.args[2:end]
+            @show a
+            n = a.args[1]
+            if n != :equations
+                constructor = a.args[2]
+                elements[n] = makeComp(constructor) 
+                if :type_prefix in keys(elements[n]) && elements[n][:type_prefix] == ["flow"]
+                    class_prefixes = ["connector"]
+                end
+            end
+            @show elements
+        end
+        if class_prefixes != []
+            ast[:class_prefixes] = class_prefixes
+        end
+        ast[:elements] = elements
+    end
+    ast
+end
+
+function storeModelAST(modelDef)
+    dump(modelDef)
+    modelName = modelDef.args[1]
+    JuliaAST = modelDef.args[2]
+    newLibrary[modelName] = makeAST(JuliaAST)
+end
+
+function resetLibrary()
+    global newLibrary
+    newLibrary = OrderedDict{Symbol, Any}()
+end
+
+function printLibrary()
+    println("newLibrary")
+    println(JSON.json(newLibrary, 2))
+end
+
 macro define(modelDef)
+    storeModelAST(modelDef)
+    println()
     modelName = modelDef.args[1]
     println("Transforming: ", modelName)
     model = modelDef.args[2]

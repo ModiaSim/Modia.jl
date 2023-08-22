@@ -55,8 +55,8 @@ simulate!(ssTest, stopTime=1.0, log=true, logStates=true,
 plot(ssTest, ("ss.x", "ss.u", "y", "ss.w"), figure=2)
 ```
 """
-LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace!),         # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
-                                        _instantiateFunction = Par(functionName = :(instantiateLinearStateSpace!)),  # Called once after new A,B,C values are merged
+@define LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace!),         # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
+                                        _instantiateFunction = Var(functionName = :(instantiateLinearStateSpace!)),  # Called once after new A,B,C values are merged
                                         kwargs...)
 
 mutable struct LinearStateSpaceStruct{FloatType}
@@ -197,14 +197,14 @@ end
 
 # T*der(x) + x = u
 T = 0.2;
-SSTest = Model(
+@define SSTest = Model(
             ss = LinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], W=[1.1;;], x_init=[0.2]),  # one state
             equations = :[ss.u = [2.0],
                           y = ss.y[1]]
          )
 
-ssTest = @instantiateModel(SSTest, logCode=true)
-simulate!(ssTest, stopTime=1.0, log=false, logStates=true, requiredFinalStates = [1.987867388853733])
+ssTest = @instantiateModel(SSTest, log=true, logCode=true)
+simulate!(ssTest, stopTime=1.0, logParameters=true, log=true, logStates=true, requiredFinalStates = [1.987867388853733])
 showInfo(ssTest)
 plot(ssTest, ("ss.x", "ss.u","ss.w", "y"), figure=1)
 
