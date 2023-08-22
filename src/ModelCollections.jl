@@ -45,7 +45,7 @@ function selquote(ex::Expr)
     end
 end
 
-macro defineOLD(modelDef)
+macro define(modelDef)
     modelName = modelDef.args[1]
     println(modelName)
     model = modelDef.args[2]
@@ -272,8 +272,8 @@ function printLibrary()
     println(JSON.json(newLibrary, 2))
 end
 
-macro define(modelDef)
-    storeModelAST(modelDef)
+macro defineNEW(modelDef)
+#    storeModelAST(modelDef)
     println()
     modelName = modelDef.args[1]
     println("Transforming: ", modelName)
@@ -461,7 +461,7 @@ function mergeModels(m1::AbstractDict, m2::AbstractDict, env=Symbol())
                     result[k] = m
                 else
 #                    result[k] = v
-                    result[k] = result[k] | v
+                    result[k] = result[k] | v # Fails with @define on LinearSystem
                 end
             elseif :_redeclare in keys(v)
                 if logMerge; println("Redeclaring: $k = $v") end

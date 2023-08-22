@@ -194,7 +194,8 @@ end
 
 # T*der(x) + x = u
 T = 0.2;
-@define SSTest = Model(
+# @define 
+SSTest = Model(
             ss = LinearStateSpace(A=[-1.0/T;;], B=[1.0/T;;], C=[0.9;;], W=[1.1;;], x_init=[0.2]),  # one state
             equations = :[ss.u = [2.0],
                           y = ss.y[1]]
