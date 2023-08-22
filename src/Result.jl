@@ -45,17 +45,17 @@ hasDims(        kind::ResultKind) = kind != RESULT_W_INVARIANT
 isInvariant(id::Vector{ValuesID})                    = length(id) == 1
 isSegmented(id::Vector{ValuesID}, t::AbstractVector) = !(length(id) == 1 || length(id) == length(t))
 
-index_i(id::Vector{ValuesID}, i::Int)                                      = isInvariant(id) ? id[1].index : id[i].index 
+index_i(id::Vector{ValuesID}, i::Int)                                      = isInvariant(id) ? id[1].index : id[i].index
 dims_i( id::Vector{ValuesID}, i::Int, kind::ResultKind, v::AbstractVector) = hasDims(kind) ? (isInvariant(id) ? id[1].dims : id[i].dims) :
-                                                                                             (isInvariant(id) ? size(v[1][1][id[1].index]) : size(v[i][1][id[i].index]))                      
+                                                                                             (isInvariant(id) ? size(v[1][1][id[1].index]) : size(v[i][1][id[i].index]))
 
 
 """
     info = ResultInfo(kind, signal)                    # x, der_x (id is initially not known)
     info = ResultInfo(kind, signal, id)                # t, w_invariant, w_segmented
-    info = ResultInfo(signal, value)                   # constant   
+    info = ResultInfo(signal, value)                   # constant
     info = ResultInfo(signal, aliasName, aliasNegate)  # alias and negative alias
-    
+
 Return info how to access a result variable.
 """
 mutable struct ResultInfo
@@ -67,17 +67,17 @@ mutable struct ResultInfo
                                      # = RESULT_DER_X      : result.der_x[      sk][ti][index:index+prod(dims_i(..))-1]
                                      # = RESULT_W_INVARIANT: result.w_invariant[sk][ti][index]
                                      # = RESULT_W_SEGMENTED: result.w_segmented[sk][ti][index]
-    signal::SignalTables.SymbolDictType # = Var() or Par()
-    
+    signal::SignalTables.SymbolDictType # = SignalTables.Var() or SignalTables.Par()
+
     aliasName::String                # Name of non-eliminated variable
-    aliasNegate::Bool                # = true, if info[aliasName] signal must be negated  
+    aliasNegate::Bool                # = true, if info[aliasName] signal must be negated
     id::Vector{ValuesID}             # Location of the variable values with respect to ResultKind and Result
     _eltypeOrType                        # If known, eltypeOrType(signal.values/.values); if not known: Nothing
-    value::Any                       # Value of constant variable (without unit)    
+    value::Any                       # Value of constant variable (without unit)
 
-    ResultInfo(kind::ResultKind, signal, _eltypeOrType)                                       = new(kind             , signal, ""       , false      , ValuesID[]  , _eltypeOrType, nothing)  
-    ResultInfo(kind::ResultKind, signal, id::ValuesID, _eltypeOrType)                         = new(kind             , signal, ""       , false      , ValuesID[id], _eltypeOrType, nothing)     
-    ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[]  , eltypeOrType(value), value)    
+    ResultInfo(kind::ResultKind, signal, _eltypeOrType)                                       = new(kind             , signal, ""       , false      , ValuesID[]  , _eltypeOrType, nothing)
+    ResultInfo(kind::ResultKind, signal, id::ValuesID, _eltypeOrType)                         = new(kind             , signal, ""       , false      , ValuesID[id], _eltypeOrType, nothing)
+    ResultInfo(signal::SignalTables.SymbolDictType, value)                                = new(RESULT_CONSTANT  , signal, ""       , false      , ValuesID[]  , eltypeOrType(value), value)
     ResultInfo(signal::SignalTables.SymbolDictType, aliasName::String, aliasNegate::Bool) = new(RESULT_ELIMINATED, signal, aliasName, aliasNegate, ValuesID[], Nothing, nothing)
 end
 
@@ -111,7 +111,7 @@ mutable struct Result{FloatType,TimeType}
         n_w_invariant         = length(w_invariant_names)
         alias_segmented_names = OrderedSet{String}()
         w_segmented_names     = OrderedSet{String}()
-        w_segmented_temp      = Any[]      
+        w_segmented_temp      = Any[]
         t                     = fill(TimeType[],1)
         x                     = fill(Vector{FloatType}[], 1)
         der_x                 = fill(Vector{FloatType}[], 1)
@@ -119,8 +119,8 @@ mutable struct Result{FloatType,TimeType}
         w_segmented           = fill(Vector{Any}[], 1)
 
         # Fill info with time
-        firstIndexOfSegment = Int[1]        
-        timeResultInfo = ResultInfo(RESULT_T, Var(unit="s", independent=true), ValuesID(1,()), TimeType)
+        firstIndexOfSegment = Int[1]
+        timeResultInfo = ResultInfo(RESULT_T, SignalTables.Var(unit="s", independent=true), ValuesID(1,()), TimeType)
         info[timeNameAsString] = timeResultInfo
 
         # Fill info with x, der_x (note: id is not yet known, because init/start value might be changed in evaluatedParameters(..), which is called after Result(...)
@@ -131,9 +131,9 @@ mutable struct Result{FloatType,TimeType}
             x_unit     = xi_info.unit
             der_x_unit = x_unit == "" ? "1/s" : unitAsParseableString(uparse(x_unit)/u"s")
             if x_unit == ""
-                x_var = Var(start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+                x_var = SignalTables.Var(start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
             else
-                x_var = Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
+                x_var = SignalTables.Var(unit=x_unit, start=xi_info.startOrInit, fixed=xi_info.fixed, state=true, der=xi_info.der_x_name)
             end
             if !isnan(xi_info.nominal)
                 x_var[:nominal] = xi_info.nominal
@@ -143,17 +143,17 @@ mutable struct Result{FloatType,TimeType}
             end
             info[xi_info.x_name]     = ResultInfo(RESULT_X, x_var, FloatType)
             if der_x_unit == ""
-                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(), FloatType)            
+                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, SignalTables.Var(), FloatType)
             else
-                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, Var(unit=der_x_unit), FloatType)
+                info[xi_info.der_x_name] = ResultInfo(RESULT_DER_X, SignalTables.Var(unit=der_x_unit), FloatType)
             end
         end
-        
+
         # Fill info with w_invariant
         for (w_invariant_index, w_invariant_name) in enumerate(w_invariant_names)
             name = string(w_invariant_name)
-            @assert(!haskey(info, name))    
-            info[name] = ResultInfo(RESULT_W_INVARIANT, Var(), ValuesID(w_invariant_index, nothing), Nothing)
+            @assert(!haskey(info, name))
+            info[name] = ResultInfo(RESULT_W_INVARIANT, SignalTables.Var(), ValuesID(w_invariant_index, nothing), Nothing)
         end
 
         # Fill info with eliminated variables
@@ -161,15 +161,15 @@ mutable struct Result{FloatType,TimeType}
             name = var_name(v)
             @assert(!haskey(info, name))
             if ModiaBase.isZero(vProperty, v)
-                info[name] = ResultInfo(Var(), FloatType(0))
+                info[name] = ResultInfo(SignalTables.Var(), FloatType(0))
             elseif ModiaBase.isAlias(vProperty, v)
                 aliasName = var_name( ModiaBase.alias(vProperty, v) )
                 @assert(haskey(info, aliasName))
-                info[name] = ResultInfo(Var(), aliasName, false)
+                info[name] = ResultInfo(SignalTables.Var(), aliasName, false)
             else # negated alias
                 negatedAliasName = var_name( ModiaBase.negAlias(vProperty, v) )
                 @assert(haskey(info, negatedAliasName))
-                info[name] = ResultInfo(Var(), negatedAliasName, true)
+                info[name] = ResultInfo(SignalTables.Var(), negatedAliasName, true)
             end
         end
 
@@ -181,15 +181,23 @@ end
 
 """
     nResults(result::Result)
-    
+
 Returns the number of result points (= number of values of time vector).
 """
 nResults(result::Result) = result.firstIndexOfSegment[end] + length(result.t[end]) - 1
 
 
 """
+    nResultsCurrentSegment(result::Result)
+
+Returns the number of result points of the current segment (= number of values of time vector).
+"""
+nResultsCurrentSegment(result::Result) = length(result.t[end])
+
+
+"""
     newResultSegment!(result, equationInfo, nsegments)
-    
+
 Start a new result segment (nsegments > 1)
 """
 function newResultSegment!(result::Result{FloatType,TimeType}, equationInfo::EquationInfo, nsegments::Int)::Nothing where {FloatType,TimeType}
@@ -197,8 +205,8 @@ function newResultSegment!(result::Result{FloatType,TimeType}, equationInfo::Equ
     empty!(result.alias_segmented_names)
     empty!(result.w_segmented_names)
     empty!(result.w_segmented_temp)
-    
-    # Start new segment   
+
+    # Start new segment
     push!(result.firstIndexOfSegment, result.firstIndexOfSegment[end] + length(result.t[end]))
     push!(result.t          , TimeType[])
     push!(result.x          , Vector{FloatType}[])
@@ -215,12 +223,12 @@ dims_range(dims::Dims) = Tuple([1:i for i in dims])
 
 """
     signalResultValues(t, s, resultInfo::ResultInfo; log=false, name="")
-    
-Return a Var() values vector from independent values t, dependent values s, and resultInfo.    
+
+Return a SignalTables.Var() values vector from independent values t, dependent values s, and resultInfo.
 """
 function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::ResultInfo, result::Result; log=false, name::AbstractString="")
     id = resultInfo.id
-    @assert(length(id) > 0)    
+    @assert(length(id) > 0)
     inlineValues = resultInfo.kind == RESULT_X || resultInfo.kind == RESULT_DER_X
     _eltypeOrType    = resultInfo._eltypeOrType
     ndims_s      = length(id[1].dims)
@@ -228,7 +236,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
         # Scalar signal that is defined in every segment
         index = id[1].index
         sc = _eltypeOrType[ustrip.(ti[index]) for sk in s for ti in sk]
-        
+
     else
         # Find largest dims = dimsMax in all segments
         dimsMax::Dims{ndims_s} = id[1].dims
@@ -250,7 +258,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
             end
             dimsMax = Tuple(dMax)
         end
-        
+
         # Allocate memory for target signal
         dims1 = sum(size(tk,1) for tk in t)
         dims  = (dims1, dimsMax...)
@@ -261,8 +269,8 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
             # Allocate target memory with undef values
             sc = Array{_eltypeOrType, length(dims)}(undef, dims)
         end
-        
-        # Copy subset of s-values to target sc      
+
+        # Copy subset of s-values to target sc
         j = 1
         firstIndexOfSegment = result.firstIndexOfSegment
         if length(dimsMax) == 0
@@ -276,11 +284,11 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
                     sc[j] = s_ti[index]
                     j += 1
                 end
-            end            
+            end
         else
             # Target is not a scalar signal  setindex!(A,x,(2,2:4)...)
-            j = 1              
-            if inlineValues          
+            j = 1
+            if inlineValues
                 if invariant
                     dims = id[1].dims
                     dimr = dims_range(dims)
@@ -293,13 +301,13 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
                         end
                     end
                 else
-                    for id_k in resultInfo.id                       
+                    for id_k in resultInfo.id
                         dims    = id_k.dims
                         dimr    = dims_range(dims)
                         ibeg    = id_k.index
                         iend    = ibeg + prod(dims) - 1
                         segment = id_k.segment
-                        j       = firstIndexOfSegment[segment]                 
+                        j       = firstIndexOfSegment[segment]
                         for s_ti in s[segment]
                             setindex!(sc, reshape(view(s_ti,ibeg:iend),dims), (j,dimr...)...)
                             j += 1
@@ -310,7 +318,7 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
                 if invariant
                     index = id[1].index
                     dimr  = dims_range(id[1].dims)
-                    for sk in s                    
+                    for sk in s
                         for s_ti in sk
                             setindex!(sc, ustrip.(s_ti[index]), (j,dimr...)...)
                             j += 1
@@ -320,8 +328,8 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
                     for id_k in resultInfo.id
                         index   = id_k.index
                         dimr    = dims_range(id_k.dims)
-                        segment = id_k.segment                        
-                        j       = firstIndexOfSegment[segment]                      
+                        segment = id_k.segment
+                        j       = firstIndexOfSegment[segment]
                         for s_ti in s[segment]
                             setindex!(sc, ustrip.(s_ti[index]), (j,dimr...)...)
                             j += 1
@@ -331,10 +339,10 @@ function signalResultValues(t::AbstractVector, s::AbstractVector, resultInfo::Re
             end
         end
     end
-    
+
     if log
         println("$name[id] = $sc")
-        println("typeof($name[id]) = ", typeof(sc)) 
+        println("typeof($name[id]) = ", typeof(sc))
     end
     return sc
 end

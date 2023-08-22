@@ -41,7 +41,7 @@ println("\n... Numerically linearize at stopTime = 10 with Float64 and Double64:
 
 #= DoubleFloats is not necessarily defined in the environment
 using Modia.DoubleFloats
-pendulum3 = SimulationModel{Measurement{Double64}}(pendulum2)
+pendulum3 = InstantiatedModel{Measurement{Double64}}(pendulum2)
 (A_10_Double64, x_10_Double64) = linearize!(pendulum3, stopTime=10) 
 =#
 

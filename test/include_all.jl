@@ -5,7 +5,7 @@ Test.@testset "Test basic functionality" begin
     include("TestVariables.jl")
     include("TestFirstOrder.jl")
     include("TestFirstOrder2.jl")
-    include("TestPendulum.jl")    
+    include("TestPendulum.jl")
     include("TestSource.jl")
     include("TestLinearEquations.jl")
     include("TestStateSelection.jl")
@@ -24,7 +24,7 @@ Test.@testset "Test units, uncertainties" begin
     include("TestTwoInertiasAndIdealGear.jl")
     include("TestTwoInertiasAndIdealGearWithUnits.jl")
     include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")
-    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
+    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl") 
     include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")
     include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")
 end
@@ -35,6 +35,7 @@ Test.@testset "Test model components" begin
     include("TestStateSpace.jl")
     include("TestParameter.jl")
     include("TestHeatTransfer.jl")
+    include("TestHeatTransfer2.jl")    
 end
 
 

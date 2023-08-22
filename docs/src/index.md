@@ -42,15 +42,92 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.12.0
+
+- Improved documentation of built-in component functions.
+
+**Non-backwards** compatible changes 
+
+- Renamed struct `SimulationModel` to `InstantiatedModel`.
+- Renamed function `get_scalar_x_segmented_value` to `copy_scalar_x_segmented_value_from_state`
+- Renamed function `get_SVector3_x_segmented_value` to `copy_SVector3_x_segmented_value_from_state`
+- Renamed function `get_Vector_x_segmented_value!` to `copy_Vector_x_segmented_value_from_state`
+- Renamed function `add_der_x_segmented_value!` to `copy_der_x_segmented_value_to_state`
+- Renamed function `add_w_segmented_value!` to `copy_w_segmented_value_to_result`
+
+
+### Version 0.11.0
+
+- Require ModiaBase 0.11.1
+- Manifest.toml file removed.
+- test.yml for github actions changed to use Julia 1.9.0
+
+**Non-backwards** compatible changes 
+
+These changes only influence models that use the new feature of built-in components.
+
+- `_buildFunction` argument list changed (options of @instantiateModel added)
+
+
+
+### Version 0.10.0
+
+- Initial support of segmented simulations where the number of states can change during simulation.
+  For examples, see `Modia/test/TestHeatTransfer2.jl` and models in directory `Modia3D/test/Segmented`
+  (of release 0.12.0 and later). The tutorial will be updated for this feature in an upcoming version.
+  
+
+**Non-backwards** compatible changes 
+
+These changes should usually not influence user models.
+
+- `_buildFunction = <functionName>` changed to `_buildFunction = Par(functionName = <functionName>)` and
+  changed argument list of `<functionName>`.
+- `_instantiateFunction = Par(..)` changed to `_initSegmentFunction = Par(functionName = <functionName>)`
+  and changed argument list of `<functionName>`.
+
+
+### Version 0.9.4
+
+- Precompile statements included (compilation of Modia package takes more time, but startup of Modia model simulations is faster).
+- `@instantiateModel(..., logFile=true)`: New keyword argument `logFile` in order that log of file and line number can be
+  switched off, when `@instantiateModel` is called.
+- Error messages improved, when model errors result in failed evaluation of parameters.
+- Log of statistics improved and included in writeSignalTable(..) of instantiatedModel.
+- SignalTables.getSignalNames(..): Order of signal names improved so that the linear listing reflects the hierarchy of the names.
+- writeSignalTable(..): attributes renamed to _attributes. All used simulate!(..) options included in Map experiment.
+- Require SignalTables 0.4.2 (since several issues fixed with writeSignalTable(..)).
+- Update to newest versions of packages.
+
+**Bug fixes**
+
+- DifferentialEquations 7.6.0 introduced a non-backwards compatible change with [#867](https://github.com/SciML/DifferentialEquations.jl/issues/867). Modia was corrected to cope with this change (based on [#162](https://github.com/ModiaSim/Modia.jl/pull/162)).
+- `@instantiateModel(..., logCalculations=true)` skipped actual computations. This was fixed via [#161](https://github.com/ModiaSim/Modia.jl/pull/161).
+
+
+### Version 0.9.3
+
+- Requires SignalTables 0.4.0 (introduces Map-signal)
+- getSignalNames(...; getVar=true, getPar=true, getMap=true): New keyword arguments to filter names.
+- writeSignalTable(...) of instantiatedModel: Include attributes = Map(model=..., experiment=...).
+- Some internal bug-fixes.
+
+
+### Version 0.9.2
+
+- Bug fix: integrator IDA() can be used (especially to avoid solving large linear equation systems in the model).\
+  Extend some test models to use IDA().
+
+
 ### Version 0.9.1
 
 - Requires SignalTables 0.3.5.
 
 - [`@usingModiaPlot`](@ref): corrected and fixed in docu. Alternatively, @usingPlotPackage can be used,
   provided package SignalTables is present in your current environment.
-  
+
 - Internal: A function call in the generated code prefixed with `Modia.`.
-  
+
 
 ### Version 0.9.0
 
@@ -71,13 +148,13 @@ functionalities of these packages.
   with `writeSignalTable(filename, instantiatedModel)` (or in HDF5 format via [JDL](https://github.com/JuliaIO/JLD.jl)).
   You get an overview of a simulation result via `showInfo(instantiatedModel)`.
 
-- New functions [`hasParameter`](@ref), [`getParameter`](@ref), [`getEvaluatedParameter`](@ref), 
+- New functions [`hasParameter`](@ref), [`getParameter`](@ref), [`getEvaluatedParameter`](@ref),
   [`showParameters`](@ref), [`showEvaluatedParameters`](@ref) to
   get parameter/init/start values by name (e.g. `getEvaluatedParameter(instantiatedModel, "a.b.c")`) or
   show all parameters.
 
 - New functions to add states and algebraic variables from within functions that are not visible in the generated code
-  (see [Variable definitions in functions](@ref) and example `Modia/test/TestLinearSystems.jl`). 
+  (see [Variables of built-in Components](@ref) and example `Modia/test/TestLinearSystems.jl`).
   This feature is used in the next version of
   Modia3D to allow (Modia3D) model changes after code generation and to get more light weight code.
 
@@ -408,7 +485,7 @@ Bug fixes
 - @reexport using Unitful
 - @reexport using DifferentialEquations
 - Cleanup of test files (besides ModiaLang, no other package needed in the environment to run the tests).
-- Change `SimulationModel{FloatType,ParType,EvaluatedParType,TimeType}` to `SimulationModel{FloatType,TimeType}`
+- Change `InstantiatedModel{FloatType,ParType,EvaluatedParType,TimeType}` to `InstantiatedModel{FloatType,TimeType}`
 
 
 #### Version 0.9.1

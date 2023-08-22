@@ -1,7 +1,7 @@
 """
 Main module of Modia.
 
-* Developer: Hilding Elmqvist, Mogram AB
+* Developer: Hilding Elmqvist, Mogram AB and Martin Otter, DLR
 * First version: December 2020
 * License: MIT (expat)
 
@@ -9,8 +9,8 @@ Main module of Modia.
 module Modia
 
 const path = dirname(dirname(@__FILE__))   # Absolute path of package directory
-const Version = "0.9.2"
-const Date = "2023-05-30"
+const Version = "0.13.0"
+const Date = "2023-08-22"
 const modelsPath = joinpath(Modia.path, "models")
 
 print(" \n\nWelcome to ")
@@ -43,11 +43,11 @@ import SignalTables: AvailablePlotPackages
 
 """
     @usingModiaPlot()
-    
+
 Execute `using XXX`, where `XXX` is the Plot package that was activated with `usePlotPackage(plotPackage)`.
 So this is similar to @usingPlotPackage (from SignalTables, that is reexported from Modia).
 
-There is, however, a difference when XXX = "SilentNoPlot": 
+There is, however, a difference when XXX = "SilentNoPlot":
 
 - @usingPlotPackage() executes `using SignalTables.SilentNoPlot` and therefore requires that package `SignalTables` is available in your environment.
 - @usingModiaPlot() executes `using Modia.SignalTables.SilentNoPlot` and therefore requires that package `Modia` is available in your environment.
@@ -110,7 +110,7 @@ export simulate!, linearize!, get_result
 export hasParameter, getParameter, getEvaluatedParameter
 export showParameters, showEvaluatedParameters
 
-export SimulationModel, measurementToString, get_lastValue, getLastValue, getStateNames
+export InstantiatedModel, measurementToString, get_lastValue, getLastValue, getStateNames
 export positive, negative, previous, edge, after, reinit, pre
 export initial, terminal, isInitial, isTerminal, initLinearEquationsIteration!
 export get_xNames
@@ -170,6 +170,35 @@ The function is defined as: `stripUnit(v) = ustrip.(upreferred.(v))`.
 """
 stripUnit(v) = ustrip.(upreferred.(v))
 
+
+"""
+    @strippedPositive!(path, name)
+
+Convert `name` to its preferred units (default are the SI units), strip units and check that value is positive.
+In case of error, use `string(name)` and `path` in the error message:
+
+# Example
+```
+using Unitful
+L1 =  2.0u"m"
+@strippedPositive!("insulatedRod", L1)
+# L1 = 2.0
+
+L2 = -2.0u"m"
+@strippedPositive!("insulatedRod", L2)
+# error message:
+# Error from
+#   insulatedRod = ...(..., L2 = -2.0u"m",...): L2 > 0 required.)
+```
+"""
+macro strippedPositive!(path, name)
+    nameAsString = string(name)
+    expr = :( $name = strippedPositive!($path, $(esc(name)), $nameAsString) )   
+    return expr 
+end      
+strippedPositive!(path::String, value, name) = stripUnit(value) > 0 ? stripUnit(value) : error("\nError from\n   $path = ...(..., $name = $value, ...): $name > 0 required")
+
+
 """
     str = modelPathAsString(modelPath::Union{Expr,Symbol,Nothing})
 
@@ -183,6 +212,7 @@ include("StateSelection.jl")
 
 include("ModelCollections.jl")
 include("EventHandler.jl")
+include("Statistics.jl")
 include("CodeGeneration.jl")
 include("EvaluateParameters.jl")
 
@@ -203,5 +233,43 @@ const drawIncidence = false
 
 include("Symbolic.jl")
 include("ModiaLang.jl")
+
+import SnoopPrecompile
+
+SnoopPrecompile.@precompile_all_calls begin
+    #= If two models are used, this gives a warning "incremental compilation broken" -> precompile only one model.
+        FirstOrder = Model(
+            T = 0.2u"s",
+            x = Var(init=0.3),
+            equations = :[u = sin(time/u"s"),
+                        T * der(x) + x = u,
+                        y = 2*x]
+        )
+        firstOrder = @instantiateModel(FirstOrder,logFile=false)
+        simulate!(firstOrder, Tsit5(), stopTime = 1.0, merge = Map(T = 0.4u"s", x = 0.9))
+    =#
+
+        TwoInertiasAndIdealGear = Model(
+            J1 = 0.0025,
+            J2 = 170,
+            r  = 105,
+            tau_max = 1,
+            phi1 = Var(init = nothing),
+            w1   = Var(init = nothing),
+            phi2 = Var(init = 0.5),
+            w2   = Var(init = 0.0),
+            equations = :[
+                tau = sin(time/u"s"),
+                w1 = der(phi1),
+                J1*der(w1) = tau - tau1,
+                phi1   = r*phi2,
+                r*tau1 = tau2,
+                w2 = der(phi2),
+                J2*der(w2) = tau2
+            ]
+        )
+        twoInertiasAndIdealGear = @instantiateModel(TwoInertiasAndIdealGear, unitless=true, logFile=false)
+        simulate!(twoInertiasAndIdealGear, stopTime = 4.0, useRecursiveFactorizationUptoSize = 500)
+end
 
 end

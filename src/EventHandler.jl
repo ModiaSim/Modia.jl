@@ -73,7 +73,7 @@ mutable struct EventHandler{FloatType,TimeType}
     nz::Int                 # Number of event indicators
     nzInvariant::Int          # Number of event indicators defined in visible model equations
                             # More event indicators can be defined by objects that are not visible in the generated code, i.e. nz >= nzInvariant
-                            # These event indicators are defined in propagateEvaluateAndInstantiate!(..) via _instantiateFunction(..)
+                            # These event indicators are defined in propagateEvaluateAndInstantiate!(..) via _initSegmentFunction(..)
     z::Vector{FloatType}    # Vector of event indicators (zero crossings). If one of z[i] passes
                             # zero, that is beforeEvent(z[i])*z[i] < 0, an event is triggered
                             # (allocated during instanciation according to nz).
@@ -165,8 +165,12 @@ end
 
 
 function reinitEventHandlerForFullRestart!(eh::EventHandler{FloatType,TimeType}, currentTime::TimeType, stopTime::TimeType, logEvents::Bool)::Nothing where {FloatType,TimeType}
-    eh.nRestartEvents += 1
     eh.nFullRestartEvents += 1
+    eh.nZeroCrossings = 0
+    eh.nRestartEvents = 0
+    eh.nStateEvents   = 0
+    eh.nTimeEvents    = 0
+    
     eh.initial  = true
     eh.terminal = false
     eh.event    = false

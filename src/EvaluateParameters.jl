@@ -18,10 +18,14 @@ function getConstructorAsString(path, constructor, parameters):String
             end
             if typeof(value) == Symbol
                 svalue = ":" * string(value)
+            elseif typeof(value) == String
+                svalue = value
             elseif typeof(value) <: AbstractDict
                 svalue = "..."  # Do not show dictionaries, since too much output, especially due to pointers to Object3Ds
             else
-                value = ustrip.(value)
+                if eltypeOrType(value) <: Number
+                    value = ustrip.(value)
+                end
                 svalue = string(value)
                 if length(svalue) > 20
                     svalue = svalue[1:20] * "..."   # Restrict the length of the output
@@ -80,7 +84,7 @@ appendKey(path, key) = path == "" ? string(key) : path * "." * string(key)
 
 
 """
-    map = propagateEvaluateAndInstantiate!(partiallyInstantiatedModel::SimulationModel; log=false)
+    map = propagateEvaluateAndInstantiate!(partiallyInstantiatedModel::InstantiatedModel; log=false)
 
 Recursively traverse the hierarchical collection `partiallyInstantiatedModel.parameters` and perform the following actions:
 
@@ -90,7 +94,7 @@ Recursively traverse the hierarchical collection `partiallyInstantiatedModel.par
 - Return the evaluated `parameters` if successfully evaluated, and otherwise
   return nothing, if an error occurred (an error message was printed).
 """
-function propagateEvaluateAndInstantiate!(m::SimulationModel{FloatType,TimeType}; log=false) where {FloatType,TimeType}
+function propagateEvaluateAndInstantiate!(m::InstantiatedModel{FloatType,TimeType}; log=false) where {FloatType,TimeType}
     x_found = fill(false, length(m.equationInfo.x_info))
     map = propagateEvaluateAndInstantiate2!(m, m.parameters, x_found, [], ""; log=log)
 
@@ -199,19 +203,20 @@ function changeDotToRef(ex)
 end
 
 
-function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType}, parameters, x_found::Vector{Bool},
+function propagateEvaluateAndInstantiate2!(m::InstantiatedModel{FloatType,TimeType}, parameters, x_found::Vector{Bool},
                                            environment, path::String; log=false) where {FloatType,TimeType}
     if log
         println("\n 1: !!! instantiate objects of $path: ", parameters)
     end
     current = OrderedDict{Symbol,Any}()   # should be Map()
 
-    # Determine, whether "parameters" has a ":_constructor"  or "_instantiateFunction" key and handle this specially
-    constructor         = nothing
-    instantiateFunction = nothing
-    usePath             = false
-    modelModule         = m.modelModule
-    eqInfo              = m.equationInfo
+    # Determine, whether "parameters" has a ":_constructor"  or "_initSegmentFunction" key and handle this specially
+    constructor          = nothing
+    instantiateFunction  = nothing
+    usePath              = false
+    useInstantiatedModel = false
+    modelModule          = m.modelModule
+    eqInfo               = m.equationInfo
 
     if haskey(parameters, :_constructor)
         # For example: obj = (_class = :Par, _constructor = :(Modia3D.Object3D), _path = true, kwargs...)
@@ -222,20 +227,34 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             if haskey(v, :_path)
                 usePath = v[:_path]
             end
-        else
+            if haskey(v, :_instantiatedmodel)
+                useInstantiatedModel = v[:_instantiatedmodel]
+            end
+        else     
             constructor = v
             if haskey(parameters, :_path)
                 usePath = parameters[:_path]
             end
+            if haskey(parameters, :_instantiatedModel)
+                useInstantiatedModel = parameters[:_instantiatedModel]
+            end            
+        end
+        if log
+            if usePath
+                println("usePath = true")
+            end
+            if useInstantiatedModel
+                println("useInstantiatedModel = true")
+            end            
         end
 
-    elseif haskey(parameters, :_instantiateFunction)
-        # For example: obj = (_instantiateFunction = Par(functionName = :(instantiateLinearStateSpace!))
-        _instantiateFunction = parameters[:_instantiateFunction]
-        if haskey(_instantiateFunction, :functionName)
-            instantiateFunction = _instantiateFunction[:functionName]
+    elseif haskey(parameters, :_initSegmentFunction)
+        # For example: obj = (_initSegmentFunction = Par(functionName = :(instantiateLinearStateSpace!))
+        _initSegmentFunction = parameters[:_initSegmentFunction]
+        if haskey(_initSegmentFunction, :functionName)
+            instantiateFunction = _initSegmentFunction[:functionName]
         else
-            @warn "Model $path has key :_instantiateFunction but its value has no key :functionName"
+            @warn "Model $path has key :_initSegmentFunction but its value has no key :functionName"
         end
 
     elseif haskey(parameters, :value)
@@ -250,7 +269,8 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
         if log
             println(" 2:    ... key = $k, value = $v")
         end
-        if k == :_constructor || k == :_buildFunction || k == :_buildOption || k == :_instantiateFunction || k == :_path || (k == :_class && !isnothing(constructor))
+        if k == :_constructor || k == :_buildFunction || k == :_buildOption || k == :_initSegmentFunction || 
+           k == :_path || k == :_instantiatedModel || (k == :_class && !isnothing(constructor))
             if log
                 println(" 3:    ... key = $k")
             end
@@ -317,7 +337,15 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
                     end
                 end
             end
-            subv = Core.eval(modelModule, subv)
+
+            try
+                subv = Core.eval(modelModule, subv)
+            catch
+                str = getConstructorAsString(path, constructor, parameters)
+                printstyled("\nError when instantiating model $(m.modelName):\n$k = $subv\n", bold=true, color=:red)
+                Base.rethrow()
+            end
+
             if m.unitless && eltype(subv) <: Number
                 # Remove unit
                 subv = stripUnit(subv)
@@ -377,14 +405,20 @@ function propagateEvaluateAndInstantiate2!(m::SimulationModel{FloatType,TimeType
             if log
                 println(" 13:    +++ Instantiated $path: $instantiateFunction will be called to instantiate sub-model and define varying states\n\n")
             end
-            Core.eval(modelModule, :($instantiateFunction($m, $current, $path, log=$log)))
+            Core.eval(modelModule, :($instantiateFunction($m, $path, $path, $current, log=$log)))
             push!(m.instantiateFunctions, (instantiateFunction, current, path))
         end
         return current
     else
         try
             if usePath
-                obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
+                if useInstantiatedModel
+                    obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, instantiatedModel = $m, $current...)))                
+                else
+                    obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; path = $path, $current...)))
+                end
+            elseif useInstantiatedModel
+                obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; instantiatedModel = $m, $current...)))              
             else
                 obj = Core.eval(modelModule, :(FloatType = $FloatType; $constructor(; $current...)))
             end

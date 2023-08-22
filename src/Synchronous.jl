@@ -28,10 +28,10 @@ interval(u)
 export Clock, sample, hold, previous
 
 
-Clock(interval, m::SimulationModel, nr::Int) = Clock(m.options.startTime, interval, m, nr)
+Clock(interval, m::InstantiatedModel, nr::Int) = Clock(m.options.startTime, interval, m, nr)
 
 
-function Clock(startTime, interval, m::SimulationModel{FloatType,TimeType}, nr::Int)::Bool where {FloatType,TimeType}
+function Clock(startTime, interval, m::InstantiatedModel{FloatType,TimeType}, nr::Int)::Bool where {FloatType,TimeType}
 # Clock ticks at startTime, startTime + interval, startTime + 2*interval, ...
 # This is independent of the starTime of the simulation. Example:
 #   if startTime = -3, interval = 1.5, m.options.startTime = 1.0 then
@@ -71,7 +71,7 @@ function Clock(startTime, interval, m::SimulationModel{FloatType,TimeType}, nr::
 end
 
 
-@inline function sample(v, clock::Bool, m::SimulationModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
+@inline function sample(v, clock::Bool, m::InstantiatedModel{FloatType,TimeType}, nr::Int) where {FloatType,TimeType}
     eh = m.eventHandler
     if isInitial(m) || clock
         eh.sample[nr] = v
@@ -80,7 +80,7 @@ end
 end
 
 
-@inline function previous(clock::Bool, m::SimulationModel, nr::Int)
+@inline function previous(clock::Bool, m::InstantiatedModel, nr::Int)
     # m.previous[nr] is initialized with the start/init value of v before the first model evaluation
     if clock 
         m.previous[nr] = m.nextPrevious[nr]
@@ -92,7 +92,7 @@ end
 hold(v) = v
 
 
-@inline function hold(v, clock::Bool, m::SimulationModel, nr::Int)
+@inline function hold(v, clock::Bool, m::InstantiatedModel, nr::Int)
     # m.hold[nr] is initialized with the start/init value of v before the first model evaluation
     if clock 
         m.hold[nr] = v

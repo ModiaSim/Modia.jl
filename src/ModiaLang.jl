@@ -499,7 +499,8 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if logCalculations
             var = string(unknowns[v])
             solutionString = string(solution)
-            return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", upreferred.($(solution.args[1]))))
+            #return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", upreferred.($(solution.args[1]))))
+            return :(println("Calculating: ", $solutionString); $solution; println("  Result: ", $var, " = ", $(solution.args[1])))
         else
             return solution
         end
@@ -535,7 +536,7 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         residual = :(Modia.appendVariable!(_leq_mode.residuals, $eqs))
         residString = string(eqs)
         if logCalculations
-             return :(println("Calculating residual: ", $residString); $residualName = $eqs; println("  Residual: ", $residualName) )
+            return :(println("Calculating residual: ", $residString); $residual; $residualName = $eqs; println("  Residual: ", $residualName) )
 #            return makeDerVar(:(dump($(makeDerVar(eq.args[2]))); dump($(makeDerVar(eq.args[1]))); $residual; println($residualName, " = ", upreferred.(($(eq.args[2]) - $(eq.args[1]))))))
         else
             return residual
@@ -582,13 +583,15 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         if int_v > 0
             value = value / u"s"
         end
-        # if length(value) == 1
+
         if ! (typeof(value) <: AbstractArray)
             un = unit(value)
-        else
+        elseif length(value) > 0
             un = unit.(value)
             @assert all([un[i] == un[1] for i in 2:length(un)]) "The unit of all elements of state vector must be equal: $var::$(value)"
             un = un[1]
+        else
+            un = ""
         end
         return SignalTables.unitAsParseableString(un)
     end
@@ -763,9 +766,9 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
 #    convertedStartValues = convert(Vector{FloatType}, [ustrip(v) for v in startValues])  # ustrip.(value) does not work for MonteCarloMeasurements
 #    @show mappedParameters
 
-#    println("Build SimulationModel")
+#    println("Build InstantiatedModel")
     hideResult_names = [string(h) for h in hideResults]
-    model = @timeit to "build SimulationModel" SimulationModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
+    model = @timeit to "build InstantiatedModel" InstantiatedModel{FloatType,TimeType}(modelModule, name, buildDict, getDerivatives, equationInfo, previousVars, preVars, holdVars,
                                          mappedParameters, timeName, w_invariant_names, hideResult_names;
                                          vSolvedWithInitValuesAndUnit, vEliminated, vProperty,
                                          var_name = (v)->string(unknownsWithEliminated[v]),
@@ -835,51 +838,59 @@ end
 appendSymbol(path::Nothing, name::Symbol) = name
 appendSymbol(path         , name::Symbol) = :( $path.$name )
 
+
 """
-    modifiedModel = buildSubModels!(model, modelModule, FloatType, TimeType, buildDict::OrderedDict)
+    modifiedModel = buildSubmodels!(model, modelModule, FloatType, TimeType,
+                                    instantiateModelOptions, buildDict::AbstractDict)
 
-Traverse `model` and for every `<subModel>` that is a `Model(..)` and has a key-value pair
-`:_buildFunction = <buildFunction>` and optionally `:_buildOption=<buildOption>`, call
+Traverse `model` and for every `<submodel>` that is a `Model(..)` and has a key-value pair
+`:_buildFunction = Par(functionName = <buildFunction>)` and optionally `:_buildOption=<buildOption>`, call
 
 ```
-buildCode = <buildFunction>(<subModel>, modelModule, FloatType::Type, TimeType::Type,
-                            buildDict::OrderedDict{String,Any},
-                            modelPath::Union{Expr,Symbol,Nothing},
-                            buildOption = <buildOption>)
+updatedSubmodel = <buildFunction>(submodel, modelModule, FloatType::Type, TimeType::Type, instantiateModelOptions,
+                      ID, pathAST::Union{Expr,Symbol,Nothing}, buildOption = <buildOption>)
 ```
 
-The`buildCode` is merged to the corresponding `<subModel>` in the calling environment.
+A new `updatedSubmodel` is generated from `submodel` merged with additional code and then returned.
 The arguments of `<buildFunction>`are:
 
-- `subModel`: The returned `buildCode` is merged to `submodel`
-- `FloatType`, `TimeType`: Types used when instantiating `SimulationModel{FloatType,TimeType}`
-- `modelPath`: Path upto `<subModel>`, such as: `:( a.b.c )`.
-- `buildDict`: Dictionary, that will be stored in the corresponding SimulationModel instance and
-               that allows to store information about the build-process,
-               typically with key `string(modelPath)` (if modelPath==Nothing, key="" is used).
+- `updatedSubmodel`: A potentially new reference to the updated `submodel`
+- `modelModule`: Module in which the model is defined
+- `FloatType`, `TimeType`: Types used when instantiating `InstantiatedModel{FloatType,TimeType}`
+- `instantiateModelOptions`: Optional arguments of `@instantiateModel` provided as `OrderedDict{Symbol,Any}`.
+- `ID`: Unique ID to identify the generated submodel (to be used in the code merged into the submodel)
+- `pathAST`: Path upto `<submodel>` as Abstract Syntax Tree, such as: `:( a.b.c )`
+             (this path might be used as part of a variable name in the code merged into the submodel).
 - `buildOption`: Option used for the generation of `buildCode`.
 
-Note, keys `_buildFunction` and `_buildOption` are deleted from the corresponding `<subModel>`.
+Note, keys `_buildFunction` and `_buildOption` have been deleted in the returned `updatedSubmodel`.
 """
-function buildSubModels!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type,
-                         buildDict::OrderedDict{String,Any}; path::Union{Expr,Symbol,Nothing}=nothing)
+function buildSubmodels!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type, instantiateModelOptions::OrderedDict{Symbol,Any},
+                         buildDict::OrderedDict{String,Any}; pathAST::Union{Expr,Symbol,Nothing}=nothing)
     if haskey(model, :_buildFunction)
-        buildFunction = model[:_buildFunction]
+        _buildFunction = model[:_buildFunction]
+        if haskey(_buildFunction, :functionName)
+            buildFunction = _buildFunction[:functionName]
+        else
+            @error "Model $pathAST has key :_buildFunction but its value has no key :functionName"
+        end
         delete!(model, :_buildFunction)
-        quotedPath = Meta.quot(path)
+        ID = modelPathAsString(pathAST)
+        quotedPathAST = Meta.quot(pathAST)
         if haskey(model, :_buildOption)
             buildOption = model[:_buildOption]
             delete!(model, :_buildOption)
-            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath, buildOption=$buildOption)) )
+            (model, instantiatedSubmodelStruct) = Core.eval(modelModule, :($buildFunction($model, $modelModule, $FloatType, $TimeType, $instantiateModelOptions, $ID, $quotedPathAST, buildOption=$buildOption)))
         else
-            buildCode = Core.eval(modelModule, :($buildFunction($model, $FloatType, $TimeType, $buildDict, $quotedPath)))
+            (model, instantiatedSubmodelStruct) = Core.eval(modelModule, :($buildFunction($model, $modelModule, $FloatType, $TimeType, $instantiateModelOptions, $ID, $quotedPathAST)))
         end
-        return  model | buildCode
+        buildDict[ID] = instantiatedSubmodelStruct
+        return model
     end
 
     for (key,value) in model
         if typeof(value) <: OrderedDict && haskey(value, :_class) && value[:_class] == :Model
-            model[key] = buildSubModels!(value, modelModule, FloatType, TimeType, buildDict; path=appendSymbol(path,key))
+            model[key] = buildSubmodels!(value, modelModule, FloatType, TimeType, instantiateModelOptions, buildDict; pathAST=appendSymbol(pathAST,key))
         end
     end
     return model
@@ -890,12 +901,12 @@ end
 """
     modelInstance = @instantiateModel(model; FloatType = Float64, aliasReduction=true, unitless=false,
         evaluateParameters=false, saveCodeOnFile="", log=false, logModel=false, logDetails=false, logStateSelection=false,
-        logCode=false,logExecution=logExecution, logCalculations=logCalculations, logTiming=false)
+        logCode=false,logExecution=logExecution, logCalculations=logCalculations, logTiming=false, logFile=true)
 
 Instantiates a model, i.e. performs structural and symbolic transformations and generates a function for calculation of derivatives suitable for simulation.
 
 * `model`: model (declarations and equations)
-* `FloatType`: Variable type for floating point numbers, for example: Float64, Measurements{Float64}, StaticParticles{Float64,100}, Particles{Float64,2000}
+* `FloatType`: Variable type for floating point numbers, for example: Float64, Measurement{Float64}, StaticParticles{Float64,100}, Particles{Float64,2000}
 * `aliasReduction`: Perform alias elimination and remove singularities
 * `unitless`: Remove units (useful while debugging models and needed for MonteCarloMeasurements)
 * `evaluateParameters`: Use evaluated parameters in the generated code.
@@ -908,6 +919,7 @@ Instantiates a model, i.e. performs structural and symbolic transformations and 
 * `logExecution`: Log the execution of the generated code (useful for timing compilation)
 * `logCalculations`: Log the calculations of the generated code (useful for finding unit bugs)
 * `logTiming`: Log timing of different phases
+* `logFile`: Log file and line number where @instantiatedModel is called
 * `return modelInstance prepared for simulation`
 """
 macro instantiateModel(model, kwargs...)
@@ -924,7 +936,7 @@ See documentation of macro [`@instantiateModel`]
 """
 function instantiateModel(model; modelName="", modelModule=nothing, source=nothing, FloatType = Float64, aliasReduction=true, unitless=false,
     log=false, logModel=false, logDetails=false, logStateSelection=false, logCode=false,
-    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, evaluateParameters=false, saveCodeOnFile="")
+    logExecution=logExecution, logCalculations=logCalculations, logTiming=false, logFile=true, evaluateParameters=false, saveCodeOnFile="")
     if isMonteCarloMeasurements(FloatType) && !unitless
         unitless=true
         printstyled("  @instantiateModel(...,unitless=true, ..) set automatically, because\n  FloatType=MonteCarloMeasurements often fails if units are involved.\n", color=:red)
@@ -932,7 +944,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
 
     #try
     #    model = JSONModel.cloneModel(model, expressionsAsStrings=false)
-        println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
+        if logFile
+            println("\nInstantiating model $modelName\n  in module: $modelModule\n  in file: $source")
+        end
         resetEventCounters()
         global to = TimerOutput()
 
@@ -948,10 +962,28 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         if typeof(model) <: NamedTuple || typeof(model) <: Dict || typeof(model) <: OrderedDict
             # Traverse model and execute functions _buildFunction(..), to include code into sub-models
             buildDict = OrderedDict{String,Any}()
+            instantiateModelOptions = OrderedDict{Symbol, Any}(
+                :modelName          => modelName,
+                :source             => source,
+                :aliasReduction     => aliasReduction,
+                :unitless           => unitless,
+                :log                => log,
+                :logModel           => logModel,
+                :logDetails         => logDetails,
+                :logStateSelection  => logStateSelection,
+                :logCode            => logCode,
+                :logExecution       => logExecution,
+                :logCalculations    => logCalculations,
+                :logTiming          => logTiming,
+                :logFile            => logFile,
+                :evaluateParameters => evaluateParameters,
+                :saveCodeOnFile     => saveCodeOnFile)
+
             TimeType = if FloatType <: Measurements.Measurement ||
                           FloatType <: MonteCarloMeasurements.AbstractParticles;
                           baseType(FloatType) else FloatType end  # baseType(..) is defined in CodeGeneration.jl
-            model = buildSubModels!(model, modelModule, FloatType, TimeType, buildDict)
+            model = deepcopy(model)
+            model = buildSubmodels!(model, modelModule, FloatType, TimeType, instantiateModelOptions, buildDict)
 
             if logModel
                 @showModel(model)
@@ -1000,9 +1032,9 @@ function instantiateModel(model; modelName="", modelModule=nothing, source=nothi
         unique!(allVariables)
 
         if ! experimentalTranslation
-            unknowns = setdiff(allVariables, keys(modelStructure.parameters), keys(modelStructure.inputs), [:time, :instantiatedModel, :_leq_mode, :_x])
+            unknowns = setdiff(allVariables, keys(modelStructure.parameters), keys(modelStructure.inputs), [:time, :instantiatedModel, :_leq_mode, :_x, :_path])
         else
-            unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time, :instantiatedModel, :_leq_mode, :_x])
+            unknowns = setdiff(allVariables, keys(modelStructure.parameters), [:time, :instantiatedModel, :_leq_mode, :_x, :_path])
         end
         Avar, states, derivatives = setAvar(unknowns)
         vActive = [a == 0 for a in Avar]

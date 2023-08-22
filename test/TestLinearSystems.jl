@@ -55,8 +55,8 @@ simulate!(ssTest, stopTime=1.0, log=true, logStates=true,
 plot(ssTest, ("ss.x", "ss.u", "y", "ss.w"), figure=2)
 ```
 """
-@define LinearStateSpace(; kwargs...) = Model(; _buildFunction = :(buildLinearStateSpace!),         # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
-                                        _instantiateFunction = Var(functionName = :(instantiateLinearStateSpace!)),  # Called once after new A,B,C values are merged
+LinearStateSpace(; kwargs...) = Model(; _buildFunction       = Par(functionName = :(build_LinearStateSpace!)),        # Called once in @instantiateModel(..) before getDerivatives!(..) is generated
+                                        _initSegmentFunction = Par(functionName = :(initSegment_LinearStateSpace!)),  # Called once before initialization of a new simulation segment
                                         kwargs...)
 
 mutable struct LinearStateSpaceStruct{FloatType}
@@ -75,7 +75,7 @@ mutable struct LinearStateSpaceStruct{FloatType}
 
     function LinearStateSpaceStruct{FloatType}(; A::AbstractMatrix, B::AbstractMatrix, C::AbstractMatrix, W::AbstractMatrix = fill(FloatType(0),0,0),
                                                  x_init::Union{AbstractVector,Nothing}=nothing,
-                                                 u::AbstractVector, y::AbstractVector,  # Code generated with buildLinearStateSpace! provides start values of u and y.
+                                                 u::AbstractVector, y::AbstractVector,  # Code generated with build_LinearStateSpace! provides start values of u and y.
                                                  path::String, kwargs...) where {FloatType}
         #println("... 4: LinearStateSpaceStruct called for $path")
         if length(kwargs) > 0
@@ -121,12 +121,11 @@ mutable struct LinearStateSpaceBuild{FloatType}
 end
 
 
-function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::Type,
-                                buildDict::OrderedCollections.OrderedDict{String,Any},
-                                path::Union{Expr,Symbol,Nothing})
-    # Called from @instantiatedModel, during instantiation of the model.
-    pathAsString = Modia.modelPathAsString(path)
-    #println("... 1: buildLinearStateSpace! called for path = ", pathAsString)
+function build_LinearStateSpace!(model::AbstractDict, modelModule, FloatType::Type, TimeType::Type, 
+                                 instantiateModelOptions, ID, pathAST::Union{Expr,Symbol,Nothing})
+    # Called from @instantiateModel, during instantiation of the model.
+    pathAsString = Modia.modelPathAsString(pathAST)
+    #println("... 1: build_LinearStateSpace! called for path = ", pathAsString)
 
     # Determine nu,ny from model
     B = model[:B]
@@ -137,29 +136,27 @@ function buildLinearStateSpace!(model::AbstractDict, FloatType::Type, TimeType::
     y_zeros = zeros(FloatType,ny)
 
     # Define code to be generated
-    lsCode = Model(ls      = Var(hideResult=true),
-                   success = Var(hideResult=true),
-                         u = Var(input  = true, start = u_zeros),
-                         y = Var(output = true, start = y_zeros),
-                    equations = :[
-                        ls = openLinearStateSpace!(instantiatedModel, $pathAsString)
-                        y = computeOutputs!(instantiatedModel, ls)
-                        success = computeStateDerivatives!(instantiatedModel, ls, u)])
+    model = model | Model(ls      = Var(hideResult=true),
+                          success = Var(hideResult=true),
+                                u = Var(input  = true, start = u_zeros),
+                                y = Var(output = true, start = y_zeros),
+                           equations = :[
+                               ls = openLinearStateSpace!(instantiatedModel, $ID)
+                               y = computeOutputs!(instantiatedModel, ls)
+                               success = computeStateDerivatives!(instantiatedModel, ls, u)])
 
-    # Store build info in buildDict
-    buildDict[pathAsString] = LinearStateSpaceBuild{FloatType}(pathAsString, nu, ny)
-    return lsCode
+    return (model, LinearStateSpaceBuild{FloatType}(pathAsString, nu, ny))
 end
 
 
-function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationModel{FloatType,TimeType},
-                                      model::AbstractDict, path::String; log=false)::Nothing where {FloatType,TimeType}
+function initSegment_LinearStateSpace!(partiallyInstantiatedModel::InstantiatedModel{FloatType,TimeType}, path::String, ID,
+                                       parameters::AbstractDict; log=false)::Nothing where {FloatType,TimeType}
     # Called during evaluation of the parameters (before initialization)
     if log
-        println("instantiateLinearStateSpace! called for $path with model = $model")
+        println("initSegment_LinearStateSpace! called for $path with parameters = $parameters")
     end
-    lsBuild::LinearStateSpaceBuild{FloatType} = partiallyInstantiatedModel.buildDict[path]
-    ls = LinearStateSpaceStruct{FloatType}(; path, model...)
+    lsBuild::LinearStateSpaceBuild{FloatType} = Modia.get_instantiatedSubmodel(partiallyInstantiatedModel, ID)
+    ls = LinearStateSpaceStruct{FloatType}(; path, parameters...)
     ls.x_startIndex = Modia.new_x_segmented_variable!(partiallyInstantiatedModel, path*".x", path*".der(x)", ls.x_init)
     if length(ls.W) > 0
         # w = W*x_init
@@ -171,13 +168,13 @@ function instantiateLinearStateSpace!(partiallyInstantiatedModel::SimulationMode
 end
 
 
-function openLinearStateSpace!(instantiatedModel::SimulationModel{FloatType,TimeType}, path::String)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
-    ls = instantiatedModel.buildDict[path].ls
-    Modia.get_Vector_x_segmented_value!(instantiatedModel, ls.x_startIndex, ls.x)
+function openLinearStateSpace!(instantiatedModel::InstantiatedModel{FloatType,TimeType}, ID)::LinearStateSpaceStruct{FloatType} where {FloatType,TimeType}
+    ls = Modia.get_instantiatedSubmodel(instantiatedModel,ID).ls
+    Modia.copy_Vector_x_segmented_value_from_state(instantiatedModel, ls.x_startIndex, ls.x)
     if Modia.storeResults(instantiatedModel) && length(ls.W) > 0
         # w = W*x
         mul!(ls.w, ls.W, ls.x)
-        Modia.add_w_segmented_value!(instantiatedModel, ls.w_index, ls.w)
+        Modia.copy_w_segmented_value_to_result(instantiatedModel, ls.w_index, ls.w)
     end
     return ls
 end
@@ -191,7 +188,7 @@ function computeStateDerivatives!(instantiatedModel, ls, u)::Bool
     # der_x = A*x + B*u
     mul!(ls.der_x, ls.A, ls.x)
     mul!(ls.der_x, ls.B, u, 1.0, 1.0)
-    Modia.add_der_x_segmented_value!(instantiatedModel, ls.x_startIndex, ls.der_x)
+    Modia.copy_der_x_segmented_value_to_state(instantiatedModel, ls.x_startIndex, ls.der_x)
     return true
 end
 
