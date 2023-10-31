@@ -538,7 +538,7 @@ function simulateSegment!(m::InstantiatedModel{FloatType,TimeType}, algorithm=mi
 
     # Compute solution
     abstol = 0.1*options.tolerance
-    tstops = (m.eventHandler.nextEventTime,)
+    tstops = [m.eventHandler.nextEventTime,]
     maxiters = Int(typemax(Int32))  # switch off maximum number of iterations (typemax(Int) gives an inexact error for Sundials)
     if ismissing(algorithm)
         TimerOutputs.@timeit m.timer "DifferentialEquations.solve" solution = DifferentialEquations.solve(problem, reltol=options.tolerance, abstol=abstol, save_everystep=false,
