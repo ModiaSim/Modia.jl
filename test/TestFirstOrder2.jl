@@ -99,7 +99,8 @@ FirstOrder3 = Model(
                   T * der(x) + x = u]
 )
 firstOrder3 = @instantiateModel(FirstOrder3, logCode=false)
-simulate!(firstOrder3, Tsit5(), stopTime = 10u"hr")
+#simulate!(firstOrder3, Tsit5(), stopTime = 10u"hr")
+simulate!(firstOrder3, stopTime = 10u"hr")
 plot(firstOrder3, [("u", "x"), "der(x)"], figure=2)
 
 # Test all options
