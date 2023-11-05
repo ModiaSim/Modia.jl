@@ -42,6 +42,12 @@ functionalities of these packages.
 
 ## Release Notes
 
+### Version 0.12.1
+
+- Pull request [#170](https://github.com/ModiaSim/Modia.jl/pull/170)
+  (tstops in simulation engine changed from Tuple to Vector, since otherwise incompability with new Sundials version).
+
+
 ### Version 0.12.0
 
 - Improved documentation of built-in component functions.
