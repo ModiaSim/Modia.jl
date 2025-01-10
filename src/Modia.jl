@@ -151,8 +151,6 @@ using  InteractiveUtils
 
 global to = TimerOutput()
 
-Unitful.unit(      v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = unit(T)
-Unitful.upreferred(v::MonteCarloMeasurements.AbstractParticles{T,N}) where {T,N} = uconvert(upreferred(unit(v)), v)
 
 # append! as needed in EquationAndStateInfo.jl and in CodeGeneration.jl
 appendVariable!(v1::Vector{FloatType}, s::FloatType) where {FloatType} = push!(v1,s)
