@@ -3,6 +3,7 @@
 
 using  OrderedCollections: OrderedDict, OrderedSet
 using  DataFrames
+using  OrdinaryDiffEqCore
 
 #=
 fieldnames(typeof(integrator)) = (:sol, :u, :du, :k, :t, :dt, :f, :p, :uprev, :uprev2, :duprev, :tprev, :alg,
@@ -1522,7 +1523,7 @@ function affectEvent!(integrator, stateEvent::Bool, eventIndex::Int)::Nothing
     end
 
     # Adapt step size
-    if eh.restart != NoRestart && supertype(typeof(integrator.alg)) == DifferentialEquations.OrdinaryDiffEq.OrdinaryDiffEqAdaptiveAlgorithm
+    if eh.restart != NoRestart && supertype(typeof(integrator.alg)) == OrdinaryDiffEqCore.OrdinaryDiffEqAdaptiveAlgorithm
         DifferentialEquations.auto_dt_reset!(integrator)
         DifferentialEquations.set_proposed_dt!(integrator, integrator.dt)
     end
