@@ -191,9 +191,9 @@ L2 = -2.0u"m"
 """
 macro strippedPositive!(path, name)
     nameAsString = string(name)
-    expr = :( $name = strippedPositive!($path, $(esc(name)), $nameAsString) )   
-    return expr 
-end      
+    expr = :( $name = strippedPositive!($path, $(esc(name)), $nameAsString) )
+    return expr
+end
 strippedPositive!(path::String, value, name) = stripUnit(value) > 0 ? stripUnit(value) : error("\nError from\n   $path = ...(..., $name = $value, ...): $name > 0 required")
 
 
@@ -232,42 +232,42 @@ const drawIncidence = false
 include("Symbolic.jl")
 include("ModiaLang.jl")
 
-import SnoopPrecompile
+# import SnoopPrecompile
 
-SnoopPrecompile.@precompile_all_calls begin
-    #= If two models are used, this gives a warning "incremental compilation broken" -> precompile only one model.
-        FirstOrder = Model(
-            T = 0.2u"s",
-            x = Var(init=0.3),
-            equations = :[u = sin(time/u"s"),
-                        T * der(x) + x = u,
-                        y = 2*x]
-        )
-        firstOrder = @instantiateModel(FirstOrder,logFile=false)
-        simulate!(firstOrder, Tsit5(), stopTime = 1.0, merge = Map(T = 0.4u"s", x = 0.9))
-    =#
+# SnoopPrecompile.@precompile_all_calls begin
+#     #= If two models are used, this gives a warning "incremental compilation broken" -> precompile only one model.
+#         FirstOrder = Model(
+#             T = 0.2u"s",
+#             x = Var(init=0.3),
+#             equations = :[u = sin(time/u"s"),
+#                         T * der(x) + x = u,
+#                         y = 2*x]
+#         )
+#         firstOrder = @instantiateModel(FirstOrder,logFile=false)
+#         simulate!(firstOrder, Tsit5(), stopTime = 1.0, merge = Map(T = 0.4u"s", x = 0.9))
+#     =#
 
-        TwoInertiasAndIdealGear = Model(
-            J1 = 0.0025,
-            J2 = 170,
-            r  = 105,
-            tau_max = 1,
-            phi1 = Var(init = nothing),
-            w1   = Var(init = nothing),
-            phi2 = Var(init = 0.5),
-            w2   = Var(init = 0.0),
-            equations = :[
-                tau = sin(time/u"s"),
-                w1 = der(phi1),
-                J1*der(w1) = tau - tau1,
-                phi1   = r*phi2,
-                r*tau1 = tau2,
-                w2 = der(phi2),
-                J2*der(w2) = tau2
-            ]
-        )
-        twoInertiasAndIdealGear = @instantiateModel(TwoInertiasAndIdealGear, unitless=true, logFile=false)
-        simulate!(twoInertiasAndIdealGear, stopTime = 4.0, useRecursiveFactorizationUptoSize = 500)
-end
+#         TwoInertiasAndIdealGear = Model(
+#             J1 = 0.0025,
+#             J2 = 170,
+#             r  = 105,
+#             tau_max = 1,
+#             phi1 = Var(init = nothing),
+#             w1   = Var(init = nothing),
+#             phi2 = Var(init = 0.5),
+#             w2   = Var(init = 0.0),
+#             equations = :[
+#                 tau = sin(time/u"s"),
+#                 w1 = der(phi1),
+#                 J1*der(w1) = tau - tau1,
+#                 phi1   = r*phi2,
+#                 r*tau1 = tau2,
+#                 w2 = der(phi2),
+#                 J2*der(w2) = tau2
+#             ]
+#         )
+#         twoInertiasAndIdealGear = @instantiateModel(TwoInertiasAndIdealGear, unitless=true, logFile=false)
+#         simulate!(twoInertiasAndIdealGear, stopTime = 4.0, useRecursiveFactorizationUptoSize = 500)
+# end
 
 end
