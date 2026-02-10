@@ -797,10 +797,10 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type, isFirstSegme
         for xe_info in x_info
             if xe_info.scalar
                 @assert(length(xe_info.startOrInit) == 1)
-                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
+                x_start[startIndex] = FloatType(ustrip.(xe_info.startOrInit))
                 startIndex += 1
             else
-                xe_start = Vector{FloatType}(ustrip(xe_info.startOrInit))
+                xe_start = Vector{FloatType}(ustrip.(xe_info.startOrInit))
                 @assert(length(xe_start) == xe_info.length)
                 copyto!(x_start, startIndex, xe_start, 1, length(xe_start))
                 startIndex += length(xe_start)
@@ -815,10 +815,10 @@ function initialStateVector!(eqInfo::EquationInfo, FloatType::Type, isFirstSegme
             xe_info = x_info[i]
             if xe_info.scalar
                 @assert(length(xe_info.startOrInit) == 1)
-                x_start[startIndex] = FloatType(ustrip(xe_info.startOrInit))
+                x_start[startIndex] = FloatType(ustrip.(xe_info.startOrInit))
                 startIndex += 1
             else
-                xe_start = Vector{FloatType}(ustrip(xe_info.startOrInit))
+                xe_start = Vector{FloatType}(ustrip.(xe_info.startOrInit))
                 @assert(length(xe_start) == xe_info.length)
                 copyto!(x_start, startIndex, xe_start, 1, length(xe_start))
                 startIndex += length(xe_start)
