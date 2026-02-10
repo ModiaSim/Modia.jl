@@ -203,7 +203,7 @@ function printStatistics(statistics::OrderedDict{Symbol,Any}, interval, toleranc
     println("        nStates              = ", str_nstates)
     println("        nResults             = ", sum(statistics[:nResults]))
     println("        nf_total             = ", sum(statistics[:nf_total])        , " (total number of getDerivatives! calls)")
-    println("        nf_integrator        = ", sum(statistics[:nf_integrator])   , " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
+    println("        nf_integrator        = ", sum(statistics[:nf_integrator])   , " (number of getDerivatives! calls from integrator)")  # solution.stats.nf
     println("        nf_zeroCrossings     = ", sum(statistics[:nf_zeroCrossings]), " (number of getDerivatives! calls for zero crossing detection)")
     println("        nJac                 = ", nFullRestartEvents==0 ? statistics[:nJac] : sum(statistics[:nJac]), " (number of Jacobian computations)")
     println("        nAcceptedSteps       = ", nFullRestartEvents==0 ? statistics[:nAcceptedSteps] : sum(statistics[:nAcceptedSteps]))

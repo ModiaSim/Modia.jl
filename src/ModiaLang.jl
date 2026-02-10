@@ -752,13 +752,13 @@ function stateSelectionAndCodeGeneration(modStructure, Gexplicit, name, modelMod
         end
     end
 
-    if logTiming
-        println("eval code")
-        @time @timeit to "eval(code)" Core.eval(modelModule, code)
-    else
-        Core.eval(modelModule, code)
-    end
-    getDerivatives = modelModule.getDerivatives
+    # if logTiming
+    #     println("eval code")
+    #     @time @timeit to "eval(code)" Core.eval(modelModule, code)
+    # else
+    #     Core.eval(modelModule, code)
+    # end
+    getDerivatives =  Core.eval(modelModule, code)
 
     # If generatedFunction is not packed inside a function, DifferentialEquations.jl crashes
 #    getDerivatives(derx,x,m,time) = generatedFunction(derx, x, m, time)

@@ -245,9 +245,9 @@ function simulate!(m::InstantiatedModel{FloatType,TimeType}, algorithm=missing; 
             nAcceptedSteps = missing
             nRejectedSteps = missing
         else
-            nJac           = solution.destats.njacs
-            nAcceptedSteps = solution.destats.naccept
-            nRejectedSteps = solution.destats.nreject
+            nJac           = solution.stats.njacs
+            nAcceptedSteps = solution.stats.naccept
+            nRejectedSteps = solution.stats.nreject
         end
         updateStatistics_performanceIndictors!(m.statistics, finalTime,
             nResultsCurrentSegment(m.result),
@@ -295,7 +295,7 @@ function simulate!(m::InstantiatedModel{FloatType,TimeType}, algorithm=missing; 
         println("        odeModeLinearSystems      = ", Bool[leq.odeMode for leq in m.linearEquations])
         println("        nResults                  = ", nResults(m.result))
         println("        nf_total                  = ", m.nf_total, " (total number of getDerivatives! calls)")
-        println("        nf_integrator             = ", m.nf_integrator, " (number of getDerivatives! calls from integrator)")  # solution.destats.nf
+        println("        nf_integrator             = ", m.nf_integrator, " (number of getDerivatives! calls from integrator)")  # solution.stats.nf
         println("        nf_zeroCrossings          = ", eh.nZeroCrossings, " (number of getDerivatives! calls for zero crossing detection)")
 
         if m.sundials && (eh.nTimeEvents > 0 || eh.nStateEvents > 0)
@@ -304,9 +304,9 @@ function simulate!(m::InstantiatedModel{FloatType,TimeType}, algorithm=missing; 
             println("        nAcceptedSteps            = ???")
             println("        nRejectedSteps            = ???")
         else
-            println("        nJac                      = ", solution.destats.njacs, " (number of Jacobian computations)")
-            println("        nAcceptedSteps            = ", solution.destats.naccept)
-            println("        nRejectedSteps            = ", solution.destats.nreject)
+            println("        nJac                      = ", solution.stats.njacs, " (number of Jacobian computations)")
+            println("        nAcceptedSteps            = ", solution.stats.naccept)
+            println("        nRejectedSteps            = ", solution.stats.nreject)
         end
         println("        nTimeEvents               = ", eh.nTimeEvents)
         println("        nStateEvents              = ", eh.nStateEvents)

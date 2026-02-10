@@ -12,7 +12,7 @@ fieldnames(typeof(integrator)) = (:sol, :u, :du, :k, :t, :dt, :f, :p, :uprev, :u
                                   :callback_cache, :kshortsize, :force_stepfail, :last_stepfail, :just_hit_tstop,
                                   :do_error_check, :event_last_time, :vector_event_last_time, :last_event_error,
                                   :accept_step, :isout, :reeval_fsal, :u_modified, :reinitialize, :isdae, :opts,
-                                  :destats, :initializealg, :fsalfirst, :fsallast)
+                                  :stats, :initializealg, :fsalfirst, :fsallast)
 =#
 
 """
@@ -1185,7 +1185,7 @@ function initFullRestart!(m::InstantiatedModel{FloatType,TimeType})::Nothing whe
         initSegment = fc[1]
         path        = fc[3]
         ID          = path
-        parameters  = fc[2]        
+        parameters  = fc[2]
         Core.eval(m.modelModule, :($initSegment($m, $path, $ID, $parameters, log=$logInstantiatedFunctionCalls)))
     end
     resizeLinearEquations!(m, m.evaluatedParameters, m.options.log)
@@ -1673,8 +1673,8 @@ end
 
 """
     obj = get_instantiatedSubmodel(instantiatedModel, ID)
-    
-Return reference `obj` to an instantiated submodel struct, given `intantiatedModel` and the `ID` of the submodel.    
+
+Return reference `obj` to an instantiated submodel struct, given `intantiatedModel` and the `ID` of the submodel.
 """
 get_instantiatedSubmodel(instantiatedModel, ID) = instantiatedModel.buildDict[ID]
 
@@ -1778,7 +1778,7 @@ get_x_startIndex_from_x_segmented_startIndex(m::InstantiatedModel, x_segmented_s
                partiallyInstantiatedModel::InstantiatedModel, name::String,
                w_segmented_default, unit::String="")::Int
 
-Generate new local variable (`w_segmented` variable) and return the `index` of the variable 
+Generate new local variable (`w_segmented` variable) and return the `index` of the variable
 in order that actual values can be inquired or copied from the result data structure.
 New values of `w_segmented` variables need only to be computed at communication points.
 Value w_segmented_default is stored as default value and defines type and (fixed) size of the variable
@@ -1816,7 +1816,7 @@ end
 
 
 """
-    new_alias_segmented_variable!(partiallyInstantiatedModel::InstantiatedModel, 
+    new_alias_segmented_variable!(partiallyInstantiatedModel::InstantiatedModel,
        name, aliasName, aliasNegate=false)
 
 Define new alias variable.
@@ -1891,7 +1891,7 @@ end
 
 """
     Modia.copy_der_x_segmented_value_to_state(
-       instantiatedModel, startIndex, 
+       instantiatedModel, startIndex,
        der_x_segmented_value::[FloatType|Vector{FloatType}])
 
 Copy `der_x_segmented_value` to state derivative vector `der(x)` by providing its `startIndex`
@@ -1909,7 +1909,7 @@ end
 
 """
     Modia.copy_w_segmented_value_to_result(
-        instantiatedModel::InstantiatedModel, index::Int, 
+        instantiatedModel::InstantiatedModel, index::Int,
         w_segmented_value)::Nothing
 
 Copy value of local variable (`w-segmented`) to result by providing its `index`
@@ -2065,7 +2065,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
     # Generate code of the function
     # temporarily removed: _m.time = $TimeType(Modia.getValueOnly(_time))
     code = quote
-                function $functionName(_x, _m::Modia.InstantiatedModel{$FloatType,$TimeType}, _time::$TimeType)::Nothing
+                function getDerivatives(_x, _m::Modia.InstantiatedModel{$FloatType,$TimeType}, _time::$TimeType)::Nothing
                     _FloatType = $FloatType
                     _TimeType = $TimeType
                     _m.time = _time
@@ -2085,7 +2085,7 @@ function generate_getDerivatives!(FloatType, TimeType, AST::Vector{Expr}, equati
                     end
                     return nothing
                 end
+                return getDerivatives
             end
     return code
 end
-
