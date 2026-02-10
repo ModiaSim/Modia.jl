@@ -24,7 +24,7 @@ Test.@testset "Test units, uncertainties" begin
     include("TestTwoInertiasAndIdealGear.jl")
     include("TestTwoInertiasAndIdealGearWithUnits.jl")
     include("TestTwoInertiasAndIdealGearWithUnitsAndUncertainties.jl")
-    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl") 
+    include("TestTwoInertiasAndIdealGearWithMonteCarlo.jl")
     include("TestTwoInertiasAndIdealGearWithUnitsAndMonteCarlo.jl")
     include("TestLinearEquationSystemWithUnitsAndMonteCarlo.jl")
 end
@@ -35,7 +35,7 @@ Test.@testset "Test model components" begin
     include("TestStateSpace.jl")
     include("TestParameter.jl")
     include("TestHeatTransfer.jl")
-    include("TestHeatTransfer2.jl")    
+    include("TestHeatTransfer2.jl")
 end
 
 
@@ -59,4 +59,3 @@ Test.@testset "Test multi returning functions" begin
 end
 
 include("../examples/runexamples.jl")
-

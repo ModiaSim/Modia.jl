@@ -56,8 +56,8 @@ simulate!(twoInertiasAndIdealGear, stopTime = 4.0,
 
 # Linearize
 println("\n... Linearize at stopTime = 0 and 4")
-(A_0, x_0) = linearize!(twoInertiasAndIdealGear, stopTime=0, analytic = true)
-(A_4, x_4) = linearize!(twoInertiasAndIdealGear, stopTime=4, analytic = true)
+(A_0, x_0) = linearize!(twoInertiasAndIdealGear, stopTime=0, analytic = false)
+(A_4, x_4) = linearize!(twoInertiasAndIdealGear, stopTime=4, analytic = false)
 (A_4_numeric, x_4_numeric) = linearize!(twoInertiasAndIdealGear, stopTime=4, analytic=false)
 
 xNames = get_xNames(twoInertiasAndIdealGear)

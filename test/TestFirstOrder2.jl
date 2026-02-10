@@ -18,8 +18,8 @@ FirstOrder2 = FirstOrder1 | Map(T = 0.3u"s", x = Var(init=0.6))
 
 firstOrder = @instantiateModel(FirstOrder2, logCode=false)
 
-simulate!(firstOrder, Tsit5(), stopTime = 10, merge = Map(T = 0.4u"s", x = 0.9), 
-          log=false, logParameters=true, logStates=true, 
+simulate!(firstOrder, Tsit5(), stopTime = 10, merge = Map(T = 0.4u"s", x = 0.9),
+          log=false, logParameters=true, logStates=true,
           requiredFinalStates = [-0.17964872595554535])
 
 # Get result info
@@ -77,9 +77,9 @@ printResultInfo(firstOrder)
 
 # Linearize
 println("\n\n+++ Linearize at stopTime = 0 and 10:")
-(A_0 , x_0)  = linearize!(firstOrder, analytic = true)
-(A_10, x_10) = linearize!(firstOrder, stopTime=10, analytic = true) 
-(A_10_numeric, x_10_numeric) = linearize!(firstOrder, stopTime=10, analytic=false) 
+(A_0 , x_0)  = linearize!(firstOrder, analytic = false)
+(A_10, x_10) = linearize!(firstOrder, stopTime=10, analytic = false)
+(A_10_numeric, x_10_numeric) = linearize!(firstOrder, stopTime=10, analytic=false)
 xNames = get_xNames(firstOrder)
 @show xNames
 @show A_0 , x_0

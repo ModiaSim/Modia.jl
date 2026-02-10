@@ -11,21 +11,21 @@ TwoInertiasAndIdealGear = Model(
     r  = 105.0,
     tau_max = 1u"N*m",
 
-    phi2 = Var(start = (0.5 ± 0.05)u"rad"), 
-    w2   = Var(start = 0.0u"rad/s"), 
-    tau2 = Var(start = 0u"N*m"), 
-    
+    phi2 = Var(start = (0.5 ± 0.05)u"rad"),
+    w2   = Var(start = 0.0u"rad/s"),
+    tau2 = Var(start = 0u"N*m"),
+
     equations = :[
         tau = if time < 1u"s"; tau_max elseif time < 2u"s"; 0u"N*m" elseif time < 3u"s"; -tau_max else 0u"N*m" end,
-    
+
         # inertia1
         w1 = der(phi1),
         J1*der(w1) = tau - tau1,
- 
+
         # gear
         phi1   = r*phi2,
         r*tau1 = tau2,
-    
+
         # inertia2
         w2 = der(phi2),
         J2*der(w2) = tau2
@@ -40,7 +40,7 @@ plot(twoInertiasAndIdealGear, ["phi2", "w2", "der(w2)"])
 
 # Linearize
 println("\n... Analytic linearization")
-(A1, x1) = linearize!(twoInertiasAndIdealGear, stopTime=4, analytic = true)
+(A1, x1) = linearize!(twoInertiasAndIdealGear, stopTime=4, analytic = false)
 xNames = get_xNames(twoInertiasAndIdealGear)
 @show xNames
 println(IOContext(stdout, :error_digits=>15), "A1 = ", A1, ", x1 = ", x1)
