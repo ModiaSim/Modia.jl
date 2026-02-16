@@ -147,7 +147,6 @@ using JSON
 #using Profile
 import Test
 using  TimerOutputs
-using  InteractiveUtils
 
 global to = TimerOutput()
 
